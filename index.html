@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Palletlabels">
+<meta name="theme-color" content="#10151c">
+<title>Palletlabel Generator — A4</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<style>
+  :root{
+    --rack-blue:#1d4ea0;
+    --beam-orange:#e8590c;
+    --ink:#10151c;
+    --paper:#ffffff;
+    --bg:#eef1f5;
+    --line:#cdd5df;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);
+  }
+
+  /* ===== App-indeling (scherm) ===== */
+  .app{display:flex;min-height:100vh}
+  .panel{
+    width:450px;flex-shrink:0;background:var(--ink);color:#e8edf4;
+    padding:26px 24px;display:flex;flex-direction:column;gap:18px;
+  }
+  .panel h1{font-size:19px;font-weight:800;letter-spacing:.02em;line-height:1.2}
+  .panel h1 .tag{
+    display:inline-block;background:var(--beam-orange);color:#fff;
+    font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    padding:3px 8px;border-radius:3px;vertical-align:middle;margin-left:8px;
+  }
+  .hint{font-size:12.5px;line-height:1.55;color:#9aa7b8}
+  .hint code{background:#222b37;padding:1px 5px;border-radius:3px;font-size:11.5px;color:#cfe0f5}
+
+  label.fld{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8fa0b5;display:block;margin-bottom:6px}
+  textarea{
+    width:100%;height:190px;resize:vertical;
+    background:#0b0f14;color:#d7e3f2;border:1px solid #2a3543;border-radius:6px;
+    font-family:ui-monospace,Consolas,monospace;font-size:13px;line-height:1.6;padding:12px;
+  }
+  textarea:focus{outline:2px solid var(--rack-blue);outline-offset:1px}
+
+  /* Snel toevoegen */
+  .quick{position:relative}
+  .quick input[type=text]{
+    width:100%;background:#0b0f14;color:#e8edf4;border:1px solid #2a3543;border-radius:6px;
+    padding:12px 12px;font-size:16px;
+  }
+  .quick input[type=text]:focus{outline:2px solid var(--beam-orange)}
+  .sugg{
+    position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;
+    background:#171e28;border:1px solid #2a3543;border-radius:6px;overflow:hidden;
+    max-height:260px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.45);
+  }
+  .sugg button{
+    display:flex;width:100%;justify-content:space-between;gap:10px;align-items:center;
+    background:none;border:none;border-bottom:1px solid #232d3a;border-radius:0;
+    padding:12px 14px;color:#e8edf4;font-size:14px;font-weight:600;cursor:pointer;text-align:left;
+  }
+  .sugg button:last-child{border-bottom:none}
+  .sugg button:hover,.sugg button:focus{background:#22304a}
+  .sugg .meta{font-size:12px;color:#8fa0b5;font-weight:400;white-space:nowrap}
+
+  .btns{display:flex;gap:10px;margin-top:4px}
+  button.act{
+    border:none;border-radius:6px;padding:13px 20px;font-size:14.5px;font-weight:700;
+    cursor:pointer;letter-spacing:.02em;
+  }
+  .btn-run{background:var(--beam-orange);color:#fff;flex:1}
+  .btn-run:hover{background:#c84a08}
+  .btn-print{background:var(--rack-blue);color:#fff;flex:1}
+  .btn-print:hover{background:#173f82}
+  .btn-print:disabled{background:#33404f;color:#73818f;cursor:not-allowed}
+
+  .status{font-size:13px;color:#9aa7b8;min-height:18px}
+  .status.err{color:#ff8a5c}
+  .status.ok{color:#7ed99a}
+
+  /* Productgeheugen */
+  details.cat{background:#171e28;border:1px solid #2a3543;border-radius:8px;padding:0}
+  details.cat summary{
+    cursor:pointer;list-style:none;padding:13px 14px;font-size:13.5px;font-weight:700;color:#c4cfdd;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  details.cat summary::-webkit-details-marker{display:none}
+  details.cat summary .badge{
+    background:var(--rack-blue);color:#fff;border-radius:10px;padding:2px 9px;font-size:12px;
+  }
+  .cat-body{padding:0 14px 14px 14px;display:flex;flex-direction:column;gap:10px}
+  .cat-list{max-height:230px;overflow-y:auto;border:1px solid #232d3a;border-radius:6px}
+  .cat-item{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    padding:9px 11px;border-bottom:1px solid #232d3a;font-size:13px;
+  }
+  .cat-item:last-child{border-bottom:none}
+  .cat-item .nm{font-weight:700}
+  .cat-item .meta{color:#8fa0b5;font-size:11.5px}
+  .cat-item .del{
+    background:none;border:1px solid #3a4656;color:#9aa7b8;border-radius:5px;
+    padding:4px 9px;font-size:12px;cursor:pointer;
+  }
+  .cat-item .del:hover{border-color:#ff8a5c;color:#ff8a5c}
+  .cat-tools{display:flex;gap:8px;flex-wrap:wrap}
+  .cat-tools button{
+    background:#222b37;border:1px solid #2a3543;color:#c4cfdd;border-radius:6px;
+    padding:8px 12px;font-size:12.5px;font-weight:600;cursor:pointer;
+  }
+  .cat-tools button:hover{background:#2b3645}
+  .cat-empty{color:#73818f;font-size:13px;padding:12px}
+
+  /* ===== Preview-zone ===== */
+  .preview{flex:1;padding:30px;overflow:auto}
+  .preview-empty{color:#8b97a6;font-size:14px;text-align:center;margin-top:120px;line-height:1.7}
+
+  /* ===== Het label zelf (A4 staand) ===== */
+  .label{
+    width:297mm;min-height:210mm;background:var(--paper);
+    margin:0 auto 26px auto;box-shadow:0 3px 14px rgba(15,23,32,.18);
+    display:flex;flex-direction:column;
+    padding:10mm 16mm;
+    page-break-after:always;break-after:page;
+  }
+  .lbl-name-zone{
+    flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;
+    gap:6mm;text-align:center;padding:4mm 0;
+  }
+  .lbl-name{
+    font-family:"Arial Black",Arial,sans-serif;font-weight:900;
+    line-height:1.05;word-break:break-word;
+  }
+  .lbl-sub{font-size:22pt;font-weight:600;color:#39434f;line-height:1.15}
+  .lbl-bar{
+    border-top:1mm solid var(--line);border-bottom:1mm solid var(--line);
+    padding:8mm 0;text-align:center;
+  }
+  .lbl-bar svg{max-width:100%;height:auto}
+  .lbl-bar-err{color:#b3261e;font-size:14pt;font-weight:700;padding:8mm 0}
+  .lbl-qty{display:flex;justify-content:center;align-items:baseline;gap:8mm;padding-top:6mm}
+  .lbl-qty .num{font-size:80pt;font-weight:900;line-height:.95;font-family:"Arial Black",Arial,sans-serif}
+  .lbl-qty .unit{font-size:20pt;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#5b6673}
+
+  /* ===== Mobiel (iPhone) ===== */
+  @media screen and (max-width: 800px){
+    .app{flex-direction:column}
+    .panel{width:100%;padding:18px 16px;gap:14px}
+    textarea{height:150px;font-size:16px}
+    .preview{padding:14px 8px}
+    .label{width:100%;min-height:auto;aspect-ratio:297/210;padding:4% 6%}
+    .lbl-name{font-size:9vw !important}
+    .lbl-sub{font-size:4vw}
+    .lbl-qty .num{font-size:14vw}
+    .lbl-qty .unit{font-size:3.5vw}
+    .lbl-bar svg{max-height:20vw}
+    button.act{padding:15px 20px;font-size:16px}
+  }
+
+  /* ===== Print ===== */
+  @page{size:A4 landscape;margin:0}
+  @media print{
+    body{background:#fff}
+    .panel{display:none}
+    .preview{padding:0;overflow:visible}
+    .label{
+      box-shadow:none;margin:0;width:297mm;
+      height:209mm;min-height:0;overflow:hidden;
+    }
+    .label:last-child{page-break-after:auto;break-after:auto}
+    .preview-empty{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="panel">
+    <h1>Palletlabels <span class="tag">A4</span></h1>
+
+    <div class="quick">
+      <label class="fld" for="search">Snel toevoegen uit geheugen</label>
+      <input type="text" id="search" placeholder="Typ productnaam… (bijv. nap)" autocomplete="off">
+      <div class="sugg" id="sugg" hidden></div>
+    </div>
+
+    <div>
+      <label class="fld" for="data">Labelregels</label>
+      <textarea id="data" placeholder="SE121M2-SF1105	8718924563137	8
+NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
+      <p class="hint" style="margin-top:8px">
+        Kolomvolgorde: <code>Productnaam/-code</code> → <code>EAN</code> → <code>Aantal</code> → <code>Omschrijving</code> (optioneel).
+        Plakken uit Sheets kan altijd nog. Elk product dat je print wordt automatisch onthouden,
+        inclusief EAN en standaardaantal — daarna vind je hem terug via het zoekveld hierboven.
+      </p>
+    </div>
+
+    <div class="btns">
+      <button class="act btn-run" id="run">Labels maken</button>
+      <button class="act btn-print" id="print" disabled>Print (A4)</button>
+    </div>
+    <div class="status" id="status"></div>
+
+    <details class="cat" id="catbox">
+      <summary>Productgeheugen <span class="badge" id="catcount">0</span></summary>
+      <div class="cat-body">
+        <div class="cat-list" id="catlist"></div>
+        <div class="cat-tools">
+          <button id="exp">Exporteren (back-up)</button>
+          <button id="imp">Importeren</button>
+          <button id="wipe">Alles wissen</button>
+        </div>
+        <p class="hint">Het geheugen staat op dít apparaat (deze browser). Gebruik exporteren/importeren om je productlijst over te zetten van computer naar telefoon of als back-up.</p>
+      </div>
+    </details>
+
+    <p class="hint" style="margin-top:auto">
+      Printen: <strong>A4</strong>, marges <strong>“Geen”</strong>, schaal <strong>100%</strong>. Elk label is één pagina.
+    </p>
+  </aside>
+
+  <main class="preview" id="preview">
+    <div class="preview-empty">
+      Zoek een product in je geheugen of plak rijen, en klik op <strong>Labels maken</strong>.
+    </div>
+  </main>
+
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const preview = $('preview'), status = $('status'), btnPrint = $('print');
+  const search = $('search'), sugg = $('sugg');
+  const KEY = 'palletlabel_catalog_v1';
+
+  /* ---------- Productgeheugen ---------- */
+  let catalog = {};
+  try{ catalog = JSON.parse(localStorage.getItem(KEY) || '{}'); }catch(e){ catalog = {}; }
+
+  function saveCatalog(){
+    try{ localStorage.setItem(KEY, JSON.stringify(catalog)); }catch(e){}
+    renderCatalog();
+  }
+
+  function learn(rows){
+    let added = 0;
+    rows.forEach(r => {
+      const k = r.name.toUpperCase();
+      if(!catalog[k]) added++;
+      catalog[k] = { name:r.name, ean:r.ean, qty:r.qty, sub:r.sub||'', used:Date.now() };
+    });
+    saveCatalog();
+    return added;
+  }
+
+  function renderCatalog(){
+    const keys = Object.keys(catalog).sort();
+    $('catcount').textContent = keys.length;
+    const list = $('catlist');
+    if(!keys.length){
+      list.innerHTML = '<div class="cat-empty">Nog leeg — print één keer labels en je producten staan hier.</div>';
+      return;
+    }
+    list.innerHTML = keys.map(k => {
+      const p = catalog[k];
+      return '<div class="cat-item">' +
+        '<div><div class="nm">' + esc(p.name) + '</div>' +
+        '<div class="meta">EAN ' + esc(p.ean) + ' · standaard ' + esc(p.qty) + ' stuks' + (p.sub ? ' · ' + esc(p.sub) : '') + '</div></div>' +
+        '<button class="del" data-k="' + esc(k) + '">wis</button>' +
+      '</div>';
+    }).join('');
+    list.querySelectorAll('.del').forEach(b => b.addEventListener('click', () => {
+      delete catalog[b.dataset.k]; saveCatalog();
+    }));
+  }
+
+  /* ---------- Snel toevoegen ---------- */
+  function showSuggestions(){
+    const q = search.value.trim().toUpperCase();
+    if(!q){ sugg.hidden = true; return; }
+    // Zoek op losse woorden in willekeurige volgorde: "ring rol 80" vindt "Ringmat op rol 80 cm"
+    const terms = q.split(/\s+/).filter(Boolean);
+    const hits = Object.keys(catalog)
+      .filter(k => {
+        const hay = (k + ' ' + (catalog[k].sub||'').toUpperCase());
+        return terms.every(t => hay.includes(t));
+      })
+      .sort((a,b) => (catalog[b].used||0) - (catalog[a].used||0))
+      .slice(0, 8);
+    if(!hits.length){ sugg.hidden = true; return; }
+    sugg.innerHTML = hits.map(k => {
+      const p = catalog[k];
+      return '<button type="button" data-k="' + esc(k) + '">' +
+        '<span>' + esc(p.name) + '</span>' +
+        '<span class="meta">' + esc(p.qty) + ' st · ' + esc(p.ean) + '</span></button>';
+    }).join('');
+    sugg.hidden = false;
+    sugg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      const p = catalog[b.dataset.k];
+      p.used = Date.now(); saveCatalog();
+      const ta = $('data');
+      const line = [p.name, p.ean, p.qty, p.sub].filter((v,i) => i < 3 || v).join('\t');
+      ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/,'') + '\n' : '') + line + '\n';
+      search.value = ''; sugg.hidden = true;
+      setStatus('Toegevoegd: ' + p.name + ' (' + p.qty + ' stuks) — aantal aanpassen kan in de regel zelf.', 'ok');
+    }));
+  }
+  search.addEventListener('input', showSuggestions);
+  search.addEventListener('focus', showSuggestions);
+  document.addEventListener('click', e => {
+    if(!sugg.contains(e.target) && e.target !== search) sugg.hidden = true;
+  });
+
+  /* ---------- Export / import / wissen ---------- */
+  $('exp').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(catalog, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'productgeheugen-palletlabels.json';
+    a.click();
+    setStatus('Back-up gedownload (' + Object.keys(catalog).length + ' producten).', 'ok');
+  });
+  $('imp').addEventListener('click', () => {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.onchange = () => {
+      const f = inp.files[0]; if(!f) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        try{
+          const data = JSON.parse(rd.result);
+          let n = 0;
+          Object.keys(data).forEach(k => {
+            if(data[k] && data[k].name && data[k].ean){ catalog[k] = data[k]; n++; }
+          });
+          saveCatalog();
+          setStatus(n + ' producten geïmporteerd.', 'ok');
+        }catch(e){ setStatus('Importeren mislukt: geen geldig back-upbestand.', 'err'); }
+      };
+      rd.readAsText(f);
+    };
+    inp.click();
+  });
+  $('wipe').addEventListener('click', () => {
+    if(confirm('Weet je zeker dat je het hele productgeheugen wilt wissen?')){
+      catalog = {}; saveCatalog();
+      setStatus('Productgeheugen gewist.', 'ok');
+    }
+  });
+
+  /* ---------- Parser ---------- */
+  function setStatus(msg, cls){ status.textContent = msg; status.className = 'status ' + (cls||''); }
+
+  function splitRow(line){
+    if(line.includes('\t')) return line.split('\t');
+    if(line.includes(';'))  return line.split(';');
+    return line.split(',');
+  }
+  function looksLikeHeader(cells){
+    const j = cells.join(' ').toLowerCase();
+    return /product|aantal|ean|barcode|naam|omschrijving/.test(j) && !/^\d{8,}/.test(cells[1] ? cells[1].trim() : '');
+  }
+  function nameFontSize(name){
+    const n = name.length;
+    if(n <= 8)  return 110;
+    if(n <= 12) return 95;
+    if(n <= 16) return 78;
+    if(n <= 22) return 60;
+    if(n <= 30) return 46;
+    return 36;
+  }
+  function isEan(code){ return /^\d{12,13}$/.test(code) || /^\d{8}$/.test(code); }
+
+  function parse(){
+    const raw = $('data').value.trim();
+    if(!raw) return { rows:[], errors:['Het invoerveld is leeg.'] };
+    const rows = [], errors = [];
+    raw.split(/\r?\n/).forEach((line, i) => {
+      if(!line.trim()) return;
+      const c = splitRow(line).map(s => s.trim());
+      if(i === 0 && looksLikeHeader(c)) return;
+      const [name, ean, qty, sub] = c;
+      if(!name || !ean || !qty){
+        errors.push('Regel ' + (i+1) + ' overgeslagen (naam, EAN of aantal ontbreekt): "' + line.slice(0,60) + '"');
+        return;
+      }
+      rows.push({ name, ean: ean.replace(/\s+/g,''), qty, sub: sub || '' });
+    });
+    return { rows, errors };
+  }
+
+  /* ---------- Render ---------- */
+  function render(){
+    const { rows, errors } = parse();
+    preview.innerHTML = '';
+
+    if(!rows.length){
+      preview.innerHTML = '<div class="preview-empty">Geen geldige regels gevonden.</div>';
+      btnPrint.disabled = true;
+      setStatus(errors[0] || 'Geen geldige regels gevonden.', 'err');
+      return;
+    }
+
+    let fallbacks = 0;
+    rows.forEach((r, idx) => {
+      const lbl = document.createElement('div');
+      lbl.className = 'label';
+      lbl.innerHTML =
+        '<div class="lbl-name-zone">' +
+          '<div class="lbl-name" style="font-size:' + nameFontSize(r.name) + 'pt">' + esc(r.name) + '</div>' +
+          (r.sub ? '<div class="lbl-sub">' + esc(r.sub) + '</div>' : '') +
+        '</div>' +
+        '<div class="lbl-bar"><svg id="bc-' + idx + '"></svg></div>' +
+        '<div class="lbl-qty"><span class="num">' + esc(r.qty) + '</span><span class="unit">stuks</span></div>';
+      preview.appendChild(lbl);
+
+      const common = { height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 };
+      const el = '#bc-' + idx;
+      let done = false;
+      if(isEan(r.ean)){
+        try{
+          const fmt = r.ean.length === 8 ? 'EAN8' : 'EAN13';
+          JsBarcode(el, r.ean, Object.assign({format:fmt}, common));
+          done = true;
+        }catch(e){}
+      }
+      if(!done){
+        try{
+          JsBarcode(el, r.ean, Object.assign({format:'CODE128'}, common));
+          fallbacks++;
+        }catch(e){
+          document.getElementById('bc-' + idx).outerHTML =
+            '<div class="lbl-bar-err">Barcode kon niet worden gemaakt voor: ' + esc(r.ean) + '</div>';
+        }
+      }
+    });
+
+    const newOnes = learn(rows);
+
+    btnPrint.disabled = false;
+    let msg = rows.length + ' label' + (rows.length === 1 ? '' : 's') + ' klaar.';
+    if(newOnes) msg += ' ' + newOnes + ' nieuw product onthouden.';
+    if(fallbacks) msg += ' ' + fallbacks + ' barcode(s) als Code 128 (geen geldige EAN).';
+    if(errors.length) msg += ' Let op: ' + errors.length + ' regel(s) overgeslagen — ' + errors[0];
+    setStatus(msg, errors.length ? 'err' : 'ok');
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+  }
+
+  $('run').addEventListener('click', render);
+  btnPrint.addEventListener('click', () => window.print());
+
+  renderCatalog();
+})();
+</script>
+</body>
+</html>
