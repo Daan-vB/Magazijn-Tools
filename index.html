@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#10151c">
 <title>Palletlabel Generator — A4</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --rack-blue:#1d4ea0;
@@ -179,24 +180,9 @@
     button.act{padding:15px 20px;font-size:16px}
   }
 
-  /* ===== Print: label wordt gedraaid gerenderd zodat het altijd op één
-     portrait A4-pagina past, ongeacht wat iOS/Safari als standaard kiest ===== */
-  @page{size:A4 portrait;margin:0}
   @media print{
     body{background:#fff}
     .panel{display:none}
-    .preview{padding:0;overflow:visible}
-    .page{
-      position:relative;width:210mm;height:297mm;overflow:hidden;
-      page-break-after:always;break-after:page;
-    }
-    .page:last-child{page-break-after:auto;break-after:auto}
-    .label{
-      position:absolute;top:100%;left:0;
-      width:297mm;height:210mm;min-height:0;
-      transform-origin:0 0;transform:rotate(-90deg);
-      box-shadow:none;margin:0;overflow:hidden;
-    }
     .preview-empty{display:none}
   }
 </style>
@@ -231,7 +217,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
 
     <div class="btns">
       <button class="act btn-run" id="run">Labels maken</button>
-      <button class="act btn-print" id="print" disabled>Print (A4)</button>
+      <button class="act btn-print" id="print" disabled>PDF & printen</button>
     </div>
     <div class="status" id="status"></div>
 
@@ -249,7 +235,8 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     </details>
 
     <p class="hint" style="margin-top:auto">
-      Printen: <strong>A4</strong>, marges <strong>“Geen”</strong>, schaal <strong>100%</strong>. Elk label is één pagina — orientatie hoef je niet zelf te kiezen.
+      "PDF & printen" opent een kant-en-klaar PDF-bestand (A4 landscape, één label per pagina) in een nieuw tabblad —
+      print die vanuit daar via het print-icoontje. Orientatie en pagina-aantal zitten al goed ingebakken.
     </p>
   </aside>
 
@@ -302,6 +289,8 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
   let mode = 'ean'; // 'ean' = met barcode, 'geen' = zonder barcode (verpakkingsmateriaal)
   let catalogs = { ean:{}, geen:{} };
   let ready = false;
+  let lastRows = [];
+  let lastMode = 'ean';
 
   btnRun.disabled = true;
 
@@ -342,6 +331,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     dataArea.value = '';
     preview.innerHTML = '<div class="preview-empty">Zoek een product in je geheugen of plak rijen, en klik op <strong>Labels maken</strong>.</div>';
     btnPrint.disabled = true;
+    lastRows = [];
     if(ready) setStatus('', '');
     renderCatalog();
   }
@@ -551,7 +541,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     return { rows, errors };
   }
 
-  /* ---------- Render ---------- */
+  /* ---------- Render (scherm-preview) ---------- */
   async function render(){
     const { rows, errors } = parse();
     preview.innerHTML = '';
@@ -559,6 +549,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     if(!rows.length){
       preview.innerHTML = '<div class="preview-empty">Geen geldige regels gevonden.</div>';
       btnPrint.disabled = true;
+      lastRows = [];
       setStatus(errors[0] || 'Geen geldige regels gevonden.', 'err');
       return;
     }
@@ -567,8 +558,6 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
 
     if(mode === 'ean'){
       rows.forEach((r, idx) => {
-        const page = document.createElement('div');
-        page.className = 'page';
         const lbl = document.createElement('div');
         lbl.className = 'label';
         lbl.innerHTML =
@@ -578,8 +567,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
           '</div>' +
           '<div class="lbl-bar"><svg id="bc-' + idx + '"></svg></div>' +
           '<div class="lbl-qty"><span class="num">' + esc(r.qty) + '</span><span class="unit">stuks</span></div>';
-        page.appendChild(lbl);
-        preview.appendChild(page);
+        preview.appendChild(lbl);
 
         const common = { height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 };
         const el = '#bc-' + idx;
@@ -603,8 +591,6 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       });
     } else {
       rows.forEach(r => {
-        const page = document.createElement('div');
-        page.className = 'page';
         const lbl = document.createElement('div');
         lbl.className = 'label';
         lbl.innerHTML =
@@ -614,13 +600,14 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
           '</div>' +
           '<div class="lbl-art">' + esc(r.art) + '</div>' +
           '<div class="lbl-qty"><span class="num">' + esc(r.qty) + '</span><span class="unit">stuks</span></div>';
-        page.appendChild(lbl);
-        preview.appendChild(page);
+        preview.appendChild(lbl);
       });
     }
 
     const newOnes = await learn(rows);
 
+    lastRows = rows;
+    lastMode = mode;
     btnPrint.disabled = false;
     let msg = rows.length + ' label' + (rows.length === 1 ? '' : 's') + ' klaar.';
     if(newOnes) msg += ' ' + newOnes + ' nieuw product onthouden.';
@@ -633,8 +620,98 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     return String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
   }
 
+  /* ---------- PDF genereren (omzeilt de Safari print-CSS-bug) ---------- */
+  function drawEanLabel(doc, r, idx){
+    if(idx > 0) doc.addPage('a4', 'landscape');
+    const pageW = 297;
+
+    doc.setTextColor(16,21,28);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(nameFontSize(r.name));
+    doc.text(r.name, pageW/2, 48, {align:'center'});
+
+    if(r.sub){
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(18);
+      doc.setTextColor(57,67,79);
+      doc.text(r.sub, pageW/2, 60, {align:'center'});
+      doc.setTextColor(16,21,28);
+    }
+
+    let barcodeOk = false;
+    try{
+      const canvas = document.createElement('canvas');
+      const fmt = isEan(r.ean) ? (r.ean.length === 8 ? 'EAN8' : 'EAN13') : 'CODE128';
+      JsBarcode(canvas, r.ean, { format: fmt, height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 });
+      const imgW = 180;
+      const imgH = Math.min(50, imgW * (canvas.height / canvas.width));
+      doc.addImage(canvas.toDataURL('image/png'), 'PNG', (pageW - imgW)/2, 82, imgW, imgH);
+      barcodeOk = true;
+    }catch(e){ barcodeOk = false; }
+    if(!barcodeOk){
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(179,38,30);
+      doc.text('Barcode kon niet worden gemaakt: ' + r.ean, pageW/2, 105, {align:'center'});
+      doc.setTextColor(16,21,28);
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(58);
+    doc.text(String(r.qty), pageW/2 - 8, 178, {align:'right'});
+    doc.setFontSize(15);
+    doc.text('STUKS', pageW/2 + 6, 178, {align:'left'});
+  }
+
+  function drawGeenLabel(doc, r, idx){
+    if(idx > 0) doc.addPage('a4', 'landscape');
+    const pageW = 297;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(nameFontSize(r.floor));
+    doc.setTextColor(29,78,160);
+    doc.text(r.floor.toUpperCase(), pageW/2, 45, {align:'center'});
+    doc.setTextColor(16,21,28);
+
+    if(r.maat){
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(18);
+      doc.setTextColor(57,67,79);
+      doc.text(r.maat, pageW/2, 57, {align:'center'});
+      doc.setTextColor(16,21,28);
+    }
+
+    doc.setFont('courier', 'bold');
+    doc.setFontSize(28);
+    doc.text(r.art, pageW/2, 110, {align:'center'});
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(58);
+    doc.text(String(r.qty), pageW/2 - 8, 178, {align:'right'});
+    doc.setFontSize(15);
+    doc.text('STUKS', pageW/2 + 6, 178, {align:'left'});
+  }
+
+  function makePdfAndOpen(){
+    if(!lastRows.length) return;
+    setStatus('PDF wordt gemaakt…', '');
+    try{
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+      lastRows.forEach((r, idx) => {
+        if(lastMode === 'ean') drawEanLabel(doc, r, idx);
+        else drawGeenLabel(doc, r, idx);
+      });
+      const blobUrl = doc.output('bloburl');
+      window.open(blobUrl, '_blank');
+      setStatus(lastRows.length + ' label(s) als PDF geopend — print vanuit dat tabblad.', 'ok');
+    }catch(e){
+      setStatus('PDF maken is mislukt: ' + e.message, 'err');
+    }
+  }
+
   $('run').addEventListener('click', render);
-  btnPrint.addEventListener('click', () => window.print());
+  btnPrint.addEventListener('click', makePdfAndOpen);
 
   (async function init(){
     setStatus('Geheugen laden uit de database…', '');
