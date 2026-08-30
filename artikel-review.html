@@ -147,6 +147,10 @@
     <div class="fld" id="aantalWrap">
       <label id="aantalLabel">Aantal per pallet</label>
       <input type="number" id="aantal" placeholder="bijv. 240" inputmode="numeric">
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;text-transform:none;font-size:13px;font-weight:600;color:var(--text)">
+        <input type="checkbox" id="onbekend" style="width:18px;height:18px">
+        Weet ik nog niet — navragen bij leverancier
+      </label>
     </div>
 
     <div class="savedtag" id="savedtag"></div>
@@ -167,6 +171,12 @@
     <div class="modalbtns">
       <button class="copy" id="copyBtn">Kopiëren</button>
       <button class="close" id="closeBtn">Sluiten</button>
+    </div>
+    <h2>Nog navragen bij leverancier</h2>
+    <p class="hint">Artikelen die je als "per pallet" of "minimale afname" hebt gemarkeerd, maar waarvan het aantal nog onbekend is.</p>
+    <textarea id="expUnknown" readonly></textarea>
+    <div class="modalbtns">
+      <button class="copy" id="copyBtn2">Kopiëren</button>
     </div>
   </div>
 </div>
@@ -205,7 +215,7 @@
   function isDone(a){
     if(!a) return false;
     if(!a.vl || !a.status || !a.besteltype) return false;
-    if((a.besteltype === 'pallet' || a.besteltype === 'minimum') && !a.aantal) return false;
+    if((a.besteltype === 'pallet' || a.besteltype === 'minimum') && !a.aantal && !a.onbekend) return false;
     return true;
   }
 
@@ -233,6 +243,8 @@
     if(!a.vl && it.vl0) a.vl = it.vl0;
     if(!a.aantal && it.aa0){ a.aantal = it.aa0; if(!a.besteltype) a.besteltype = 'pallet'; }
     $('aantal').value = a.aantal || '';
+    $('onbekend').checked = !!a.onbekend;
+    $('aantal').disabled = !!a.onbekend;
 
     segSet('segStatus', a.status);
     segSet('segBestel', a.besteltype);
@@ -285,6 +297,13 @@
     getAnswer(ITEMS[idx].art).aantal = v ? Number(v) : '';
     scheduleSave();
   });
+  $('onbekend').addEventListener('change', () => {
+    const a = getAnswer(ITEMS[idx].art);
+    a.onbekend = $('onbekend').checked;
+    $('aantal').disabled = a.onbekend;
+    if(a.onbekend){ a.aantal = ''; $('aantal').value = ''; }
+    scheduleSave();
+  });
   document.getElementById('segStatus').addEventListener('click', e => {
     const b = e.target.closest('button[data-v]'); if(!b) return;
     const a = getAnswer(ITEMS[idx].art);
@@ -324,8 +343,20 @@
     });
     return lines.join('\n');
   }
+  function buildUnknownExport(){
+    const lines = [];
+    ITEMS.forEach(it => {
+      const a = answers[it.art];
+      if(!a) return;
+      if((a.besteltype === 'pallet' || a.besteltype === 'minimum') && a.onbekend){
+        lines.push(it.art + '\t' + it.oms + '\t' + (a.vl || it.vl0 || ''));
+      }
+    });
+    return lines.join('\n');
+  }
   $('expBtn').addEventListener('click', () => {
     $('expOut').value = buildExport() || '(nog geen artikelen met besteltype "per pallet" of "minimale afname" en een aantal ingevuld)';
+    $('expUnknown').value = buildUnknownExport() || '(niets om na te vragen)';
     $('overlay').classList.add('show');
   });
   $('closeBtn').addEventListener('click', () => $('overlay').classList.remove('show'));
@@ -336,6 +367,15 @@
       setTimeout(() => { $('copyBtn').textContent = 'Kopiëren'; }, 1500);
     }catch(e){
       $('expOut').select();
+    }
+  });
+  $('copyBtn2').addEventListener('click', async () => {
+    try{
+      await navigator.clipboard.writeText($('expUnknown').value);
+      $('copyBtn2').textContent = 'Gekopieerd ✓';
+      setTimeout(() => { $('copyBtn2').textContent = 'Kopiëren'; }, 1500);
+    }catch(e){
+      $('expUnknown').select();
     }
   });
 
