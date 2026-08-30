@@ -24,7 +24,6 @@
     background:var(--bg);color:var(--ink);
   }
 
-  /* ===== App-indeling (scherm) ===== */
   .app{display:flex;min-height:100vh}
   .panel{
     width:450px;flex-shrink:0;background:var(--ink);color:#e8edf4;
@@ -35,6 +34,11 @@
     display:inline-block;background:var(--beam-orange);color:#fff;
     font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
     padding:3px 8px;border-radius:3px;vertical-align:middle;margin-left:8px;
+  }
+  .panel h1 .sync{
+    display:inline-block;background:#1c7a4a;color:#fff;
+    font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    padding:3px 7px;border-radius:3px;vertical-align:middle;margin-left:6px;
   }
   .hint{font-size:12.5px;line-height:1.55;color:#9aa7b8}
   .hint code{background:#222b37;padding:1px 5px;border-radius:3px;font-size:11.5px;color:#cfe0f5}
@@ -47,7 +51,6 @@
   }
   textarea:focus{outline:2px solid var(--rack-blue);outline-offset:1px}
 
-  /* Snel toevoegen */
   .quick{position:relative}
   .quick input[type=text]{
     width:100%;background:#0b0f14;color:#e8edf4;border:1px solid #2a3543;border-radius:6px;
@@ -75,6 +78,7 @@
   }
   .btn-run{background:var(--beam-orange);color:#fff;flex:1}
   .btn-run:hover{background:#c84a08}
+  .btn-run:disabled{background:#33404f;color:#73818f;cursor:not-allowed}
   .btn-print{background:var(--rack-blue);color:#fff;flex:1}
   .btn-print:hover{background:#173f82}
   .btn-print:disabled{background:#33404f;color:#73818f;cursor:not-allowed}
@@ -83,7 +87,6 @@
   .status.err{color:#ff8a5c}
   .status.ok{color:#7ed99a}
 
-  /* Productgeheugen */
   details.cat{background:#171e28;border:1px solid #2a3543;border-radius:8px;padding:0}
   details.cat summary{
     cursor:pointer;list-style:none;padding:13px 14px;font-size:13.5px;font-weight:700;color:#c4cfdd;
@@ -115,11 +118,9 @@
   .cat-tools button:hover{background:#2b3645}
   .cat-empty{color:#73818f;font-size:13px;padding:12px}
 
-  /* ===== Preview-zone ===== */
   .preview{flex:1;padding:30px;overflow:auto}
   .preview-empty{color:#8b97a6;font-size:14px;text-align:center;margin-top:120px;line-height:1.7}
 
-  /* ===== Het label zelf (A4 staand) ===== */
   .label{
     width:297mm;min-height:210mm;background:var(--paper);
     margin:0 auto 26px auto;box-shadow:0 3px 14px rgba(15,23,32,.18);
@@ -146,7 +147,23 @@
   .lbl-qty .num{font-size:80pt;font-weight:900;line-height:.95;font-family:"Arial Black",Arial,sans-serif}
   .lbl-qty .unit{font-size:20pt;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#5b6673}
 
-  /* ===== Mobiel (iPhone) ===== */
+  .lbl-floor{
+    font-size:26pt;font-weight:800;letter-spacing:.03em;text-transform:uppercase;
+    color:#1d4ea0;text-align:center;padding-bottom:2mm;
+  }
+  .lbl-art{
+    border-top:1mm solid var(--line);border-bottom:1mm solid var(--line);
+    padding:10mm 0;text-align:center;font-size:30pt;font-weight:700;
+    font-family:ui-monospace,Consolas,monospace;letter-spacing:.04em;color:#10151c;
+  }
+
+  .modetabs{display:flex;gap:8px}
+  .modetabs button{
+    flex:1;background:#171e28;border:1px solid #2a3543;color:#8fa0b5;border-radius:6px;
+    padding:10px 8px;font-size:12.5px;font-weight:700;cursor:pointer;text-align:center;
+  }
+  .modetabs button.active{background:var(--rack-blue);border-color:var(--rack-blue);color:#fff}
+
   @media screen and (max-width: 800px){
     .app{flex-direction:column}
     .panel{width:100%;padding:18px 16px;gap:14px}
@@ -158,10 +175,11 @@
     .lbl-qty .num{font-size:14vw}
     .lbl-qty .unit{font-size:3.5vw}
     .lbl-bar svg{max-height:20vw}
+    .lbl-floor{font-size:6vw}
+    .lbl-art{font-size:7vw}
     button.act{padding:15px 20px;font-size:16px}
   }
 
-  /* ===== Print ===== */
   @page{size:A4 landscape;margin:0}
   @media print{
     body{background:#fff}
@@ -180,7 +198,12 @@
 <div class="app">
 
   <aside class="panel">
-    <h1>Palletlabels <span class="tag">A4</span></h1>
+    <h1>Palletlabels <span class="tag">A4</span><span class="sync" id="syncBadge">laden…</span></h1>
+
+    <div class="modetabs" id="modetabs">
+      <button type="button" class="active" data-mode="ean">Met barcode (EAN)</button>
+      <button type="button" data-mode="geen">Zonder barcode (verpakking)</button>
+    </div>
 
     <div class="quick">
       <label class="fld" for="search">Snel toevoegen uit geheugen</label>
@@ -189,10 +212,10 @@
     </div>
 
     <div>
-      <label class="fld" for="data">Labelregels</label>
+      <label class="fld" for="data" id="dataLabel">Labelregels</label>
       <textarea id="data" placeholder="SE121M2-SF1105	8718924563137	8
 NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
-      <p class="hint" style="margin-top:8px">
+      <p class="hint" style="margin-top:8px" id="dataHint">
         Kolomvolgorde: <code>Productnaam/-code</code> → <code>EAN</code> → <code>Aantal</code> → <code>Omschrijving</code> (optioneel).
         Plakken uit Sheets kan altijd nog. Elk product dat je print wordt automatisch onthouden,
         inclusief EAN en standaardaantal — daarna vind je hem terug via het zoekveld hierboven.
@@ -214,7 +237,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
           <button id="imp">Importeren</button>
           <button id="wipe">Alles wissen</button>
         </div>
-        <p class="hint">Het geheugen staat op dít apparaat (deze browser). Gebruik exporteren/importeren om je productlijst over te zetten van computer naar telefoon of als back-up.</p>
+        <p class="hint">Het geheugen staat in jouw eigen Supabase-database — dus gelijk op iPhone, MacBook en Mac mini, zonder Claude of IVOL nodig te hebben.</p>
       </div>
     </details>
 
@@ -225,7 +248,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
 
   <main class="preview" id="preview">
     <div class="preview-empty">
-      Zoek een product in je geheugen of plak rijen, en klik op <strong>Labels maken</strong>.
+      Geheugen laden…
     </div>
   </main>
 
@@ -234,80 +257,193 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
 <script>
 (function(){
   const $ = id => document.getElementById(id);
-  const preview = $('preview'), status = $('status'), btnPrint = $('print');
+  const preview = $('preview'), status = $('status'), btnPrint = $('print'), btnRun = $('run');
   const search = $('search'), sugg = $('sugg');
-  const KEY = 'palletlabel_catalog_v1';
+  const modetabs = $('modetabs'), dataLabel = $('dataLabel'), dataHint = $('dataHint'), dataArea = $('data');
+  const syncBadge = $('syncBadge');
 
-  /* ---------- Productgeheugen ---------- */
-  let catalog = {};
-  try{ catalog = JSON.parse(localStorage.getItem(KEY) || '{}'); }catch(e){ catalog = {}; }
+  // ---------- Eigen Supabase-database ----------
+  const SUPABASE_URL = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
+  const SB_HEADERS = {
+    apikey: SUPABASE_KEY,
+    Authorization: 'Bearer ' + SUPABASE_KEY
+  };
 
-  function saveCatalog(){
-    try{ localStorage.setItem(KEY, JSON.stringify(catalog)); }catch(e){}
+  async function sbGet(key){
+    const res = await fetch(SUPABASE_URL + '/rest/v1/catalog?key=eq.' + encodeURIComponent(key) + '&select=data', {
+      headers: SB_HEADERS
+    });
+    if(!res.ok) throw new Error('sbGet ' + res.status);
+    const rows = await res.json();
+    return rows.length ? rows[0].data : {};
+  }
+
+  async function sbSet(key, m, data){
+    const res = await fetch(SUPABASE_URL + '/rest/v1/catalog?on_conflict=key', {
+      method: 'POST',
+      headers: Object.assign({}, SB_HEADERS, {
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal'
+      }),
+      body: JSON.stringify([{ key: key, mode: m, data: data, updated_at: new Date().toISOString() }])
+    });
+    if(!res.ok) throw new Error('sbSet ' + res.status);
+  }
+
+  const KEYS = { ean: 'catalog-ean', geen: 'catalog-geen' };
+  let mode = 'ean'; // 'ean' = met barcode, 'geen' = zonder barcode (verpakkingsmateriaal)
+  let catalogs = { ean:{}, geen:{} };
+  let ready = false;
+
+  btnRun.disabled = true;
+
+  dataArea.addEventListener('keydown', e => {
+    if(e.key !== 'Tab') return;
+    e.preventDefault();
+    const start = dataArea.selectionStart, end = dataArea.selectionEnd;
+    dataArea.value = dataArea.value.slice(0, start) + '\t' + dataArea.value.slice(end);
+    dataArea.selectionStart = dataArea.selectionEnd = start + 1;
+  });
+
+  const MODE_TXT = {
+    ean: {
+      label: 'Labelregels',
+      placeholder: 'SE121M2-SF1105\t8718924563137\t8\nNAPOLI-GRN\t8718924512345\t10\tNapoli eetkamerstoel groen',
+      hint: 'Kolomvolgorde: <code>Productnaam/-code</code> → <code>EAN</code> → <code>Aantal</code> → <code>Omschrijving</code> (optioneel). ' +
+            'Plakken uit Sheets kan altijd nog. Elk product dat je print wordt automatisch onthouden, ' +
+            'inclusief EAN en standaardaantal — daarna vind je hem terug via het zoekveld hierboven.',
+      searchPh: 'Typ productnaam… (bijv. nap)'
+    },
+    geen: {
+      label: 'Labelregels (zonder EAN)',
+      placeholder: 'SNIJDOOS 100\t200X200X1000\t651803\t40\nMAGAZIJN 2 — RUBBER\t\tOB100-SBR50-004\t40',
+      hint: 'Kolomvolgorde: <code>Vloernaam</code> → <code>Afmeting</code> (optioneel, leeg laten kan) → <code>Artikelnummer</code> → <code>Aantal</code>. ' +
+            'Voor verpakkingsmateriaal en andere producten zonder EAN — er komt geen barcode op dit label, ' +
+            'wel de vloernaam groot bovenaan, de afmeting eronder, het artikelnummer, en het aantal.',
+      searchPh: 'Typ vloernaam, afmeting of artikelnummer…'
+    }
+  };
+
+  function applyModeUI(){
+    modetabs.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    const t = MODE_TXT[mode];
+    dataLabel.textContent = t.label;
+    dataArea.placeholder = t.placeholder;
+    dataHint.innerHTML = t.hint;
+    search.placeholder = t.searchPh;
+    dataArea.value = '';
+    preview.innerHTML = '<div class="preview-empty">Zoek een product in je geheugen of plak rijen, en klik op <strong>Labels maken</strong>.</div>';
+    btnPrint.disabled = true;
+    if(ready) setStatus('', '');
+    renderCatalog();
+  }
+  modetabs.addEventListener('click', e => {
+    const b = e.target.closest('button[data-mode]');
+    if(!b) return;
+    mode = b.dataset.mode;
+    applyModeUI();
+  });
+
+  /* ---------- Productgeheugen (cloud, eigen database, apart per modus) ---------- */
+  function getCatalog(){ return catalogs[mode]; }
+
+  async function loadCatalogs(){
+    for(const m of Object.keys(KEYS)){
+      try{
+        catalogs[m] = await sbGet(KEYS[m]);
+      }catch(e){
+        catalogs[m] = {};
+      }
+    }
+  }
+
+  async function saveCatalog(){
+    try{
+      await sbSet(KEYS[mode], mode, catalogs[mode]);
+    }catch(e){
+      setStatus('Opslaan in de database is mislukt — controleer je verbinding.', 'err');
+    }
     renderCatalog();
   }
 
-  function learn(rows){
+  async function learn(rows){
     let added = 0;
+    const cat = getCatalog();
     rows.forEach(r => {
-      const k = r.name.toUpperCase();
-      if(!catalog[k]) added++;
-      catalog[k] = { name:r.name, ean:r.ean, qty:r.qty, sub:r.sub||'', used:Date.now() };
+      const k = (mode === 'ean' ? r.name : r.floor + ' — ' + r.art).toUpperCase();
+      if(!cat[k]) added++;
+      if(mode === 'ean'){
+        cat[k] = { name:r.name, ean:r.ean, qty:r.qty, sub:r.sub||'', used:Date.now() };
+      } else {
+        cat[k] = { floor:r.floor, maat:r.maat||'', art:r.art, qty:r.qty, used:Date.now() };
+      }
     });
-    saveCatalog();
+    await saveCatalog();
     return added;
   }
 
   function renderCatalog(){
-    const keys = Object.keys(catalog).sort();
+    const cat = getCatalog();
+    const keys = Object.keys(cat).sort();
     $('catcount').textContent = keys.length;
     const list = $('catlist');
     if(!keys.length){
-      list.innerHTML = '<div class="cat-empty">Nog leeg — print één keer labels en je producten staan hier.</div>';
+      list.innerHTML = '<div class="cat-empty">' + (ready ? 'Nog leeg — print één keer labels en je producten staan hier.' : 'Laden…') + '</div>';
       return;
     }
     list.innerHTML = keys.map(k => {
-      const p = catalog[k];
+      const p = cat[k];
+      const meta = mode === 'ean'
+        ? 'EAN ' + esc(p.ean) + ' · standaard ' + esc(p.qty) + ' stuks' + (p.sub ? ' · ' + esc(p.sub) : '')
+        : 'art. ' + esc(p.art) + ' · standaard ' + esc(p.qty) + ' stuks' + (p.maat ? ' · ' + esc(p.maat) : '');
+      const naam = mode === 'ean' ? p.name : p.floor;
       return '<div class="cat-item">' +
-        '<div><div class="nm">' + esc(p.name) + '</div>' +
-        '<div class="meta">EAN ' + esc(p.ean) + ' · standaard ' + esc(p.qty) + ' stuks' + (p.sub ? ' · ' + esc(p.sub) : '') + '</div></div>' +
+        '<div><div class="nm">' + esc(naam) + '</div>' +
+        '<div class="meta">' + meta + '</div></div>' +
         '<button class="del" data-k="' + esc(k) + '">wis</button>' +
       '</div>';
     }).join('');
-    list.querySelectorAll('.del').forEach(b => b.addEventListener('click', () => {
-      delete catalog[b.dataset.k]; saveCatalog();
+    list.querySelectorAll('.del').forEach(b => b.addEventListener('click', async () => {
+      delete cat[b.dataset.k]; await saveCatalog();
     }));
   }
 
   /* ---------- Snel toevoegen ---------- */
   function showSuggestions(){
+    const cat = getCatalog();
     const q = search.value.trim().toUpperCase();
     if(!q){ sugg.hidden = true; return; }
-    // Zoek op losse woorden in willekeurige volgorde: "ring rol 80" vindt "Ringmat op rol 80 cm"
     const terms = q.split(/\s+/).filter(Boolean);
-    const hits = Object.keys(catalog)
+    const hits = Object.keys(cat)
       .filter(k => {
-        const hay = (k + ' ' + (catalog[k].sub||'').toUpperCase());
+        const extra = mode === 'ean' ? (cat[k].sub||'') : ((cat[k].art||'') + ' ' + (cat[k].maat||''));
+        const hay = (k + ' ' + extra.toUpperCase());
         return terms.every(t => hay.includes(t));
       })
-      .sort((a,b) => (catalog[b].used||0) - (catalog[a].used||0))
+      .sort((a,b) => (cat[b].used||0) - (cat[a].used||0))
       .slice(0, 8);
     if(!hits.length){ sugg.hidden = true; return; }
     sugg.innerHTML = hits.map(k => {
-      const p = catalog[k];
+      const p = cat[k];
+      const naam = mode === 'ean' ? p.name : p.floor;
+      const metaR = mode === 'ean' ? esc(p.ean) : esc(p.art);
       return '<button type="button" data-k="' + esc(k) + '">' +
-        '<span>' + esc(p.name) + '</span>' +
-        '<span class="meta">' + esc(p.qty) + ' st · ' + esc(p.ean) + '</span></button>';
+        '<span>' + esc(naam) + '</span>' +
+        '<span class="meta">' + esc(p.qty) + ' st · ' + metaR + '</span></button>';
     }).join('');
     sugg.hidden = false;
-    sugg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-      const p = catalog[b.dataset.k];
-      p.used = Date.now(); saveCatalog();
+    sugg.querySelectorAll('button').forEach(b => b.addEventListener('click', async () => {
+      const p = cat[b.dataset.k];
+      p.used = Date.now(); await saveCatalog();
       const ta = $('data');
-      const line = [p.name, p.ean, p.qty, p.sub].filter((v,i) => i < 3 || v).join('\t');
+      const line = mode === 'ean'
+        ? [p.name, p.ean, p.qty, p.sub].filter((v,i) => i < 3 || v).join('\t')
+        : [p.floor, p.maat||'', p.art, p.qty].join('\t');
       ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/,'') + '\n' : '') + line + '\n';
       search.value = ''; sugg.hidden = true;
-      setStatus('Toegevoegd: ' + p.name + ' (' + p.qty + ' stuks) — aantal aanpassen kan in de regel zelf.', 'ok');
+      const naam = mode === 'ean' ? p.name : p.floor;
+      setStatus('Toegevoegd: ' + naam + ' (' + p.qty + ' stuks) — aantal aanpassen kan in de regel zelf.', 'ok');
     }));
   }
   search.addEventListener('input', showSuggestions);
@@ -318,12 +454,13 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
 
   /* ---------- Export / import / wissen ---------- */
   $('exp').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(catalog, null, 2)], {type:'application/json'});
+    const cat = getCatalog();
+    const blob = new Blob([JSON.stringify(cat, null, 2)], {type:'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'productgeheugen-palletlabels.json';
+    a.download = (mode === 'ean' ? 'productgeheugen-palletlabels.json' : 'productgeheugen-verpakking.json');
     a.click();
-    setStatus('Back-up gedownload (' + Object.keys(catalog).length + ' producten).', 'ok');
+    setStatus('Back-up gedownload (' + Object.keys(cat).length + ' producten, modus: ' + (mode==='ean'?'met barcode':'zonder barcode') + ').', 'ok');
   });
   $('imp').addEventListener('click', () => {
     const inp = document.createElement('input');
@@ -331,24 +468,28 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     inp.onchange = () => {
       const f = inp.files[0]; if(!f) return;
       const rd = new FileReader();
-      rd.onload = () => {
+      rd.onload = async () => {
         try{
           const data = JSON.parse(rd.result);
+          const cat = getCatalog();
           let n = 0;
           Object.keys(data).forEach(k => {
-            if(data[k] && data[k].name && data[k].ean){ catalog[k] = data[k]; n++; }
+            const ok = mode === 'ean'
+              ? (data[k] && data[k].name && data[k].ean)
+              : (data[k] && data[k].floor && data[k].art);
+            if(ok){ cat[k] = data[k]; n++; }
           });
-          saveCatalog();
-          setStatus(n + ' producten geïmporteerd.', 'ok');
+          await saveCatalog();
+          setStatus(n + ' producten geïmporteerd (modus: ' + (mode==='ean'?'met barcode':'zonder barcode') + ').', 'ok');
         }catch(e){ setStatus('Importeren mislukt: geen geldig back-upbestand.', 'err'); }
       };
       rd.readAsText(f);
     };
     inp.click();
   });
-  $('wipe').addEventListener('click', () => {
-    if(confirm('Weet je zeker dat je het hele productgeheugen wilt wissen?')){
-      catalog = {}; saveCatalog();
+  $('wipe').addEventListener('click', async () => {
+    if(confirm('Weet je zeker dat je dit productgeheugen (' + (mode==='ean'?'met barcode':'zonder barcode') + ') wilt wissen?')){
+      catalogs[mode] = {}; await saveCatalog();
       setStatus('Productgeheugen gewist.', 'ok');
     }
   });
@@ -384,18 +525,27 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       if(!line.trim()) return;
       const c = splitRow(line).map(s => s.trim());
       if(i === 0 && looksLikeHeader(c)) return;
-      const [name, ean, qty, sub] = c;
-      if(!name || !ean || !qty){
-        errors.push('Regel ' + (i+1) + ' overgeslagen (naam, EAN of aantal ontbreekt): "' + line.slice(0,60) + '"');
-        return;
+      if(mode === 'ean'){
+        const [name, ean, qty, sub] = c;
+        if(!name || !ean || !qty){
+          errors.push('Regel ' + (i+1) + ' overgeslagen (naam, EAN of aantal ontbreekt): "' + line.slice(0,60) + '"');
+          return;
+        }
+        rows.push({ name, ean: ean.replace(/\s+/g,''), qty, sub: sub || '' });
+      } else {
+        const [floor, maat, art, qty] = c;
+        if(!floor || !art || !qty){
+          errors.push('Regel ' + (i+1) + ' overgeslagen (vloernaam, artikelnummer of aantal ontbreekt): "' + line.slice(0,60) + '"');
+          return;
+        }
+        rows.push({ floor, maat: maat || '', art, qty });
       }
-      rows.push({ name, ean: ean.replace(/\s+/g,''), qty, sub: sub || '' });
     });
     return { rows, errors };
   }
 
   /* ---------- Render ---------- */
-  function render(){
+  async function render(){
     const { rows, errors } = parse();
     preview.innerHTML = '';
 
@@ -407,40 +557,56 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     }
 
     let fallbacks = 0;
-    rows.forEach((r, idx) => {
-      const lbl = document.createElement('div');
-      lbl.className = 'label';
-      lbl.innerHTML =
-        '<div class="lbl-name-zone">' +
-          '<div class="lbl-name" style="font-size:' + nameFontSize(r.name) + 'pt">' + esc(r.name) + '</div>' +
-          (r.sub ? '<div class="lbl-sub">' + esc(r.sub) + '</div>' : '') +
-        '</div>' +
-        '<div class="lbl-bar"><svg id="bc-' + idx + '"></svg></div>' +
-        '<div class="lbl-qty"><span class="num">' + esc(r.qty) + '</span><span class="unit">stuks</span></div>';
-      preview.appendChild(lbl);
 
-      const common = { height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 };
-      const el = '#bc-' + idx;
-      let done = false;
-      if(isEan(r.ean)){
-        try{
-          const fmt = r.ean.length === 8 ? 'EAN8' : 'EAN13';
-          JsBarcode(el, r.ean, Object.assign({format:fmt}, common));
-          done = true;
-        }catch(e){}
-      }
-      if(!done){
-        try{
-          JsBarcode(el, r.ean, Object.assign({format:'CODE128'}, common));
-          fallbacks++;
-        }catch(e){
-          document.getElementById('bc-' + idx).outerHTML =
-            '<div class="lbl-bar-err">Barcode kon niet worden gemaakt voor: ' + esc(r.ean) + '</div>';
+    if(mode === 'ean'){
+      rows.forEach((r, idx) => {
+        const lbl = document.createElement('div');
+        lbl.className = 'label';
+        lbl.innerHTML =
+          '<div class="lbl-name-zone">' +
+            '<div class="lbl-name" style="font-size:' + nameFontSize(r.name) + 'pt">' + esc(r.name) + '</div>' +
+            (r.sub ? '<div class="lbl-sub">' + esc(r.sub) + '</div>' : '') +
+          '</div>' +
+          '<div class="lbl-bar"><svg id="bc-' + idx + '"></svg></div>' +
+          '<div class="lbl-qty"><span class="num">' + esc(r.qty) + '</span><span class="unit">stuks</span></div>';
+        preview.appendChild(lbl);
+
+        const common = { height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 };
+        const el = '#bc-' + idx;
+        let done = false;
+        if(isEan(r.ean)){
+          try{
+            const fmt = r.ean.length === 8 ? 'EAN8' : 'EAN13';
+            JsBarcode(el, r.ean, Object.assign({format:fmt}, common));
+            done = true;
+          }catch(e){}
         }
-      }
-    });
+        if(!done){
+          try{
+            JsBarcode(el, r.ean, Object.assign({format:'CODE128'}, common));
+            fallbacks++;
+          }catch(e){
+            document.getElementById('bc-' + idx).outerHTML =
+              '<div class="lbl-bar-err">Barcode kon niet worden gemaakt voor: ' + esc(r.ean) + '</div>';
+          }
+        }
+      });
+    } else {
+      rows.forEach(r => {
+        const lbl = document.createElement('div');
+        lbl.className = 'label';
+        lbl.innerHTML =
+          '<div class="lbl-name-zone">' +
+            '<div class="lbl-floor" style="font-size:' + nameFontSize(r.floor) + 'pt">' + esc(r.floor) + '</div>' +
+            (r.maat ? '<div class="lbl-sub">' + esc(r.maat) + '</div>' : '') +
+          '</div>' +
+          '<div class="lbl-art">' + esc(r.art) + '</div>' +
+          '<div class="lbl-qty"><span class="num">' + esc(r.qty) + '</span><span class="unit">stuks</span></div>';
+        preview.appendChild(lbl);
+      });
+    }
 
-    const newOnes = learn(rows);
+    const newOnes = await learn(rows);
 
     btnPrint.disabled = false;
     let msg = rows.length + ' label' + (rows.length === 1 ? '' : 's') + ' klaar.';
@@ -457,7 +623,19 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
   $('run').addEventListener('click', render);
   btnPrint.addEventListener('click', () => window.print());
 
-  renderCatalog();
+  (async function init(){
+    setStatus('Geheugen laden uit de database…', '');
+    try{
+      await loadCatalogs();
+      syncBadge.textContent = 'cloud ✓';
+    }catch(e){
+      syncBadge.textContent = 'offline';
+      setStatus('Kon geen verbinding maken met de database.', 'err');
+    }
+    ready = true;
+    btnRun.disabled = false;
+    applyModeUI();
+  })();
 })();
 </script>
 </body>
