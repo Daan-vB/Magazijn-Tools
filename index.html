@@ -126,7 +126,6 @@
     margin:0 auto 26px auto;box-shadow:0 3px 14px rgba(15,23,32,.18);
     display:flex;flex-direction:column;
     padding:10mm 16mm;
-    page-break-after:always;break-after:page;
   }
   .lbl-name-zone{
     flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;
@@ -180,16 +179,24 @@
     button.act{padding:15px 20px;font-size:16px}
   }
 
-  @page{size:A4 landscape;margin:0}
+  /* ===== Print: label wordt gedraaid gerenderd zodat het altijd op één
+     portrait A4-pagina past, ongeacht wat iOS/Safari als standaard kiest ===== */
+  @page{size:A4 portrait;margin:0}
   @media print{
     body{background:#fff}
     .panel{display:none}
     .preview{padding:0;overflow:visible}
-    .label{
-      box-shadow:none;margin:0;width:297mm;
-      height:209mm;min-height:0;overflow:hidden;
+    .page{
+      position:relative;width:210mm;height:297mm;overflow:hidden;
+      page-break-after:always;break-after:page;
     }
-    .label:last-child{page-break-after:auto;break-after:auto}
+    .page:last-child{page-break-after:auto;break-after:auto}
+    .label{
+      position:absolute;top:100%;left:0;
+      width:297mm;height:210mm;min-height:0;
+      transform-origin:0 0;transform:rotate(-90deg);
+      box-shadow:none;margin:0;overflow:hidden;
+    }
     .preview-empty{display:none}
   }
 </style>
@@ -242,7 +249,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     </details>
 
     <p class="hint" style="margin-top:auto">
-      Printen: <strong>A4</strong>, marges <strong>“Geen”</strong>, schaal <strong>100%</strong>. Elk label is één pagina.
+      Printen: <strong>A4</strong>, marges <strong>“Geen”</strong>, schaal <strong>100%</strong>. Elk label is één pagina — orientatie hoef je niet zelf te kiezen.
     </p>
   </aside>
 
@@ -560,6 +567,8 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
 
     if(mode === 'ean'){
       rows.forEach((r, idx) => {
+        const page = document.createElement('div');
+        page.className = 'page';
         const lbl = document.createElement('div');
         lbl.className = 'label';
         lbl.innerHTML =
@@ -569,7 +578,8 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
           '</div>' +
           '<div class="lbl-bar"><svg id="bc-' + idx + '"></svg></div>' +
           '<div class="lbl-qty"><span class="num">' + esc(r.qty) + '</span><span class="unit">stuks</span></div>';
-        preview.appendChild(lbl);
+        page.appendChild(lbl);
+        preview.appendChild(page);
 
         const common = { height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 };
         const el = '#bc-' + idx;
@@ -593,6 +603,8 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       });
     } else {
       rows.forEach(r => {
+        const page = document.createElement('div');
+        page.className = 'page';
         const lbl = document.createElement('div');
         lbl.className = 'label';
         lbl.innerHTML =
@@ -602,7 +614,8 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
           '</div>' +
           '<div class="lbl-art">' + esc(r.art) + '</div>' +
           '<div class="lbl-qty"><span class="num">' + esc(r.qty) + '</span><span class="unit">stuks</span></div>';
-        preview.appendChild(lbl);
+        page.appendChild(lbl);
+        preview.appendChild(page);
       });
     }
 
