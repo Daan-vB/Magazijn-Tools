@@ -218,9 +218,9 @@
   }
 
   function isDone(a){
-    if(!a) return false;
-    if(!a.vl || !a.status) return false;
+    if(!a || !a.status) return false;
     if(a.status === 'nooit') return true;
+    if(!a.vl) return false;
     if(!a.besteltype) return false;
     if((a.besteltype === 'pallet' || a.besteltype === 'minimum') && !a.aantal && !a.onbekend) return false;
     return true;
@@ -259,8 +259,10 @@
 
     $('jumpInput').value = idx + 1;
     $('jumpInput').max = ITEMS.length;
-    $('prevBtn').disabled = idx === 0;
-    $('nextBtn').textContent = (idx === ITEMS.length - 1) ? 'Klaar ✓' : 'Volgende →';
+    $('prevBtn').disabled = nextActiveIndex(idx, -1) < 0;
+    const hasNext = nextActiveIndex(idx, 1) >= 0;
+    $('nextBtn').disabled = !hasNext;
+    $('nextBtn').textContent = hasNext ? 'Volgende →' : 'Klaar ✓';
     $('savedtag').textContent = '';
 
     const skipped = isSkipped(it.art);
