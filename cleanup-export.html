@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opschonen & exporteren — Artikel Review</title>
+<style>
+  body{font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:#0b0f14;color:#e8edf4;padding:24px;max-width:720px;margin:0 auto}
+  h1{font-size:18px;margin-bottom:14px}
+  h2{font-size:14px;margin:20px 0 8px 0;color:#c4cfdd}
+  p{font-size:13px;color:#8fa0b5;line-height:1.5}
+  button{background:#e8590c;color:#fff;border:none;border-radius:6px;padding:14px 22px;font-size:15px;font-weight:700;cursor:pointer}
+  button:disabled{background:#33404f;color:#73818f;cursor:not-allowed}
+  .copybtn{background:#1d4ea0;padding:9px 14px;font-size:12.5px;margin-top:6px}
+  pre.log{background:#171e28;border:1px solid #2a3543;border-radius:6px;padding:14px;font-size:12.5px;white-space:pre-wrap;margin-top:16px;line-height:1.6}
+  textarea{width:100%;height:200px;background:#171e28;color:#e8edf4;border:1px solid #2a3543;border-radius:6px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;padding:12px}
+  .ok{color:#7ed99a} .err{color:#ff8a5c}
+</style>
+</head>
+<body>
+<h1>Opschonen & exporteren</h1>
+<p>Markeert alles wat je nooit hebt aangeraakt als "niet van toepassing", en zet daarna twee lijsten voor je klaar: labels zonder aantal (voor direct printen) en wat nog een exacte pallethoeveelheid mist.</p>
+<button id="go">Nu uitvoeren</button>
+<pre class="log" id="log">Klaar om te starten…</pre>
+
+<div id="results" style="display:none">
+  <h2>1. Labels klaar om te printen (zonder aantal)</h2>
+  <p>Plak dit direct in de labelgenerator, modus "Zonder barcode".</p>
+  <textarea id="outLabels" readonly></textarea>
+  <button class="copybtn" id="copy1">Kopiëren</button>
+
+  <h2>2. Nog geen exacte pallethoeveelheid</h2>
+  <p>Wel in gebruik, maar aantal per pallet nog niet bekend — voor later navragen/natellen.</p>
+  <textarea id="outPending" readonly></textarea>
+  <button class="copybtn" id="copy2">Kopiëren</button>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
+const SB_HEADERS = { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY };
+const REVIEW_KEY = 'review-vangennip';
+
+const ITEMS = [{"art":"510517","oms":"Ldpe gripseal zakje 220x280mm 50my","vl0":"Gripseal zakjes 220x280mm","aa0":""},{"art":"511001","oms":"Palletfolie ministretch K308 150% 10cmx150mtr 20my","vl0":"Hand/Mini seal per pallet","aa0":1440},{"art":"511010","oms":"Palletfolie handrol  K308 150%  50cmx300mtr 17my","vl0":"witte seal per pallet","aa0":240},{"art":"11004","oms":"Palletfolie handrol  K308 150%  50cmx300mtr 19my","vl0":"","aa0":""},{"art":"11005","oms":"Palletfolie handrol  K888 250%  50cmx300mtr 20my Power","vl0":"","aa0":""},{"art":"511014","oms":"Palletfolie handrol  K308 150%  50cmx300mtr 20my zwart","vl0":"zwarte seal per pallet","aa0":240},{"art":"511114","oms":"Luchtkussenfolie 10mm nop 100cm x 100mtr S2 medium coex","vl0":"bubbelfolie","aa0":1},{"art":"515053","oms":"Ldpe vellen 140x90cm 100my","vl0":"tegels plastic groot","aa0":5600},{"art":"530192","oms":"A-4 printer papier houtvrij offset","vl0":"Printer papier","aa0":100000},{"art":"520280","oms":"Amerikaanse vouwdoos DG 790x590x584mm","vl0":"grindmat doos","aa0":""},{"art":"525071","oms":"Amerikaanse vouwdoos 300x140x710mm Fefco 0201 B-TT17 FSC","vl0":"trapmat","aa0":""},{"art":"525094","oms":"Golfkartonnen plaat 1250x1750mm met 4 rillen B-73003","vl0":"","aa0":""},{"art":"525101","oms":"Golfkarton gerilde plaat EG 500x2500mm B73002","vl0":"","aa0":""},{"art":"525116","oms":"Golfkarton plaat 500x2500mm + 4 rillen evenwijdig aan 2500mm. B73003","vl0":"trapleuning doos","aa0":""},{"art":"520227","oms":"Amerikaanse vouwdoos DG 800x500x500mm G-73","vl0":"","aa0":""},{"art":"530201","oms":"Fillpak Manual papier TT 70grs 38cm x 360mtr - greenline","vl0":"vul papier","aa0":""},{"art":"550132","oms":"FORCE tape 30my acryl low noise 48mmx66mtr transparant","vl0":"tape bestellen per pallet","aa0":""},{"art":"50412","oms":"Papieren plakband S806  70mmx150mtr kruisl.versterkt bruin","vl0":"","aa0":""},{"art":"550272","oms":"PVC tape 50mmx66mtr wit/rood 4-talen `breekbaar`","vl0":"","aa0":""},{"art":"550351","oms":"Paklijst enveloppen `packing-list` 225x122mm DL","vl0":"packing list","aa0":1000},{"art":"550150","oms":"Papieren zelfklevende tape 50mm x 50mtr bruin","vl0":"","aa0":""},{"art":"55048","oms":"PVC tape Gekleurd 50mmx66mtr","vl0":"","aa0":""},{"art":"555010","oms":"PP Acryl tape 50mmx66mtr kobaltblauw","vl0":"","aa0":""},{"art":"555056","oms":"PP Acryl tape 50mmx66mtr rood","vl0":"","aa0":""},{"art":"560121","oms":"Dozensluit tape dispenser 50mm met rem en mesbescherming","vl0":"","aa0":""},{"art":"560306","oms":"Palletfolie houder chroom gelagerd","vl0":"","aa0":""},{"art":"560301","oms":"Palletfolie houder ministretch","vl0":"handrol","aa0":""},{"art":"60706","oms":"Fillpak Manual dispenser","vl0":"","aa0":""},{"art":"590126","oms":"Breekmes nr. L-500P","vl0":"messen","aa0":""},{"art":"100512","oms":"Reserve mes groot","vl0":"","aa0":""},{"art":"590129","oms":"Reserve mes groot (50 stuks)","vl0":"extra messen","aa0":""},{"art":"250242","oms":"PE coex webshopverpakking z/w 320x415mm + 50mm klep 60my Brink's IVOL","vl0":"","aa0":""},{"art":"250243","oms":"PE coex webshopverpakking z/w 500x695mm + 50mm klep 60my Brink's IVOL","vl0":"","aa0":""},{"art":"651802","oms":"Amerikaanse vouwdoos 0201 DG 395x395x1015mm 2.30 BC T/T stalmatdoos","vl0":"stalmat doos","aa0":""},{"art":"651801","oms":"Amerikaanse vouwdoos fefco 0201 186x186x1205mm DT14 K snijdoos","vl0":"snijdoos","aa0":""},{"art":"5110345","oms":"MDPE / Metaloceen zak 120x150cm 40my op rol - Zak Bureaustoel","vl0":"bureaustoel zak","aa0":""},{"art":"555030","oms":"PP Acryl tape 50mmx66mtr geel","vl0":"","aa0":""},{"art":"540140","oms":"1 rol PET band groen","vl0":"bandjes machine rollen","aa0":""},{"art":"525259","oms":"Amerikaanse vouwdoos DG 820x520x520mm 100 st","vl0":"","aa0":""},{"art":"520117","oms":"Amerikaanse vouwdoos EG 392x292x284mm TS-1149","vl0":"Kettle klein","aa0":""},{"art":"520111","oms":"Amerikaanse vouwdoos 302x215x100","vl0":"kleine doos","aa0":""},{"art":"525121","oms":"Amerikaanse vouwdoos fefco 0201 410x410x1200mm 132B","vl0":"","aa0":""},{"art":"525201","oms":"Kartonnen plaat voor onder bureaustoel 158/100","vl0":"","aa0":""},{"art":"525386","oms":"Amerikaanse vouwdoos 1025x285x265mm 9er 750 stuks","vl0":"","aa0":""},{"art":"525387","oms":"Amerikaanse vouwdoos 1215x285x265mm per 500 stuks","vl0":"","aa0":""},{"art":"520224","oms":"Amerikaanse vouwdoos DG 735x310x225 (voor rolletjes rib klein)","vl0":"","aa0":""},{"art":"510345","oms":"120x150 zakken","vl0":"","aa0":""},{"art":"520103","oms":"Amerikaanse vouwdoos EG 186x124x88mm G-100","vl0":"extra klein","aa0":""},{"art":"545169","oms":"Nomapack U-Tulip profiel 25-35 x 2mtr STROKEN","vl0":"frameless","aa0":""},{"art":"540252","oms":"Nomapack U-Tulip corner 5-15mm HOEKJES","vl0":"frameless","aa0":""},{"art":"545151","oms":"Nomapack U-Tulip profiel 5-15mm OP ROL","vl0":"frameless","aa0":""},{"art":"525960","oms":"Golfkarton plaat DG 1050x2050mm BC952","vl0":"frameless karton 100x200","aa0":""},{"art":"520216","oms":"Amerikaanse vouwdoos DG 5 mm 585x385x385mm","vl0":"Kettle groot","aa0":""},{"art":"651805","oms":"Amerikaanse vouwdoos EG fefco 300x140x710mm","vl0":"","aa0":""},{"art":"525378","oms":"Amerikaanse vouwdoos 460x460x300mm","vl0":"wieldop","aa0":""},{"art":"520424","oms":"brievenbus doos bruin met insteekklep 160x28x255mm","vl0":"brief klein","aa0":""},{"art":"520425","oms":"brievenbus doos bruin met insteekklep 213x28x299mm","vl0":"brief groot","aa0":""},{"art":"510133","oms":"LDPE zak 70/15x200cm 43my met sluitlint & perfo knapzak > 84 st. per doos","vl0":"plastic zakken","aa0":""},{"art":"651803","oms":"Am. vouwdoos DG F0201 200x200x1000mm    + rillijnen 100/900mm BEKT14/13 X4","vl0":"snijdoos 100","aa0":""},{"art":"651804","oms":"Am. vouwdoos DG F0201 200x200x700mm     + rillijnen 100/600mm BEKT14/13 X4","vl0":"snijdoos 70","aa0":""},{"art":"15499","oms":"PE schuimfolie 12mm 125cm x 50mtr","vl0":"","aa0":""}];
+
+async function sbGet(key){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/catalog?key=eq.' + encodeURIComponent(key) + '&select=data', { headers: SB_HEADERS });
+  if(!res.ok) throw new Error('sbGet ' + res.status);
+  const rows = await res.json();
+  return rows.length ? rows[0].data : {};
+}
+async function sbSet(key, m, data){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/catalog?on_conflict=key', {
+    method:'POST',
+    headers: Object.assign({}, SB_HEADERS, {'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=minimal'}),
+    body: JSON.stringify([{ key:key, mode:'review', data:data, updated_at:new Date().toISOString() }])
+  });
+  if(!res.ok) throw new Error('sbSet ' + res.status);
+}
+
+document.getElementById('go').addEventListener('click', async () => {
+  const log = document.getElementById('log');
+  const btn = document.getElementById('go');
+  btn.disabled = true;
+  log.textContent = 'Data ophalen…\n';
+  try{
+    const current = await sbGet(REVIEW_KEY);
+
+    let skipped = 0, active = 0, usedNoQty = 0, labelLines = 0;
+    const labelLines_ = [];
+    const pendingLines = [];
+
+    ITEMS.forEach(it => {
+      const a = current[it.art];
+      const untouched = !a || (!a.vl && !a.status && !a.besteltype);
+      if(untouched){
+        current[it.art] = Object.assign({}, a || {}, { skip: true });
+        skipped++;
+        return;
+      }
+      active++;
+      const vl = a.vl || it.vl0 || '';
+      const inUse = a.status && a.status !== 'nooit';
+      if(inUse && vl){
+        labelLines_.push([vl, '', it.art].join('\t'));
+        const hasExactQty = a.besteltype && (a.besteltype === 'pallet' || a.besteltype === 'minimum') && a.aantal && !a.onbekend;
+        if(!hasExactQty){
+          usedNoQty++;
+          pendingLines.push(it.art + '\t' + it.oms + '\t' + vl + '\t' + (a.besteltype || '(besteltype niet gekozen)'));
+        }
+      }
+    });
+
+    log.textContent += skipped + ' nooit-aangeraakte artikelen gemarkeerd als niet van toepassing.\n';
+    log.textContent += active + ' artikelen blijven actief.\n';
+    log.textContent += 'Opslaan…\n';
+
+    await sbSet(REVIEW_KEY, 'review', current);
+
+    log.textContent += '\nGelukt ✓\n';
+    log.className = 'ok';
+
+    document.getElementById('outLabels').value = labelLines_.join('\n') || '(geen)';
+    document.getElementById('outPending').value = pendingLines.join('\n') || '(geen — alles heeft al een exact aantal)';
+    document.getElementById('results').style.display = 'block';
+  }catch(e){
+    log.textContent += '\nFout: ' + e.message;
+    log.className = 'err';
+    btn.disabled = false;
+  }
+});
+
+function wireCopy(btnId, taId){
+  document.getElementById(btnId).addEventListener('click', async () => {
+    const ta = document.getElementById(taId);
+    try{
+      await navigator.clipboard.writeText(ta.value);
+      const b = document.getElementById(btnId);
+      const old = b.textContent;
+      b.textContent = 'Gekopieerd ✓';
+      setTimeout(() => { b.textContent = old; }, 1500);
+    }catch(e){ ta.select(); }
+  });
+}
+wireCopy('copy1', 'outLabels');
+wireCopy('copy2', 'outPending');
+</script>
+</body>
+</html>
