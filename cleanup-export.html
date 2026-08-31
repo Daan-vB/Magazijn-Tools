@@ -72,7 +72,7 @@ document.getElementById('go').addEventListener('click', async () => {
 
     ITEMS.forEach(it => {
       const a = current[it.art];
-      const untouched = !a || (!a.vl && !a.status && !a.besteltype);
+      const untouched = !a || !a.status;
       if(untouched){
         current[it.art] = Object.assign({}, a || {}, { skip: true });
         skipped++;
