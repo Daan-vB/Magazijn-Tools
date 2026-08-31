@@ -1,1 +1,110 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eenmalige import — Artikel Review</title>
+<style>
+  body{font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:#0b0f14;color:#e8edf4;padding:24px;max-width:640px;margin:0 auto}
+  h1{font-size:18px;margin-bottom:14px}
+  button{background:#e8590c;color:#fff;border:none;border-radius:6px;padding:14px 22px;font-size:15px;font-weight:700;cursor:pointer}
+  button:disabled{background:#33404f;color:#73818f;cursor:not-allowed}
+  pre{background:#171e28;border:1px solid #2a3543;border-radius:6px;padding:14px;font-size:12.5px;white-space:pre-wrap;margin-top:16px;line-height:1.6}
+  .ok{color:#7ed99a} .err{color:#ff8a5c}
+</style>
+</head>
+<body>
+<h1>Eenmalige import in Artikel Review</h1>
+<p>Voegt de aangeleverde vloernamen/aantallen toe aan de database, zonder al ingevulde velden (zoals status) te overschrijven.</p>
+<button id="go">Nu importeren</button>
+<pre id="log">Klaar om te starten…</pre>
 
+<script>
+const SUPABASE_URL = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
+const SB_HEADERS = { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY };
+const REVIEW_KEY = 'review-vangennip';
+
+// Bekend aantal per pallet
+const KNOWN = {
+  "511001": {vl:"Hand/Mini seal per pallet", besteltype:"pallet", aantal:1440, onbekend:false},
+  "511010": {vl:"witte seal per pallet", besteltype:"pallet", aantal:240, onbekend:false},
+  "511014": {vl:"zwarte seal per pallet", besteltype:"pallet", aantal:240, onbekend:false},
+  "515053": {vl:"tegels plastic groot", besteltype:"pallet", aantal:5600, onbekend:false},
+  "530192": {vl:"Printer papier", besteltype:"pallet", aantal:100000, onbekend:false},
+  "550132": {vl:"Tape transparant", besteltype:"pallet", aantal:2376, onbekend:false},
+  "550272": {vl:"Breekbaar tape", besteltype:"pallet", aantal:360, onbekend:false},
+  "550351": {vl:"packing list", besteltype:"pallet", aantal:1000, onbekend:false},
+  "250242": {vl:"Ivol zakken klein", besteltype:"pallet", aantal:10000, onbekend:false},
+  "250243": {vl:"Ivol zakkem groot", besteltype:"pallet", aantal:10000, onbekend:false}
+};
+
+// Vloernaam bekend, aantal nog navragen
+const UNKNOWN = {
+  "520280": "grindmat doos",
+  "525071": "trapmat",
+  "525116": "trapleuning doos",
+  "651802": "stalmat doos",
+  "651801": "snijdoos 120",
+  "520117": "Kettle klein",
+  "520111": "kleine doos",
+  "520103": "extra kleine doos",
+  "525960": "frameless karton 100x200",
+  "520216": "Kettle groot",
+  "651805": "Trapmat doos",
+  "525378": "wieldop",
+  "520424": "brievenbus klein",
+  "520425": "brievenbus groot",
+  "651803": "snijdoos 100",
+  "651804": "snijdoos 70"
+};
+
+async function sbGet(key){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/catalog?key=eq.' + encodeURIComponent(key) + '&select=data', { headers: SB_HEADERS });
+  if(!res.ok) throw new Error('sbGet ' + res.status);
+  const rows = await res.json();
+  return rows.length ? rows[0].data : {};
+}
+async function sbSet(key, m, data){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/catalog?on_conflict=key', {
+    method:'POST',
+    headers: Object.assign({}, SB_HEADERS, {'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=minimal'}),
+    body: JSON.stringify([{ key:key, mode:'review', data:data, updated_at:new Date().toISOString() }])
+  });
+  if(!res.ok) throw new Error('sbSet ' + res.status);
+}
+
+document.getElementById('go').addEventListener('click', async () => {
+  const log = document.getElementById('log');
+  const btn = document.getElementById('go');
+  btn.disabled = true;
+  log.textContent = 'Huidige data ophalen…\n';
+  try{
+    const current = await sbGet(REVIEW_KEY);
+    let n1 = 0, n2 = 0;
+
+    for(const art in KNOWN){
+      current[art] = Object.assign({}, current[art] || {}, KNOWN[art]);
+      n1++;
+    }
+    for(const art in UNKNOWN){
+      current[art] = Object.assign({}, current[art] || {}, { vl: UNKNOWN[art], besteltype:'pallet', onbekend:true, aantal:'' });
+      n2++;
+    }
+
+    log.textContent += n1 + ' artikelen met bekend aantal verwerkt.\n';
+    log.textContent += n2 + ' artikelen met vloernaam maar nog onbekend aantal verwerkt.\n';
+    log.textContent += 'Opslaan…\n';
+
+    await sbSet(REVIEW_KEY, 'review', current);
+    log.textContent += '\nGelukt ✓ — open nu artikel-review.html, je voortgang staat klaar.';
+    log.className = 'ok';
+  }catch(e){
+    log.textContent += '\nFout: ' + e.message;
+    log.className = 'err';
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
