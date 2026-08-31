@@ -154,6 +154,404 @@
     </div>
 
     <div class="savedtag" id="savedtag"></div>
+    <button type="button" id="skipBtn" style="background:#3a1f1f;border:1px solid #5c2b2b;color:#ffb4b4;border-radius:6px;padding:12px;font-size:13px;font-weight:700;cursor:pointer">Niet van toepassing — verwijderen uit lijst</button>
+  </div>
+
+  <div class="navrow">
+    <button class="navbtn" id="prevBtn">← Vorige</button>
+    <input type="number" class="jump" id="jumpInput" min="1">
+    <button class="navbtn next" id="nextBtn">Volgende →</button>
+  </div>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>Klaar voor de labelgenerator</h2>
+    <p class="hint">Alle artikelen met besteltype "per pallet" of "minimale afname" en een ingevuld aantal, in het formaat dat de "Zonder barcode"-modus verwacht (Vloernaam → Afmeting leeg → Artikelnummer → Aantal).</p>
+    <textarea id="expOut" readonly></textarea>
+    <div class="modalbtns">
+      <button class="copy" id="copyBtn">Kopiëren</button>
+      <button class="close" id="closeBtn">Sluiten</button>
+    </div>
+    <h2>Nog navragen bij leverancier</h2>
+    <p class="hint">Artikelen die je als "per pallet" of "minimale afname" hebt gemarkeerd, maar waarvan het aantal nog onbekend is.</p>
+    <textarea id="expUnknown" readonly></textarea>
+    <div class="modalbtns">
+      <button class="copy" id="copyBtn2">Kopiëren</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+
+  const SUPABASE_URL = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
+  const SB_HEADERS = { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY };
+  const REVIEW_KEY = 'review-vangennip';
+
+  async function sbGet(key){
+    const res = await fetch(SUPABASE_URL + '/rest/v1/catalog?key=eq.' + encodeURIComponent(key) + '&select=data', { headers: SB_HEADERS });
+    if(!res.ok) throw new Error('sbGet ' + res.status);
+    const rows = await res.json();
+    return rows.length ? rows[0].data : {};
+  }
+  async function sbSet(key, m, data){
+    const res = await fetch(SUPABASE_URL + '/rest/v1/catalog?on_conflict=key', {
+      method:'POST',
+      headers: Object.assign({}, SB_HEADERS, {'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=minimal'}),
+      body: JSON.stringify([{ key:key, mode:m, data:data, updated_at:new Date().toISOString() }])
+    });
+    if(!res.ok) throw new Error('sbSet ' + res.status);
+  }
+
+  // Vaste artikelen uit D_K_van_Gennip_bestellijst.xlsx (Bestellijst-tabblad)
+  const ITEMS = [{"art":"510517","oms":"Ldpe gripseal zakje 220x280mm 50my","vl0":"Gripseal zakjes 220x280mm","aa0":""},{"art":"511001","oms":"Palletfolie ministretch K308 150% 10cmx150mtr 20my","vl0":"Hand/Mini seal per pallet","aa0":1440},{"art":"511010","oms":"Palletfolie handrol  K308 150%  50cmx300mtr 17my","vl0":"witte seal per pallet","aa0":240},{"art":"11004","oms":"Palletfolie handrol  K308 150%  50cmx300mtr 19my","vl0":"","aa0":""},{"art":"11005","oms":"Palletfolie handrol  K888 250%  50cmx300mtr 20my Power","vl0":"","aa0":""},{"art":"511014","oms":"Palletfolie handrol  K308 150%  50cmx300mtr 20my zwart","vl0":"zwarte seal per pallet","aa0":240},{"art":"511114","oms":"Luchtkussenfolie 10mm nop 100cm x 100mtr S2 medium coex","vl0":"bubbelfolie","aa0":1},{"art":"515053","oms":"Ldpe vellen 140x90cm 100my","vl0":"tegels plastic groot","aa0":5600},{"art":"530192","oms":"A-4 printer papier houtvrij offset","vl0":"Printer papier","aa0":100000},{"art":"520280","oms":"Amerikaanse vouwdoos DG 790x590x584mm","vl0":"grindmat doos","aa0":""},{"art":"525071","oms":"Amerikaanse vouwdoos 300x140x710mm Fefco 0201 B-TT17 FSC","vl0":"trapmat","aa0":""},{"art":"525094","oms":"Golfkartonnen plaat 1250x1750mm met 4 rillen B-73003","vl0":"","aa0":""},{"art":"525101","oms":"Golfkarton gerilde plaat EG 500x2500mm B73002","vl0":"","aa0":""},{"art":"525116","oms":"Golfkarton plaat 500x2500mm + 4 rillen evenwijdig aan 2500mm. B73003","vl0":"trapleuning doos","aa0":""},{"art":"520227","oms":"Amerikaanse vouwdoos DG 800x500x500mm G-73","vl0":"","aa0":""},{"art":"530201","oms":"Fillpak Manual papier TT 70grs 38cm x 360mtr - greenline","vl0":"vul papier","aa0":""},{"art":"550132","oms":"FORCE tape 30my acryl low noise 48mmx66mtr transparant","vl0":"tape bestellen per pallet","aa0":""},{"art":"50412","oms":"Papieren plakband S806  70mmx150mtr kruisl.versterkt bruin","vl0":"","aa0":""},{"art":"550272","oms":"PVC tape 50mmx66mtr wit/rood 4-talen `breekbaar`","vl0":"","aa0":""},{"art":"550351","oms":"Paklijst enveloppen `packing-list` 225x122mm DL","vl0":"packing list","aa0":1000},{"art":"550150","oms":"Papieren zelfklevende tape 50mm x 50mtr bruin","vl0":"","aa0":""},{"art":"55048","oms":"PVC tape Gekleurd 50mmx66mtr","vl0":"","aa0":""},{"art":"555010","oms":"PP Acryl tape 50mmx66mtr kobaltblauw","vl0":"","aa0":""},{"art":"555056","oms":"PP Acryl tape 50mmx66mtr rood","vl0":"","aa0":""},{"art":"560121","oms":"Dozensluit tape dispenser 50mm met rem en mesbescherming","vl0":"","aa0":""},{"art":"560306","oms":"Palletfolie houder chroom gelagerd","vl0":"","aa0":""},{"art":"560301","oms":"Palletfolie houder ministretch","vl0":"handrol","aa0":""},{"art":"60706","oms":"Fillpak Manual dispenser","vl0":"","aa0":""},{"art":"590126","oms":"Breekmes nr. L-500P","vl0":"messen","aa0":""},{"art":"100512","oms":"Reserve mes groot","vl0":"","aa0":""},{"art":"590129","oms":"Reserve mes groot (50 stuks)","vl0":"extra messen","aa0":""},{"art":"250242","oms":"PE coex webshopverpakking z/w 320x415mm + 50mm klep 60my Brink's IVOL","vl0":"","aa0":""},{"art":"250243","oms":"PE coex webshopverpakking z/w 500x695mm + 50mm klep 60my Brink's IVOL","vl0":"","aa0":""},{"art":"651802","oms":"Amerikaanse vouwdoos 0201 DG 395x395x1015mm 2.30 BC T/T stalmatdoos","vl0":"stalmat doos","aa0":""},{"art":"651801","oms":"Amerikaanse vouwdoos fefco 0201 186x186x1205mm DT14 K snijdoos","vl0":"snijdoos","aa0":""},{"art":"5110345","oms":"MDPE / Metaloceen zak 120x150cm 40my op rol - Zak Bureaustoel","vl0":"bureaustoel zak","aa0":""},{"art":"555030","oms":"PP Acryl tape 50mmx66mtr geel","vl0":"","aa0":""},{"art":"540140","oms":"1 rol PET band groen","vl0":"bandjes machine rollen","aa0":""},{"art":"525259","oms":"Amerikaanse vouwdoos DG 820x520x520mm 100 st","vl0":"","aa0":""},{"art":"520117","oms":"Amerikaanse vouwdoos EG 392x292x284mm TS-1149","vl0":"Kettle klein","aa0":""},{"art":"520111","oms":"Amerikaanse vouwdoos 302x215x100","vl0":"kleine doos","aa0":""},{"art":"525121","oms":"Amerikaanse vouwdoos fefco 0201 410x410x1200mm 132B","vl0":"","aa0":""},{"art":"525201","oms":"Kartonnen plaat voor onder bureaustoel 158/100","vl0":"","aa0":""},{"art":"525386","oms":"Amerikaanse vouwdoos 1025x285x265mm 9er 750 stuks","vl0":"","aa0":""},{"art":"525387","oms":"Amerikaanse vouwdoos 1215x285x265mm per 500 stuks","vl0":"","aa0":""},{"art":"520224","oms":"Amerikaanse vouwdoos DG 735x310x225 (voor rolletjes rib klein)","vl0":"","aa0":""},{"art":"510345","oms":"120x150 zakken","vl0":"","aa0":""},{"art":"520103","oms":"Amerikaanse vouwdoos EG 186x124x88mm G-100","vl0":"extra klein","aa0":""},{"art":"545169","oms":"Nomapack U-Tulip profiel 25-35 x 2mtr STROKEN","vl0":"frameless","aa0":""},{"art":"540252","oms":"Nomapack U-Tulip corner 5-15mm HOEKJES","vl0":"frameless","aa0":""},{"art":"545151","oms":"Nomapack U-Tulip profiel 5-15mm OP ROL","vl0":"frameless","aa0":""},{"art":"525960","oms":"Golfkarton plaat DG 1050x2050mm BC952","vl0":"frameless karton 100x200","aa0":""},{"art":"520216","oms":"Amerikaanse vouwdoos DG 5 mm 585x385x385mm","vl0":"Kettle groot","aa0":""},{"art":"651805","oms":"Amerikaanse vouwdoos EG fefco 300x140x710mm","vl0":"","aa0":""},{"art":"525378","oms":"Amerikaanse vouwdoos 460x460x300mm","vl0":"wieldop","aa0":""},{"art":"520424","oms":"brievenbus doos bruin met insteekklep 160x28x255mm","vl0":"brief klein","aa0":""},{"art":"520425","oms":"brievenbus doos bruin met insteekklep 213x28x299mm","vl0":"brief groot","aa0":""},{"art":"510133","oms":"LDPE zak 70/15x200cm 43my met sluitlint & perfo knapzak > 84 st. per doos","vl0":"plastic zakken","aa0":""},{"art":"651803","oms":"Am. vouwdoos DG F0201 200x200x1000mm    + rillijnen 100/900mm BEKT14/13 X4","vl0":"snijdoos 100","aa0":""},{"art":"651804","oms":"Am. vouwdoos DG F0201 200x200x700mm     + rillijnen 100/600mm BEKT14/13 X4","vl0":"snijdoos 70","aa0":""},{"art":"15499","oms":"PE schuimfolie 12mm 125cm x 50mtr","vl0":"","aa0":""}];
+
+  let answers = {}; // keyed by art
+  let idx = 0;
+  let saveTimer = null;
+
+  function isSkipped(art){
+    return !!(answers[art] && answers[art].skip);
+  }
+
+  function isDone(a){
+    if(!a) return false;
+    if(!a.vl || !a.status) return false;
+    if(a.status === 'nooit') return true;
+    if(!a.besteltype) return false;
+    if((a.besteltype === 'pallet' || a.besteltype === 'minimum') && !a.aantal && !a.onbekend) return false;
+    return true;
+  }
+
+  function activeItems(){
+    return ITEMS.filter(it => !isSkipped(it.art));
+  }
+
+  function updateProgress(){
+    const active = activeItems();
+    const done = active.reduce((n, it) => n + (isDone(answers[it.art]) ? 1 : 0), 0);
+    const skippedN = ITEMS.length - active.length;
+    $('fill').style.width = (active.length ? (done / active.length * 100) : 100) + '%';
+    $('progresstext').textContent = done + ' / ' + active.length + ' ingevuld' + (skippedN ? ' (' + skippedN + ' n.v.t.)' : '');
+  }
+
+  function getAnswer(art){
+    if(!answers[art]) answers[art] = { vl:'', status:'', besteltype:'', aantal:'' };
+    return answers[art];
+  }
+
+  function loadCard(){
+    const it = ITEMS[idx];
+    const a = getAnswer(it.art);
+    $('refArt').textContent = 'Artikel ' + it.art;
+    $('refOms').textContent = it.oms;
+    $('vloernaam').value = a.vl || it.vl0 || '';
+    if(!a.vl && it.vl0) a.vl = it.vl0;
+    if(!a.aantal && it.aa0){ a.aantal = it.aa0; if(!a.besteltype) a.besteltype = 'pallet'; }
+    $('aantal').value = a.aantal || '';
+    $('onbekend').checked = !!a.onbekend;
+    $('aantal').disabled = !!a.onbekend;
+
+    segSet('segStatus', a.status);
+    segSet('segBestel', a.besteltype);
+    updateAantalLabel();
+
+    $('jumpInput').value = idx + 1;
+    $('jumpInput').max = ITEMS.length;
+    $('prevBtn').disabled = idx === 0;
+    $('nextBtn').textContent = (idx === ITEMS.length - 1) ? 'Klaar ✓' : 'Volgende →';
+    $('savedtag').textContent = '';
+
+    const skipped = isSkipped(it.art);
+    $('skipBtn').textContent = skipped ? 'Ongedaan maken (weer meetellen)' : 'Niet van toepassing — verwijderen uit lijst';
+    $('skipBtn').style.background = skipped ? '#1c2a1f' : '#3a1f1f';
+    $('skipBtn').style.borderColor = skipped ? '#2f5c3a' : '#5c2b2b';
+    $('skipBtn').style.color = skipped ? '#7ed99a' : '#ffb4b4';
+  }
+
+  function segSet(groupId, val){
+    document.querySelectorAll('#' + groupId + ' button').forEach(b => {
+      b.classList.toggle('active', b.dataset.v === val);
+    });
+  }
+
+  function updateAantalLabel(){
+    const a = getAnswer(ITEMS[idx].art);
+    const wrap = $('aantalWrap');
+    if(a.besteltype === 'los'){
+      wrap.style.display = 'none';
+    } else {
+      wrap.style.display = '';
+      $('aantalLabel').textContent = a.besteltype === 'minimum' ? 'Minimale afname (stuks)' : 'Aantal per pallet';
+    }
+  }
+
+  function scheduleSave(){
+    $('savedtag').textContent = 'opslaan…';
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+      try{
+        await sbSet(REVIEW_KEY, 'review', answers);
+        $('savedtag').textContent = 'opgeslagen ✓';
+      }catch(e){
+        $('savedtag').textContent = 'opslaan mislukt';
+      }
+      updateProgress();
+    }, 500);
+  }
+
+  $('vloernaam').addEventListener('input', () => {
+    getAnswer(ITEMS[idx].art).vl = $('vloernaam').value;
+    scheduleSave();
+  });
+  $('aantal').addEventListener('input', () => {
+    const v = $('aantal').value;
+    getAnswer(ITEMS[idx].art).aantal = v ? Number(v) : '';
+    scheduleSave();
+  });
+  $('onbekend').addEventListener('change', () => {
+    const a = getAnswer(ITEMS[idx].art);
+    a.onbekend = $('onbekend').checked;
+    $('aantal').disabled = a.onbekend;
+    if(a.onbekend){ a.aantal = ''; $('aantal').value = ''; }
+    scheduleSave();
+  });
+  document.getElementById('segStatus').addEventListener('click', e => {
+    const b = e.target.closest('button[data-v]'); if(!b) return;
+    const a = getAnswer(ITEMS[idx].art);
+    a.status = (a.status === b.dataset.v) ? '' : b.dataset.v;
+    segSet('segStatus', a.status);
+    scheduleSave();
+  });
+  document.getElementById('segBestel').addEventListener('click', e => {
+    const b = e.target.closest('button[data-v]'); if(!b) return;
+    const a = getAnswer(ITEMS[idx].art);
+    a.besteltype = (a.besteltype === b.dataset.v) ? '' : b.dataset.v;
+    segSet('segBestel', a.besteltype);
+    updateAantalLabel();
+    scheduleSave();
+  });
+
+  function nextActiveIndex(from, dir){
+    let i = from;
+    for(let step = 0; step < ITEMS.length; step++){
+      i += dir;
+      if(i < 0 || i >= ITEMS.length) return -1;
+      if(!isSkipped(ITEMS[i].art)) return i;
+    }
+    return -1;
+  }
+  function goto(i){
+    if(i < 0 || i >= ITEMS.length) return;
+    idx = i;
+    loadCard();
+  }
+  $('prevBtn').addEventListener('click', () => { const n = nextActiveIndex(idx, -1); if(n >= 0) goto(n); });
+  $('nextBtn').addEventListener('click', () => { const n = nextActiveIndex(idx, 1); if(n >= 0) goto(n); });
+  $('jumpInput').addEventListener('change', () => {
+    const n = parseInt($('jumpInput').value, 10);
+    if(n >= 1 && n <= ITEMS.length) goto(n - 1);
+  });
+  $('skipBtn').addEventListener('click', () => {
+    const a = getAnswer(ITEMS[idx].art);
+    a.skip = !a.skip;
+    scheduleSave();
+    if(a.skip){
+      const n = nextActiveIndex(idx, 1);
+      if(n >= 0) goto(n); else loadCard();
+    } else {
+      loadCard();
+    }
+  });
+
+  function buildExport(){
+    const lines = [];
+    ITEMS.forEach(it => {
+      const a = answers[it.art];
+      if(!a || a.skip) return;
+      if((a.besteltype === 'pallet' || a.besteltype === 'minimum') && a.vl && a.aantal){
+        lines.push([a.vl, '', it.art, a.aantal].join('\t'));
+      }
+    });
+    return lines.join('\n');
+  }
+  function buildUnknownExport(){
+    const lines = [];
+    ITEMS.forEach(it => {
+      const a = answers[it.art];
+      if(!a || a.skip) return;
+      if((a.besteltype === 'pallet' || a.besteltype === 'minimum') && a.onbekend){
+        lines.push(it.art + '\t' + it.oms + '\t' + (a.vl || it.vl0 || ''));
+      }
+    });
+    return lines.join('\n');
+  }
+  $('expBtn').addEventListener('click', () => {
+    $('expOut').value = buildExport() || '(nog geen artikelen met besteltype "per pallet" of "minimale afname" en een aantal ingevuld)';
+    $('expUnknown').value = buildUnknownExport() || '(niets om na te vragen)';
+    $('overlay').classList.add('show');
+  });
+  $('closeBtn').addEventListener('click', () => $('overlay').classList.remove('show'));
+  $('copyBtn').addEventListener('click', async () => {
+    try{
+      await navigator.clipboard.writeText($('expOut').value);
+      $('copyBtn').textContent = 'Gekopieerd ✓';
+      setTimeout(() => { $('copyBtn').textContent = 'Kopiëren'; }, 1500);
+    }catch(e){
+      $('expOut').select();
+    }
+  });
+  $('copyBtn2').addEventListener('click', async () => {
+    try{
+      await navigator.clipboard.writeText($('expUnknown').value);
+      $('copyBtn2').textContent = 'Gekopieerd ✓';
+      setTimeout(() => { $('copyBtn2').textContent = 'Kopiëren'; }, 1500);
+    }catch(e){
+      $('expUnknown').select();
+    }
+  });
+
+  (async function init(){
+    try{
+      answers = await sbGet(REVIEW_KEY);
+      $('syncBadge').textContent = 'cloud ✓';
+    }catch(e){
+      answers = {};
+      $('syncBadge').textContent = 'offline';
+    }
+    let start = ITEMS.findIndex(it => !isSkipped(it.art) && !isDone(answers[it.art]));
+    if(start === -1) start = ITEMS.findIndex(it => !isSkipped(it.art));
+    if(start === -1) start = 0;
+    idx = start;
+    loadCard();
+    updateProgress();
+  })();
+})();
+</script>
+</body>
+</html>  .progressbar{height:6px;background:var(--panel);border-radius:3px;overflow:hidden}
+  .progressbar .fill{height:100%;background:var(--beam-orange);width:0%;transition:width .2s}
+  .progresstext{font-size:12px;color:var(--muted);margin-top:6px;text-align:center}
+
+  main{flex:1;display:flex;flex-direction:column;align-items:center;padding:18px;gap:16px}
+  .card{
+    width:100%;max-width:520px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:18px;
+  }
+  .refbox{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  .refbox .art{font-family:ui-monospace,Consolas,monospace;font-size:13px;color:var(--muted);letter-spacing:.03em}
+  .refbox .oms{font-size:14.5px;margin-top:4px;line-height:1.4}
+
+  .fld label{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:8px}
+  .fld input[type=text], .fld input[type=number]{
+    width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;
+    padding:13px 12px;font-size:16px;
+  }
+  .fld input:focus{outline:2px solid var(--rack-blue)}
+
+  .seg{display:flex;gap:8px;flex-wrap:wrap}
+  .seg button{
+    flex:1;min-width:70px;background:var(--bg);border:1px solid var(--line);color:var(--muted);
+    border-radius:6px;padding:12px 8px;font-size:13px;font-weight:700;cursor:pointer;text-align:center;
+  }
+  .seg button.active{background:var(--rack-blue);border-color:var(--rack-blue);color:#fff}
+  .seg.besteltype button.active{background:var(--beam-orange);border-color:var(--beam-orange)}
+
+  .navrow{
+    width:100%;max-width:520px;display:flex;align-items:center;gap:10px;
+  }
+  .navbtn{
+    flex:1;background:var(--panel);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:15px 10px;font-size:15px;font-weight:700;cursor:pointer;
+  }
+  .navbtn:disabled{opacity:.35;cursor:not-allowed}
+  .navbtn.next{background:var(--beam-orange);border-color:var(--beam-orange)}
+  .jump{
+    width:64px;text-align:center;background:var(--panel);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:15px 4px;font-size:14px;
+  }
+
+  .savedtag{font-size:11.5px;color:var(--green);text-align:center;min-height:16px}
+
+  .overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
+    align-items:flex-start;justify-content:center;padding:40px 16px;z-index:50;overflow-y:auto;
+  }
+  .overlay.show{display:flex}
+  .modal{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:22px;max-width:640px;width:100%;display:flex;flex-direction:column;gap:14px;
+  }
+  .modal h2{font-size:16px}
+  .modal textarea{
+    width:100%;height:260px;background:var(--bg);color:var(--text);border:1px solid var(--line);
+    border-radius:6px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;padding:12px;resize:vertical;
+  }
+  .modalbtns{display:flex;gap:10px}
+  .modalbtns button{
+    flex:1;border:none;border-radius:6px;padding:12px;font-size:13.5px;font-weight:700;cursor:pointer;
+  }
+  .modalbtns .copy{background:var(--rack-blue);color:#fff}
+  .modalbtns .close{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+  .modal .hint{font-size:12px;color:var(--muted);line-height:1.5}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Artikel Review <span class="sync" id="syncBadge">laden…</span></h1>
+  <button class="expbtn" id="expBtn">Exporteren</button>
+</header>
+
+<div class="progresswrap">
+  <div class="progressbar"><div class="fill" id="fill"></div></div>
+  <div class="progresstext" id="progresstext">0 / 0 ingevuld</div>
+</div>
+
+<main>
+  <div class="card">
+    <div class="refbox">
+      <div class="art" id="refArt">—</div>
+      <div class="oms" id="refOms">—</div>
+    </div>
+
+    <div class="fld">
+      <label for="vloernaam">Vloernaam</label>
+      <input type="text" id="vloernaam" placeholder="bijv. witte seal per pallet">
+    </div>
+
+    <div class="fld">
+      <label>Vast artikel?</label>
+      <div class="seg" id="segStatus">
+        <button type="button" data-v="vast">Vast</button>
+        <button type="button" data-v="soms">Soms</button>
+        <button type="button" data-v="zelden">Zelden</button>
+        <button type="button" data-v="nooit">Nooit</button>
+      </div>
+    </div>
+
+    <div class="fld">
+      <label>Besteltype</label>
+      <div class="seg besteltype" id="segBestel">
+        <button type="button" data-v="pallet">Per pallet</button>
+        <button type="button" data-v="minimum">Minimale afname</button>
+        <button type="button" data-v="los">Los</button>
+      </div>
+    </div>
+
+    <div class="fld" id="aantalWrap">
+      <label id="aantalLabel">Aantal per pallet</label>
+      <input type="number" id="aantal" placeholder="bijv. 240" inputmode="numeric">
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;text-transform:none;font-size:13px;font-weight:600;color:var(--text)">
+        <input type="checkbox" id="onbekend" style="width:18px;height:18px">
+        Weet ik nog niet — navragen bij leverancier
+      </label>
+    </div>
+
+    <div class="savedtag" id="savedtag"></div>
   </div>
 
   <div class="navrow">
