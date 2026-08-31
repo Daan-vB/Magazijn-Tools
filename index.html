@@ -314,9 +314,9 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     geen: {
       label: 'Labelregels (zonder EAN)',
       placeholder: 'SNIJDOOS 100\t200X200X1000\t651803\t40\nMAGAZIJN 2 — RUBBER\t\tOB100-SBR50-004\t40',
-      hint: 'Kolomvolgorde: <code>Vloernaam</code> → <code>Afmeting</code> (optioneel, leeg laten kan) → <code>Artikelnummer</code> → <code>Aantal</code>. ' +
-            'Voor verpakkingsmateriaal en andere producten zonder EAN — er komt geen barcode op dit label, ' +
-            'wel de vloernaam groot bovenaan, de afmeting eronder, het artikelnummer, en het aantal.',
+      hint: 'Kolomvolgorde: <code>Vloernaam</code> → <code>Afmeting</code> (optioneel) → <code>Artikelnummer</code> (optioneel) → <code>Aantal</code> (optioneel). ' +
+            'Alleen vloernaam is verplicht — laat je artikelnummer of aantal leeg, dan wordt dat blok simpelweg niet getoond. ' +
+            'Handig voor pure identificatielabels (bijv. pallettypes) zonder barcode of aantal.',
       searchPh: 'Typ vloernaam, afmeting of artikelnummer…'
     }
   };
@@ -531,11 +531,11 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
         rows.push({ name, ean: ean.replace(/\s+/g,''), qty, sub: sub || '' });
       } else {
         const [floor, maat, art, qty] = c;
-        if(!floor || !art || !qty){
-          errors.push('Regel ' + (i+1) + ' overgeslagen (vloernaam, artikelnummer of aantal ontbreekt): "' + line.slice(0,60) + '"');
+        if(!floor){
+          errors.push('Regel ' + (i+1) + ' overgeslagen (vloernaam ontbreekt): "' + line.slice(0,60) + '"');
           return;
         }
-        rows.push({ floor, maat: maat || '', art, qty });
+        rows.push({ floor, maat: maat || '', art: art || '', qty: qty || '' });
       }
     });
     return { rows, errors };
@@ -598,8 +598,8 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
             '<div class="lbl-floor" style="font-size:' + nameFontSize(r.floor) + 'pt">' + esc(r.floor) + '</div>' +
             (r.maat ? '<div class="lbl-sub">' + esc(r.maat) + '</div>' : '') +
           '</div>' +
-          '<div class="lbl-art">' + esc(r.art) + '</div>' +
-          '<div class="lbl-qty"><span class="num">' + esc(r.qty) + '</span><span class="unit">stuks</span></div>';
+          (r.art ? '<div class="lbl-art">' + esc(r.art) + '</div>' : '') +
+          (r.qty ? '<div class="lbl-qty"><span class="num">' + esc(r.qty) + '</span><span class="unit">stuks</span></div>' : '');
         preview.appendChild(lbl);
       });
     }
@@ -666,30 +666,38 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
   function drawGeenLabel(doc, r, idx){
     if(idx > 0) doc.addPage('a4', 'landscape');
     const pageW = 297;
+    const hasArt = !!r.art;
+    const hasQty = !!r.qty;
+    const floorY = (!hasArt && !hasQty) ? 100 : 45;
+    const maatY = floorY + 12;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(nameFontSize(r.floor));
     doc.setTextColor(29,78,160);
-    doc.text(r.floor.toUpperCase(), pageW/2, 45, {align:'center'});
+    doc.text(r.floor.toUpperCase(), pageW/2, floorY, {align:'center'});
     doc.setTextColor(16,21,28);
 
     if(r.maat){
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(18);
       doc.setTextColor(57,67,79);
-      doc.text(r.maat, pageW/2, 57, {align:'center'});
+      doc.text(r.maat, pageW/2, maatY, {align:'center'});
       doc.setTextColor(16,21,28);
     }
 
-    doc.setFont('courier', 'bold');
-    doc.setFontSize(28);
-    doc.text(r.art, pageW/2, 110, {align:'center'});
+    if(hasArt){
+      doc.setFont('courier', 'bold');
+      doc.setFontSize(28);
+      doc.text(r.art, pageW/2, 110, {align:'center'});
+    }
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(58);
-    doc.text(String(r.qty), pageW/2 - 8, 178, {align:'right'});
-    doc.setFontSize(15);
-    doc.text('STUKS', pageW/2 + 6, 178, {align:'left'});
+    if(hasQty){
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(58);
+      doc.text(String(r.qty), pageW/2 - 8, 178, {align:'right'});
+      doc.setFontSize(15);
+      doc.text('STUKS', pageW/2 + 6, 178, {align:'left'});
+    }
   }
 
   function makePdfAndOpen(){
