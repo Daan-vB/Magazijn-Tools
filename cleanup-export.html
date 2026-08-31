@@ -72,16 +72,16 @@ document.getElementById('go').addEventListener('click', async () => {
 
     ITEMS.forEach(it => {
       const a = current[it.art];
-      const untouched = !a || !a.status;
-      if(untouched){
+      const touched = a && (a.status || a.besteltype || a.vl);
+      if(!touched){
         current[it.art] = Object.assign({}, a || {}, { skip: true });
         skipped++;
         return;
       }
       active++;
       const vl = a.vl || it.vl0 || '';
-      const inUse = a.status && a.status !== 'nooit';
-      if(inUse && vl){
+      const inUse = vl && a.status !== 'nooit';
+      if(inUse){
         labelLines_.push([vl, '', it.art].join('\t'));
         const hasExactQty = a.besteltype && (a.besteltype === 'pallet' || a.besteltype === 'minimum') && a.aantal && !a.onbekend;
         if(!hasExactQty){
