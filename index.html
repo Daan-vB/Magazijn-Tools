@@ -118,6 +118,28 @@
   }
   .cat-tools button:hover{background:#2b3645}
   .cat-empty{color:#73818f;font-size:13px;padding:12px}
+  .catsearch{
+    width:100%;background:#0b0f14;color:#e8edf4;border:1px solid #2a3543;border-radius:6px;
+    padding:10px 11px;font-size:14px;
+  }
+  .catsearch:focus{outline:2px solid var(--rack-blue)}
+  .cat-item.editing{flex-direction:column;align-items:stretch;gap:8px}
+  .cat-edit-fields{display:flex;flex-direction:column;gap:6px}
+  .cat-edit-fields .row2{display:flex;gap:6px}
+  .cat-edit-fields input{
+    width:100%;background:#0b0f14;color:#e8edf4;border:1px solid #2a3543;border-radius:5px;
+    padding:8px 9px;font-size:13px;
+  }
+  .cat-edit-actions{display:flex;gap:6px}
+  .cat-edit-actions button{flex:1;border:none;border-radius:5px;padding:9px;font-size:12.5px;font-weight:700;cursor:pointer}
+  .cat-edit-actions .save{background:var(--rack-blue);color:#fff}
+  .cat-edit-actions .cancel{background:#222b37;color:#c4cfdd;border:1px solid #2a3543 !important}
+  .cat-item .rowbtns{display:flex;gap:6px;flex-shrink:0}
+  .cat-item .editbtn{
+    background:none;border:1px solid #3a4656;color:#9aa7b8;border-radius:5px;
+    padding:4px 9px;font-size:12px;cursor:pointer;
+  }
+  .cat-item .editbtn:hover{border-color:var(--rack-blue);color:#cfe0f5}
 
   .preview{flex:1;padding:30px;overflow:auto}
   .preview-empty{color:#8b97a6;font-size:14px;text-align:center;margin-top:120px;line-height:1.7}
@@ -224,6 +246,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     <details class="cat" id="catbox">
       <summary>Productgeheugen <span class="badge" id="catcount">0</span></summary>
       <div class="cat-body">
+        <input type="text" class="catsearch" id="catSearch" placeholder="Zoek in geheugen… (naam, EAN, artikelnummer)" autocomplete="off">
         <div class="cat-list" id="catlist"></div>
         <div class="cat-tools">
           <button id="exp">Exporteren (back-up)</button>
@@ -291,6 +314,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
   let ready = false;
   let lastRows = [];
   let lastMode = 'ean';
+  let editingKey = null;
 
   btnRun.disabled = true;
 
@@ -332,6 +356,8 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     preview.innerHTML = '<div class="preview-empty">Zoek een product in je geheugen of plak rijen, en klik op <strong>Labels maken</strong>.</div>';
     btnPrint.disabled = true;
     lastRows = [];
+    editingKey = null;
+    if($('catSearch')) $('catSearch').value = '';
     if(ready) setStatus('', '');
     renderCatalog();
   }
@@ -382,29 +408,107 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
 
   function renderCatalog(){
     const cat = getCatalog();
-    const keys = Object.keys(cat).sort();
-    $('catcount').textContent = keys.length;
+    const total = Object.keys(cat).length;
+    $('catcount').textContent = total;
+
+    let keys = Object.keys(cat).sort();
+    const filterRaw = ($('catSearch') && $('catSearch').value || '').trim().toUpperCase();
+    if(filterRaw){
+      const terms = filterRaw.split(/\s+/).filter(Boolean);
+      keys = keys.filter(k => {
+        const p = cat[k];
+        const extra = mode === 'ean' ? (p.ean||'') + ' ' + (p.sub||'') : (p.art||'') + ' ' + (p.maat||'');
+        const hay = (k + ' ' + extra).toUpperCase();
+        return terms.every(t => hay.includes(t));
+      });
+    }
+
     const list = $('catlist');
     if(!keys.length){
-      list.innerHTML = '<div class="cat-empty">' + (ready ? 'Nog leeg — print één keer labels en je producten staan hier.' : 'Laden…') + '</div>';
+      list.innerHTML = '<div class="cat-empty">' +
+        (!ready ? 'Laden…' : (filterRaw ? 'Niets gevonden voor "' + esc(filterRaw) + '".' : 'Nog leeg — print één keer labels en je producten staan hier.')) +
+        '</div>';
       return;
     }
-    list.innerHTML = keys.map(k => {
-      const p = cat[k];
-      const meta = mode === 'ean'
-        ? 'EAN ' + esc(p.ean) + ' · standaard ' + esc(p.qty) + ' stuks' + (p.sub ? ' · ' + esc(p.sub) : '')
-        : 'art. ' + esc(p.art) + ' · standaard ' + esc(p.qty) + ' stuks' + (p.maat ? ' · ' + esc(p.maat) : '');
-      const naam = mode === 'ean' ? p.name : p.floor;
-      return '<div class="cat-item">' +
-        '<div><div class="nm">' + esc(naam) + '</div>' +
-        '<div class="meta">' + meta + '</div></div>' +
-        '<button class="del" data-k="' + esc(k) + '">wis</button>' +
-      '</div>';
-    }).join('');
+
+    list.innerHTML = keys.map(k => k === editingKey ? renderEditRow(k, cat[k]) : renderViewRow(k, cat[k])).join('');
+
     list.querySelectorAll('.del').forEach(b => b.addEventListener('click', async () => {
       delete cat[b.dataset.k]; await saveCatalog();
     }));
+    list.querySelectorAll('.editbtn').forEach(b => b.addEventListener('click', () => {
+      editingKey = b.dataset.k; renderCatalog();
+    }));
+    list.querySelectorAll('.cancel').forEach(b => b.addEventListener('click', () => {
+      editingKey = null; renderCatalog();
+    }));
+    list.querySelectorAll('.save').forEach(b => b.addEventListener('click', async () => {
+      const k = b.dataset.k;
+      const row = b.closest('.cat-item');
+      const val = f => row.querySelector('input[data-f="' + f + '"]').value.trim();
+      const cur = getCatalog();
+      const old = cur[k];
+      let newKey, rec;
+      if(mode === 'ean'){
+        const name = val('name'), eanv = val('ean'), qty = val('qty'), sub = val('sub');
+        newKey = name.toUpperCase();
+        rec = { name, ean: eanv, qty, sub, used: (old && old.used) || Date.now() };
+      } else {
+        const floor = val('floor'), maat = val('maat'), art = val('art'), qty = val('qty');
+        newKey = (floor + ' — ' + art).toUpperCase();
+        rec = { floor, maat, art, qty, used: (old && old.used) || Date.now() };
+      }
+      if(newKey !== k) delete cur[k];
+      cur[newKey] = rec;
+      editingKey = null;
+      await saveCatalog();
+    }));
   }
+
+  function renderViewRow(k, p){
+    const meta = mode === 'ean'
+      ? 'EAN ' + esc(p.ean) + ' · standaard ' + esc(p.qty) + ' stuks' + (p.sub ? ' · ' + esc(p.sub) : '')
+      : 'art. ' + esc(p.art) + ' · standaard ' + esc(p.qty) + ' stuks' + (p.maat ? ' · ' + esc(p.maat) : '');
+    const naam = mode === 'ean' ? p.name : p.floor;
+    return '<div class="cat-item">' +
+      '<div><div class="nm">' + esc(naam) + '</div>' +
+      '<div class="meta">' + meta + '</div></div>' +
+      '<div class="rowbtns">' +
+      '<button class="editbtn" data-k="' + esc(k) + '">bewerk</button>' +
+      '<button class="del" data-k="' + esc(k) + '">wis</button>' +
+      '</div></div>';
+  }
+
+  function renderEditRow(k, p){
+    if(mode === 'ean'){
+      return '<div class="cat-item editing">' +
+        '<div class="cat-edit-fields">' +
+        '<input data-f="name" type="text" value="' + esc(p.name) + '" placeholder="Productnaam/-code">' +
+        '<input data-f="ean" type="text" value="' + esc(p.ean) + '" placeholder="EAN">' +
+        '<div class="row2">' +
+        '<input data-f="qty" type="text" value="' + esc(p.qty) + '" placeholder="Aantal" style="flex:1">' +
+        '<input data-f="sub" type="text" value="' + esc(p.sub||'') + '" placeholder="Omschrijving" style="flex:2">' +
+        '</div></div>' +
+        '<div class="cat-edit-actions">' +
+        '<button class="save" data-k="' + esc(k) + '">Opslaan</button>' +
+        '<button class="cancel">Annuleren</button>' +
+        '</div></div>';
+    }
+    return '<div class="cat-item editing">' +
+      '<div class="cat-edit-fields">' +
+      '<input data-f="floor" type="text" value="' + esc(p.floor) + '" placeholder="Vloernaam">' +
+      '<input data-f="maat" type="text" value="' + esc(p.maat||'') + '" placeholder="Afmeting (optioneel)">' +
+      '<div class="row2">' +
+      '<input data-f="art" type="text" value="' + esc(p.art||'') + '" placeholder="Artikelnummer" style="flex:1">' +
+      '<input data-f="qty" type="text" value="' + esc(p.qty||'') + '" placeholder="Aantal" style="flex:1">' +
+      '</div></div>' +
+      '<div class="cat-edit-actions">' +
+      '<button class="save" data-k="' + esc(k) + '">Opslaan</button>' +
+      '<button class="cancel">Annuleren</button>' +
+      '</div></div>';
+  }
+
+  $('catSearch').addEventListener('input', renderCatalog);
 
   /* ---------- Snel toevoegen ---------- */
   function showSuggestions(){
