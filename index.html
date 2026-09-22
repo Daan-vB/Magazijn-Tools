@@ -141,6 +141,14 @@
   }
   .cat-item .editbtn:hover{border-color:var(--rack-blue);color:#cfe0f5}
 
+  .newprod{background:#171e28;border:1px solid #2a3543;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px}
+  .newprod-title{font-size:13.5px;font-weight:700;color:#c4cfdd}
+  .newprod input{width:100%;background:#0b0f14;color:#e8edf4;border:1px solid #2a3543;border-radius:5px;padding:10px 11px;font-size:14px}
+  .newprod input:focus{outline:2px solid var(--rack-blue)}
+  .newprod .row2{display:flex;gap:8px}
+  .newprod-save{background:var(--rack-blue);color:#fff;border:none;border-radius:6px;padding:12px;font-size:13.5px;font-weight:700;cursor:pointer}
+  .newprod-save:hover{background:#173f82}
+
   .preview{flex:1;padding:30px;overflow:auto}
   .preview-empty{color:#8b97a6;font-size:14px;text-align:center;margin-top:120px;line-height:1.7}
 
@@ -242,6 +250,13 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       <button class="act btn-print" id="print" disabled>PDF & printen</button>
     </div>
     <div class="status" id="status"></div>
+
+    <div class="newprod">
+      <div class="newprod-title">Nieuw product toevoegen</div>
+      <div id="newprodFields"></div>
+      <button type="button" class="newprod-save" id="newprodSave">Opslaan & toevoegen aan labelregels</button>
+      <div class="status" id="npStatus"></div>
+    </div>
 
     <details class="cat" id="catbox">
       <summary>Productgeheugen <span class="badge" id="catcount">0</span></summary>
@@ -360,6 +375,8 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     if($('catSearch')) $('catSearch').value = '';
     if(ready) setStatus('', '');
     renderCatalog();
+    renderNewProdFields();
+    setNpStatus('', '');
   }
   modetabs.addEventListener('click', e => {
     const b = e.target.closest('button[data-mode]');
@@ -487,7 +504,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
         '<input data-f="ean" type="text" value="' + esc(p.ean) + '" placeholder="EAN">' +
         '<div class="row2">' +
         '<input data-f="qty" type="text" value="' + esc(p.qty) + '" placeholder="Aantal" style="flex:1">' +
-        '<input data-f="sub" type="text" value="' + esc(p.sub||'') + '" placeholder="Omschrijving" style="flex:2">' +
+        '<input data-f="sub" type="text" value="' + esc(p.sub||'') + '" placeholder="Productcode" style="flex:2">' +
         '</div></div>' +
         '<div class="cat-edit-actions">' +
         '<button class="save" data-k="' + esc(k) + '">Opslaan</button>' +
@@ -509,6 +526,64 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
   }
 
   $('catSearch').addEventListener('input', renderCatalog);
+
+  /* ---------- Nieuw product toevoegen (los blok) ---------- */
+  function setNpStatus(msg, cls){ $('npStatus').textContent = msg; $('npStatus').className = 'status ' + (cls||''); }
+
+  function renderNewProdFields(){
+    const box = $('newprodFields');
+    if(mode === 'ean'){
+      box.innerHTML =
+        '<input type="text" id="npName" placeholder="Productnaam / vloernaam" style="margin-bottom:8px">' +
+        '<input type="text" id="npEan" placeholder="EAN" inputmode="numeric" style="margin-bottom:8px">' +
+        '<input type="text" id="npQty" placeholder="Aantal" inputmode="numeric" style="margin-bottom:8px">' +
+        '<input type="text" id="npSub" placeholder="Productcode">';
+    } else {
+      box.innerHTML =
+        '<input type="text" id="npFloor" placeholder="Vloernaam" style="margin-bottom:8px">' +
+        '<input type="text" id="npMaat" placeholder="Afmeting (optioneel)" style="margin-bottom:8px">' +
+        '<div class="row2">' +
+          '<input type="text" id="npArt" placeholder="Artikelnummer (optioneel)" style="flex:1">' +
+          '<input type="text" id="npQty2" placeholder="Aantal (optioneel)" style="flex:1">' +
+        '</div>';
+    }
+  }
+
+  $('newprodSave').addEventListener('click', async () => {
+    const cat = getCatalog();
+    let key, rec, line;
+    if(mode === 'ean'){
+      const name = $('npName').value.trim();
+      const eanv = $('npEan').value.trim();
+      const qty = $('npQty').value.trim();
+      const sub = $('npSub').value.trim();
+      if(!name || !eanv || !qty || !sub){
+        setNpStatus('Vul productnaam, EAN, aantal én productcode in.', 'err');
+        return;
+      }
+      key = name.toUpperCase();
+      rec = { name, ean: eanv, qty, sub, used: Date.now() };
+      line = [name, eanv, qty, sub].join('\t');
+    } else {
+      const floor = $('npFloor').value.trim();
+      const maat = $('npMaat').value.trim();
+      const art = $('npArt').value.trim();
+      const qty = $('npQty2').value.trim();
+      if(!floor){
+        setNpStatus('Vul minimaal de vloernaam in.', 'err');
+        return;
+      }
+      key = (floor + ' — ' + art).toUpperCase();
+      rec = { floor, maat, art, qty, used: Date.now() };
+      line = [floor, maat, art, qty].join('\t');
+    }
+    cat[key] = rec;
+    await saveCatalog();
+    const ta = $('data');
+    ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/,'') + '\n' : '') + line + '\n';
+    renderNewProdFields();
+    setNpStatus('Toegevoegd aan geheugen én aan je labelregels hieronder.', 'ok');
+  });
 
   /* ---------- Snel toevoegen ---------- */
   function showSuggestions(){
