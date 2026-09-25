@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Productkaart">
+<meta name="theme-color" content="#10151c">
+<title>Productkaart</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{--rack-blue:#1d4ea0;--beam-orange:#e8590c;--ink:#10151c;--bg:#eef1f5;--line:#cdd5df;--ok:#1c7a4a;--warn:#b86e00;--bad:#b3261e}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  .app{display:flex;min-height:100vh}
+
+  /* Linkerpaneel: productkaart */
+  .panel{width:430px;flex-shrink:0;background:var(--ink);color:#e8edf4;padding:22px 22px 30px;display:flex;flex-direction:column;gap:14px;max-height:100vh;overflow-y:auto;position:sticky;top:0}
+  .panel h1{font-size:19px;font-weight:800}
+  .sync{display:inline-block;color:#fff;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border-radius:3px;vertical-align:middle;margin-left:6px;background:#33404f}
+  .sync.ok{background:var(--ok)} .sync.err{background:var(--bad)}
+  a.back{color:#8fa0b5;font-size:12.5px;text-decoration:none}
+  .sec{border-top:1px solid #232d3a;padding-top:12px;display:flex;flex-direction:column;gap:10px}
+  .sec h3{font-size:13px;font-weight:700;color:#c4cfdd}
+  .sec h3 small{font-weight:400;color:#73818f}
+  label.fld{font-size:12px;font-weight:700;color:#8fa0b5;display:block;margin-bottom:4px}
+  input,select,textarea{width:100%;background:#0b0f14;color:#e8edf4;border:1px solid #2a3543;border-radius:6px;padding:9px 10px;font-size:15px;font-family:inherit}
+  textarea{height:56px;resize:vertical}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--rack-blue);outline-offset:1px}
+  .row2{display:flex;gap:10px}.row2>div{flex:1;min-width:0}
+  .ro{display:grid;grid-template-columns:125px 1fr;gap:4px 10px;font-size:13.5px}
+  .ro dt{color:#8fa0b5}
+  .ro dd{color:#e8edf4;word-break:break-word}
+  .ro dd.none{color:#56616f}
+  .note{font-size:12.5px;line-height:1.45;padding:7px 9px;border-radius:6px;background:#2a2112;color:#ffc27a}
+  .note.bad{background:#2c1614;color:#ff9a86}
+  .sugg{font-size:12.5px;color:#9aa7b8;margin-top:5px}
+  .sugg button{background:#222b37;border:1px solid #2a3543;color:#cfe0f5;border-radius:5px;padding:3px 8px;font-size:12px;cursor:pointer;margin-left:6px}
+  .prodname{font-size:17px;font-weight:800;line-height:1.25}
+  .prodcode{font-family:ui-monospace,Consolas,monospace;color:#cfe0f5;font-size:13px}
+  button.act{border:none;border-radius:6px;padding:13px 20px;font-size:14.5px;font-weight:700;cursor:pointer;width:100%}
+  .btn-save{background:var(--beam-orange);color:#fff}.btn-save:hover{background:#c84a08}
+  button.act:disabled{background:#33404f;color:#73818f;cursor:not-allowed}
+  .status{font-size:13px;color:#9aa7b8;min-height:18px;line-height:1.45}
+  .status.err{color:#ff8a5c}.status.ok{color:#7ed99a}
+  .placeholder{color:#73818f;font-size:14px;line-height:1.6;margin-top:30px}
+  .close{display:none}
+
+  /* Rechts: lijst */
+  .main{flex:1;padding:24px;overflow:auto;min-width:0}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .bar input,.bar select{background:#fff;color:var(--ink);border:1px solid var(--line);width:auto;font-size:14px;padding:9px 10px}
+  .bar input#q{flex:1;min-width:200px}
+  .bar label.chk{font-size:13.5px;display:flex;gap:6px;align-items:center;color:#39434f;white-space:nowrap}
+  .bar label.chk input{width:auto}
+  .imp{display:inline-block;background:var(--rack-blue);color:#fff;border-radius:6px;padding:9px 13px;font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .imp input{display:none}
+  .sheet{background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(15,23,32,.10);overflow:hidden}
+  .sheet-head{display:flex;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;color:#5b6673}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;font-size:12px;font-weight:700;color:#5b6673;padding:9px 10px;border-bottom:1px solid var(--line);background:#f6f8fb;white-space:nowrap}
+  td{padding:8px 10px;border-bottom:1px solid #e6ebf1;vertical-align:middle}
+  tr.r{cursor:pointer} tr.r:hover td{background:#f4f7fb} tr.r.sel td{background:#e8f0fc}
+  td.code{font-weight:700;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;white-space:nowrap}
+  td.nm{color:#39434f;max-width:320px}
+  td.n{text-align:right;white-space:nowrap}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%}
+  .dot.full{background:var(--ok)} .dot.part{background:#e0a100} .dot.empty{background:#d3d9e0}
+  .empty{color:#8b97a6;font-size:14px;text-align:center;padding:50px 20px;line-height:1.7}
+  .more{padding:12px 16px;font-size:13px;color:#5b6673;border-top:1px solid var(--line)}
+
+  @media screen and (max-width:900px){
+    .app{flex-direction:column}
+    .panel{position:fixed;inset:0;width:100%;max-height:none;z-index:50;display:none;padding:16px 16px 40px}
+    .panel.open{display:flex}
+    .close{display:block;background:#222b37;border:1px solid #2a3543;color:#c4cfdd;border-radius:6px;padding:10px;font-size:14px;font-weight:700;cursor:pointer}
+    .main{padding:12px 8px}
+    th.hm,td.hm{display:none}
+    td.nm{max-width:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="panel" id="panel">
+    <a class="back" href="./">← Palletlabel Generator</a>
+    <h1>Productkaart <span class="sync" id="sync">laden…</span></h1>
+    <button class="close" id="close">← Terug naar lijst</button>
+    <div id="card"><p class="placeholder">Kies rechts een product uit de lijst.<br><br>Eerste keer? Klik op <b>Picqer-export importeren</b> om alle producten binnen te halen.</p></div>
+  </aside>
+
+  <main class="main">
+    <div class="bar">
+      <input id="q" placeholder="Zoek op productcode of naam…" autocomplete="off">
+      <select id="lev"><option value="">Alle leveranciers</option></select>
+      <label class="chk"><input type="checkbox" id="fStock" checked> Met voorraad</label>
+      <label class="chk"><input type="checkbox" id="fOpen"> Alleen onvolledig</label>
+      <label class="imp">Picqer-export importeren<input type="file" id="file" accept=".xlsx,.xls,.csv"></label>
+    </div>
+    <div class="sheet">
+      <div class="sheet-head"><span id="cnt">Laden…</span><span id="stamp"></span></div>
+      <div id="list"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const URL_ = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
+  const KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
+  const H = { apikey:KEY, Authorization:'Bearer ' + KEY };
+  const MATEN = ['80x120','100x100','110x110','90x120','100x150','120x150','120x180','100x200','120x200','120x240','130x210','130x250','40x120','40x200'];
+  const PAGE = 1000, SHOW = 300;
+
+  let prod = {};        // productcode -> rij uit tabel producten
+  let geh = {};         // productcode(lowercase) -> [geheugen-items]
+  let current = null;   // geselecteerde productcode
+
+  /* ================= Database ================= */
+  async function fetchAll(){
+    const out = [];
+    for(let from = 0; ; from += PAGE){
+      const res = await fetch(URL_ + '/rest/v1/producten?select=*&order=productcode', {
+        headers:Object.assign({ Range:from + '-' + (from + PAGE - 1), 'Range-Unit':'items' }, H)
+      });
+      if(!res.ok) throw new Error(res.status === 404 ? 'tabel "producten" bestaat nog niet' : 'producten ' + res.status);
+      const rows = await res.json();
+      out.push(...rows);
+      if(rows.length < PAGE) break;
+    }
+    return out;
+  }
+  async function fetchCatalog(){
+    const res = await fetch(URL_ + '/rest/v1/catalog?key=eq.catalog-ean&select=data', { headers:H });
+    if(!res.ok) throw new Error('productgeheugen ' + res.status);
+    const r = await res.json();
+    return r.length ? r[0].data : {};
+  }
+  async function saveCatalog(data){
+    const res = await fetch(URL_ + '/rest/v1/catalog?on_conflict=key', {
+      method:'POST',
+      headers:Object.assign({}, H, { 'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=minimal' }),
+      body:JSON.stringify([{ key:'catalog-ean', mode:'ean', data:data, updated_at:new Date().toISOString() }])
+    });
+    if(!res.ok) throw new Error('productgeheugen opslaan ' + res.status);
+  }
+  async function upsert(rows){
+    const res = await fetch(URL_ + '/rest/v1/producten?on_conflict=productcode', {
+      method:'POST',
+      headers:Object.assign({}, H, { 'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=representation' }),
+      body:JSON.stringify(rows)
+    });
+    if(!res.ok) throw new Error(res.status + ' ' + (await res.text()).slice(0,150));
+    return res.json();
+  }
+  function indexCatalog(cat){
+    geh = {};
+    Object.values(cat).forEach(x => {
+      if(!x || !x.sub) return;
+      const k = String(x.sub).trim().toLowerCase();
+      (geh[k] = geh[k] || []).push(x);
+    });
+  }
+
+  async function load(){
+    try{
+      const [rows, cat] = await Promise.all([fetchAll(), fetchCatalog()]);
+      prod = {}; rows.forEach(r => prod[r.productcode] = r);
+      indexCatalog(cat);
+      // producten die alleen in het geheugen staan ook tonen
+      Object.values(geh).forEach(list => {
+        const c = String(list[0].sub).trim();
+        if(!Object.keys(prod).some(k => k.toLowerCase() === c.toLowerCase())) prod[c] = { productcode:c, _alleenGeheugen:true };
+      });
+      $('sync').textContent = 'verbonden'; $('sync').className = 'sync ok';
+      fillLeveranciers();
+      renderList();
+    }catch(e){
+      $('sync').textContent = 'fout'; $('sync').className = 'sync err';
+      $('cnt').textContent = 'Laden mislukt: ' + e.message + '. Staat Supabase op pauze? Resume project en herlaad.';
+    }
+  }
+
+  /* ================= Helpers ================= */
+  const g1 = code => (geh[String(code).toLowerCase()] || [])[0];
+  const stuksVan = code => { const g = g1(code); const n = g ? parseFloat(String(g.qty).replace(',', '.')) : NaN; return isNaN(n) ? null : n; };
+  const naamVan = r => r.naam || (g1(r.productcode) || {}).name || '';
+  const leeg = v => v === null || v === undefined || v === '';
+  function compleet(r){
+    const need = [stuksVan(r.productcode), r.palletmaat, r.hoogte_cm, r.gewicht_kg, r.plaatsen];
+    const n = need.filter(v => !leeg(v)).length;
+    return n === need.length ? 'full' : n === 0 ? 'empty' : 'part';
+  }
+  function esc(s){ return String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+  const fmt = (v, unit) => leeg(v) ? '<dd class="none">—</dd>' : '<dd>' + esc(v) + (unit ? ' ' + unit : '') + '</dd>';
+
+  /* ================= Lijst ================= */
+  function fillLeveranciers(){
+    const levs = [...new Set(Object.values(prod).map(r => r.leverancier).filter(Boolean))].sort();
+    const cur = $('lev').value;
+    $('lev').innerHTML = '<option value="">Alle leveranciers</option>' + levs.map(l => '<option>' + esc(l) + '</option>').join('');
+    $('lev').value = cur;
+  }
+  function renderList(){
+    const q = $('q').value.trim().toLowerCase(), lev = $('lev').value;
+    const all = Object.values(prod);
+    const rows = all.filter(r => {
+      if(lev && r.leverancier !== lev) return false;
+      if($('fStock').checked && !((r.voorraad_hm || 0) > 0 || (r.voorraad_vst || 0) > 0)) return false;
+      if($('fOpen').checked && compleet(r) === 'full') return false;
+      if(q && !r.productcode.toLowerCase().includes(q) && !naamVan(r).toLowerCase().includes(q)) return false;
+      return true;
+    }).sort((a, b) => a.productcode.localeCompare(b.productcode));
+    const volledig = all.filter(r => compleet(r) === 'full').length;
+    $('cnt').textContent = rows.length + ' van ' + all.length + ' producten · ' + volledig + ' volledig ingevuld';
+    const stamp = all.map(r => r.picqer_datum).filter(Boolean).sort().pop();
+    $('stamp').textContent = stamp ? 'Picqer-data van ' + new Date(stamp).toLocaleDateString('nl-NL') : 'Nog geen Picqer-export geïmporteerd';
+    if(!rows.length){ $('list').innerHTML = '<div class="empty">' + (all.length ? 'Geen producten met deze filters.' : 'Nog geen producten. Importeer een Picqer-export.') + '</div>'; return; }
+    $('list').innerHTML = '<table><thead><tr><th></th><th>Productcode</th><th>Product</th><th class="hm">Leverancier</th><th class="n">Voorraad</th><th class="n">Stuks/pal.</th><th class="hm">Maat</th><th class="n hm">Gewicht</th></tr></thead><tbody>' +
+      rows.slice(0, SHOW).map(r => '<tr class="r' + (r.productcode === current ? ' sel' : '') + '" data-c="' + esc(r.productcode) + '">' +
+        '<td><span class="dot ' + compleet(r) + '"></span></td>' +
+        '<td class="code">' + esc(r.productcode) + '</td>' +
+        '<td class="nm">' + esc(naamVan(r)) + '</td>' +
+        '<td class="hm">' + esc(r.leverancier || '') + '</td>' +
+        '<td class="n">' + (leeg(r.voorraad_hm) ? '—' : esc(r.voorraad_hm)) + '</td>' +
+        '<td class="n">' + (stuksVan(r.productcode) ?? '—') + '</td>' +
+        '<td class="hm">' + esc(r.palletmaat || '—') + '</td>' +
+        '<td class="n hm">' + (leeg(r.gewicht_kg) ? '—' : esc(r.gewicht_kg) + ' kg') + '</td></tr>').join('') +
+      '</tbody></table>' + (rows.length > SHOW ? '<div class="more">Eerste ' + SHOW + ' van ' + rows.length + ' getoond. Verfijn met zoeken of een leverancier.</div>' : '');
+    $('list').querySelectorAll('tr.r').forEach(tr => tr.addEventListener('click', () => open(tr.dataset.c)));
+  }
+
+  /* ================= Productkaart ================= */
+  function open(code){
+    current = code;
+    const r = prod[code] || { productcode:code };
+    const gl = geh[code.toLowerCase()] || [];
+    const g = gl[0];
+    const stuks = stuksVan(code);
+    const notes = [];
+    if(gl.length > 1) notes.push('<div class="note">Staat ' + gl.length + '× in het productgeheugen (onder verschillende namen). Bij opslaan krijgen ze allemaal hetzelfde aantal.</div>');
+    if(g && r.ean && String(g.ean) !== String(r.ean)) notes.push('<div class="note bad">EAN verschilt: Picqer ' + esc(r.ean) + ', productgeheugen ' + esc(g.ean) + '.</div>');
+    if(r._alleenGeheugen) notes.push('<div class="note">Staat (nog) niet in de Picqer-import. Controleer of de productcode exact klopt.</div>');
+    if(r.actief === false) notes.push('<div class="note">Product staat op inactief in Picqer.</div>');
+
+    const maatSel = MATEN.includes(r.palletmaat) ? r.palletmaat : (r.palletmaat ? 'anders' : '');
+    const sugg = (r.gewicht_product_g && stuks) ? Math.round(r.gewicht_product_g * stuks / 1000) : null;
+
+    $('card').innerHTML =
+      '<div><div class="prodname">' + esc(naamVan(r) || 'Onbekend product') + '</div><div class="prodcode">' + esc(code) + '</div></div>' +
+      notes.join('') +
+
+      '<div class="sec"><h3>Uit Picqer <small>alleen lezen</small></h3><dl class="ro">' +
+        '<dt>EAN</dt>' + fmt(r.ean || (g && g.ean)) +
+        '<dt>Leverancier</dt>' + fmt(r.leverancier) +
+        '<dt>Code leverancier</dt>' + fmt(r.leverancier_code) +
+        '<dt>Productgewicht</dt>' + fmt(r.gewicht_product_g ? (r.gewicht_product_g / 1000).toLocaleString('nl-NL') : null, 'kg') +
+        '<dt>Afmeting product</dt>' + fmt([r.lengte_product_cm, r.breedte_product_cm, r.hoogte_product_cm].some(v => !leeg(v)) ? [r.lengte_product_cm, r.breedte_product_cm, r.hoogte_product_cm].map(v => leeg(v) ? '?' : v).join(' × ') : null, 'cm') +
+        '<dt>Voorraad HM</dt>' + fmt(leeg(r.voorraad_hm) ? null : r.voorraad_hm + (leeg(r.vrij_hm) ? '' : ' (vrij ' + r.vrij_hm + ')')) +
+        '<dt>Voorraad VST</dt>' + fmt(r.voorraad_vst) +
+        '<dt>Locaties HM</dt>' + fmt(r.locaties_hm) +
+        '<dt>ABC</dt>' + fmt(r.abc) +
+      '</dl></div>' +
+
+      '<div class="sec"><h3>Pallet <small>zelf invullen</small></h3>' +
+        '<div class="row2"><div><label class="fld" for="f_stuks">Stuks per pallet</label><input id="f_stuks" type="number" inputmode="decimal" min="0" value="' + (stuks ?? '') + '"></div>' +
+        '<div><label class="fld" for="f_eenheid">Eenheid</label><select id="f_eenheid">' + ['stuk','meter','rol'].map(u => '<option' + ((r.eenheid || 'stuk') === u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></div></div>' +
+        '<div class="row2"><div><label class="fld" for="f_maat">Palletmaat (cm)</label><select id="f_maat"><option value="">— kies —</option>' +
+          MATEN.map(m => '<option' + (maatSel === m ? ' selected' : '') + '>' + m + '</option>').join('') + '<option value="anders"' + (maatSel === 'anders' ? ' selected' : '') + '>anders…</option></select></div>' +
+        '<div><label class="fld" for="f_hoogte">Hoogte (cm)</label><input id="f_hoogte" type="number" inputmode="decimal" min="0" value="' + esc(r.hoogte_cm ?? '') + '"></div></div>' +
+        '<div class="row2" id="f_custom"' + (maatSel === 'anders' ? '' : ' hidden') + '><div><label class="fld" for="f_l">Lengte (cm)</label><input id="f_l" type="number" inputmode="decimal" value="' + esc(r.lengte_cm ?? '') + '"></div>' +
+          '<div><label class="fld" for="f_b">Breedte (cm)</label><input id="f_b" type="number" inputmode="decimal" value="' + esc(r.breedte_cm ?? '') + '"></div></div>' +
+        '<div><label class="fld" for="f_gewicht">Gewicht volle pallet (kg)</label><input id="f_gewicht" type="number" inputmode="decimal" min="0" value="' + esc(r.gewicht_kg ?? '') + '">' +
+          '<div class="sugg" id="f_sugg"></div></div>' +
+        '<div class="row2"><div><label class="fld" for="f_plaatsen">Plaatsen in stelling</label><input id="f_plaatsen" type="number" inputmode="decimal" min="0" step="0.5" value="' + esc(r.plaatsen ?? '') + '"></div>' +
+        '<div><label class="fld" for="f_max">Max per ligger</label><input id="f_max" type="number" inputmode="numeric" min="0" value="' + esc(r.max_per_ligger ?? '') + '"></div></div>' +
+        '<div><label class="fld" for="f_opm">Opmerking</label><textarea id="f_opm" placeholder="bijv. blokpallet, niet stapelen">' + esc(r.opmerking || '') + '</textarea></div>' +
+      '</div>' +
+      '<button class="act btn-save" id="f_save">Opslaan</button>' +
+      '<div class="status" id="f_status"></div>';
+
+    const updSugg = () => {
+      const s = parseFloat($('f_stuks').value);
+      const kg = (r.gewicht_product_g && s) ? Math.round(r.gewicht_product_g * s / 1000) : null;
+      $('f_sugg').innerHTML = kg ? 'Producten samen: ' + kg + ' kg (zonder pallethout)<button type="button" id="f_take">Overnemen</button>' : '';
+      if(kg) $('f_take').onclick = () => { $('f_gewicht').value = kg; };
+    };
+    updSugg();
+    $('f_stuks').addEventListener('input', updSugg);
+    $('f_maat').addEventListener('change', () => { $('f_custom').hidden = $('f_maat').value !== 'anders'; });
+    $('f_save').addEventListener('click', () => save(code));
+    $('panel').classList.add('open');
+    $('panel').scrollTop = 0;
+    document.querySelectorAll('tr.r').forEach(tr => tr.classList.toggle('sel', tr.dataset.c === code));
+  }
+
+  const val = id => { const v = $(id).value.trim().replace(',', '.'); return v === '' ? null : Number(v); };
+  function fStatus(m, c){ const el = $('f_status'); if(el){ el.textContent = m; el.className = 'status ' + (c || ''); } }
+
+  async function save(code){
+    const r = prod[code] || {};
+    let maat = $('f_maat').value, l = null, b = null;
+    if(maat === 'anders'){
+      l = val('f_l'); b = val('f_b');
+      if(!l || !b){ fStatus('Vul lengte en breedte in.', 'err'); return; }
+      maat = l + 'x' + b;
+    } else if(maat){ [l, b] = maat.split('x').map(Number); }
+    const row = {
+      productcode:code, palletmaat:maat || null, lengte_cm:l, breedte_cm:b,
+      hoogte_cm:val('f_hoogte'), gewicht_kg:val('f_gewicht'), plaatsen:val('f_plaatsen'),
+      max_per_ligger:val('f_max'), eenheid:$('f_eenheid').value, opmerking:$('f_opm').value.trim() || null,
+      updated_at:new Date().toISOString()
+    };
+    $('f_save').disabled = true;
+    try{
+      // 1. palletdata -> tabel producten
+      const saved = (await upsert([row]))[0];
+      prod[code] = Object.assign({}, r, saved); delete prod[code]._alleenGeheugen;
+
+      // 2. stuks per pallet -> productgeheugen (vers ophalen om niets te overschrijven)
+      const nieuw = val('f_stuks');
+      let msg = 'Opgeslagen.';
+      if(nieuw !== null && nieuw !== stuksVan(code)){
+        const cat = await fetchCatalog();
+        const hits = Object.keys(cat).filter(k => cat[k] && String(cat[k].sub || '').trim().toLowerCase() === code.toLowerCase());
+        if(hits.length){
+          hits.forEach(k => { cat[k].qty = String(nieuw); cat[k].used = Date.now(); });
+          msg += ' Stuks per pallet bijgewerkt in het productgeheugen.';
+        } else {
+          const ean = prod[code].ean;
+          const naam = prod[code].naam;
+          if(!ean || !naam) throw new Error('stuks per pallet niet opgeslagen: naam of EAN onbekend. Importeer eerst de Picqer-export.');
+          cat[naam.toUpperCase()] = { name:naam, ean:String(ean), qty:String(nieuw), sub:code, used:Date.now() };
+          msg += ' Nieuw toegevoegd aan het productgeheugen.';
+        }
+        await saveCatalog(cat);
+        indexCatalog(cat);
+      }
+      renderList();
+      open(code);
+      fStatus(msg, 'ok');
+    }catch(e){
+      fStatus('Opslaan mislukt: ' + e.message, 'err');
+      $('f_save').disabled = false;
+    }
+  }
+
+  /* ================= Picqer-import ================= */
+  const MAP = {
+    productcode:'Productcode', naam:'Naam', leverancier:'Leverancier', leverancier_code:'Productcode leverancier',
+    ean:'Barcode', gewicht_product_g:'Gewicht', lengte_product_cm:'Lengte', breedte_product_cm:'Breedte', hoogte_product_cm:'Hoogte',
+    actief:'Actief', abc:'ABC classificatie', locaties_hm:'Voorraadlocatie Hoofdmagazijn',
+    voorraad_hm:'Voorraad Hoofdmagazijn', vrij_hm:'Vrije voorraad Hoofdmagazijn', voorraad_vst:'Voorraad Bulk van Spreuwel'
+  };
+  const NUMS = ['gewicht_product_g','lengte_product_cm','breedte_product_cm','hoogte_product_cm','voorraad_hm','vrij_hm','voorraad_vst'];
+  function toNum(v){
+    if(leeg(v)) return null;
+    if(typeof v === 'number') return v;
+    const n = parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
+    return isNaN(n) ? null : n;
+  }
+  function toText(v){
+    if(leeg(v)) return null;
+    if(typeof v === 'number') return Number.isInteger(v) ? String(v) : String(Math.round(v));
+    return String(v).trim() || null;
+  }
+
+  $('file').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if(!f) return;
+    const say = m => { $('cnt').textContent = m; };
+    try{
+      say('Bestand lezen…');
+      const wb = XLSX.read(await f.arrayBuffer(), { type:'array' });
+      const arr = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, blankrows:false, defval:null });
+      const head = (arr[0] || []).map(h => String(h ?? '').trim());
+      const idx = {};
+      for(const [k, h] of Object.entries(MAP)) idx[k] = head.indexOf(h); // eerste kolom met die naam
+      if(idx.productcode < 0) throw new Error('kolom "Productcode" niet gevonden. Is dit een Picqer-productenexport?');
+      const ontbreekt = Object.entries(idx).filter(([, i]) => i < 0).map(([k]) => MAP[k]);
+      const nu = new Date().toISOString();
+      const rows = [];
+      for(let i = 1; i < arr.length; i++){
+        const a = arr[i];
+        const code = toText(a[idx.productcode]);
+        if(!code) continue;
+        const r = { productcode:code, picqer_datum:nu };
+        for(const k of Object.keys(MAP)){
+          if(k === 'productcode') continue;
+          const v = idx[k] >= 0 ? a[idx[k]] : null;
+          if(NUMS.includes(k)) r[k] = toNum(v);
+          else if(k === 'actief') r[k] = leeg(v) ? null : /^(true|ja|1|waar)$/i.test(String(v).trim());
+          else r[k] = toText(v);
+        }
+        rows.push(r);
+      }
+      if(!rows.length) throw new Error('geen productregels gevonden.');
+      const B = 500;
+      for(let i = 0; i < rows.length; i += B){
+        say('Importeren… ' + Math.min(i + B, rows.length) + ' / ' + rows.length);
+        await upsert(rows.slice(i, i + B));
+      }
+      await load();
+      say(rows.length + ' producten geïmporteerd uit Picqer.' + (ontbreekt.length ? ' Kolommen niet gevonden: ' + ontbreekt.join(', ') + '.' : ''));
+    }catch(err){
+      say('Import mislukt: ' + err.message);
+    }
+  });
+
+  ['q','lev','fStock','fOpen'].forEach(id => $(id).addEventListener(id === 'q' ? 'input' : 'change', renderList));
+  $('close').addEventListener('click', () => $('panel').classList.remove('open'));
+
+  load();
+})();
+</script>
+</body>
+</html>
