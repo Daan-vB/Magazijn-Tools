@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Containerlabels">
+<meta name="theme-color" content="#10151c">
+<title>Container-palletlabels</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --rack-blue:#1d4ea0;
+    --beam-orange:#e8590c;
+    --ink:#10151c;
+    --bg:#eef1f5;
+    --line:#cdd5df;
+    --ok:#1c7a4a;
+    --warn:#b86e00;
+    --bad:#b3261e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  .app{display:flex;min-height:100vh}
+  .panel{width:420px;flex-shrink:0;background:var(--ink);color:#e8edf4;padding:26px 24px;display:flex;flex-direction:column;gap:18px}
+  .panel h1{font-size:19px;font-weight:800;line-height:1.2}
+  .panel h1 .sync{display:inline-block;color:#fff;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border-radius:3px;vertical-align:middle;margin-left:6px;background:#33404f}
+  .panel h1 .sync.ok{background:var(--ok)}
+  .panel h1 .sync.err{background:var(--bad)}
+  .panel a.back{color:#8fa0b5;font-size:12.5px;text-decoration:none}
+  .panel a.back:hover{color:#fff}
+  .hint{font-size:12.5px;line-height:1.55;color:#9aa7b8}
+  .hint code{background:#222b37;padding:1px 5px;border-radius:3px;font-size:11.5px;color:#cfe0f5}
+  label.fld{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8fa0b5;display:block;margin-bottom:6px}
+  input.txt{width:100%;background:#0b0f14;color:#e8edf4;border:1px solid #2a3543;border-radius:6px;padding:11px 12px;font-size:15px}
+  textarea{width:100%;height:210px;resize:vertical;background:#0b0f14;color:#d7e3f2;border:1px solid #2a3543;border-radius:6px;font-family:ui-monospace,Consolas,monospace;font-size:13px;line-height:1.6;padding:12px}
+  textarea:focus,input.txt:focus{outline:2px solid var(--rack-blue);outline-offset:1px}
+  .filebtn{display:inline-block;background:#222b37;border:1px solid #2a3543;color:#c4cfdd;border-radius:6px;padding:9px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .filebtn:hover{background:#2b3645}
+  .filebtn input{display:none}
+  button.act{border:none;border-radius:6px;padding:13px 20px;font-size:14.5px;font-weight:700;cursor:pointer;width:100%}
+  .btn-run{background:var(--beam-orange);color:#fff}
+  .btn-run:hover{background:#c84a08}
+  .btn-print{background:var(--rack-blue);color:#fff}
+  .btn-print:hover{background:#173f82}
+  button.act:disabled{background:#33404f;color:#73818f;cursor:not-allowed}
+  .status{font-size:13px;color:#9aa7b8;min-height:18px;line-height:1.5}
+  .status.err{color:#ff8a5c}
+  .status.ok{color:#7ed99a}
+
+  .main{flex:1;padding:28px;overflow:auto}
+  .empty{color:#8b97a6;font-size:14px;text-align:center;margin-top:120px;line-height:1.7}
+  .sheet{background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(15,23,32,.10);overflow:hidden}
+  .sheet-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .sheet-head h2{font-size:17px;font-weight:800}
+  .totals{font-size:14px;color:#39434f}
+  .totals b{font-size:18px;color:var(--ink)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;font-size:12px;font-weight:700;color:#5b6673;padding:10px 10px;border-bottom:1px solid var(--line);background:#f6f8fb;white-space:nowrap}
+  td{padding:8px 10px;border-bottom:1px solid #e6ebf1;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  td.code{font-weight:700;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+  td.nm{color:#39434f;max-width:280px}
+  td.nm .ean{display:block;font-size:12px;color:#8b97a6;font-family:ui-monospace,Consolas,monospace}
+  td input.num{width:70px;padding:7px 8px;border:1px solid var(--line);border-radius:5px;font-size:15px;text-align:right}
+  td input.wide{width:100%;min-width:130px;padding:7px 8px;border:1px solid var(--line);border-radius:5px;font-size:13px;margin-bottom:4px}
+  td select{width:100%;padding:6px;border:1px solid var(--line);border-radius:5px;font-size:13px}
+  td.lbl{font-size:20px;font-weight:900;text-align:right;font-family:"Arial Black",Arial,sans-serif}
+  td.lbl.zero{color:#b9c2cc}
+  .flag{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap}
+  .flag.ok{background:#e3f4ea;color:var(--ok)}
+  .flag.warn{background:#fff1dc;color:var(--warn)}
+  .flag.bad{background:#fde4e2;color:var(--bad)}
+  tr.bad td{background:#fff8f7}
+  button.del{background:none;border:1px solid var(--line);color:#8b97a6;border-radius:5px;padding:4px 9px;font-size:13px;cursor:pointer}
+  button.del:hover{border-color:var(--bad);color:var(--bad)}
+  .sheet-foot{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:10px;flex-wrap:wrap}
+  .sheet-foot button{background:#f0f3f7;border:1px solid var(--line);border-radius:6px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+  .sheet-foot button:hover{background:#e4e9ef}
+
+  @media screen and (max-width:900px){
+    .app{flex-direction:column}
+    .panel{width:100%;padding:18px 16px;gap:14px}
+    textarea{height:150px;font-size:16px}
+    .main{padding:12px 8px}
+    table,thead,tbody,tr,td{display:block}
+    thead{display:none}
+    tr{border-bottom:1px solid var(--line);padding:10px 12px;position:relative}
+    td{border:none;padding:3px 0}
+    td[data-k]::before{content:attr(data-k);display:inline-block;width:120px;font-size:12px;color:#5b6673}
+    td.lbl{text-align:left}
+    td.nm{max-width:none}
+    button.del{position:absolute;top:10px;right:12px}
+    button.act{padding:15px 20px;font-size:16px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="panel">
+    <a class="back" href="./">← Palletlabel Generator</a>
+    <h1>Container-palletlabels <span class="sync" id="sync">laden…</span></h1>
+
+    <div>
+      <label class="fld" for="cname">Container</label>
+      <input class="txt" id="cname" placeholder="bijv. Wallace ONEU0155945 29-09" autocomplete="off">
+    </div>
+
+    <div>
+      <label class="fld" for="data">Containerlijst</label>
+      <textarea id="data" placeholder="ISM80X120	39	50
+ISM100X100	6	50
+RH90x150HD	5"></textarea>
+      <p class="hint" style="margin-top:8px">
+        Per regel: <code>productcode</code> → <code>aantal pallets</code> → <code>stuks per pallet</code> (optioneel).
+        Laat je stuks per pallet leeg, dan wordt het aantal uit het productgeheugen gebruikt.
+        Plakken uit Excel of Sheets werkt direct.
+      </p>
+    </div>
+
+    <label class="filebtn">Of Excel/CSV kiezen…<input type="file" id="file" accept=".xlsx,.xls,.csv,.txt"></label>
+
+    <button class="act btn-run" id="read" disabled>Lijst inlezen</button>
+    <button class="act btn-print" id="pdf" disabled>Labels maken (PDF)</button>
+    <div class="status" id="status"></div>
+
+    <p class="hint" style="margin-top:auto">
+      Leest het productgeheugen van de Palletlabel Generator (EAN, naam), maar wijzigt daar niets.
+      Staat de database op pauze? Ga naar supabase.com/dashboard en klik op <b>Resume project</b>.
+    </p>
+  </aside>
+
+  <main class="main" id="main">
+    <div class="empty">Plak een containerlijst en klik op <b>Lijst inlezen</b>.</div>
+  </main>
+
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const SUPABASE_URL = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
+
+  let catalog = {};          // productgeheugen (catalog-ean)
+  let byCode = {};           // exacte productcode (lowercase) -> [items]
+  let byNorm = {};           // genormaliseerde code -> [items]
+  let rows = [];             // ingelezen regels
+
+  /* ---------- Database ---------- */
+  async function loadCatalog(){
+    const s = $('sync');
+    try{
+      const res = await fetch(SUPABASE_URL + '/rest/v1/catalog?key=eq.catalog-ean&select=data', {
+        headers:{ apikey:SUPABASE_KEY, Authorization:'Bearer ' + SUPABASE_KEY }
+      });
+      if(!res.ok) throw new Error(res.status);
+      const r = await res.json();
+      catalog = r.length ? r[0].data : {};
+      indexCatalog();
+      s.textContent = Object.keys(catalog).length + ' producten';
+      s.className = 'sync ok';
+      $('read').disabled = false;
+    }catch(e){
+      s.textContent = 'geen verbinding';
+      s.className = 'sync err';
+      setStatus('Productgeheugen niet bereikbaar. Staat Supabase op pauze? Resume project en herlaad deze pagina.', 'err');
+    }
+  }
+
+  const norm = c => String(c||'').toLowerCase().replace(/[\s\-_.\/]/g,'');
+
+  function indexCatalog(){
+    byCode = {}; byNorm = {};
+    Object.values(catalog).forEach(p => {
+      if(!p || !p.sub) return;
+      const k = String(p.sub).trim().toLowerCase();
+      (byCode[k] = byCode[k] || []).push(p);
+      const n = norm(p.sub);
+      (byNorm[n] = byNorm[n] || []).push(p);
+    });
+  }
+
+  function lookup(code){
+    const exact = byCode[code.trim().toLowerCase()];
+    if(exact && exact.length) return { matches:exact, how:'exact' };
+    const loose = byNorm[norm(code)];
+    if(loose && loose.length) return { matches:loose, how:'loose' };
+    return { matches:[], how:'none' };
+  }
+
+  /* ---------- Inlezen ---------- */
+  function splitRow(line){
+    if(line.includes('\t')) return line.split('\t');
+    if(line.includes(';'))  return line.split(';');
+    return line.split(',');
+  }
+  const toInt = v => { const n = parseInt(String(v||'').replace(/[^\d]/g,''), 10); return isNaN(n) ? null : n; };
+
+  function readList(){
+    const lines = $('data').value.split(/\r?\n/);
+    const out = [], skipped = [];
+    lines.forEach((line, i) => {
+      if(!line.trim()) return;
+      const c = splitRow(line).map(s => s.trim());
+      const code = c[0], pallets = toInt(c[1]), stuks = toInt(c[2]);
+      if(i === 0 && /product|code|pallet|aantal/i.test(line) && pallets === null) return; // kopregel
+      if(!code || pallets === null){ skipped.push(i+1); return; }
+      out.push(makeRow(code, pallets, stuks));
+    });
+    rows = out;
+    renderTable();
+    let msg = rows.length + ' regel(s) ingelezen.';
+    if(skipped.length) msg += ' Overgeslagen (geen aantal pallets): regel ' + skipped.join(', ') + '.';
+    setStatus(msg, skipped.length ? 'err' : 'ok');
+  }
+
+  function makeRow(code, pallets, stuks){
+    const L = lookup(code);
+    const r = { code, pallets, weg:0, stuks:null, pick:0, how:L.how, matches:L.matches, name:'', ean:'' };
+    if(L.matches.length) applyMatch(r, 0);
+    if(stuks !== null) r.stuks = stuks;
+    return r;
+  }
+
+  function applyMatch(r, i){
+    r.pick = i;
+    const p = r.matches[i];
+    r.name = p.name || '';
+    r.ean = String(p.ean || '').replace(/\s+/g,'');
+    if(r.stuks === null || r.stuks === undefined) r.stuks = toInt(p.qty);
+  }
+
+  /* ---------- Tabel ---------- */
+  function flagFor(r){
+    if(r.how === 'none') return '<span class="flag bad">Niet in geheugen</span>';
+    if(r.matches.length > 1) return '<span class="flag warn">' + r.matches.length + ' producten, kies</span>';
+    if(r.how === 'loose') return '<span class="flag warn">Schrijfwijze wijkt af: ' + esc(r.matches[0].sub) + '</span>';
+    if(!r.ean) return '<span class="flag bad">Geen EAN</span>';
+    return '<span class="flag ok">Gevonden</span>';
+  }
+
+  const labelsFor = r => Math.max(0, (r.pallets||0) - (r.weg||0));
+  const rowOk = r => r.name && r.ean && r.stuks > 0 && r.weg <= r.pallets;
+
+  function renderTable(){
+    const main = $('main');
+    if(!rows.length){
+      main.innerHTML = '<div class="empty">Geen geldige regels gevonden.</div>';
+      $('pdf').disabled = true;
+      return;
+    }
+    let html = '<div class="sheet"><div class="sheet-head"><h2>' + esc($('cname').value || 'Containerlijst') + '</h2>' +
+      '<div class="totals" id="totals"></div></div><table><thead><tr>' +
+      '<th>Productcode</th><th>Product</th><th>Status</th><th>Pallets</th><th>Stuks/pallet</th><th>Gaat direct weg</th><th style="text-align:right">Labels</th><th></th>' +
+      '</tr></thead><tbody>';
+    rows.forEach((r, i) => {
+      let prod;
+      if(r.how === 'none'){
+        prod = '<input class="wide" data-i="' + i + '" data-f="name" placeholder="Productnaam" value="' + esc(r.name) + '">' +
+               '<input class="wide" data-i="' + i + '" data-f="ean" placeholder="EAN" value="' + esc(r.ean) + '">';
+      } else if(r.matches.length > 1){
+        prod = '<select data-i="' + i + '" data-f="pick">' + r.matches.map((p, j) =>
+          '<option value="' + j + '"' + (j === r.pick ? ' selected' : '') + '>' + esc(p.name) + ' · ' + esc(p.ean) + ' · ' + esc(p.qty) + ' st.</option>').join('') + '</select>';
+      } else {
+        prod = esc(r.name) + '<span class="ean">' + esc(r.ean || '—') + '</span>';
+      }
+      html += '<tr class="' + (rowOk(r) ? '' : 'bad') + '">' +
+        '<td class="code" data-k="Productcode">' + esc(r.code) + '</td>' +
+        '<td class="nm" data-k="Product">' + prod + '</td>' +
+        '<td data-k="Status">' + flagFor(r) + '</td>' +
+        '<td data-k="Pallets"><input class="num" type="number" min="0" inputmode="numeric" data-i="' + i + '" data-f="pallets" value="' + (r.pallets ?? '') + '"></td>' +
+        '<td data-k="Stuks/pallet"><input class="num" type="number" min="0" inputmode="numeric" data-i="' + i + '" data-f="stuks" value="' + (r.stuks ?? '') + '"></td>' +
+        '<td data-k="Gaat direct weg"><input class="num" type="number" min="0" inputmode="numeric" data-i="' + i + '" data-f="weg" value="' + (r.weg || 0) + '"></td>' +
+        '<td class="lbl' + (labelsFor(r) ? '' : ' zero') + '" data-k="Labels">' + labelsFor(r) + '</td>' +
+        '<td><button class="del" data-del="' + i + '" title="Regel verwijderen">✕</button></td>' +
+        '</tr>';
+    });
+    html += '</tbody></table><div class="sheet-foot">' +
+      '<button id="addrow">+ Regel toevoegen (bijv. aangebroken pallet)</button></div></div>';
+    main.innerHTML = html;
+
+    main.querySelectorAll('input[data-f],select[data-f]').forEach(el => el.addEventListener('change', onEdit));
+    main.querySelectorAll('button[data-del]').forEach(b => b.addEventListener('click', () => {
+      rows.splice(+b.dataset.del, 1); renderTable();
+    }));
+    $('addrow').addEventListener('click', () => {
+      const code = prompt('Productcode?');
+      if(!code) return;
+      rows.push(makeRow(code.trim(), 1, null));
+      renderTable();
+    });
+    updateTotals();
+  }
+
+  function onEdit(e){
+    const i = +e.target.dataset.i, f = e.target.dataset.f, r = rows[i];
+    if(f === 'pick'){ r.stuks = null; applyMatch(r, +e.target.value); }
+    else if(f === 'name' || f === 'ean'){ r[f] = e.target.value.trim(); }
+    else { r[f] = toInt(e.target.value) ?? 0; }
+    if(r.weg > r.pallets) setStatus(r.code + ': "gaat direct weg" is groter dan het aantal pallets.', 'err');
+    renderTable();
+  }
+
+  function updateTotals(){
+    const p = rows.reduce((a, r) => a + (r.pallets||0), 0);
+    const w = rows.reduce((a, r) => a + (r.weg||0), 0);
+    const l = rows.reduce((a, r) => a + labelsFor(r), 0);
+    $('totals').innerHTML = p + ' pallets · ' + w + ' gaan direct weg · <b>' + l + ' labels</b>';
+    const bad = rows.filter(r => labelsFor(r) > 0 && !rowOk(r));
+    $('pdf').disabled = !l || bad.length > 0;
+    if(bad.length) setStatus('Nog ' + bad.length + ' regel(s) met rode status. Los die eerst op: ' + bad.map(r => r.code).join(', '), 'err');
+    else if(l) setStatus(l + ' labels klaar om te maken.', 'ok');
+  }
+
+  /* ---------- PDF (zelfde opmaak als de generator) ---------- */
+  function nameFontSize(name){
+    const n = name.length;
+    if(n <= 8)  return 110;
+    if(n <= 12) return 95;
+    if(n <= 16) return 78;
+    if(n <= 22) return 60;
+    if(n <= 30) return 46;
+    return 36;
+  }
+  const isEan = code => /^\d{12,13}$/.test(code) || /^\d{8}$/.test(code);
+
+  function drawLabel(doc, r, first){
+    if(!first) doc.addPage('a4', 'landscape');
+    const W = 297;
+    doc.setTextColor(16,21,28);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(nameFontSize(r.name));
+    doc.text(r.name, W/2, 48, {align:'center'});
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(18);
+    doc.setTextColor(57,67,79);
+    doc.text(r.code, W/2, 60, {align:'center'});
+    doc.setTextColor(16,21,28);
+    try{
+      const cv = document.createElement('canvas');
+      const fmt = isEan(r.ean) ? (r.ean.length === 8 ? 'EAN8' : 'EAN13') : 'CODE128';
+      JsBarcode(cv, r.ean, { format:fmt, height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 });
+      const w = 180, h = Math.min(50, w * (cv.height / cv.width));
+      doc.addImage(cv.toDataURL('image/png'), 'PNG', (W - w)/2, 82, w, h);
+    }catch(e){
+      doc.setFontSize(16); doc.setTextColor(179,38,30);
+      doc.text('Barcode kon niet worden gemaakt: ' + r.ean, W/2, 105, {align:'center'});
+      doc.setTextColor(16,21,28);
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(58);
+    doc.text(String(r.stuks), W/2 - 8, 178, {align:'right'});
+    doc.setFontSize(15);
+    doc.text('STUKS', W/2 + 6, 178, {align:'left'});
+  }
+
+  function makePdf(){
+    try{
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+      let n = 0;
+      rows.forEach(r => {
+        for(let k = 0; k < labelsFor(r); k++){ drawLabel(doc, r, n === 0); n++; }
+      });
+      window.open(doc.output('bloburl'), '_blank');
+      setStatus(n + ' labels als PDF geopend. Print vanuit dat tabblad.', 'ok');
+    }catch(e){
+      setStatus('PDF maken is mislukt: ' + e.message, 'err');
+    }
+  }
+
+  /* ---------- Bestand inlezen ---------- */
+  $('file').addEventListener('change', async e => {
+    const f = e.target.files[0];
+    if(!f) return;
+    try{
+      if(/\.(xlsx|xls)$/i.test(f.name)){
+        const wb = XLSX.read(await f.arrayBuffer(), { type:'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const arr = XLSX.utils.sheet_to_json(ws, { header:1, blankrows:false });
+        $('data').value = arr.map(r => r.slice(0,3).join('\t')).join('\n');
+      } else {
+        $('data').value = await f.text();
+      }
+      readList();
+    }catch(err){
+      setStatus('Bestand kon niet worden gelezen: ' + err.message, 'err');
+    }
+    e.target.value = '';
+  });
+
+  $('data').addEventListener('keydown', e => {
+    if(e.key !== 'Tab') return;
+    e.preventDefault();
+    const s = e.target.selectionStart;
+    e.target.value = e.target.value.slice(0, s) + '\t' + e.target.value.slice(e.target.selectionEnd);
+    e.target.selectionStart = e.target.selectionEnd = s + 1;
+  });
+  $('cname').addEventListener('input', () => { const h = document.querySelector('.sheet-head h2'); if(h) h.textContent = $('cname').value || 'Containerlijst'; });
+  $('read').addEventListener('click', readList);
+  $('pdf').addEventListener('click', makePdf);
+
+  function setStatus(msg, cls){ $('status').textContent = msg; $('status').className = 'status ' + (cls||''); }
+  function esc(s){ return String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+  loadCatalog();
+})();
+</script>
+</body>
+</html>
