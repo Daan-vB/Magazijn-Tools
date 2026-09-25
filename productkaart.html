@@ -11,6 +11,7 @@
 <style>
   :root{--rack-blue:#1d4ea0;--beam-orange:#e8590c;--ink:#10151c;--bg:#eef1f5;--line:#cdd5df;--ok:#1c7a4a;--warn:#b86e00;--bad:#b3261e}
   *{box-sizing:border-box;margin:0;padding:0}
+  [hidden]{display:none !important}
   body{font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--ink)}
   .app{display:flex;min-height:100vh}
 
@@ -65,7 +66,7 @@
   td.nm{color:#39434f;max-width:320px}
   td.n{text-align:right;white-space:nowrap}
   .dot{display:inline-block;width:10px;height:10px;border-radius:50%}
-  .dot.full{background:var(--ok)} .dot.part{background:#e0a100} .dot.empty{background:#d3d9e0}
+  .dot.full{background:var(--ok)} .dot.part{background:#e0a100} .dot.leeg{background:#d3d9e0}
   .empty{color:#8b97a6;font-size:14px;text-align:center;padding:50px 20px;line-height:1.7}
   .more{padding:12px 16px;font-size:13px;color:#5b6673;border-top:1px solid var(--line)}
 
@@ -94,7 +95,7 @@
     <div class="bar">
       <input id="q" placeholder="Zoek op productcode of naam…" autocomplete="off">
       <select id="lev"><option value="">Alle leveranciers</option></select>
-      <label class="chk"><input type="checkbox" id="fStock" checked> Met voorraad</label>
+      <label class="chk"><input type="checkbox" id="fStock"> Met voorraad</label>
       <label class="chk"><input type="checkbox" id="fOpen"> Alleen onvolledig</label>
       <label class="imp">Picqer-export importeren<input type="file" id="file" accept=".xlsx,.xls,.csv"></label>
     </div>
@@ -191,7 +192,7 @@
   function compleet(r){
     const need = [stuksVan(r.productcode), r.palletmaat, r.hoogte_cm, r.gewicht_kg, r.plaatsen];
     const n = need.filter(v => !leeg(v)).length;
-    return n === need.length ? 'full' : n === 0 ? 'empty' : 'part';
+    return n === need.length ? 'full' : n === 0 ? 'leeg' : 'part';
   }
   function esc(s){ return String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
   const fmt = (v, unit) => leeg(v) ? '<dd class="none">—</dd>' : '<dd>' + esc(v) + (unit ? ' ' + unit : '') + '</dd>';
