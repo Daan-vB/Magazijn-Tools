@@ -70,6 +70,26 @@
   .empty{color:#8b97a6;font-size:14px;text-align:center;padding:50px 20px;line-height:1.7}
   .more{padding:12px 16px;font-size:13px;color:#5b6673;border-top:1px solid var(--line)}
 
+  .levpanel{background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(15,23,32,.10);padding:14px 16px;margin-bottom:14px}
+  .levpanel h2{font-size:15.5px;font-weight:800;margin-bottom:2px}
+  .levpanel .sub{font-size:13px;color:#5b6673;margin-bottom:10px}
+  .todo{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid #eef1f5}
+  .todo:first-of-type{border-top:none}
+  .todo input[type=checkbox]{margin-top:3px}
+  .todo .txt{flex:1;font-size:13.5px;line-height:1.4}
+  .todo .txt b{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:#f0f3f7;padding:1px 5px;border-radius:4px}
+  .todo .meta{font-size:11.5px;color:#8b97a6;margin-top:2px}
+  .pri{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:9px;margin-right:6px}
+  .pri.hoog{background:#fde4e2;color:var(--bad)}
+  .pri.middel{background:#fff1dc;color:var(--warn)}
+  .pri.laag{background:#e9ecf0;color:#5b6673}
+  .todo button{background:none;border:1px solid var(--line);color:#8b97a6;border-radius:5px;padding:3px 8px;font-size:12px;cursor:pointer}
+  .todo button:hover{border-color:var(--bad);color:var(--bad)}
+  .addtodo{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .addtodo input[type=text]{flex:1;min-width:180px;background:#f6f8fb;border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:13px}
+  .addtodo select{background:#f6f8fb;border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:13px}
+  .addtodo button{background:var(--rack-blue);color:#fff;border:none;border-radius:6px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}
+
   @media screen and (max-width:900px){
     .app{flex-direction:column}
     .panel{position:fixed;inset:0;width:100%;max-height:none;z-index:50;display:none;padding:16px 16px 40px}
@@ -99,6 +119,7 @@
       <label class="chk"><input type="checkbox" id="fOpen"> Alleen onvolledig</label>
       <label class="imp">Picqer-export importeren<input type="file" id="file" accept=".xlsx,.xls,.csv"></label>
     </div>
+    <div id="levpanel"></div>
     <div class="sheet">
       <div class="sheet-head"><span id="cnt">Laden…</span><span id="stamp"></span></div>
       <div id="list"></div>
@@ -118,6 +139,7 @@
   let prod = {};        // productcode -> rij uit tabel producten
   let geh = {};         // productcode(lowercase) -> [geheugen-items]
   let current = null;   // geselecteerde productcode
+  let todos = [];        // alle todo's/vragen, uit alle leveranciers
 
   /* ================= Database ================= */
   async function fetchAll(){
@@ -147,6 +169,26 @@
     });
     if(!res.ok) throw new Error('productgeheugen opslaan ' + res.status);
   }
+  async function fetchTodos(){
+    const res = await fetch(URL_ + '/rest/v1/todos?select=*&order=prioriteit.desc,created_at.asc', { headers:H });
+    if(!res.ok) throw new Error(res.status === 404 ? 'tabel "todos" bestaat nog niet' : 'todos ' + res.status);
+    return res.json();
+  }
+  async function addTodo(row){
+    const res = await fetch(URL_ + '/rest/v1/todos', {
+      method:'POST', headers:Object.assign({}, H, { 'Content-Type':'application/json', Prefer:'return=representation' }),
+      body:JSON.stringify([row])
+    });
+    if(!res.ok) throw new Error(res.status + ' ' + (await res.text()).slice(0, 150));
+    return (await res.json())[0];
+  }
+  async function setTodoDone(id, done){
+    const res = await fetch(URL_ + '/rest/v1/todos?id=eq.' + id, {
+      method:'PATCH', headers:Object.assign({}, H, { 'Content-Type':'application/json' }),
+      body:JSON.stringify({ afgerond:done, afgerond_op:done ? new Date().toISOString() : null })
+    });
+    if(!res.ok) throw new Error(res.status);
+  }
   async function upsert(rows){
     const res = await fetch(URL_ + '/rest/v1/producten?on_conflict=productcode', {
       method:'POST',
@@ -167,9 +209,10 @@
 
   async function load(){
     try{
-      const [rows, cat] = await Promise.all([fetchAll(), fetchCatalog()]);
+      const [rows, cat, tds] = await Promise.all([fetchAll(), fetchCatalog(), fetchTodos().catch(() => [])]);
       prod = {}; rows.forEach(r => prod[r.productcode] = r);
       indexCatalog(cat);
+      todos = tds;
       // producten die alleen in het geheugen staan ook tonen
       Object.values(geh).forEach(list => {
         const c = String(list[0].sub).trim();
@@ -204,8 +247,47 @@
     $('lev').innerHTML = '<option value="">Alle leveranciers</option>' + levs.map(l => '<option>' + esc(l) + '</option>').join('');
     $('lev').value = cur;
   }
+  function renderLevPanel(){
+    const lev = $('lev').value;
+    if(!lev){ $('levpanel').innerHTML = ''; return; }
+    const all = Object.values(prod).filter(r => r.leverancier === lev);
+    const vol = all.filter(r => compleet(r) === 'full').length;
+    const open = todos.filter(t => t.leverancier === lev && !t.afgerond).sort((a, b) => (PRIO[b.prioriteit]||0) - (PRIO[a.prioriteit]||0));
+    $('levpanel').innerHTML = '<div class="levpanel">' +
+      '<h2>' + esc(lev) + '</h2>' +
+      '<div class="sub">' + vol + ' van ' + all.length + ' producten volledig ingevuld' + (open.length ? ' · ' + open.length + ' openstaand' : '') + '</div>' +
+      '<div id="todolist">' + (open.length ? open.map(todoRow).join('') : '<div class="sub" style="margin:0">Geen openstaande punten.</div>') + '</div>' +
+      '<div class="addtodo">' +
+        '<input type="text" id="td_txt" placeholder="Nieuw punt, bijv. productcode + vraag…">' +
+        '<select id="td_pri"><option value="hoog">hoog</option><option value="middel" selected>middel</option><option value="laag">laag</option></select>' +
+        '<button id="td_add">Toevoegen</button>' +
+      '</div></div>';
+    $('todolist').querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', async () => {
+      try{ await setTodoDone(cb.dataset.id, cb.checked); todos.find(t => String(t.id) === cb.dataset.id).afgerond = cb.checked; renderLevPanel(); }
+      catch(e){ alert('Bijwerken mislukt: ' + e.message); cb.checked = !cb.checked; }
+    }));
+    $('td_add').addEventListener('click', async () => {
+      const tekst = $('td_txt').value.trim();
+      if(!tekst) return;
+      $('td_add').disabled = true;
+      try{
+        const saved = await addTodo({ leverancier:lev, tekst, prioriteit:$('td_pri').value, bron:'gebruiker' });
+        todos.push(saved); renderLevPanel();
+      }catch(e){ alert('Opslaan mislukt: ' + e.message); }
+      $('td_add').disabled = false;
+    });
+  }
+  const PRIO = { hoog:3, middel:2, laag:1 };
+  function todoRow(t){
+    return '<div class="todo"><input type="checkbox" data-id="' + t.id + '"' + (t.afgerond ? ' checked' : '') + '>' +
+      '<div class="txt"><span class="pri ' + esc(t.prioriteit || 'middel') + '">' + esc(t.prioriteit || 'middel') + '</span>' + esc(t.tekst) +
+      (t.productcode ? ' <b>' + esc(t.productcode) + '</b>' : '') +
+      (t.deadline ? '<div class="meta">Deadline: ' + new Date(t.deadline).toLocaleDateString('nl-NL') + '</div>' : '') + '</div></div>';
+  }
+
   function renderList(){
     const q = $('q').value.trim().toLowerCase(), lev = $('lev').value;
+    renderLevPanel();
     const all = Object.values(prod);
     const rows = all.filter(r => {
       if(lev && r.leverancier !== lev) return false;
@@ -247,6 +329,25 @@
     if(r.actief === false) notes.push('<div class="note">Product staat op inactief in Picqer.</div>');
 
     const maatSel = MATEN.includes(r.palletmaat) ? r.palletmaat : (r.palletmaat ? 'anders' : '');
+
+    // Uit de productnaam gehaald: afmetingen ("100 x 100 cm") en dikte ("16 mm")
+    const naamP = naamVan(r);
+    const dimM = naamP.match(/(\d{2,4})\s*[x×]\s*(\d{2,4})\s*cm/i);
+    const dikM = naamP.match(/(\d{1,3})\s*mm/i);
+    const BASIS_CM = 15; // hoogte lege pallet, altijd naar boven afgerond op hele cm
+    let maatSugg = null;
+    if(!r.palletmaat && dimM){
+      const a = dimM[1] + 'x' + dimM[2], b = dimM[2] + 'x' + dimM[1];
+      maatSugg = { waarde: MATEN.includes(a) ? a : MATEN.includes(b) ? b : a, l:+dimM[1], b:+dimM[2] };
+    }
+    let hoogteSugg = null;
+    if(!r.hoogte_cm && dikM && stuks) hoogteSugg = Math.ceil(+dikM[1] * stuks / 10 + BASIS_CM);
+    if(maatSugg || hoogteSugg){
+      const delen = [];
+      if(maatSugg) delen.push('maat ' + maatSugg.waarde + ' cm');
+      if(hoogteSugg) delen.push('hoogte ±' + hoogteSugg + ' cm (' + stuks + ' st. × ' + dikM[1] + 'mm + ' + BASIS_CM + 'cm onderstel)');
+      notes.push('<div class="note">Uit productnaam: ' + delen.join(', ') + '.<br><button type="button" id="f_naamtake" style="margin-top:6px;background:#222b37;border:1px solid #2a3543;color:#cfe0f5;border-radius:5px;padding:4px 9px;font-size:12px;cursor:pointer">Overnemen</button></div>');
+    }
     const sugg = (r.gewicht_product_g && stuks) ? Math.round(r.gewicht_product_g * stuks / 1000) : null;
 
     $('card').innerHTML =
@@ -291,6 +392,13 @@
     updSugg();
     $('f_stuks').addEventListener('input', updSugg);
     $('f_maat').addEventListener('change', () => { $('f_custom').hidden = $('f_maat').value !== 'anders'; });
+    if($('f_naamtake')) $('f_naamtake').onclick = () => {
+      if(maatSugg){
+        if(MATEN.includes(maatSugg.waarde)){ $('f_maat').value = maatSugg.waarde; $('f_custom').hidden = true; }
+        else { $('f_maat').value = 'anders'; $('f_custom').hidden = false; $('f_l').value = maatSugg.l; $('f_b').value = maatSugg.b; }
+      }
+      if(hoogteSugg) $('f_hoogte').value = hoogteSugg;
+    };
     $('f_save').addEventListener('click', () => save(code));
     $('panel').classList.add('open');
     $('panel').scrollTop = 0;
