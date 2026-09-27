@@ -1658,14 +1658,15 @@ function tabPallets(c, g){
   <div class="card"><h2 class="mb8">Palletdata per product</h2>
     <p class="small muted mb8">Dit is dezelfde data als in de productkaart. Eén keer goed invullen, daarna weet de app het voor elke volgende container.</p>
     <div class="scroll"><table>
-      <tr><th>Product</th><th class="n">Hier</th><th class="n">VST</th><th>Palletmaat</th><th class="n">Hoogte</th><th class="n">Gewicht</th><th class="n">Plaatsen</th><th class="n">Max/ligger</th><th></th></tr>
-      ${rij.map(({ code, p, h, s }) => `<tr class="${[p.palletmaat, p.hoogte_cm, p.gewicht_kg, p.plaatsen].some(leeg) ? 'warn' : ''}">
+      <tr><th>Product</th><th class="n">Hier</th><th class="n">VST</th><th>Vloernaam</th><th>Palletmaat</th><th class="n">Hoogte</th><th class="n">Gewicht</th><th class="n">Plaatsen</th><th class="n">Max/ligger</th><th></th></tr>
+      ${rij.map(({ code, p, h, s }) => { const vn = (geh1(code) || {}).name || ''; return `<tr class="${[p.palletmaat, p.hoogte_cm, p.gewicht_kg, p.plaatsen].some(leeg) || !vn ? 'warn' : ''}">
         <td><span class="code">${esc(code)}</span><div class="desc">${esc(naamVan(code))}</div></td>
         <td class="n">${h || ''}</td><td class="n">${s || ''}</td>
+        <td>${vn ? esc(vn) : '<span class="badge b-warn">ontbreekt</span>'}</td>
         <td>${cel(p.palletmaat)}</td><td class="n">${leeg(p.hoogte_cm) ? cel(null) : nf(num(p.hoogte_cm)) + ' cm'}</td>
         <td class="n">${leeg(p.gewicht_kg) ? cel(null) : nf(num(p.gewicht_kg)) + ' kg'}</td><td class="n">${leeg(p.plaatsen) ? cel(null) : nf(num(p.plaatsen), 1)}</td>
         <td class="n">${leeg(p.max_per_ligger) ? '–' : nf(num(p.max_per_ligger))}</td>
-        <td><button class="btn sm ${UI.pe === code ? 'pri' : ''}" data-act="pedit" data-code="${esc(code)}">${UI.pe === code ? 'Sluiten' : 'Invullen'}</button></td></tr>`).join('')}
+        <td><button class="btn sm ${UI.pe === code ? 'pri' : ''}" data-act="pedit" data-code="${esc(code)}">${UI.pe === code ? 'Sluiten' : 'Invullen'}</button></td></tr>`; }).join('')}
     </table></div></div>
   ${UI.pe && pl.map[UI.pe] ? `<div class="card" id="pecard"><div class="row between"><h2>${esc(UI.pe)} <span class="small muted">${esc(naamVan(UI.pe))}</span></h2><button class="btn ghost sm" data-act="pedit" data-code="${esc(UI.pe)}">Sluiten</button></div>${palletEditor(c, pl.map[UI.pe])}</div>` : ''}`;
 }
