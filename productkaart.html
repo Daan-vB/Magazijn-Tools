@@ -848,6 +848,8 @@ function punten(c, pl){
     }
     if(perRol(eenheidVan(code)) && factorVan(c, code) === 1)
       add('eh-' + code, 'let', code + ': Picqer telt in ' + eenheidVan(code) + ', maar de factor is 1. Klopt dat?', code, 'pakbon', 'eh', code);
+    const g = geh1(code);
+    if(!g || !String(g.name || '').trim()) add('vn-' + code, 'info', code + ': nog geen vloernaam (voor het palletlabel).', code, 'vloernamen', 'vn', code);
   });
   c.data.punten_eigen.forEach(x => L.push({ key:'e-' + x.id, lvl:'eigen', tekst:x.tekst, code:x.productcode || null, eigen:x, type:'e-' + x.id }));
   const ord = { fout:0, let:1, eigen:2, info:3 };
@@ -868,7 +870,11 @@ async function route(){
   if(['containers', 'pakbon_alias', 'verkoop', 'backorders'].some(t => MISSING.includes(t))) return viewSetup();
   if((m = h.match(/^#\/c\/(\d+)(?:\/(\w+))?/))) return viewContainer(+m[1], m[2] || 'pakbon');
   if(h.startsWith('#/gegevens')) return viewGegevens();
-  if(h.startsWith('#/vloernamen')) return viewVloernamen();
+  if(h.startsWith('#/vloernamen')){
+    const q = (h.split('?')[1] || '').split('&').find(x => x.startsWith('q='));
+    if(q) UI.vn.f.q = decodeURIComponent(q.slice(2)).trim();
+    return viewVloernamen();
+  }
   return viewHome();
 }
 window.addEventListener('hashchange', route);
@@ -1355,7 +1361,7 @@ const GROEP = {
   code:'Nog geen productcode gekoppeld', bev:'Koppeling nog bevestigen', som:'Regel telt niet op', fac:'Omrekenfactor controleren',
   eh:'Eenheid controleren: telt Picqer per meter of cm? Dan moet de factor anders', gw:'Gewicht aanpassen in Picqer (belangrijk voor orderpickers)',
   pd:'Palletdata ontbreekt', vd:'Verdeling telt niet op', spp:'Andere hoeveelheid per pallet dan in het productgeheugen (labels volgen de pakbon)',
-  nieuw:'Geen verkoophistorie (nieuw?) — verdeling zelf beoordelen'
+  nieuw:'Geen verkoophistorie (nieuw?) — verdeling zelf beoordelen', vn:'Vloernaam ontbreekt (voor het palletlabel)'
 };
 function groepeer(pts){
   const g = [], map = {};
@@ -1376,7 +1382,10 @@ function puntenKaart(c, pts){
     const tekst = een ? esc(gr.items[0].tekst) : `<b>${esc(GROEP[gr.type] || gr.type)}</b> <span class="muted">(${gr.items.length})</span>: ${gr.items.map(p => esc(p.kort)).join(' · ')}`;
     const keys = gr.items.map(p => p.key).join('|');
     const todoKan = gr.items.some(p => p.code && !p.eigen) && !klaar;
-    return `<div class="pt"><span class="lvl badge ${cls}">${lbl}</span><div class="txt">${tekst}${gr.tab && gr.tab !== tab ? ` <a href="#/c/${c.id}/${gr.tab}" class="small">→ ${TABS.find(x => x[0] === gr.tab)[1].toLowerCase()}</a>` : ''}</div>
+    const link = gr.tab === 'vloernamen'
+      ? ` <a href="#/vloernamen?q=${esc(een ? gr.items[0].code : '')}" class="small">→ vloernamen</a>`
+      : (gr.tab && gr.tab !== tab ? ` <a href="#/c/${c.id}/${gr.tab}" class="small">→ ${TABS.find(x => x[0] === gr.tab)[1].toLowerCase()}</a>` : '');
+    return `<div class="pt"><span class="lvl badge ${cls}">${lbl}</span><div class="txt">${tekst}${link}</div>
       ${todoKan ? `<button class="btn ghost sm" data-act="naartodo" data-keys="${esc(keys)}" title="Op de todo-lijst van de leverancier (zie productkaart)">→ todo</button>` : ''}
       ${klaar ? `<button class="btn ghost sm" data-act="ptopen" data-keys="${esc(keys)}">heropen</button>` : `<button class="btn sm" data-act="ptklaar" data-keys="${esc(keys)}" title="Afvinken">✓</button>`}</div>`;
   };
