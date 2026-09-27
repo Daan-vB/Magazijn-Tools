@@ -75,8 +75,8 @@
   .levpanel .sub{font-size:13px;color:#5b6673;margin-bottom:10px}
   .todo{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid #eef1f5}
   .todo:first-of-type{border-top:none}
-  .todo input[type=checkbox]{margin-top:3px}
-  .todo .txt{flex:1;font-size:13.5px;line-height:1.4}
+  .todo input[type=checkbox]{margin-top:3px;flex-shrink:0}
+  .todo .txt{flex:1;min-width:0;font-size:13.5px;line-height:1.4;overflow-wrap:break-word}
   .todo .txt b{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:#f0f3f7;padding:1px 5px;border-radius:4px}
   .todo .meta{font-size:11.5px;color:#8b97a6;margin-top:2px}
   .pri{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:9px;margin-right:6px}
@@ -322,6 +322,7 @@
     if(!lev && !q){ renderLevKiezer(); return; }
     renderLevPanel();
     const all = Object.values(prod);
+    const basis = lev ? all.filter(r => r.leverancier === lev) : all;
     const rows = all.filter(r => {
       if(lev && r.leverancier !== lev) return false;
       if($('fStock').checked && !((r.voorraad_hm || 0) > 0 || (r.voorraad_vst || 0) > 0)) return false;
@@ -329,8 +330,8 @@
       if(q && !r.productcode.toLowerCase().includes(q) && !naamVan(r).toLowerCase().includes(q)) return false;
       return true;
     }).sort((a, b) => a.productcode.localeCompare(b.productcode));
-    const volledig = all.filter(r => compleet(r) === 'full').length;
-    $('cnt').textContent = rows.length + ' van ' + all.length + ' producten · ' + volledig + ' volledig ingevuld';
+    const volledig = basis.filter(r => compleet(r) === 'full').length;
+    $('cnt').textContent = rows.length + ' van ' + basis.length + ' producten · ' + volledig + ' volledig ingevuld';
     const stamp = all.map(r => r.picqer_datum).filter(Boolean).sort().pop();
     $('stamp').textContent = stamp ? 'Picqer-data van ' + new Date(stamp).toLocaleDateString('nl-NL') : 'Nog geen Picqer-export geïmporteerd';
     if(!rows.length){ $('list').innerHTML = '<div class="empty">' + (all.length ? 'Geen producten met deze filters.' : 'Nog geen producten. Importeer een Picqer-export.') + '</div>'; return; }
