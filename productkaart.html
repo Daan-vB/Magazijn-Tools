@@ -410,17 +410,19 @@
           '<div><label class="fld" for="f_b">Breedte (cm)</label><input id="f_b" type="number" inputmode="decimal" value="' + esc(r.breedte_cm ?? '') + '"></div></div>' +
         '<div><label class="fld" for="f_gewicht">Gewicht volle pallet (kg)</label><input id="f_gewicht" type="number" inputmode="decimal" min="0" value="' + esc(r.gewicht_kg ?? '') + '">' +
           '<div class="sugg" id="f_sugg"></div></div>' +
-        '<div class="row2"><div><label class="fld" for="f_plaatsen">Plaatsen in stelling</label><input id="f_plaatsen" type="number" inputmode="decimal" min="0" step="0.5" value="' + esc(r.plaatsen ?? '') + '"></div>' +
+        '<div class="row2"><div><label class="fld" for="f_plaatsen">Plaatsen in stelling</label><input id="f_plaatsen" type="number" inputmode="decimal" min="0" step="0.1" value="' + esc(r.plaatsen ?? '') + '"></div>' +
         '<div><label class="fld" for="f_max">Max per ligger</label><input id="f_max" type="number" inputmode="numeric" min="0" value="' + esc(r.max_per_ligger ?? '') + '"></div></div>' +
         '<div><label class="fld" for="f_opm">Opmerking</label><textarea id="f_opm" placeholder="bijv. blokpallet, niet stapelen">' + esc(r.opmerking || '') + '</textarea></div>' +
       '</div>' +
       '<button class="act btn-save" id="f_save">Opslaan</button>' +
       '<div class="status" id="f_status"></div>';
 
+    const PALLET_KG = 15; // standaard gewicht leeg pallet, opgeteld bij het productgewicht
     const updSugg = () => {
       const s = parseFloat($('f_stuks').value);
-      const kg = (r.gewicht_product_g && s) ? Math.round(r.gewicht_product_g * s / 1000) : null;
-      $('f_sugg').innerHTML = kg ? 'Producten samen: ' + kg + ' kg (zonder pallethout)<button type="button" id="f_take">Overnemen</button>' : '';
+      const prod = (r.gewicht_product_g && s) ? Math.round(r.gewicht_product_g * s / 1000) : null;
+      const kg = prod !== null ? prod + PALLET_KG : null;
+      $('f_sugg').innerHTML = kg ? 'Producten ' + prod + ' kg + pallet ' + PALLET_KG + ' kg = ' + kg + ' kg<button type="button" id="f_take">Overnemen</button>' : '';
       if(kg) $('f_take').onclick = () => { $('f_gewicht').value = kg; };
     };
     updSugg();
