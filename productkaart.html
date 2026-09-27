@@ -383,6 +383,21 @@ async function load(){
 /* =====================================================================
    Productinformatie
    ===================================================================== */
+const vnKey = s => String(s == null ? '' : s).trim().toUpperCase();
+function vnZetRegel(cat, code, naam, qty){
+  naam = String(naam || '').trim();
+  if(!naam) throw new Error('vloernaam mag niet leeg zijn');
+  const key = vnKey(naam), bezet = cat[key];
+  if(bezet && String(bezet.sub == null ? '' : bezet.sub).trim().toLowerCase() !== code.toLowerCase())
+    throw new Error('"' + naam + '" is al in gebruik voor ' + bezet.sub);
+  const oud = Object.keys(cat).filter(k => cat[k] && String(cat[k].sub == null ? '' : cat[k].sub).trim().toLowerCase() === code.toLowerCase());
+  const basis = oud.length ? cat[oud[0]] : {};
+  const ean = (P[code] && String(P[code].ean || '').trim()) || basis.ean || '';
+  const rec = { name:naam, ean:String(ean || ''), qty:String(qty === undefined || qty === null || qty === '' ? (basis.qty || '') : qty).trim(), sub:code, used:Date.now() };
+  if(oud[0] && oud[0] !== key) delete cat[oud[0]];
+  cat[key] = rec;
+  return rec;
+}
 const geh1 = code => (GEH[String(code || '').toLowerCase()] || [])[0];
 function sppVan(code){ const g = geh1(code); const n = g ? num(g.qty) : null; return n && n > 0 ? n : null; }
 const naamVan = code => (P[code] && P[code].naam) || (geh1(code) || {}).name || '';
@@ -849,7 +864,7 @@ function punten(c, pl){
     if(perRol(eenheidVan(code)) && factorVan(c, code) === 1)
       add('eh-' + code, 'let', code + ': Picqer telt in ' + eenheidVan(code) + ', maar de factor is 1. Klopt dat?', code, 'pakbon', 'eh', code);
     const g = geh1(code);
-    if(!g || !String(g.name || '').trim()) add('vn-' + code, 'info', code + ': nog geen vloernaam (voor het palletlabel).', code, 'vloernamen', 'vn', code);
+    if(!g || !String(g.name || '').trim()) add('vn-' + code, 'info', code + ': nog geen vloernaam (voor het palletlabel).', code, 'pallets', 'vn', code);
   });
   c.data.punten_eigen.forEach(x => L.push({ key:'e-' + x.id, lvl:'eigen', tekst:x.tekst, code:x.productcode || null, eigen:x, type:'e-' + x.id }));
   const ord = { fout:0, let:1, eigen:2, info:3 };
@@ -1048,7 +1063,6 @@ function viewGegevens(){
 /* =====================================================================
    Scherm: vloernamen (de naam die op het palletlabel komt)
    ===================================================================== */
-const vnKey = s => String(s == null ? '' : s).trim().toUpperCase();
 const vnQtyOk = v => /^\d+([.,]\d+)?$/.test(String(v == null ? '' : v).trim());
 
 function vnSleutels(){ // productcode (kleine letters) -> echte sleutels in het productgeheugen
@@ -1178,16 +1192,8 @@ async function vloernamenOpslaan(){
     const r = await api('GET', 'catalog?key=eq.catalog-ean&select=data');
     const cat = (r.length ? r[0].data : {}) || {};
     codes.forEach(code => {
-      const rij = rijen.find(x => x.code === code); if(!rij) return;
-      const naam = String(rij.naam).trim(); if(!naam) return;
-      const key = vnKey(naam), bezet = cat[key];
-      if(bezet && String(bezet.sub == null ? '' : bezet.sub).trim().toLowerCase() !== code.toLowerCase())
-        throw new Error('"' + naam + '" is al in gebruik voor ' + bezet.sub);
-      const oud = Object.keys(cat).filter(k => cat[k] && String(cat[k].sub == null ? '' : cat[k].sub).trim().toLowerCase() === code.toLowerCase());
-      const basis = oud.length ? cat[oud[0]] : {};
-      const rec = { name:naam, ean:String(rij.ean || basis.ean || ''), qty:String(rij.qty).trim(), sub:code, used:Date.now() };
-      if(oud[0] && oud[0] !== key) delete cat[oud[0]];
-      cat[key] = rec;
+      const rij = rijen.find(x => x.code === code); if(!rij || !String(rij.naam).trim()) return;
+      vnZetRegel(cat, code, rij.naam, rij.qty);
     });
     losCodes.forEach(k => {
       const code = PLOW[String(los[k]).trim().toLowerCase()];
@@ -1685,9 +1691,11 @@ function palletEditor(c, pool){
   const plV = plaatsenVoorstel(maat || maatV);
   const sug = (id, v, txt) => v === null || v === undefined ? '' : `<div class="sugg">Voorstel: <a data-act="neem" data-f="${id}" data-v="${esc(v)}">${esc(String(v))}</a>${txt ? ' · ' + esc(txt) : ''}</div>`;
   const inMaten = MATEN.includes(maat);
+  const gg = geh1(code), vnaam = (gg && gg.name) || '';
   return `<div class="pedit" data-code="${esc(code)}">
     <div class="fields">
-      <div class="fld"><label>Stuks per pallet (${eenheidVan(code)})</label><input id="pe_spp" inputmode="decimal" value="${spp ?? ''}"><div class="sugg">Standaard in productgeheugen (voor labels)</div></div>
+      <div class="fld"><label>Vloernaam (op het label)</label><input id="pe_vn" value="${esc(vnaam)}" placeholder="bijv. ${esc(naam)}"><div class="sugg">Voor de Palletlabel-generator — samen met stuks per pallet hiernaast</div></div>
+      <div class="fld"><label>Stuks per pallet (${eenheidVan(code)})</label><input id="pe_spp" inputmode="decimal" value="${spp ?? ''}"></div>
       <div class="fld"><label>Palletmaat (cm)</label><select id="pe_maat"><option value="">— kies —</option>${MATEN.map(m => `<option ${m === maat ? 'selected' : ''}>${m}</option>`).join('')}${maat && !inMaten ? `<option selected>${esc(maat)}</option>` : ''}<option value="anders">anders…</option></select>${sug('pe_maat', maatV, 'uit productnaam')}</div>
       <div class="fld"><label>Hoogte incl. pallet (cm)</label><input id="pe_h" inputmode="decimal" value="${p.hoogte_cm ?? ''}">${sug('pe_h', hoogV, dik ? spp + ' × ' + dik[1] + ' mm + ' + PALLET_CM + ' cm' : '')}</div>
       <div class="fld"><label>Gewicht volle pallet (kg)</label><input id="pe_kg" inputmode="decimal" value="${p.gewicht_kg ?? ''}">${sug('pe_kg', gewV, gewBron)}</div>
@@ -1746,17 +1754,15 @@ async function palletOpslaan(code){
     st('Opslaan…');
     const saved = await upsert('producten', [row], 'productcode');
     P[code] = Object.assign({}, P[code] || {}, saved[0] || row);
-    const nieuw = num($('pe_spp').value);
-    if(nieuw && nieuw !== sppVan(code)){
+    const nieuweNaam = $('pe_vn').value.trim(), nieuweQty = num($('pe_spp').value);
+    const g0 = geh1(code), naamNu = (g0 && g0.name) || '';
+    const effNaam = nieuweNaam || naamNu || (P[code] && P[code].naam) || '';
+    const wijzigt = (nieuweNaam && nieuweNaam !== naamNu) || (nieuweQty && nieuweQty !== sppVan(code));
+    if(wijzigt){
+      if(!effNaam) throw new Error('vul eerst een vloernaam in');
       const r = await api('GET', 'catalog?key=eq.catalog-ean&select=data');
-      const cat = r.length ? r[0].data : {};
-      const hits = Object.keys(cat).filter(k => cat[k] && String(cat[k].sub || '').trim().toLowerCase() === code.toLowerCase());
-      if(hits.length) hits.forEach(k => { cat[k].qty = String(nieuw); cat[k].used = Date.now(); });
-      else {
-        const ean = P[code] && P[code].ean, naam = P[code] && P[code].naam;
-        if(!ean || !naam) throw new Error('stuks per pallet niet opgeslagen: naam of EAN onbekend in Picqer-import');
-        cat[naam.toUpperCase()] = { name:naam, ean:String(ean), qty:String(nieuw), sub:code, used:Date.now() };
-      }
+      const cat = (r.length ? r[0].data : {}) || {};
+      vnZetRegel(cat, code, effNaam, nieuweQty);
       await api('POST', 'catalog?on_conflict=key', [{ key:'catalog-ean', mode:'ean', data:cat, updated_at:new Date().toISOString() }], { Prefer:'resolution=merge-duplicates,return=minimal' });
       indexCatalog(cat);
     }
