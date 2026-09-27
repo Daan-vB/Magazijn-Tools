@@ -16,7 +16,7 @@
   .app{display:flex;min-height:100vh}
 
   /* Linkerpaneel: productkaart */
-  .panel{width:430px;flex-shrink:0;background:var(--ink);color:#e8edf4;padding:22px 22px 30px;display:flex;flex-direction:column;gap:14px;max-height:100vh;overflow-y:auto;position:sticky;top:0}
+  .panel{width:clamp(230px,26vw,380px);flex-shrink:0;background:var(--ink);color:#e8edf4;padding:22px 18px 30px;display:flex;flex-direction:column;gap:14px;max-height:100vh;overflow-y:auto;position:sticky;top:0}
   .panel h1{font-size:19px;font-weight:800}
   .sync{display:inline-block;color:#fff;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border-radius:3px;vertical-align:middle;margin-left:6px;background:#33404f}
   .sync.ok{background:var(--ok)} .sync.err{background:var(--bad)}
