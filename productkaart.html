@@ -69,6 +69,24 @@
   .dot.full{background:var(--ok)} .dot.part{background:#e0a100} .dot.leeg{background:#d3d9e0}
   .empty{color:#8b97a6;font-size:14px;text-align:center;padding:50px 20px;line-height:1.7}
   .more{padding:12px 16px;font-size:13px;color:#5b6673;border-top:1px solid var(--line)}
+  th.ck,td.ck{width:34px;padding-right:0}
+  th.ck input,td.ck input{width:18px;height:18px;margin:0;padding:0;cursor:pointer;accent-color:var(--rack-blue)}
+  tr.r.chk td{background:#fff7ec}
+  .selbar{position:sticky;bottom:10px;margin-top:10px;background:var(--ink);color:#e8edf4;border-radius:8px;padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;box-shadow:0 4px 16px rgba(15,23,32,.25);font-size:14px}
+  .selbar b{font-size:15px}
+  .selbar button{border:none;border-radius:6px;padding:9px 14px;font-size:13.5px;font-weight:700;cursor:pointer}
+  .selbar .go{background:var(--beam-orange);color:#fff}
+  .selbar .clr{background:#222b37;color:#c4cfdd;border:1px solid #2a3543}
+  .gsel{max-height:150px;overflow:auto;display:flex;flex-direction:column;gap:3px;font-size:12.5px}
+  .gsel div{display:flex;justify-content:space-between;gap:8px;background:#161d26;border-radius:5px;padding:4px 8px}
+  .gsel span.c{font-family:ui-monospace,Consolas,monospace;color:#cfe0f5}
+  .gsel button{background:none;border:none;color:#73818f;cursor:pointer;font-size:14px;padding:0 2px}
+  .hint{font-size:12px;color:#73818f;line-height:1.4}
+  .gprev{width:100%;border-collapse:collapse;font-size:12.5px}
+  .gprev td,.gprev th{background:none;color:#c4cfdd;border-bottom:1px solid #232d3a;padding:4px 4px;text-align:left}
+  .gprev th{color:#8fa0b5;font-weight:700;font-size:11.5px}
+  .gprev td.n,.gprev th.n{text-align:right}
+  .gprev td.w{color:#ffc27a}
 
   .levpanel{background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(15,23,32,.10);padding:14px 16px;margin-bottom:14px}
   .levpanel h2{font-size:15.5px;font-weight:800;margin-bottom:2px}
@@ -134,6 +152,7 @@
       <div class="sheet-head"><span id="cnt">Laden…</span><span id="stamp"></span></div>
       <div id="list"></div>
     </div>
+    <div class="selbar" id="selbar" hidden></div>
   </main>
 </div>
 
@@ -150,6 +169,8 @@
   let geh = {};         // productcode(lowercase) -> [geheugen-items]
   let current = null;   // geselecteerde productcode
   let todos = [];        // alle todo's/vragen, uit alle leveranciers
+  const sel = new Set(); // aangevinkte producten voor 'groep invullen'
+  const PALLET_KG = 15;  // standaard gewicht leeg pallet
 
   /* ================= Database ================= */
   async function fetchAll(){
@@ -333,7 +354,7 @@
       if(lev && r.leverancier !== lev) return false;
       if($('fStock').checked && !((r.voorraad_hm || 0) > 0 || (r.voorraad_vst || 0) > 0)) return false;
       if($('fOpen').checked && compleet(r) === 'full') return false;
-      if(q && !r.productcode.toLowerCase().includes(q) && !naamVan(r).toLowerCase().includes(q)) return false;
+      if(q && !(r.productcode + ' ' + naamVan(r)).toLowerCase().replace(/\s+/g, '').includes(q.replace(/\s+/g, ''))) return false; // '40x60' vindt ook '40 x 60'
       return true;
     }).sort((a, b) => a.productcode.localeCompare(b.productcode));
     const volledig = basis.filter(r => compleet(r) === 'full').length;
@@ -341,8 +362,10 @@
     const stamp = all.map(r => r.picqer_datum).filter(Boolean).sort().pop();
     $('stamp').textContent = stamp ? 'Picqer-data van ' + new Date(stamp).toLocaleDateString('nl-NL') : 'Nog geen Picqer-export geïmporteerd';
     if(!rows.length){ $('list').innerHTML = '<div class="empty">' + (all.length ? 'Geen producten met deze filters.' : 'Nog geen producten. Importeer een Picqer-export.') + '</div>'; return; }
-    $('list').innerHTML = '<table><thead><tr><th></th><th>Productcode</th><th>Product</th><th class="hm">Leverancier</th><th class="n">Voorraad</th><th class="n">Stuks/pal.</th><th class="hm">Maat</th><th class="n hm">Gewicht</th></tr></thead><tbody>' +
-      rows.slice(0, SHOW).map(r => '<tr class="r' + (r.productcode === current ? ' sel' : '') + '" data-c="' + esc(r.productcode) + '">' +
+    const alleAan = rows.slice(0, SHOW).length && rows.slice(0, SHOW).every(r => sel.has(r.productcode));
+    $('list').innerHTML = '<table><thead><tr><th class="ck"><input type="checkbox" id="selAll" title="Alle zichtbare aanvinken"' + (alleAan ? ' checked' : '') + '></th><th></th><th>Productcode</th><th>Product</th><th class="hm">Leverancier</th><th class="n">Voorraad</th><th class="n">Stuks/pal.</th><th class="hm">Maat</th><th class="n hm">Gewicht</th></tr></thead><tbody>' +
+      rows.slice(0, SHOW).map(r => '<tr class="r' + (r.productcode === current ? ' sel' : '') + (sel.has(r.productcode) ? ' chk' : '') + '" data-c="' + esc(r.productcode) + '">' +
+        '<td class="ck"><input type="checkbox" class="pick" data-c="' + esc(r.productcode) + '"' + (sel.has(r.productcode) ? ' checked' : '') + '></td>' +
         '<td><span class="dot ' + compleet(r) + '"></span></td>' +
         '<td class="code">' + esc(r.productcode) + '</td>' +
         '<td class="nm">' + esc(naamVan(r)) + '</td>' +
@@ -352,7 +375,159 @@
         '<td class="hm">' + esc(r.palletmaat || '—') + '</td>' +
         '<td class="n hm">' + (leeg(r.gewicht_kg) ? '—' : esc(r.gewicht_kg) + ' kg') + '</td></tr>').join('') +
       '</tbody></table>' + (rows.length > SHOW ? '<div class="more">Eerste ' + SHOW + ' van ' + rows.length + ' getoond. Verfijn met zoeken of een leverancier.</div>' : '');
-    $('list').querySelectorAll('tr.r').forEach(tr => tr.addEventListener('click', () => open(tr.dataset.c)));
+    $('list').querySelectorAll('tr.r').forEach(tr => tr.addEventListener('click', e => { if(e.target.closest('td.ck')) return; open(tr.dataset.c); }));
+    $('list').querySelectorAll('input.pick').forEach(cb => cb.addEventListener('change', () => {
+      if(cb.checked) sel.add(cb.dataset.c); else sel.delete(cb.dataset.c);
+      cb.closest('tr').classList.toggle('chk', cb.checked);
+      selChanged();
+    }));
+    $('selAll').addEventListener('change', e => {
+      rows.slice(0, SHOW).forEach(r => { if(e.target.checked) sel.add(r.productcode); else sel.delete(r.productcode); });
+      renderList(); selChanged();
+    });
+    renderSelbar();
+  }
+
+  /* ================= Groep invullen ================= */
+  function renderSelbar(){
+    const bar = $('selbar');
+    if(!sel.size){ bar.hidden = true; bar.innerHTML = ''; return; }
+    bar.hidden = false;
+    bar.innerHTML = '<b>' + sel.size + '</b> aangevinkt' +
+      '<button class="go" id="sb_go">Samen invullen</button><button class="clr" id="sb_clr">Vinkjes wissen</button>';
+    $('sb_go').onclick = () => renderGroep(true);
+    $('sb_clr').onclick = () => { sel.clear(); renderList(); selChanged(); };
+  }
+  function selChanged(){
+    renderSelbar();
+    if(!sel.size){ if(current === '__groep') placeholder(); return; }
+    if(current === '__groep' || window.innerWidth > 900) renderGroep(false); // telefoon: via de knop onderin
+  }
+  function placeholder(msg){
+    current = null;
+    $('card').innerHTML = (msg ? '<div class="status ok" style="margin-bottom:10px">' + esc(msg) + '</div>' : '') +
+      '<p class="placeholder">Kies rechts een product uit de lijst, of vink er meerdere aan om ze samen in te vullen.</p>';
+  }
+  function gewichtVoor(code){
+    const mode = $('g_gwmode') ? $('g_gwmode').value : '';
+    if(mode === 'vast') return val('g_kg');
+    if(mode === 'reken'){
+      const n = val('g_n'), w = (prod[code] || {}).gewicht_product_g;
+      return (n && w) ? Math.round(w * n / 1000) + PALLET_KG : null;
+    }
+    return null;
+  }
+  function renderGroep(openPanel){
+    const bewaar = {};
+    ['g_maat','g_l','g_b','g_hoogte','g_plaatsen','g_max','g_eenheid','g_gwmode','g_kg','g_n','g_stuks','g_opm'].forEach(id => { if($(id)) bewaar[id] = $(id).value; });
+    current = '__groep';
+    document.querySelectorAll('tr.r').forEach(tr => tr.classList.remove('sel'));
+    const codes = [...sel];
+    $('card').innerHTML =
+      '<div><div class="prodname">Samen invullen</div><div class="prodcode">' + codes.length + ' product' + (codes.length === 1 ? '' : 'en') + ' aangevinkt</div></div>' +
+      '<div class="gsel">' + codes.map(c => '<div><span class="c">' + esc(c) + '</span><button data-c="' + esc(c) + '" title="Weghalen">×</button></div>').join('') + '</div>' +
+      '<div class="sec"><h3>Pallet <small>lege velden blijven zoals ze zijn</small></h3>' +
+        '<div class="row2"><div><label class="fld" for="g_maat">Palletmaat (cm)</label><select id="g_maat"><option value="">— niet wijzigen —</option>' +
+          MATEN.map(m => '<option>' + m + '</option>').join('') + '<option value="anders">anders…</option></select></div>' +
+        '<div><label class="fld" for="g_hoogte">Hoogte (cm)</label><input id="g_hoogte" type="number" inputmode="decimal" min="0"></div></div>' +
+        '<div class="row2" id="g_custom" hidden><div><label class="fld" for="g_l">Lengte (cm)</label><input id="g_l" type="number" inputmode="decimal"></div>' +
+          '<div><label class="fld" for="g_b">Breedte (cm)</label><input id="g_b" type="number" inputmode="decimal"></div></div>' +
+        '<div class="row2"><div><label class="fld" for="g_plaatsen">Plaatsen in stelling</label><input id="g_plaatsen" type="number" inputmode="decimal" min="0" step="0.1"></div>' +
+        '<div><label class="fld" for="g_max">Max per ligger</label><input id="g_max" type="number" inputmode="numeric" min="0"></div></div>' +
+        '<div><label class="fld" for="g_gwmode">Gewicht volle pallet</label><select id="g_gwmode">' +
+          '<option value="">— niet wijzigen —</option><option value="vast">voor allemaal hetzelfde (kg)</option><option value="reken">uitrekenen: aantal × Picqer-gewicht + 15 kg pallet</option></select></div>' +
+        '<div id="g_vast" hidden><label class="fld" for="g_kg">Gewicht volle pallet (kg)</label><input id="g_kg" type="number" inputmode="decimal" min="0"></div>' +
+        '<div id="g_reken" hidden><label class="fld" for="g_n">Aantal per volle pallet (voor het gewicht)</label><input id="g_n" type="number" inputmode="decimal" min="0"><div class="hint">Per product: aantal × productgewicht uit Picqer + 15 kg.</div></div>' +
+        '<div class="row2"><div><label class="fld" for="g_stuks">Stuks per pallet</label><input id="g_stuks" type="number" inputmode="decimal" min="0"><div class="hint">Leeg = niet wijzigen. 0 = label zonder aantal.</div></div>' +
+        '<div><label class="fld" for="g_eenheid">Eenheid</label><select id="g_eenheid"><option value="">— niet wijzigen —</option>' + ['stuk','meter','rol'].map(u => '<option>' + u + '</option>').join('') + '</select></div></div>' +
+        '<div><label class="fld" for="g_opm">Opmerking</label><textarea id="g_opm" placeholder="leeg = niet wijzigen"></textarea></div>' +
+      '</div>' +
+      '<div class="sec"><h3>Voorbeeld</h3><div id="g_prev"></div></div>' +
+      '<button class="act btn-save" id="g_save">Opslaan voor ' + codes.length + ' product' + (codes.length === 1 ? '' : 'en') + '</button>' +
+      '<div class="status" id="f_status"></div>';
+    Object.entries(bewaar).forEach(([id, v]) => { if($(id)) $(id).value = v; });
+    const upd = () => {
+      $('g_custom').hidden = $('g_maat').value !== 'anders';
+      $('g_vast').hidden = $('g_gwmode').value !== 'vast';
+      $('g_reken').hidden = $('g_gwmode').value !== 'reken';
+      const mode = $('g_gwmode').value;
+      $('g_prev').innerHTML = '<table class="gprev"><tr><th>Product</th><th>Nu</th><th class="n">Picqer</th><th class="n">Pallet</th></tr>' +
+        codes.map(c => {
+          const r = prod[c] || {}, kg = gewichtVoor(c);
+          const nu = [r.palletmaat, leeg(r.hoogte_cm) ? null : r.hoogte_cm + ' cm', leeg(r.gewicht_kg) ? null : r.gewicht_kg + ' kg'].filter(Boolean).join(' · ') || '—';
+          return '<tr><td>' + esc(c) + '</td><td>' + esc(nu) + '</td><td class="n">' + (r.gewicht_product_g ? (r.gewicht_product_g / 1000).toLocaleString('nl-NL') + ' kg' : '—') + '</td>' +
+            '<td class="n' + (mode === 'reken' && kg === null ? ' w' : '') + '">' + (mode ? (kg === null ? (mode === 'reken' ? 'geen Picqer-gewicht' : '—') : kg + ' kg') : '') + '</td></tr>';
+        }).join('') + '</table>';
+    };
+    ['g_maat','g_gwmode'].forEach(id => $(id).addEventListener('change', upd));
+    ['g_kg','g_n'].forEach(id => $(id).addEventListener('input', upd));
+    upd();
+    $('card').querySelectorAll('.gsel button').forEach(b => b.addEventListener('click', () => { sel.delete(b.dataset.c); renderList(); selChanged(); }));
+    $('g_save').addEventListener('click', groepOpslaan);
+    if(openPanel){ $('panel').classList.add('open'); $('panel').scrollTop = 0; }
+  }
+  async function groepOpslaan(){
+    const codes = [...sel].filter(c => prod[c] && !prod[c]._alleenGeheugen);
+    const vol = id => $(id).value.trim() !== '';
+    const bad = ['g_hoogte','g_plaatsen','g_max','g_kg','g_n','g_stuks','g_l','g_b'].filter(id => vol(id) && isNaN(val(id)));
+    if(bad.length) return fStatus('Vul alleen getallen in.', 'err');
+    const upd = {};
+    let maat = $('g_maat').value;
+    if(maat === 'anders'){
+      const l = val('g_l'), b = val('g_b');
+      if(!l || !b) return fStatus('Vul lengte en breedte in.', 'err');
+      Object.assign(upd, { palletmaat:l + 'x' + b, lengte_cm:l, breedte_cm:b });
+    } else if(maat){ const [l, b] = maat.split('x').map(Number); Object.assign(upd, { palletmaat:maat, lengte_cm:l, breedte_cm:b }); }
+    if(vol('g_hoogte')) upd.hoogte_cm = val('g_hoogte');
+    if(vol('g_plaatsen')) upd.plaatsen = val('g_plaatsen');
+    if(vol('g_max')) upd.max_per_ligger = val('g_max');
+    if($('g_eenheid').value) upd.eenheid = $('g_eenheid').value;
+    if(vol('g_opm')) upd.opmerking = $('g_opm').value.trim();
+    const mode = $('g_gwmode').value;
+    if(mode === 'vast' && !vol('g_kg')) return fStatus('Vul het gewicht in.', 'err');
+    if(mode === 'reken' && !vol('g_n')) return fStatus('Vul het aantal per volle pallet in.', 'err');
+    const stuks = vol('g_stuks') ? val('g_stuks') : null;
+    if(!Object.keys(upd).length && !mode && stuks === null) return fStatus('Je hebt nog niets ingevuld.', 'err');
+    if(!codes.length) return fStatus('Geen producten uit de Picqer-import aangevinkt.', 'err');
+    $('g_save').disabled = true;
+    try{
+      const nu = new Date().toISOString();
+      const rows = codes.map(c => { const row = Object.assign({ productcode:c }, upd, { updated_at:nu }); const kg = gewichtVoor(c); if(kg !== null) row.gewicht_kg = kg; return row; });
+      // in één keer per groep met dezelfde velden (de database wil per verzoek dezelfde kolommen)
+      const perSoort = {};
+      rows.forEach(r => { const k = Object.keys(r).sort().join(','); (perSoort[k] = perSoort[k] || []).push(r); });
+      if(Object.keys(upd).length || mode){
+        for(const lijst of Object.values(perSoort)){
+          if(Object.keys(lijst[0]).length <= 2) continue; // alleen productcode + datum: niets te doen
+          const saved = await upsert(lijst);
+          saved.forEach(x => { prod[x.productcode] = Object.assign({}, prod[x.productcode], x); });
+        }
+      }
+      let extra = '', overgeslagen = [];
+      if(stuks !== null){
+        const cat = await fetchCatalog();
+        codes.forEach(c => {
+          const hits = Object.keys(cat).filter(k => cat[k] && String(cat[k].sub || '').trim().toLowerCase() === c.toLowerCase());
+          if(hits.length) hits.forEach(k => { cat[k].qty = String(stuks); cat[k].used = Date.now(); });
+          else {
+            const r = prod[c];
+            if(!r.ean || !r.naam || cat[r.naam.toUpperCase()]){ overgeslagen.push(c); return; }
+            cat[r.naam.toUpperCase()] = { name:r.naam, ean:String(r.ean), qty:String(stuks), sub:c, used:Date.now() };
+          }
+        });
+        await saveCatalog(cat);
+        indexCatalog(cat);
+        if(overgeslagen.length) extra = ' Stuks per pallet niet gezet voor ' + overgeslagen.join(', ') + ' (geen vloernaam of EAN).';
+      }
+      const zonderGw = mode === 'reken' ? codes.filter(c => gewichtVoor(c) === null) : [];
+      const n = codes.length;
+      sel.clear();
+      renderList(); renderSelbar();
+      placeholder(n + ' product' + (n === 1 ? '' : 'en') + ' opgeslagen.' + extra + (zonderGw.length ? ' Geen gewicht voor ' + zonderGw.join(', ') + ' (Picqer-gewicht ontbreekt).' : ''));
+    }catch(e){
+      fStatus('Opslaan mislukt: ' + e.message, 'err');
+      $('g_save').disabled = false;
+    }
   }
 
   /* ================= Productkaart ================= */
