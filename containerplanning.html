@@ -1119,8 +1119,13 @@ function advies(c, pool){
     need = Math.max(0, doel - vrij);
     uitleg.push('doel ' + nf(doel) + ' (' + nf(maanden, 1) + ' mnd × ' + nf(f.rate) + '/mnd), vrij ' + nf(vrij));
   }
-  // 3. los -> picklocatie
-  if(pool.losU > 0){ porties.push({ soort:'los', n:pool.losU, dest:'PICK' }); need -= pool.losU; }
+  // 3. los -> eerst hier aanvullen tot het doel, rest naar VST
+  if(pool.losU > 0){
+    const hierU = Math.max(0, Math.min(pool.losU, need));
+    if(hierU > 0) porties.push({ soort:'los', n:hierU, dest:'PICK' });
+    if(pool.losU - hierU > 0) porties.push({ soort:'los', n:pool.losU - hierU, dest:'VST' });
+    need -= pool.losU;
+  }
   // 4. pallets hier / VST
   let nHier = 0, acc = 0;
   while(need > 0 && acc < need && nHier < pallets.length){ acc += pallets[nHier]; nHier++; }
