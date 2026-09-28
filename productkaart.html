@@ -1074,6 +1074,22 @@ function vnSleutels(){ // productcode (kleine letters) -> echte sleutels in het 
   });
   return bySub;
 }
+// Schoont een Picqer-productnaam op tot een bruikbaar voorstel voor de vloernaam.
+// Haalt alleen Picqer-verkoopjargon weg (PER CM/METER/ROL, rollengte-suffix) en zet
+// een naam die helemaal in hoofdletters staat om naar normaal schrift. Verzint niets
+// dat er niet al stond (geen maten/diktes toevoegen) — dat blijft aan Daan.
+function vnVoorstel(naam){
+  let s = String(naam || '').trim();
+  if(!s) return '';
+  s = s.replace(/\s*-\s*PER\s+(CM|METER|ROL|STUK)\s*$/i, '');
+  s = s.replace(/\s*-\s*\d+([.,]\d+)?\s*x\s*\d+([.,]\d+)?\s*m\s*$/i, '');
+  s = s.replace(/\s{2,}/g, ' ').replace(/\s*-\s*$/, '').trim();
+  if(s && s === s.toUpperCase() && /[A-Z]/.test(s)){
+    s = s.toLowerCase().replace(/(^|[\s'/(])([a-z])/g, (m0, p1, p2) => p1 + p2.toUpperCase());
+    s = s.replace(/\b(Cm|Mm|Kg|Gr|Ml)\b/g, m0 => m0.toLowerCase());
+  }
+  return s;
+}
 function vnLijst(){
   const w = UI.vn.wijzig, bySub = vnSleutels();
   const rijen = Object.keys(P).sort((a, b) => a.localeCompare(b, 'nl')).map(code => {
@@ -1090,6 +1106,8 @@ function vnLijst(){
   rijen.forEach(r => {
     const k = vnKey(r.naam);
     r.leeg = !k;
+    r.voorstel = r.leeg ? vnVoorstel(r.pnaam) : '';
+    if(r.voorstel && vnKey(r.voorstel) === k) r.voorstel = '';
     r.dubbel = !!k && tel[k] > 1;
     r.meer = r.regels.length > 1;
     r.geenEan = !r.ean;
@@ -1119,12 +1137,16 @@ function vnLos(){
   });
   return { leeg:leeg_, vreemd };
 }
-function viewVloernamen(){
-  const f = UI.vn.f, rijen = vnLijst(), zoek = f.q.trim().toLowerCase();
-  const levs = [...new Set(Object.values(P).map(r => r.leverancier).filter(Boolean))].sort();
-  const zicht = rijen.filter(r => r.gewijzigd || (
+function vnGefilterd(rijen){
+  const f = UI.vn.f, zoek = f.q.trim().toLowerCase();
+  return rijen.filter(r => r.gewijzigd || (
     (!f.lev || r.lev === f.lev) && (!f.prob || r.prob) &&
     (!zoek || (r.code + ' ' + r.pnaam + ' ' + r.naam).toLowerCase().includes(zoek))));
+}
+function viewVloernamen(){
+  const f = UI.vn.f, rijen = vnLijst();
+  const levs = [...new Set(Object.values(P).map(r => r.leverancier).filter(Boolean))].sort();
+  const zicht = vnGefilterd(rijen);
   const gevuld = rijen.filter(r => !r.leeg).length, dub = rijen.filter(r => r.dubbel).length;
   const los = vnLos();
   const wijz = Object.keys(UI.vn.wijzig).length + Object.keys(UI.vn.los).filter(k => UI.vn.los[k]).length;
@@ -1135,8 +1157,9 @@ function viewVloernamen(){
         <h2>Vloernamen</h2>
         <p class="small muted mt8">De naam die op het palletlabel komt. Dit staat in het gedeelde productgeheugen, dus de Palletlabel-generator gebruikt meteen wat je hier invult. Eén naam hoort bij één productcode — dubbele namen overschrijven elkaar.</p>
       </div>
-      <button class="btn pri" data-act="vnopslaan"${wijz ? '' : ' disabled'}>${wijz ? 'Opslaan (' + wijz + ')' : 'Opslaan'}</button>
+      <div class="row" style="gap:8px"><button class="btn" data-act="vnallevoor">Alle voorstellen overnemen</button><button class="btn pri" data-act="vnopslaan"${wijz ? '' : ' disabled'}>${wijz ? 'Opslaan (' + wijz + ')' : 'Opslaan'}</button></div>
     </div>
+    <p class="small muted mt8">"Alle voorstellen overnemen" vult voor elk leeg product in het overzicht hieronder (dus met het huidige leverancier-/zoekfilter) een naam in op basis van de Picqer-naam (jargon als "PER CM" eraf, HOOFDLETTERS naar normaal schrift). Verzint niets erbij — controleer voor het opslaan of het klopt, pas aan waar nodig.</p>
     <div class="datastrip mt12">
       <div class="it"><b>${nf(gevuld)}</b> van ${nf(rijen.length)} ingevuld</div>
       <div class="it">${dub ? '<b style="color:var(--bad)">' + dub + '</b> met een dubbele naam' : 'geen dubbele namen'}</div>
@@ -1154,7 +1177,7 @@ function viewVloernamen(){
       <tr><th style="min-width:180px">Productcode</th><th style="min-width:300px">Vloernaam (op het label)</th><th class="n">Stuks per pallet</th><th>EAN</th><th></th></tr>
       ${zicht.map(r => `<tr class="${r.dubbel || r.meer || r.geenEan ? 'err' : (r.leeg || r.geenQty ? 'warn' : '')}">
         <td><span class="code">${esc(r.code)}</span><div class="tiny muted">${esc(r.pnaam)}</div></td>
-        <td><input data-vn="${esc(r.code)}" data-vk="name" value="${esc(r.naam)}" placeholder="bijv. ${esc(r.code)}"></td>
+        <td><input data-vn="${esc(r.code)}" data-vk="name" value="${esc(r.naam)}" placeholder="bijv. ${esc(r.code)}">${r.voorstel ? `<div class="sugg">Voorstel: <a data-act="vnvoor" data-code="${esc(r.code)}" data-v="${esc(r.voorstel)}">${esc(r.voorstel)}</a></div>` : ''}</td>
         <td class="n"><input class="num" data-vn="${esc(r.code)}" data-vk="qty" value="${esc(r.qty)}" inputmode="decimal"></td>
         <td class="tiny muted">${esc(r.ean) || '<span style="color:var(--bad)">ontbreekt</span>'}${r.eanOud ? '<div class="tiny" style="color:var(--warn)">stond fout: ' + esc(r.eanOud) + '</div>' : ''}</td>
         <td>${vnBadges(r)}${r.regels.length > 1 ? r.keys.slice(1).map(k => '<div class="tiny muted mt8">ook: ' + esc((CAT[k] || {}).name || k) + ' <button class="btn ghost sm" data-act="vndel" data-key="' + esc(k) + '">verwijder</button></div>').join('') : ''}</td>
@@ -2025,6 +2048,12 @@ const ACT = {
   kopedit: () => { UI.kopEdit = !UI.kopEdit; rerender(); },
   // vloernamen
   vnopslaan: () => vloernamenOpslaan(),
+  vnvoor: el => { (UI.vn.wijzig[el.dataset.code] = UI.vn.wijzig[el.dataset.code] || {}).name = el.dataset.v; rerenderLater(); },
+  vnallevoor: () => {
+    const zicht = vnGefilterd(vnLijst()); let n = 0;
+    zicht.forEach(r => { if(r.voorstel){ (UI.vn.wijzig[r.code] = UI.vn.wijzig[r.code] || {}).name = r.voorstel; n++; } });
+    rerender(); toast(n ? n + ' voorstel(len) overgenomen — controleer en klik Opslaan.' : 'Niets om over te nemen in het huidige overzicht.');
+  },
   vndel: async el => {
     const key = el.dataset.key, x = CAT[key];
     if(!x || !confirm('Regel "' + (x.name || key) + '" uit het productgeheugen verwijderen?')) return;
