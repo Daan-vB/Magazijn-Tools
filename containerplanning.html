@@ -106,6 +106,7 @@
   #kijker img{max-width:100%;height:auto;align-self:flex-start;background:#fff}
   .pbfile{background:#f4f6f9;border-radius:6px;padding:6px 10px}
   .etalijst>.row{padding:6px 0;border-top:1px solid #eef1f4}
+  .ontv{border-top:1px solid #e6eaef;padding-top:10px}
   .etabox{background:#fff8e6;border:1px solid #f0d08a;border-radius:8px;padding:10px 12px}
   .ccard h3{font-size:14.5px;margin-bottom:2px}
   .steps{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
@@ -1554,7 +1555,7 @@ function viewHome(){
   const voorbij = open.filter(isVoorbij);
   const voorbijKaart = voorbij.length ? `<div class="card etabox">
       <h3>Datum voorbij (${voorbij.length}) — al gelost?</h3>
-      <p class="small muted mt8">Is de container al binnen, vul dan de echte losdatum in en klik <b>Gelost</b>. De app rondt hem af (telt dan niet meer dubbel mee in de planning) en leert van de echte doorlooptijd. Nog niet binnen? Open de container en zet een nieuwe datum.</p>
+      <p class="small muted mt8">Tip: lees de Picqer-ontvangst in (knop <b>Ontvangsten inlezen</b>), dan zoekt de app zelf de container en de datum erbij. Of vul de echte losdatum in en klik <b>Gelost</b>. De app rondt hem af (telt dan niet meer dubbel mee in de planning) en leert van de echte doorlooptijd. Nog niet binnen? Open de container en zet een nieuwe datum.</p>
       <div class="etalijst mt8">${voorbij.map(c => `<div class="row wrap"><a href="#/c/${c.id}" class="grow"><b>${esc(levKort(c.leverancier))}</b> <span class="small muted">${esc([c.pakbon_ref, c.containernummer].filter(Boolean).join(' · '))} · ${esc(losTekst(c))}</span></a><input type="date" id="gl_${c.id}" value="${esc(c.losdatum)}" style="width:auto"><button class="btn ok sm" data-act="algelost" data-id="${c.id}">Gelost</button></div>`).join('')}</div>
     </div>` : '';
   const etaKaart = zonderEta.length ? `<div class="card">
@@ -1569,6 +1570,7 @@ function viewHome(){
     <div class="row between wrap"><h2>Geplande containers</h2>
       <div class="row wrap" style="gap:8px">
         <label class="btn pri file" title="Kies alle pakbonnen tegelijk">Pakbonnen inlezen<input type="file" multiple accept=".pdf,.xlsx,.xls,.csv,.txt,image/*" data-change="pakbonnenBulk"></label>
+        <label class="btn file" title="Picqer → Inkopen → Ontvangsten: inruimlijst (PDF) of Excel">Ontvangsten inlezen<input type="file" multiple accept=".pdf,.xlsx,.xls" data-change="ontvangstenInlezen"></label>
         <button class="btn acc" data-act="nieuwtoggle">+ Nieuwe container</button>
       </div></div>
     ${bulk ? `<div class="card mt12">
@@ -1587,6 +1589,7 @@ function viewHome(){
       <p class="small muted mt8">Ref en containernummer vult de app ook zelf in bij het inlezen van de pakbon.</p>
       <div class="row mt12"><button class="btn pri" data-act="nieuwmaak">Aanmaken en pakbon inlezen</button><button class="btn" data-act="nieuwtoggle">Annuleren</button></div>
     </div>
+    ${ontvangstKaart()}
     ${bulk && bulk.bezig ? '' : voorbijKaart + etaKaart}
     ${open.length ? `<div class="cgrid">${open.map(containerKaart).join('')}</div>` : '<div class="card empty">Nog geen containers. Klik op <b>+ Nieuwe container</b>.</div>'}
     ${done.length ? `<h2 class="mt12" style="margin-top:22px">Afgerond</h2><div class="cgrid">${done.map(containerKaart).join('')}</div>` : ''}`;
@@ -2039,6 +2042,7 @@ function kopKaart(c){
       <div class="row" style="gap:6px">${c.data.pakbon_bestand ? '<button class="btn sm" data-act="pbkijk" title="' + esc(pakbonNaam(c)) + '">📄 Pakbon</button>' : ''}<button class="btn sm" data-act="kopedit">${open ? 'Klaar' : 'Gegevens wijzigen'}</button></div>
     </div>
     ${c.data.verzonden ? `<div class="small muted mt8">Pakbon: ${esc(c.data.verzonden_bron || 'datum')} <b>${esc(fdate(c.data.verzonden, { day:'numeric', month:'short', year:'numeric' }))}</b>${c.data.eta_auto ? ` · ETA = + ${c.data.eta_auto.dagen} dagen (${c.data.eta_auto.n ? 'gemiddelde van ' + c.data.eta_auto.n + ' eerdere ' + esc(levKort(c.leverancier)) + '-container' + (c.data.eta_auto.n > 1 ? 's' : '') : 'standaard, nog niets geleerd voor ' + esc(levKort(c.leverancier))})` : c.losdatum && !ver ? ' · doorlooptijd ' + dagenTussen(c.data.verzonden, c.losdatum) + ' dagen' : ''}</div>` : ''}
+    ${c.data.ontvangst ? `<div class="small mt8">Ontvangen in Picqer: <b>${esc(c.data.ontvangst.rc || '')}</b> op ${esc(fdate(c.data.ontvangst.datum, { day:'numeric', month:'short' }))} · ${(c.data.ontvangst.verschillen || []).length ? '<span class="badge b-warn">' + c.data.ontvangst.verschillen.length + ' verschil(len) met pakbon: ' + c.data.ontvangst.verschillen.map(r => esc(r.code) + ' ' + (r.vs > 0 ? '+' : '') + nf(r.vs)).join(', ') + '</span>' : '<span class="badge b-ok">klopt met pakbon</span>'}</div>` : ''}
     ${isVoorbij(c) ? `<div class="etabox mt12"><div class="small"><b>De ${ver ? 'ETA' : 'losdatum'} is voorbij.</b> Al gelost? Vul de echte losdatum in: de app rondt hem af en leert van de doorlooptijd.</div>
       <div class="row wrap mt8"><input type="date" id="gl_cur" value="${esc(c.losdatum)}" style="width:auto"><button class="btn ok" data-act="algelostcur">Gelost, afronden</button></div></div>` : ''}
     ${ver ? `<div class="etabox mt12"><div class="small"><b>ETA is nog een schatting.</b> Advies en verdeling zijn een voorlopige planning. Zodra de vervoerder de losdatum heeft gepland: vul hem hier in en zet hem vast.</div>
@@ -2379,6 +2383,105 @@ function regelRij(c, r, i){
     <td class="n">${inp('factor', f)}${f !== 1 ? `<div class="tiny muted">1 = ${nf(f)} ${eh}</div>` : ''}</td>
     <td class="n"><b>${nf((t || 0) * f)}</b> <span class="tiny muted">${eh}</span></td>
     <td><button class="btn ghost sm" data-act="regeldel" data-i="${i}" title="Regel verwijderen">✕</button></td></tr>`;
+}
+/* ---------- Picqer-ontvangst (inruimlijst PDF of Excel) → welke container is binnen ---------- */
+function leesOntvangstTekst(text, L){
+  L = L || tekstRegels(text);
+  const r = { rc:(String(text).match(/\bRC\d{4}-\d+\b/) || [])[0] || null, datum:null, lev:null, regels:[] };
+  const m = String(text).match(/Aangemaakt\s+op\s+([\d\-\/.]+)/i); if(m) r.datum = datumTok(m[1]);
+  const kop = L.find(l => /Inruimlijst/i.test(l.s) && !/^Inruimlijst/i.test(l.s.trim()));
+  if(kop) r.lev = kolommen(kop.s)[0];
+  for(let i = 0; i < L.length; i++){
+    const k = kolommen(L[i].s);
+    if(k.length < 3 || /^(Leverancier|Totaal|Productcode)$/i.test(k[0])) continue;
+    const qi = k.map((x, j) => /^\d+$/.test(x) ? j : -1).filter(j => j >= 2).pop();
+    if(qi === undefined) continue;
+    let code = k[0];
+    if(/-$/.test(code) && L[i + 1]) code += kolommen(L[i + 1].s)[0];
+    r.regels.push({ code:PLOW[code.toLowerCase()] || code, aantal:+k[qi] });
+  }
+  return r;
+}
+async function leesOntvangst(file){
+  if(/\.pdf$/i.test(file.name) || file.type === 'application/pdf'){
+    const pdf = await pdfjsLib.getDocument({ data:await file.arrayBuffer() }).promise;
+    const t = await pdfTekst(pdf, true);
+    return leesOntvangstTekst(t.text, t.regels);
+  }
+  const arr = await leesSheet(file);
+  const hi = arr.findIndex(r => (r || []).some(x => /^productcode$/i.test(String(x || '').trim())) && (r || []).some(x => /^aantal$/i.test(String(x || '').trim())));
+  if(hi < 0) throw new Error('geen kolommen Productcode en Aantal gevonden');
+  const h = arr[hi].map(x => String(x || '').trim().toLowerCase()), ic = h.indexOf('productcode'), ia = h.indexOf('aantal');
+  const r = { rc:(file.name.match(/\bRC\d{4}-\d+\b/) || [])[0] || null, datum:null, lev:null, regels:[] };
+  arr.slice(hi + 1).forEach(row => { const code = txt(row[ic]); if(code && num(row[ia])) r.regels.push({ code:PLOW[code.toLowerCase()] || code, aantal:num(row[ia]) }); });
+  const levs = {}; r.regels.forEach(x => { const l = (P[x.code] || {}).leverancier; if(l) levs[l] = (levs[l] || 0) + 1; });
+  r.lev = Object.keys(levs).sort((a, b) => levs[b] - levs[a])[0] || null;
+  return r;
+}
+// welke open container past het best bij deze ontvangst
+function ontvangstMatch(o){
+  const codes = new Set(o.regels.map(x => norm(x.code)));
+  let best = null;
+  CONT.filter(c => c.status !== 'afgerond' && (c.data.regels || []).length).forEach(c => {
+    const pc = pools(c).order.map(norm), hit = pc.filter(x => codes.has(x)).length;
+    if(!hit) return;
+    const sc = hit / Math.max(codes.size, pc.length) + (o.lev && levKort(o.lev) === levKort(c.leverancier) ? 0.2 : 0);
+    if(!best || sc > best.sc) best = { id:c.id, sc, hit };
+  });
+  return best;
+}
+// vergelijking pakbon (in Picqer-eenheden) ↔ ontvangen
+function ontvangstVergelijk(c, o){
+  const pl = pools(c), ontv = {}, rij = [];
+  o.regels.forEach(x => ontv[norm(x.code)] = (ontv[norm(x.code)] || 0) + x.aantal);
+  pl.order.forEach(code => { const pb = pl.map[code].totaalU, on = ontv[norm(code)] || 0; rij.push({ code, pb, on, vs:on - pb }); delete ontv[norm(code)]; });
+  o.regels.forEach(x => { if(ontv[norm(x.code)] !== undefined){ rij.push({ code:x.code, pb:0, on:ontv[norm(x.code)], vs:ontv[norm(x.code)] }); delete ontv[norm(x.code)]; } });
+  return rij;
+}
+async function ontvangstenInlezen(files){
+  UI.ontv = UI.ontv || [];
+  for(const f of files){
+    try{
+      const o = await leesOntvangst(f);
+      if(!o.regels.length){ toast(f.name + ': geen ontvangstregels gevonden.', 5000); continue; }
+      const m = ontvangstMatch(o);
+      UI.ontv.push({ f, o, cid:m ? m.id : null, datum:o.datum || '' });
+    }catch(e){ toast(f.name + ': ' + e.message, 6000); }
+  }
+  viewHome();
+}
+async function ontvangstBevestig(i){
+  const x = UI.ontv[i], c = CONT.find(k => k.id === +($('ov_c_' + i).value || x.cid)), d = $('ov_d_' + i).value;
+  if(!c){ toast('Kies de container.'); return; }
+  if(!d){ toast('Vul de losdatum in.'); return; }
+  const rij = ontvangstVergelijk(c, x.o);
+  c.data.ontvangst = { rc:x.o.rc, datum:d, regels:x.o.regels, verschillen:rij.filter(r => Math.abs(r.vs) > 0.001) };
+  if(OPSLAG !== false){ try{ const ext = ((x.f.name.match(/\.([a-z0-9]+)$/i) || [])[1] || 'pdf').toLowerCase(); await opslagZet('c' + c.id + '/ontvangst.' + ext, x.f); c.data.ontvangst.pad = 'c' + c.id + '/ontvangst.' + ext; }catch(e){} }
+  try{ await alGelost(c, d); }catch(e){ toast('Opslaan mislukt: ' + e.message, 5000); return; }
+  UI.ontv = UI.ontv.filter((y, j) => j !== i && y.cid !== c.id);   // dubbele (bv. PDF + Excel van dezelfde ontvangst) mogen weg
+  toast(levKort(c.leverancier) + ' ' + (c.containernummer || c.pakbon_ref || '') + ': ontvangen op ' + fdate(d, { day:'numeric', month:'short' }) + ', afgerond.' + (c.data.ontvangst.verschillen.length ? ' ' + c.data.ontvangst.verschillen.length + ' verschil(len) met de pakbon bewaard.' : ''), 6000);
+  viewHome();
+}
+function ontvangstKaart(){
+  if(!(UI.ontv || []).length) return '';
+  const open = CONT.filter(c => c.status !== 'afgerond' && (c.data.regels || []).length);
+  return `<div class="card">
+    <div class="row between"><h3>Ontvangsten uit Picqer</h3><button class="btn ghost sm" data-act="ontvweg">Sluiten</button></div>
+    ${UI.ontv.map((x, i) => {
+      const c = CONT.find(k => k.id === x.cid);
+      const rij = c ? ontvangstVergelijk(c, x.o) : [];
+      const vs = rij.filter(r => Math.abs(r.vs) > 0.001);
+      return `<div class="ontv mt12">
+        <div class="small"><b>${esc(x.o.rc || x.f.name)}</b> · ${esc(x.o.lev ? levKort(x.o.lev) : 'leverancier?')} · ${x.o.regels.length} producten, ${nf(x.o.regels.reduce((a, r) => a + r.aantal, 0))} ontvangen${x.o.datum ? ' · aangemaakt ' + esc(fdate(x.o.datum, { day:'numeric', month:'short' })) : ''}</div>
+        <div class="row wrap mt8"><label class="small">Hoort bij</label>
+          <select id="ov_c_${i}" data-ovc="${i}" style="width:auto">${c ? '' : '<option value="">— kies container —</option>'}${open.map(k => `<option value="${k.id}" ${k.id === x.cid ? 'selected' : ''}>${esc(levKort(k.leverancier) + ' ' + (k.containernummer || k.pakbon_ref || '') + (k.losdatum ? ' · ' + losTekst(k) : ''))}</option>`).join('')}</select>
+          <label class="small">gelost op</label><input type="date" id="ov_d_${i}" value="${esc(x.datum)}" style="width:auto">
+          <button class="btn ok sm" data-act="ontvok" data-i="${i}" ${c ? '' : 'disabled'}>Klopt: gelost en afronden</button><button class="btn ghost sm" data-act="ontvdel" data-i="${i}">Negeren</button></div>
+        ${c ? `<div class="small mt8">${vs.length ? `<span class="badge b-warn">${vs.length} verschil${vs.length > 1 ? 'len' : ''} met de pakbon</span>` : '<span class="badge b-ok">alle aantallen kloppen met de pakbon</span>'}</div>
+          ${vs.length ? `<div class="scroll mt8"><table><tr><th>Product</th><th class="n">Pakbon</th><th class="n">Ontvangen</th><th class="n">Verschil</th></tr>${vs.map(r => `<tr><td class="code">${esc(r.code)}</td><td class="n">${nf(r.pb)}</td><td class="n">${nf(r.on)}</td><td class="n"><b>${r.vs > 0 ? '+' : ''}${nf(r.vs)}</b></td></tr>`).join('')}</table></div>` : ''}` : '<div class="small muted mt8">Geen open container met deze producten gevonden. Kies hem hierboven als hij er wel bij hoort.</div>'}
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 // leest één bestand (PDF, scan, foto, Excel of tekst) en herkent leverancier + regels
 async function leesBestand(file, st){
@@ -3393,6 +3496,9 @@ const ACT = {
   pbtab: () => pakbonToon(cur, true),
   copyopslag: () => kopieer(OPSLAG_SQL),
   etapakbon: () => etaUitPakbonnen(),
+  ontvok: el => ontvangstBevestig(+el.dataset.i),
+  ontvdel: el => { UI.ontv.splice(+el.dataset.i, 1); viewHome(); },
+  ontvweg: () => { UI.ontv = []; viewHome(); },
   algelost: async el => {
     const c = CONT.find(x => x.id === +el.dataset.id), d = $('gl_' + el.dataset.id).value;
     if(!c || !d) return;
@@ -3462,6 +3568,12 @@ app.addEventListener('toggle', e => { const d = e.target; if(d.dataset && d.data
    ===================================================================== */
 app.addEventListener('change', e => {
   const el = e.target;
+  if(el.dataset.change === 'ontvangstenInlezen' && el.files){
+    const fs = [...el.files]; el.value = '';
+    if(fs.length) ontvangstenInlezen(fs);
+    return;
+  }
+  if(el.dataset.ovc !== undefined){ UI.ontv[+el.dataset.ovc].cid = +el.value || null; viewHome(); return; }
   if(el.dataset.change === 'pakbonnenBulk' && el.files){
     const fs = [...el.files]; el.value = '';
     if(fs.length) pakbonnenBulk(fs);
