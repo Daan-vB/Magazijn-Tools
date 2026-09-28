@@ -2044,7 +2044,7 @@ function kopKaart(c){
     ${c.data.verzonden ? `<div class="small muted mt8">Pakbon: ${esc(c.data.verzonden_bron || 'datum')} <b>${esc(fdate(c.data.verzonden, { day:'numeric', month:'short', year:'numeric' }))}</b>${c.data.eta_auto ? ` · ETA = + ${c.data.eta_auto.dagen} dagen (${c.data.eta_auto.n ? 'gemiddelde van ' + c.data.eta_auto.n + ' eerdere ' + esc(levKort(c.leverancier)) + '-container' + (c.data.eta_auto.n > 1 ? 's' : '') : 'standaard, nog niets geleerd voor ' + esc(levKort(c.leverancier))})` : c.losdatum && !ver ? ' · doorlooptijd ' + dagenTussen(c.data.verzonden, c.losdatum) + ' dagen' : ''}</div>` : ''}
     ${c.data.ontvangst ? `<div class="small mt8">Ontvangen in Picqer: <b>${esc(c.data.ontvangst.rc || '')}</b> op ${esc(fdate(c.data.ontvangst.datum, { day:'numeric', month:'short' }))} · ${(c.data.ontvangst.verschillen || []).length ? '<span class="badge b-warn">' + c.data.ontvangst.verschillen.length + ' verschil(len) met pakbon: ' + c.data.ontvangst.verschillen.map(r => esc(r.code) + ' ' + (r.vs > 0 ? '+' : '') + nf(r.vs)).join(', ') + '</span>' : '<span class="badge b-ok">klopt met pakbon</span>'}</div>` : ''}
     ${isVoorbij(c) ? `<div class="etabox mt12"><div class="small"><b>De ${ver ? 'ETA' : 'losdatum'} is voorbij.</b> Al gelost? Vul de echte losdatum in: de app rondt hem af en leert van de doorlooptijd.</div>
-      <div class="row wrap mt8"><input type="date" id="gl_cur" value="${esc(c.losdatum)}" style="width:auto"><button class="btn ok" data-act="algelostcur">Gelost, afronden</button></div></div>` : ''}
+      <div class="row wrap mt8"><input type="date" id="gl_cur" value="${esc(c.losdatum)}" style="width:auto"><button class="btn ok" data-act="algelostcur">Gelost, afronden</button><span class="small muted">of</span><label class="btn file">Ontvangst inlezen (Picqer-inruimlijst)<input type="file" accept=".pdf,.xlsx,.xls" data-change="ontvangstHier"></label></div></div>` : ''}
     ${ver ? `<div class="etabox mt12"><div class="small"><b>ETA is nog een schatting.</b> Advies en verdeling zijn een voorlopige planning. Zodra de vervoerder de losdatum heeft gepland: vul hem hier in en zet hem vast.</div>
       <div class="row wrap mt8"><input type="date" id="def_datum" value="${esc(c.losdatum || '')}" style="width:auto"><input type="time" id="def_tijd" value="${esc(c.lostijd || '')}" style="width:auto"><button class="btn acc" data-act="etadef">Losdatum vastzetten</button></div></div>` : ''}
     <div class="fields mt12" ${open ? '' : 'hidden'}>
@@ -2423,7 +2423,7 @@ function ontvangstMatch(o){
   const codes = new Set(o.regels.map(x => norm(x.code)));
   let best = null;
   CONT.filter(c => c.status !== 'afgerond' && (c.data.regels || []).length).forEach(c => {
-    const pc = pools(c).order.map(norm), hit = pc.filter(x => codes.has(x)).length;
+    const pc = [...new Set(c.data.regels.map(r => norm(r.productcode || r.pakbon_code)))], hit = pc.filter(x => codes.has(x)).length;
     if(!hit) return;
     const sc = hit / Math.max(codes.size, pc.length) + (o.lev && levKort(o.lev) === levKort(c.leverancier) ? 0.2 : 0);
     if(!best || sc > best.sc) best = { id:c.id, sc, hit };
@@ -2432,9 +2432,10 @@ function ontvangstMatch(o){
 }
 // vergelijking pakbon (in Picqer-eenheden) ↔ ontvangen
 function ontvangstVergelijk(c, o){
-  const pl = pools(c), ontv = {}, rij = [];
+  const ontv = {}, rij = [], pbs = {};
   o.regels.forEach(x => ontv[norm(x.code)] = (ontv[norm(x.code)] || 0) + x.aantal);
-  pl.order.forEach(code => { const pb = pl.map[code].totaalU, on = ontv[norm(code)] || 0; rij.push({ code, pb, on, vs:on - pb }); delete ontv[norm(code)]; });
+  c.data.regels.forEach(r => { const code = r.productcode || r.pakbon_code, k = norm(code); (pbs[k] = pbs[k] || { code, pb:0 }).pb += (num(r.totaal) || 0) * (num(r.factor) || 1); });
+  Object.entries(pbs).forEach(([k, x]) => { const on = ontv[k] || 0; rij.push({ code:x.code, pb:x.pb, on, vs:on - x.pb }); delete ontv[k]; });
   o.regels.forEach(x => { if(ontv[norm(x.code)] !== undefined){ rij.push({ code:x.code, pb:0, on:ontv[norm(x.code)], vs:ontv[norm(x.code)] }); delete ontv[norm(x.code)]; } });
   return rij;
 }
@@ -3574,6 +3575,12 @@ app.addEventListener('change', e => {
     return;
   }
   if(el.dataset.ovc !== undefined){ UI.ontv[+el.dataset.ovc].cid = +el.value || null; viewHome(); return; }
+  if(el.dataset.change === 'ontvangstHier' && el.files){
+    const f = el.files[0]; el.value = ''; if(!f) return;
+    UI.ontv = []; const c = cur;
+    leesOntvangst(f).then(o => { UI.ontv.push({ f, o, cid:c.id, datum:o.datum || '' }); location.hash = '#/'; }).catch(e => toast(f.name + ': ' + e.message, 6000));
+    return;
+  }
   if(el.dataset.change === 'pakbonnenBulk' && el.files){
     const fs = [...el.files]; el.value = '';
     if(fs.length) pakbonnenBulk(fs);
