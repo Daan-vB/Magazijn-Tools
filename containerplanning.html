@@ -1075,7 +1075,7 @@ function eerderGepland(c, code){
   const out = { hier:0, bo:0, refs:[] };
   CONT.forEach(o => {
     if(o === c || o.status === 'afgerond') return;
-    const eerder = (o.losdatum || '9999') < (c.losdatum || '9999') || ((o.losdatum || '9999') === (c.losdatum || '9999') && o.id < c.id);
+    const ok_ = x => (x.losdatum || '9999') + ' ' + (x.lostijd || '99'), eerder = ok_(o) < ok_(c) || (ok_(o) === ok_(c) && o.id < c.id);
     if(!eerder) return;
     const v = o.data && o.data.verdeling && o.data.verdeling[code];
     if(!v || !v.porties) return;
@@ -1228,7 +1228,7 @@ async function route(){
   return viewHome();
 }
 window.addEventListener('hashchange', route);
-window.CP_TEST = { pdfTekst, leesPakbonTekst };
+window.CP_TEST = { pdfTekst, leesPakbonTekst, losMoment };
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 function rerender(){
   const y = window.scrollY;
@@ -1326,7 +1326,7 @@ function containerKaart(c){
     </div></a>`;
 }
 function viewHome(){
-  const byDate = (a, b) => (a.losdatum || '9999').localeCompare(b.losdatum || '9999') || a.id - b.id;
+  const byDate = (a, b) => (a.losdatum || '9999').localeCompare(b.losdatum || '9999') || (a.lostijd || '99').localeCompare(b.lostijd || '99') || a.id - b.id;
   const open = CONT.filter(c => c.status !== 'afgerond').sort(byDate);
   const done = CONT.filter(c => c.status === 'afgerond').sort((a, b) => byDate(b, a));
   const levs = alleLeveranciers();
@@ -1342,8 +1342,8 @@ function viewHome(){
     ${bulk ? `<div class="card mt12">
       <div class="row between"><h3>${bulk.bezig ? 'Pakbonnen inlezen…' : 'Pakbonnen ingelezen'}</h3>${bulk.bezig ? '' : '<button class="btn ghost sm" data-act="bulkweg">Sluiten</button>'}</div>
       <div class="small mt8" style="line-height:1.7">${bulk.log.map(x => `<div${x.cls === 'err' ? ' style="color:var(--bad)"' : x.cls === 'ok' ? '' : ' class="muted"'}>${x.cls === 'ok' ? '✓ ' : x.cls === 'err' ? '✗ ' : ''}${esc(x.t)}</div>`).join('')}</div>
-      ${bulk.bezig ? '' : '<p class="small muted mt8">Nieuwe containers staan hieronder zonder losdatum. Open ze om de koppelingen te bevestigen en de losdatum in te vullen.</p>'}
-    </div>` : `<p class="small muted mt8">Tip: met <b>Pakbonnen inlezen</b> kies je alle pakbonnen tegelijk. De app herkent de leverancier en maakt per containernummer een container aan; wat er al staat wordt overgeslagen.</p>`}
+      ${bulk.bezig ? '' : '<p class="small muted mt8">Open de nieuwe containers om de koppelingen te bevestigen. Staat de losdatum niet in de bestandsnaam, vul hem dan in de container in.</p>'}
+    </div>` : `<p class="small muted mt8">Tip: met <b>Pakbonnen inlezen</b> kies je alle pakbonnen tegelijk. De app herkent de leverancier en maakt per containernummer een container aan. Staat er een datum en tijd in de bestandsnaam (bijv. <i>Selected MIEU3762596 01-10 0900</i>), dan wordt dat de losdatum, ook voor containers die er al staan.</p>`}
     <div class="card mt12" id="nieuw" ${UI.nieuw ? '' : 'hidden'}>
       <h3 class="mb8">Nieuwe container</h3>
       <div class="fields">
@@ -1940,6 +1940,8 @@ async function pakbonBestand(file){
     const andere = res.docs.map(d => d.container).filter(x => x && x !== doc.container);
     if(res.lev && res.lev !== c.leverancier) c.leverancier = res.lev;
     vulRegels(c, doc, res, file.name, methode, text);
+    const inNaam = (file.name.toUpperCase().match(/[A-Z]{3}U\d{7}/) || [])[0];
+    if(!inNaam || inNaam === c.containernummer) zetLosMoment(c, losMoment(file.name));
     save();
     const regels = c.data.regels;
     const n = regels.filter(r => !r.bevestigd).length;
@@ -1972,6 +1974,37 @@ function zetRegels(c, regels, kop, bestand, methode, text){
 }
 
 /* ---------- Meerdere pakbonnen tegelijk: per containernummer een container ---------- */
+// losdatum/-tijd uit de bestandsnaam, zoals "Selected MIEU3762596 01-10 0900.pdf" of "… 30-09 10.00.pdf"
+function losMoment(naam){
+  const t = String(naam || '').replace(/\.[a-z0-9]+$/i, '').replace(/_/g, ' ');
+  const re = /(?<![\dA-Za-z])(\d{1,2})-(\d{1,2})(?:-(\d{4}|\d{2}))?(?!\d)(?:\s+(?:om\s+)?(\d{1,2})[.:u]?(\d{2})(?!\d))?/g;
+  let m;
+  while((m = re.exec(t))){
+    const d = +m[1], mnd = +m[2];
+    if(d < 1 || d > 31 || mnd < 1 || mnd > 12) continue;
+    const nu = new Date(); let j;
+    if(m[3]) j = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+    else {
+      j = nu.getFullYear();
+      const kand = new Date(j, mnd - 1, d);
+      if(kand - nu < -120 * 864e5) j++; else if(kand - nu > 240 * 864e5) j--;
+    }
+    const dt = new Date(j, mnd - 1, d);
+    if(dt.getMonth() !== mnd - 1) continue;
+    const p2 = x => String(x).padStart(2, '0');
+    let tijd = null;
+    if(m[4] != null){ const u = +m[4], mi = +m[5]; if(u <= 23 && mi <= 59) tijd = p2(u) + ':' + p2(mi); }
+    return { datum:j + '-' + p2(mnd) + '-' + p2(d), tijd };
+  }
+  return null;
+}
+function zetLosMoment(c, lm){
+  if(!lm) return false;
+  const oud = (c.losdatum || '') + ' ' + (c.lostijd || '');
+  c.losdatum = lm.datum; if(lm.tijd) c.lostijd = lm.tijd;
+  return oud !== (c.losdatum || '') + ' ' + (c.lostijd || '');
+}
+const losTekst = c => fdate(c.losdatum, { weekday:'short', day:'numeric', month:'short' }) + (c.lostijd ? ' ' + c.lostijd : '');
 async function pakbonnenBulk(files){
   UI.bulk = { bezig:true, log:[] };
   const opHome = () => !cur && !/^#\/(c|gegevens|vloernamen)/.test(location.hash || '#/');
@@ -1980,7 +2013,15 @@ async function pakbonnenBulk(files){
   teken();
   for(const f of files){
     const inNaam = (f.name.toUpperCase().match(/[A-Z]{3}U\d{7}/) || [])[0];   // scheelt tekstherkenning van scans die er al zijn
-    if(inNaam && CONT.some(x => x.containernummer === inNaam)){ log(f.name + ': container ' + inNaam + ' stond er al, overgeslagen.', 'muted'); continue; }
+    const lm = losMoment(f.name);
+    const alBekend = inNaam && CONT.find(x => x.containernummer === inNaam);
+    if(alBekend && (alBekend.data.regels || []).length){
+      if(zetLosMoment(alBekend, lm)){
+        try{ await bewaarContainer(alBekend); log(f.name + ': container ' + inNaam + ' stond er al, lossen gezet op ' + losTekst(alBekend) + '.', 'ok'); }
+        catch(e){ log(f.name + ': lossen opslaan mislukt — ' + e.message, 'err'); }
+      } else log(f.name + ': container ' + inNaam + ' stond er al, overgeslagen.', 'muted');
+      continue;
+    }
     const regel = { t:f.name + ': lezen…', cls:'muted' }; UI.bulk.log.push(regel); teken();
     try{
       const { text, methode, res } = await leesBestand(f, m => { regel.t = f.name + ': ' + m; teken(); });
@@ -1989,13 +2030,17 @@ async function pakbonnenBulk(files){
       for(const d of res.docs){
         const naam = (res.lev || 'Leverancier?') + ' · ' + (d.container || res.ref || f.name);
         const bestaat = CONT.find(x => d.container ? x.containernummer === d.container : (res.ref && x.pakbon_ref === res.ref && (x.leverancier || '') === (res.lev || '')));
-        if(bestaat){ log(naam + ': stond er al, overgeslagen.', 'muted'); continue; }
-        const r = await api('POST', 'containers', [{ leverancier:res.lev || null, pakbon_ref:res.ref || null, containernummer:d.container || null, status:'concept', data:{} }], { Prefer:'return=representation' });
-        const c = ensureData(r[0]); CONT.push(c);
+        if(bestaat && (bestaat.data.regels || []).length){ log(naam + ': stond er al, overgeslagen.', 'muted'); continue; }
+        let c = bestaat;   // container stond er al maar nog zonder pakbon: aanvullen
+        if(!c){
+          const r = await api('POST', 'containers', [{ leverancier:res.lev || null, pakbon_ref:res.ref || null, containernummer:d.container || null, status:'concept', data:{} }], { Prefer:'return=representation' });
+          c = ensureData(r[0]); CONT.push(c);
+        } else if(res.lev) c.leverancier = res.lev;
         vulRegels(c, d, res, f.name, methode, text);
+        if(!inNaam || d.container === inNaam) zetLosMoment(c, lm);
         await bewaarContainer(c);
         const open = c.data.regels.filter(x => !x.bevestigd).length;
-        log(naam + ': ' + plural(c.data.regels.length, 'regel', 'regels') + (open ? ', ' + open + ' nog koppelen' : ', alles gekoppeld') + (methode === 'ocr' ? ' (scan)' : '') + '.', 'ok');
+        log(naam + ': ' + plural(c.data.regels.length, 'regel', 'regels') + (open ? ', ' + open + ' nog koppelen' : ', alles gekoppeld') + (methode === 'ocr' ? ' (scan)' : '') + (c.losdatum ? ', lossen ' + losTekst(c) : '') + '.', 'ok');
       }
     }catch(e){
       const i = UI.bulk.log.indexOf(regel); if(i >= 0) UI.bulk.log.splice(i, 1);
