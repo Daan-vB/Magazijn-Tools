@@ -220,12 +220,15 @@
   async function load(){
     try{
       const [rows, cat, tds] = await Promise.all([fetchAll(), fetchCatalog(), fetchTodos().catch(() => [])]);
-      prod = {}; rows.forEach(r => prod[r.productcode] = r);
+      // uitgefaseerd (actief = nee, via Vloernamen 'X' of inactief in Picqer) niet tonen
+      const uit = new Set();
+      prod = {}; rows.forEach(r => { if(r.actief === false){ uit.add(String(r.productcode).toLowerCase()); return; } prod[r.productcode] = r; });
       indexCatalog(cat);
       todos = tds;
       // producten die alleen in het geheugen staan ook tonen
       Object.values(geh).forEach(list => {
         const c = String(list[0].sub).trim();
+        if(uit.has(c.toLowerCase())) return;
         if(!Object.keys(prod).some(k => k.toLowerCase() === c.toLowerCase())) prod[c] = { productcode:c, _alleenGeheugen:true };
       });
       $('sync').textContent = 'verbonden'; $('sync').className = 'sync ok';
@@ -240,9 +243,12 @@
   /* ================= Helpers ================= */
   const g1 = code => (geh[String(code).toLowerCase()] || [])[0];
   const stuksVan = code => { const g = g1(code); const n = g ? parseFloat(String(g.qty).replace(',', '.')) : NaN; return isNaN(n) ? null : n; };
+  // stuks per pallet kan ook een code zijn: 0 = label zonder aantal, nvt = geen pallet, onb = nog onbekend
+  const qtyCode = code => { const g = g1(code); const t = g ? String(g.qty ?? '').trim().toLowerCase() : ''; return t.replace(/\./g, '') === 'nvt' ? 'nvt' : t === 'onb' ? 'onb' : null; };
   const naamVan = r => r.naam || (g1(r.productcode) || {}).name || '';
   const leeg = v => v === null || v === undefined || v === '';
   function compleet(r){
+    if(qtyCode(r.productcode) === 'nvt') return 'full'; // geen pallet: geen palletdata nodig
     const need = [stuksVan(r.productcode), r.palletmaat, r.hoogte_cm, r.gewicht_kg, r.plaatsen];
     const n = need.filter(v => !leeg(v)).length;
     return n === need.length ? 'full' : n === 0 ? 'leeg' : 'part';
@@ -342,7 +348,7 @@
         '<td class="nm">' + esc(naamVan(r)) + '</td>' +
         '<td class="hm">' + esc(r.leverancier || '') + '</td>' +
         '<td class="n">' + (leeg(r.voorraad_hm) ? '—' : esc(r.voorraad_hm)) + '</td>' +
-        '<td class="n">' + (stuksVan(r.productcode) ?? '—') + '</td>' +
+        '<td class="n">' + (stuksVan(r.productcode) ?? qtyCode(r.productcode) ?? '—') + '</td>' +
         '<td class="hm">' + esc(r.palletmaat || '—') + '</td>' +
         '<td class="n hm">' + (leeg(r.gewicht_kg) ? '—' : esc(r.gewicht_kg) + ' kg') + '</td></tr>').join('') +
       '</tbody></table>' + (rows.length > SHOW ? '<div class="more">Eerste ' + SHOW + ' van ' + rows.length + ' getoond. Verfijn met zoeken of een leverancier.</div>' : '');
