@@ -107,6 +107,7 @@
   .pbfile{background:#f4f6f9;border-radius:6px;padding:6px 10px}
   .etalijst>.row{padding:6px 0;border-top:1px solid #eef1f4}
   .ontv{border-top:1px solid #e6eaef;padding-top:10px}
+  .verdeel{background:#f4f6f9;border-radius:6px;padding:8px 10px}
   .etabox{background:#fff8e6;border:1px solid #f0d08a;border-radius:8px;padding:10px 12px}
   .ccard h3{font-size:14.5px;margin-bottom:2px}
   .steps{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
@@ -443,6 +444,7 @@ async function load(){
     indexBackorders(bo);
     ALIAS = al; CONT = co; TODOS = td;
     CONT.forEach(ensureData);
+    GELADEN = Date.now();
     await opslagCheck();
     setSync('verbonden', 'ok');
     return true;
@@ -568,7 +570,28 @@ const containerVelden = c => ({
   losdatum:c.losdatum || null, lostijd:c.lostijd || null, transporteur:c.transporteur || null,
   status:c.status || 'concept', data:c.data, updated_at:new Date().toISOString()
 });
-const bewaarContainer = c => api('PATCH', 'containers?id=eq.' + c.id, containerVelden(c), { Prefer:'return=minimal' });
+// opslaan met controle: is de container intussen op een ander apparaat gewijzigd, dan niet overschrijven.
+// Per container na elkaar, zodat een snelle tweede opslag niet op zijn eigen eerste opslag botst.
+const KETTING = new Map();
+function bewaarContainer(c){
+  const vorige = KETTING.get(c.id) || Promise.resolve();
+  const nu = vorige.catch(() => {}).then(() => bewaarNu(c));
+  KETTING.set(c.id, nu);
+  return nu;
+}
+async function bewaarNu(c){
+  const velden = containerVelden(c);
+  const r = await api('PATCH', 'containers?id=eq.' + c.id + (c.updated_at ? '&updated_at=eq.' + encodeURIComponent(c.updated_at) : '') + '&select=id,updated_at', velden, { Prefer:'return=representation' });
+  if(c.updated_at && Array.isArray(r) && !r.length){
+    const vers = await api('GET', 'containers?id=eq.' + c.id + '&select=*');
+    if(vers && vers[0]){ Object.keys(c).forEach(k => delete c[k]); Object.assign(c, ensureData(vers[0])); }
+    PLAN = null;
+    const e = new Error('deze container is intussen op een ander apparaat gewijzigd — de nieuwste versie is geladen, doe je laatste wijziging opnieuw');
+    e.conflict = true; toast('Let op: ' + e.message + '.', 8000); if(cur === c) rerender();
+    throw e;
+  }
+  c.updated_at = (Array.isArray(r) && r[0] && r[0].updated_at) || velden.updated_at;
+}
 function save(){ PLAN = null; if(!cur) return; dirty = true; setSaved('Opslaan…'); clearTimeout(saveT); saveT = setTimeout(doSave, 700); }
 async function doSave(){
   if(!cur || !dirty) return;
@@ -578,6 +601,7 @@ async function doSave(){
     await bewaarContainer(c);
     setSaved(dirty ? 'Opslaan…' : 'Opgeslagen ✓');
   }catch(e){
+    if(e.conflict){ setSaved('Nieuwste versie geladen', true); return; }
     dirty = true;
     setSaved('Opslaan mislukt: ' + e.message.slice(0, 80), true);
   }
@@ -1228,12 +1252,29 @@ function pools(c){
       for(let i = 0; i < n; i++) p.pallets.push(spp);
       p.losU -= n * spp; p.gebouwd = n;
     }
+    // al (deels) geleverd via een eerdere ontvangst: dat deel telt niet meer mee
+    const g = Math.min(p.totaalU, num(((c.data.geleverd || {})[norm(code)])) || 0);
+    if(g > 0){
+      let rest = g;
+      const uitLos = Math.min(p.losU, rest); p.losU -= uitLos; rest -= uitLos;
+      p.pallets.sort((a, b) => a - b);
+      while(rest > 0.0001 && p.pallets.length){ const x = p.pallets.pop(); if(x <= rest + 0.0001) rest -= x; else { p.pallets.push(x - rest); rest = 0; } }
+      p.totaalU -= g; p.geleverd = g;
+    }
     p.pallets.sort((a, b) => b - a);
     p.maten = {};
     p.pallets.forEach(s => p.maten[s] = (p.maten[s] || 0) + 1);
   });
-  return { map, order };
+  const vol = order.filter(code => map[code].geleverd && map[code].totaalU <= 0.0001);
+  return { map, order:order.filter(code => !vol.includes(code)), klaar:vol };
 }
+// alles wat op de pakbon staat, per sleutel (Picqer-code, anders pakboncode), in Picqer-eenheden
+function pakbonEenheden(c){
+  const out = {};
+  (c.data.regels || []).forEach(r => { const code = r.productcode || r.pakbon_code, k = norm(code); if(!k) return; (out[k] = out[k] || { code, u:0 }).u += (num(r.totaal) || 0) * (num(r.factor) || 1); });
+  return out;
+}
+const nogOpen = (c, k) => { const pb = pakbonEenheden(c)[k]; return pb ? Math.max(0, pb.u - (num((c.data.geleverd || {})[k]) || 0)) : 0; };
 function portieU(x){ return x.soort === 'pallet' ? (num(x.n) || 0) * (num(x.per) || 0) : (num(x.n) || 0); }
 function restVan(pool, porties){
   const r = { maten:Object.assign({}, pool.maten), los:pool.losU, U:pool.totaalU };
@@ -1249,6 +1290,13 @@ function restVan(pool, porties){
    Containers op datumvolgorde. Per product telt de app wat eerdere containers hier/BO/VST brengen
    (vastgelegde verdeling, anders hun advies), en hoeveel er tot aankomst verkocht wordt. */
 let PLAN = null;
+let GELADEN = 0;
+// terug naar de app (ander tabblad, telefoon uit slaap): na een minuut de nieuwste gegevens ophalen
+document.addEventListener('visibilitychange', async () => {
+  if(document.hidden || Date.now() - GELADEN < 60000 || dirty || (UI.bulk && UI.bulk.bezig) || Object.keys(UI.pk || {}).length || UI.etaBezig) return;
+  const a = document.activeElement; if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;
+  if(await load()){ PLAN = null; rerender(); }
+});
 const volgKey = x => (x.losdatum || '9999') + ' ' + (x.lostijd || '99') + ' ' + String(x.id).padStart(8, '0');
 function maandenTot(c){
   if(!c.losdatum) return 0;
@@ -1553,6 +1601,7 @@ function viewHome(){
       <p class="small muted mt8">Tot dan leest de app pakbonnen gewoon in, maar bewaart hij het bestand nog niet.</p>
     </div>` : '';
   const voorbij = open.filter(isVoorbij);
+  const cockpit = wijzer(open);
   const voorbijKaart = voorbij.length ? `<div class="card etabox">
       <h3>Datum voorbij (${voorbij.length}) — al gelost?</h3>
       <p class="small muted mt8">Tip: lees de Picqer-ontvangst in (knop <b>Ontvangsten inlezen</b>), dan zoekt de app zelf de container en de datum erbij. Of vul de echte losdatum in en klik <b>Gelost</b>. De app rondt hem af (telt dan niet meer dubbel mee in de planning) en leert van de echte doorlooptijd. Nog niet binnen? Open de container en zet een nieuwe datum.</p>
@@ -1567,6 +1616,7 @@ function viewHome(){
   app.innerHTML = `
     ${dataStrip()}
     ${opslagKaart}
+    ${cockpit}
     <div class="row between wrap"><h2>Geplande containers</h2>
       <div class="row wrap" style="gap:8px">
         <label class="btn pri file" title="Kies alle pakbonnen tegelijk">Pakbonnen inlezen<input type="file" multiple accept=".pdf,.xlsx,.xls,.csv,.txt,image/*" data-change="pakbonnenBulk"></label>
@@ -1606,7 +1656,12 @@ function viewGegevens(){
   BO.forEach(b => { const l = b.leverancier || '?'; boLev[l] = (boLev[l] || 0) + 1; });
   const tot = new Date(); const van = new Date(tot); van.setFullYear(van.getFullYear() - 1);
   const iso = d => d.toISOString().slice(0, 10);
+  const lb = laatsteBackup();
   app.innerHTML = `
+  <div class="card">
+    <div class="row between wrap"><div><h2>Back-up</h2><p class="small muted mt8">Alles wat de app zelf bijhoudt in één bestand: containers (met verdeling, notities, ETA, ontvangsten), geleerde koppelingen, productgeheugen, palletdata en todo's. Bewaar het bijvoorbeeld in iCloud of op de schijf van IVOL. ${lb ? 'Laatste back-up op dit apparaat: <b>' + esc(fdt(lb)) + '</b>.' : 'Op dit apparaat nog geen back-up gemaakt.'}</p></div>
+      <button class="btn pri" data-act="backup">Back-up downloaden</button></div>
+  </div>
   <div class="card">
     <h2>Picqer-gegevens</h2>
     <p class="small muted mt8">De app rekent met de laatste exports. Werk ze bij vlak voor je een container plant (duurt 1 minuut). Alles komt in de gedeelde database, dus de productkaart ziet het ook.</p>
@@ -1940,6 +1995,23 @@ async function herkoppelOpen(){
   }
   return n;
 }
+// alles wat de app zelf bijhoudt in één bestand (containers, koppelingen, productgeheugen, palletdata, todo's)
+async function backupMaken(){
+  try{
+    toast('Back-up maken…');
+    const [co, al, ca, pr, td] = await Promise.all([getAll('containers', 'select=*&order=id'), getAll('pakbon_alias', 'select=*'), api('GET', 'catalog?select=*'),
+      getAll('producten', 'select=productcode,palletmaat,lengte_cm,breedte_cm,hoogte_cm,gewicht_kg,plaatsen,max_per_ligger,opmerking,eenheid,actief'), getAll('todos', 'select=*').catch(() => [])]);
+    const data = { gemaakt:new Date().toISOString(), app:'containerplanning', containers:co, pakbon_alias:al, catalog:ca, producten_palletdata:pr.filter(r => ['palletmaat', 'hoogte_cm', 'gewicht_kg', 'plaatsen', 'max_per_ligger', 'opmerking'].some(k => !leeg(r[k])) || r.actief === false), todos:td };
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type:'application/json' }));
+    const nu = new Date(), dd = x => String(x).padStart(2, '0');
+    a.download = 'containerplanning-backup-' + nu.getFullYear() + '-' + dd(nu.getMonth() + 1) + '-' + dd(nu.getDate()) + '.json'; a.click();
+    try{ localStorage.setItem('cp_backup', data.gemaakt); }catch(_){}
+    toast('Back-up gedownload: ' + co.length + ' containers, ' + al.length + ' koppelingen, productgeheugen en palletdata.', 5000);
+    if(!cur) route();
+  }catch(e){ toast('Back-up mislukt: ' + e.message, 6000); }
+}
+const laatsteBackup = () => { try{ return localStorage.getItem('cp_backup'); }catch(_){ return null; } };
 async function impVerkoop(file){
   const st = (m, c) => { $('st_vk').textContent = m; $('st_vk').className = 'status ' + (c || ''); };
   try{
@@ -2042,6 +2114,7 @@ function kopKaart(c){
       <div class="row" style="gap:6px">${c.data.pakbon_bestand ? '<button class="btn sm" data-act="pbkijk" title="' + esc(pakbonNaam(c)) + '">📄 Pakbon</button>' : ''}<button class="btn sm" data-act="kopedit">${open ? 'Klaar' : 'Gegevens wijzigen'}</button></div>
     </div>
     ${c.data.verzonden ? `<div class="small muted mt8">Pakbon: ${esc(c.data.verzonden_bron || 'datum')} <b>${esc(fdate(c.data.verzonden, { day:'numeric', month:'short', year:'numeric' }))}</b>${c.data.eta_auto ? ` · ETA = + ${c.data.eta_auto.dagen} dagen (${c.data.eta_auto.n ? 'gemiddelde van ' + c.data.eta_auto.n + ' eerdere ' + esc(levKort(c.leverancier)) + '-container' + (c.data.eta_auto.n > 1 ? 's' : '') : 'standaard, nog niets geleerd voor ' + esc(levKort(c.leverancier))})` : c.losdatum && !ver ? ' · doorlooptijd ' + dagenTussen(c.data.verzonden, c.losdatum) + ' dagen' : ''}</div>` : ''}
+    ${(c.data.leveringen || []).length ? `<div class="small mt8">Deelleveringen: ${c.data.leveringen.map(l => '<b>' + esc(l.rc || '') + '</b> ' + esc(fdate(l.datum, { day:'numeric', month:'short' })) + ': ' + l.regels.map(r => nf(r.aantal) + '× ' + esc(r.code)).join(', ') + ((l.extra || []).length ? ' <span class="muted">(+ extra: ' + l.extra.map(e => nf(e.aantal) + '× ' + esc(e.code)).join(', ') + ')</span>' : '')).join(' · ')}${c.status !== 'afgerond' ? ' <span class="badge b-info">restant nog onderweg</span>' : ''}</div>` : ''}
     ${c.data.ontvangst ? `<div class="small mt8">Ontvangen in Picqer: <b>${esc(c.data.ontvangst.rc || '')}</b> op ${esc(fdate(c.data.ontvangst.datum, { day:'numeric', month:'short' }))} · ${(c.data.ontvangst.verschillen || []).length ? '<span class="badge b-warn">' + c.data.ontvangst.verschillen.length + ' verschil(len) met pakbon: ' + c.data.ontvangst.verschillen.map(r => esc(r.code) + ' ' + (r.vs > 0 ? '+' : '') + nf(r.vs)).join(', ') + '</span>' : '<span class="badge b-ok">klopt met pakbon</span>'}</div>` : ''}
     ${isVoorbij(c) ? `<div class="etabox mt12"><div class="small"><b>De ${ver ? 'ETA' : 'losdatum'} is voorbij.</b> Al gelost? Vul de echte losdatum in: de app rondt hem af en leert van de doorlooptijd.</div>
       <div class="row wrap mt8"><input type="date" id="gl_cur" value="${esc(c.losdatum)}" style="width:auto"><button class="btn ok" data-act="algelostcur">Gelost, afronden</button><span class="small muted">of</span><label class="btn file">Ontvangst inlezen (Picqer-inruimlijst)<input type="file" accept=".pdf,.xlsx,.xls" data-change="ontvangstHier"></label></div></div>` : ''}
@@ -2418,6 +2491,41 @@ async function leesOntvangst(file){
   r.lev = Object.keys(levs).sort((a, b) => levs[b] - levs[a])[0] || null;
   return r;
 }
+// ontvangst verdelen over open pakbonnen van dezelfde leverancier, oudste eerst (bv. Besteel: proforma = bestelling)
+function ontvangstVerdeelPlan(o, lev){
+  const k = levKort(lev || o.lev || '');
+  const oud = c => (c.data.verzonden || c.losdatum || '9999') + ' ' + String(c.id).padStart(8, '0');
+  const kand = CONT.filter(c => c.status !== 'afgerond' && (c.data.regels || []).length && levKort(c.leverancier) === k).sort((a, b) => oud(a).localeCompare(oud(b)));
+  const per = kand.map(c => ({ c, regels:[], open:Object.fromEntries(Object.keys(pakbonEenheden(c)).map(x => [x, nogOpen(c, x)])) }));
+  const extra = [];
+  o.regels.forEach(x => {
+    let rest = x.aantal; const key = norm(x.code);
+    per.forEach(p => { const open = p.open[key] || 0; if(rest > 0 && open > 0){ const t = Math.min(open, rest); p.regels.push({ code:x.code, key, t }); p.open[key] = open - t; rest -= t; } });
+    if(rest > 0) extra.push({ code:x.code, aantal:rest });
+  });
+  per.forEach(p => { p.vol = Object.values(p.open).every(v => v <= 0.0001); });
+  return { lev:k, per:per.filter(p => p.regels.length), extra };
+}
+async function ontvangstVerdeel(i){
+  const x = UI.ontv[i], d = $('ov_d_' + i).value;
+  if(!d){ toast('Vul de ontvangstdatum in.'); return; }
+  const c0 = CONT.find(k => k.id === +($('ov_c_' + i).value || x.cid));
+  const plan = ontvangstVerdeelPlan(x.o, (c0 && c0.leverancier) || x.o.lev);
+  if(!plan.per.length){ toast('Geen open pakbonnen van deze leverancier met deze producten.'); return; }
+  const lev = { rc:x.o.rc, datum:d, extra:plan.extra };
+  try{
+    for(const p of plan.per){
+      const c = p.c; c.data.geleverd = c.data.geleverd || {};
+      p.regels.forEach(r => c.data.geleverd[r.key] = (num(c.data.geleverd[r.key]) || 0) + r.t);
+      c.data.leveringen = (c.data.leveringen || []).concat([Object.assign({}, lev, { regels:p.regels.map(r => ({ code:r.code, aantal:r.t })), extra:p === plan.per[0] ? plan.extra : [] })]);
+      if(p.vol){ c.data.ontvangst = { rc:x.o.rc, datum:d, regels:p.regels.map(r => ({ code:r.code, aantal:r.t })), verschillen:[], deel:true }; await alGelost(c, d); }
+      else await bewaarContainer(c);
+    }
+  }catch(e){ toast('Opslaan mislukt: ' + e.message, 6000); return; }
+  UI.ontv.splice(i, 1);
+  toast(plan.per.length + ' pakbon(nen) bijgewerkt: ' + plan.per.filter(p => p.vol).length + ' helemaal geleverd en afgerond, ' + plan.per.filter(p => !p.vol).length + ' deels (restant blijft open).' + (plan.extra.length ? ' Extra geleverd (niet besteld): ' + plan.extra.map(e => e.aantal + '× ' + e.code).join(', ') + '.' : ''), 9000);
+  viewHome();
+}
 // welke open container past het best bij deze ontvangst
 function ontvangstMatch(o){
   const codes = new Set(o.regels.map(x => norm(x.code)));
@@ -2435,6 +2543,7 @@ function ontvangstVergelijk(c, o){
   const ontv = {}, rij = [], pbs = {};
   o.regels.forEach(x => ontv[norm(x.code)] = (ontv[norm(x.code)] || 0) + x.aantal);
   c.data.regels.forEach(r => { const code = r.productcode || r.pakbon_code, k = norm(code); (pbs[k] = pbs[k] || { code, pb:0 }).pb += (num(r.totaal) || 0) * (num(r.factor) || 1); });
+  Object.entries(c.data.geleverd || {}).forEach(([k, g]) => { if(pbs[k]) pbs[k].pb = Math.max(0, pbs[k].pb - (num(g) || 0)); });
   Object.entries(pbs).forEach(([k, x]) => { const on = ontv[k] || 0; rij.push({ code:x.code, pb:x.pb, on, vs:on - x.pb }); delete ontv[k]; });
   o.regels.forEach(x => { if(ontv[norm(x.code)] !== undefined){ rij.push({ code:x.code, pb:0, on:ontv[norm(x.code)], vs:ontv[norm(x.code)] }); delete ontv[norm(x.code)]; } });
   return rij;
@@ -2478,6 +2587,10 @@ function ontvangstKaart(){
           <select id="ov_c_${i}" data-ovc="${i}" style="width:auto">${c ? '' : '<option value="">— kies container —</option>'}${open.map(k => `<option value="${k.id}" ${k.id === x.cid ? 'selected' : ''}>${esc(levKort(k.leverancier) + ' ' + (k.containernummer || k.pakbon_ref || '') + (k.losdatum ? ' · ' + losTekst(k) : ''))}</option>`).join('')}</select>
           <label class="small">gelost op</label><input type="date" id="ov_d_${i}" value="${esc(x.datum)}" style="width:auto">
           <button class="btn ok sm" data-act="ontvok" data-i="${i}" ${c ? '' : 'disabled'}>Klopt: gelost en afronden</button><button class="btn ghost sm" data-act="ontvdel" data-i="${i}">Negeren</button></div>
+        ${(() => { const pl = ontvangstVerdeelPlan(x.o, (c && c.leverancier) || x.o.lev); const zinvol = pl.per.length > 1 || (pl.per.length === 1 && (!pl.per[0].vol || pl.extra.length)) ; if(!zinvol || !vs.length) return '';
+          return `<div class="verdeel mt8"><div class="small"><b>Past niet precies op één pakbon?</b> Verdelen over de open pakbonnen van ${esc(pl.lev)}, oudste eerst:</div>
+            <ul class="small mt8" style="padding-left:18px;line-height:1.6">${pl.per.map(p => `<li><b>${esc(p.c.pakbon_ref || p.c.containernummer || '#' + p.c.id)}</b>: ${p.regels.map(r => nf(r.t) + '× ' + esc(r.code)).join(', ')} → ${p.vol ? '<span class="badge b-ok">helemaal geleverd, afronden</span>' : '<span class="badge b-info">deels, restant blijft open</span>'}</li>`).join('')}${pl.extra.length ? `<li>Extra geleverd (niet besteld): ${pl.extra.map(e => nf(e.aantal) + '× ' + esc(e.code)).join(', ')}</li>` : ''}</ul>
+            <button class="btn pri sm mt8" data-act="ontvverdeel" data-i="${i}">Zo verdelen</button></div>`; })()}
         ${c ? `<div class="small mt8">${vs.length ? `<span class="badge b-warn">${vs.length} verschil${vs.length > 1 ? 'len' : ''} met de pakbon</span>` : '<span class="badge b-ok">alle aantallen kloppen met de pakbon</span>'}</div>
           ${vs.length ? `<div class="scroll mt8"><table><tr><th>Product</th><th class="n">Pakbon</th><th class="n">Ontvangen</th><th class="n">Verschil</th></tr>${vs.map(r => `<tr><td class="code">${esc(r.code)}</td><td class="n">${nf(r.pb)}</td><td class="n">${nf(r.on)}</td><td class="n"><b>${r.vs > 0 ? '+' : ''}${nf(r.vs)}</b></td></tr>`).join('')}</table></div>` : ''}` : '<div class="small muted mt8">Geen open container met deze producten gevonden. Kies hem hierboven als hij er wel bij hoort.</div>'}
       </div>`;
@@ -2745,6 +2858,50 @@ async function pakbonnenBulk(files){
   UI.bulk.bezig = false; teken();
 }
 
+/* ---------- Wat nu: de belangrijkste acties, op volgorde van urgentie ---------- */
+function wijzer(open){
+  const vandaag = new Date(); vandaag.setHours(12, 0, 0, 0);
+  const dagen = c => c.losdatum ? Math.round((new Date(c.losdatum + 'T12:00:00') - vandaag) / 864e5) : null;
+  const L = [];   // { prio 1..4, tekst, link }
+  const pq = Object.values(P).map(r => r.picqer_datum).filter(Boolean).sort().pop();
+  const bo = BO.map(r => r.geimporteerd_op).filter(Boolean).sort().pop();
+  const vk = Object.values(VK).map(r => r.geimporteerd_op || r.periode_tot).filter(Boolean).sort().pop();
+  const oud = d => !d || (Date.now() - new Date(d)) > 7 * 864e5;
+  const binnenkort = open.filter(c => { const d = dagen(c); return d !== null && d >= 0 && d <= 7; });
+  const exportsOud = [oud(bo) && 'backorders', oud(vk) && 'verkoop', oud(pq) && 'producten'].filter(Boolean);
+  if(exportsOud.length) L.push({ prio:binnenkort.length ? 1 : 3, tekst:'Picqer-export' + (exportsOud.length > 1 ? 's' : '') + ' ' + exportsOud.join(', ') + ' ouder dan 7 dagen' + (binnenkort.length ? ' — er komt deze week een container, het advies rekent met oude cijfers' : ''), link:'#/gegevens', knop:'bijwerken' });
+  open.forEach(c => {
+    const d = dagen(c), naam = levKort(c.leverancier) + ' ' + (c.pakbon_ref || c.containernummer || '');
+    if(d === null || d < 0) return;
+    const g = voortgang(c);
+    const nietGek = g.R.filter(r => !r.productcode).length;
+    const tekort = [];
+    if(nietGek) tekort.push(nietGek + ' regel' + (nietGek > 1 ? 's' : '') + ' niet gekoppeld');
+    if(g.pdMis) tekort.push(g.pdMis + ' product' + (g.pdMis > 1 ? 'en' : '') + ' zonder gegevens');
+    if(g.n && g.akk < g.n) tekort.push('verdeling ' + g.akk + '/' + g.n);
+    const wanneer = d === 0 ? 'vandaag' : d === 1 ? 'morgen' : 'over ' + d + ' dagen';
+    if(d <= 7 && isVerwacht(c)) L.push({ prio:1, tekst:naam + ': ETA ' + wanneer + ', nog geen vaste losdatum — navragen bij de vervoerder', link:'#/c/' + c.id + '/pakbon', knop:'open' });
+    else if(d <= 7 && tekort.length) L.push({ prio:d <= 2 ? 1 : 2, tekst:naam + ' lost ' + wanneer + ': ' + tekort.join(', '), link:'#/c/' + c.id + (nietGek || g.pdMis ? '/pakbon' : '/verdeling'), knop:'afmaken' });
+    else if(d <= 7) L.push({ prio:3, tekst:naam + ' lost ' + wanneer + ': klaar — werkbon, labels en Stockmove maken', link:'#/c/' + c.id + '/uitvoer', knop:'uitvoer' });
+    else if(d <= 21 && (nietGek || g.pdMis)) L.push({ prio:4, tekst:naam + ' (' + wanneer + '): ' + tekort.filter(t => !/verdeling/.test(t)).join(', ') + ' — alvast voorbereiden', link:'#/c/' + c.id + '/pakbon', knop:'open' });
+  });
+  const voorbij = open.filter(isVoorbij).length;
+  if(voorbij) L.push({ prio:2, tekst:voorbij + ' container' + (voorbij > 1 ? 's' : '') + ' met datum in het verleden — gelost? Lees de ontvangst in of rond af', link:'#/', knop:'' });
+  // ruimte komende 14 dagen
+  const plan = planning(); let plaatsen = 0, n = 0;
+  open.forEach(c => { const d = dagen(c); if(d === null || d < 0 || d > 14) return; Object.entries(plan.per[c.id] || {}).forEach(([code, x]) => x.porties.forEach(q => { if(q.soort === 'pallet' && DEST[q.dest] && DEST[q.dest].hier){ const k = num(q.n) || 0; plaatsen += k * (num((P[code] || {}).plaatsen) || 1); n += k; } })); });
+  if(n) L.push({ prio:3, tekst:'Komende 2 weken blijven er ± ' + n + ' pallets hier: ruimte voor ' + nf(plaatsen, 1) + ' palletplaatsen (' + Math.ceil(plaatsen / 4) + '–' + Math.ceil(plaatsen / 3) + ' liggers)', link:'#/vooruit', knop:'vooruit' });
+  const lb = laatsteBackup();
+  if(!lb || Date.now() - new Date(lb) > 7 * 864e5) L.push({ prio:4, tekst:lb ? 'Laatste back-up is ouder dan een week' : 'Nog geen back-up gemaakt op dit apparaat', link:'#/gegevens', knop:'back-up' });
+  if(!L.length) return `<div class="card wijzer"><h3>Wat nu</h3><p class="small mt8"><span class="badge b-ok">alles bij</span> Geen acties nodig voor de komende week.</p></div>`;
+  L.sort((a, b) => a.prio - b.prio);
+  const kl = { 1:'b-bad', 2:'b-warn', 3:'b-info', 4:'b-grey' }, lb_ = { 1:'nu', 2:'deze week', 3:'info', 4:'later' };
+  const toon = UI.wijzerAlles ? L : L.slice(0, 6);
+  return `<div class="card wijzer"><h3>Wat nu</h3>
+    <div class="mt8">${toon.map(x => `<div class="pt"><span class="lvl badge ${kl[x.prio]}">${lb_[x.prio]}</span><div class="txt">${esc(x.tekst)}</div>${x.knop ? `<a class="btn sm" href="${x.link}">${esc(x.knop)}</a>` : ''}</div>`).join('')}</div>
+    ${L.length > 6 ? `<button class="btn ghost sm mt8" data-act="wijzeralles">${UI.wijzerAlles ? 'minder tonen' : 'alle ' + L.length + ' tonen'}</button>` : ''}
+  </div>`;
+}
 /* ---------- Vooruit: wat komt er, wat betekent het voor ruimte en voorraad ---------- */
 function weekVan(d){
   const x = new Date(d + 'T12:00:00'), dag = (x.getDay() + 6) % 7;
@@ -3496,8 +3653,11 @@ const ACT = {
   pbkijk: () => pakbonToon(cur, window.innerWidth < 700),
   pbtab: () => pakbonToon(cur, true),
   copyopslag: () => kopieer(OPSLAG_SQL),
+  backup: () => backupMaken(),
+  wijzeralles: () => { UI.wijzerAlles = !UI.wijzerAlles; viewHome(); },
   etapakbon: () => etaUitPakbonnen(),
   ontvok: el => ontvangstBevestig(+el.dataset.i),
+  ontvverdeel: el => ontvangstVerdeel(+el.dataset.i),
   ontvdel: el => { UI.ontv.splice(+el.dataset.i, 1); viewHome(); },
   ontvweg: () => { UI.ontv = []; viewHome(); },
   algelost: async el => {
