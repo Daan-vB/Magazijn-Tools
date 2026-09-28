@@ -466,17 +466,19 @@ function ensureData(c){
 const STATUS = { concept:'Concept', ingepland:'Ingepland', gelost:'Gelost', afgerond:'Afgerond' };
 
 let saveT = null, dirty = false;
+const containerVelden = c => ({
+  leverancier:c.leverancier || null, pakbon_ref:c.pakbon_ref || null, containernummer:c.containernummer || null,
+  losdatum:c.losdatum || null, lostijd:c.lostijd || null, transporteur:c.transporteur || null,
+  status:c.status || 'concept', data:c.data, updated_at:new Date().toISOString()
+});
+const bewaarContainer = c => api('PATCH', 'containers?id=eq.' + c.id, containerVelden(c), { Prefer:'return=minimal' });
 function save(){ if(!cur) return; dirty = true; setSaved('Opslaan…'); clearTimeout(saveT); saveT = setTimeout(doSave, 700); }
 async function doSave(){
   if(!cur || !dirty) return;
   dirty = false;
   const c = cur;
   try{
-    await api('PATCH', 'containers?id=eq.' + c.id, {
-      leverancier:c.leverancier || null, pakbon_ref:c.pakbon_ref || null, containernummer:c.containernummer || null,
-      losdatum:c.losdatum || null, lostijd:c.lostijd || null, transporteur:c.transporteur || null,
-      status:c.status || 'concept', data:c.data, updated_at:new Date().toISOString()
-    }, { Prefer:'return=minimal' });
+    await bewaarContainer(c);
     setSaved(dirty ? 'Opslaan…' : 'Opgeslagen ✓');
   }catch(e){
     dirty = true;
@@ -588,22 +590,334 @@ function parseSimpel(text){
   });
   return regels;
 }
-async function pdfTekst(pdf){
-  const out = [];
+/* =====================================================================
+   Pakbonlezers per leverancier
+   Elke lezer krijgt de tekst en de regels ({p, y, s}) van de PDF en geeft
+   { regels, ref, containers, totaal_stuks, totaal_eenheden, notities } terug.
+   Kolommen in s zijn gescheiden door 3+ spaties (zie pdfTekst).
+   ===================================================================== */
+const RX_CONT = /\b([A-Z]{3}U\d{7})\b/g;               // containernummer: 3 letters + U + 7 cijfers
+const kolommen = s => String(s || '').split(/ {3,}/).map(x => x.trim()).filter(x => x !== '');
+function kopBasis(text){
+  const conts = [...new Set((String(text).match(RX_CONT) || []))];
+  return { regels:[], notities:[], containers:conts, ref:null, bl:null, totaal_stuks:null, totaal_eenheden:null };
+}
+const zoek1 = (text, rx) => { const m = String(text).match(rx); return m ? m[1].trim() : null; };
+// een pakbonregel in de vorm die de app kent
+function pbRegel(code, oms, totaal, per, extra){
+  per = per && per > 0 ? per : 1;
+  const aantal = Math.round(totaal / per * 1000) / 1000;
+  return Object.assign({ pakbon_code:String(code).trim(), omschrijving:String(oms || code).replace(/\s+/g, ' ').trim(), context:'',
+    totaal, per, aantal:Number.isInteger(aantal) ? aantal : Math.ceil(aantal), soort:'los', bruto_per:null }, extra || {});
+}
+const afr = (x, d) => x == null || isNaN(x) ? null : Math.round(x * Math.pow(10, d || 1)) / Math.pow(10, d || 1);
+
+/* Fanda / Hebei Haijie — factuur: nr | code | aantal | prijs | totaal */
+function leesFanda(text, L){
+  const res = kopBasis(text);
+  res.ref = zoek1(text, /Ref\.?\s*No\.?\s*:?\s*([A-Z]{2,}-\d{5,})/i);
+  const vrij = [];
+  L.forEach(l => {
+    const k = kolommen(l.s);
+    if(k.length !== 5 || !/^\d{1,3}$/.test(k[0]) || !/^\d+$/.test(k[2])) return;
+    const q = +k[2], prijs = num(k[3]);
+    if(!prijs){ vrij.push(q + '× ' + k[1]); return; }
+    res.regels.push(pbRegel(k[1], k[1], q, 1));
+  });
+  if(vrij.length) res.notities.push('Gratis meegestuurd (niet ingepland): ' + vrij.join(', ') + '.');
+  return res;
+}
+
+/* Sanhe Great Wall Rubber — rollen, alleen omschrijving + maat, omschrijving in samengevoegde cellen */
+function leesGreatWall(text, L){
+  const res = kopBasis(text);
+  res.ref = zoek1(text, /S\s*\/\s*C\s*No\.?\s*:?\s*([A-Z0-9-]+)/i);
+  const SPEC = /^(tensile|density|elongation|hardness)/i;
+  const MAAT = /^(\d+(?:\.\d+)?)\s*mm\s*x\s*([\d.]+)\s*m\s*x\s*([\d.]+)\s*m(?:\s*x\s*\d+\s*P)?$/i;
+  const koppen = [], rijen = [];
+  let blok = null, inT = false, klaar = false;
+  L.forEach(l => {
+    if(klaar) return;
+    const k = kolommen(l.s);
+    if(!inT){ if(/kg\s*\/\s*roll|^Item$/i.test(l.s) || k.some(x => /^Item$/i.test(x))) inT = true; return; }
+    if(/^(sum|total)\b/i.test(k[0] || '')){ klaar = true; const m = l.s.match(/^SUM\s+(\d+)/i); if(m) res.totaal_stuks = +m[1]; return; }
+    const si = k.findIndex(x => MAAT.test(x));
+    (si >= 0 ? k.slice(0, si) : k).forEach(t => {
+      if(SPEC.test(t)){ if(blok) blok.onder = Math.min(blok.onder, l.y); return; }
+      if(!/[a-z]/i.test(t) || /^(item|size|thickness|width|length|quantity|weight|total weight)$/i.test(t) || /^[（(]/.test(t)) return;
+      if(blok && !blok.heeftRij && blok.laatst - l.y < 14){ blok.naam += ' ' + t; blok.laatst = l.y; blok.onder = Math.min(blok.onder, l.y); return; }
+      blok = { naam:t, boven:l.y, onder:l.y, laatst:l.y, heeftRij:false }; koppen.push(blok);
+    });
+    if(si >= 0){
+      const d = k.slice(si + 1).map(num);   // dikte, breedte, lengte, rollen, kg/rol, totaal kg
+      rijen.push({ y:l.y, maat:k[si].replace(/\s+/g, ' '), rollen:d[3], kg:d[4] });
+      if(blok) blok.heeftRij = true;
+    }
+  });
+  rijen.forEach(r => {
+    let best = null, bd = Infinity;
+    koppen.forEach(kp => {
+      const top = kp.boven + 6, bot = kp.onder - 6;
+      const d = r.y > top ? r.y - top : r.y < bot ? bot - r.y : 0;
+      if(d < bd){ bd = d; best = kp; }
+    });
+    const naam = best ? best.naam.replace(/\s+/g, ' ') : 'Rubber';
+    res.regels.push(pbRegel(naam + ' ' + r.maat, naam + ' ' + r.maat, r.rollen, 1, { bruto_per:r.kg, eenheid:'rol' }));
+  });
+  return res;
+}
+
+/* Guangxi Hongle Plastic — paklijst (pagina 1): code + maat, dozen/zakken en stuks op volgende regels */
+function leesHongle(text, L){
+  const res = kopBasis(text);
+  res.ref = zoek1(text, /PO#\s*(\d{4}-\d{4,})/i) || zoek1(text, /INVOICE\s*:?\s*([A-Z]{2}\d{6,})/i);
+  if(res.ref && /^\d{4}-/.test(res.ref)) res.ref = 'PO' + res.ref;
+  let r = null;
+  const af = () => {
+    if(r && r.pkgs) res.regels.push(pbRegel(r.code, [r.code, r.maat].concat(r.oms).filter(Boolean).join(' '), r.pcs || r.pkgs, r.pcs ? r.pcs / r.pkgs : 1, { bruto_per:r.gw ? afr(r.gw / r.pkgs) : null }));
+    r = null;
+  };
+  for(const l of L){
+    if(l.p > 1) break;
+    if(/^TOTAL\b/i.test(l.s)){ af(); const m = l.s.match(/=\s*(\d+)\s*PACKAGES/i); if(m) res.totaal_eenheden = +m[1]; break; }
+    const k = kolommen(l.s);
+    const m = (k[0] || '').match(/^(HL[\w-]*\d[\w-]*)\s*(.*)$/i);
+    if(m){ af(); r = { code:m[1], maat:m[2], oms:[], pkgs:0, pcs:0, gw:0 }; }
+    if(!r) continue;
+    const pk = l.s.match(/(\d+) {3,}(CARTONS?|BAGS?|CTNS?|PALLETS?|BOX(?:ES)?)\b.*?KGS {3,}([\d.,]+) {3,}KGS/i);
+    if(pk && !r.pkgs){ r.pkgs = +pk[1]; r.gw = num(pk[3]); }
+    const pc = l.s.match(/(\d+) {3,}PCS\b/i);
+    if(pc) r.pcs = +pc[1];
+    if(!m && k[0] && /[a-z]/i.test(k[0]) && !/^\d/.test(k[0])) r.oms.push(k[0]);
+  }
+  return res;
+}
+
+/* Luoyang Besteel — proforma: regel met alleen de artikelcode, daaronder omschrijving + volume/aantal/prijs */
+function leesBesteel(text, L){
+  const res = kopBasis(text);
+  res.ref = zoek1(text, /PI\s*NO\s*:?\s*([A-Z]{2}-[A-Z]?\d+)/i);
+  let code = null, laatste = null;
+  L.forEach(l => {
+    const s = l.s.trim();
+    if(/^[A-Z]{2}(?:-[A-Za-z0-9]+)+$/.test(s)){ code = s; return; }
+    const pal = s.match(/^Pallet\b.*?([\d.]+) {3,}([\d.]+) {3,}(\d+) {3,}US\$/i);
+    if(pal){ res.notities.push(pal[3] + ' pallets meegestuurd (' + (s.match(/For\s+([^ ].*?)(?: {3,}|$)/i) || ['', 'zie pakbon'])[1].replace(/,\s*$/, '') + '…).'); return; }
+    const tot = s.match(/IN TOTAL\b.*?(\d+) {3,}\//i);
+    if(tot){ res.totaal_stuks = +tot[1]; return; }
+    if(/Product Total/i.test(s)) return;
+    const m = s.match(/(\d+\.\d+) {3,}(\d+\.\d+) {3,}(\d+) {3,}US\$\s*([\d.,]+)/i);
+    if(m && code){
+      laatste = pbRegel(code, code, +m[3], 1);
+      if(!num(m[4])) laatste.omschrijving += ' (gratis)';
+      res.regels.push(laatste); return;
+    }
+    if(laatste && /without pallets/i.test(s) && !/zonder pallet/.test(laatste.omschrijving)) laatste.omschrijving += ' (zonder pallet, bovenin container)';
+  });
+  return res;
+}
+
+/* Ningbo Henri — factuur of paklijst: code [maat] | dozen | aantal EENHEID [| bruto | netto | m3] */
+function leesNingbo(text, L){
+  const res = kopBasis(text);
+  res.ref = zoek1(text, /INVOICE\s*NO\s*:?\s*([A-Z]{1,3}\d{4,})/i);
+  let kop = '';
+  L.forEach(l => {
+    const s = l.s.trim();
+    const h = s.match(/^\d+\.\s*([A-Za-z].*?)\s*(?:\(.*)?$/);
+    if(h && !/ {3,}\d/.test(s)){ kop = h[1].trim(); return; }
+    if(/^(sub\s*)?total/i.test(s)){ const t = s.match(/(\d+(?:,\d+)?)/); if(t) res.totaal_eenheden = num(t[1]); return; }
+    const m = s.match(/^(.+?) {3,}(?:(.+?) {3,})?(\d+(?:,\d+)?) {3,}(\d+) (PCS|ROLLS?|SETS?|PAIRS?)\b(?: {3,}([\d.,]+) {3,}([\d.,]+) {3,}([\d.,]+))?$/i);
+    if(!m || /^(container|mark|n\/m)$/i.test(m[1])) return;
+    const pkgs = num(m[3]), qty = +m[4];
+    res.regels.push(pbRegel(m[1], [kop, m[2]].filter(Boolean).join(' · '), qty, pkgs ? qty / pkgs : 1,
+      { bruto_per:m[6] && pkgs ? afr(num(m[6]) / pkgs) : null, eenheid:/roll/i.test(m[5]) ? 'rol' : null }));
+  });
+  return res;
+}
+
+/* Zhejiang Red Sun — paklijst: code | omschrijving | stuks | dozen | netto/st | bruto/st | m3/st | totalen */
+function leesRedSun(text, L){
+  const res = kopBasis(text);
+  res.ref = zoek1(text, /Inv\.?\s*No\.?\s*:?\s*([\w-]+)/i);
+  L.forEach(l => {
+    const k = kolommen(l.s);
+    if(k[0] === 'N/M') k.shift();
+    if(k.length === 10 && /^\d+$/.test(k[2]) && /^\d+$/.test(k[3])){
+      const pcs = +k[2], ctn = +k[3];
+      res.regels.push(pbRegel(k[0], k[1], pcs, ctn ? pcs / ctn : 1, { bruto_per:afr(num(k[5]) * (ctn ? pcs / ctn : 1)) }));
+    } else if(k.length === 4 && /^\d+$/.test(k[0]) && res.regels.length) res.totaal_eenheden = +k[0];
+  });
+  return res;
+}
+
+/* Foshan Selected Furniture — paklijst: code | naam | … | stuks | x PCS/CTN | dozen | maat | m3 | kg … */
+function leesSelected(text, L){
+  const res = kopBasis(text);
+  res.ref = zoek1(text, /CI\s*NO\s*:?\s*([\d\/-]+)/i);
+  const RC = /^[A-Z]{2}\d{3}[\w-]*$/i, vrij = [];
+  let vrijStuks = 0, vrijDozen = 0;
+  L.forEach((l, i) => {
+    const k = kolommen(l.s);
+    const j = k.findIndex(x => /^\d+\s*PCS?\s*\/\s*CTN$/i.test(x));
+    if(j < 1){
+      if(/^Total\b/i.test(k[0] || '') && k.length >= 3){ res.totaal_stuks = num(k[1]); res.totaal_eenheden = num(k[2]); }
+      return;
+    }
+    let code = RC.test(k[0]) ? k[0] : (k[0] === '***' && RC.test(k[1]) ? k[1] : null);
+    for(let b = i - 1; !code && b >= Math.max(0, i - 5); b--){
+      if(/PCS?\s*\/\s*CTN/i.test(L[b].s)) break;
+      const k0 = kolommen(L[b].s)[0];
+      if(RC.test(k0 || '')) code = k0;
+    }
+    const qty = num(k[j - 1]), perDoos = num(k[j].match(/\d+/)[0]), dozen = num(k[j + 1]);
+    if(k[0] === '***' || /free/i.test(l.s)){ vrij.push(qty + '× ' + (code || '?') + ' ' + (k[k[0] === '***' ? 2 : 1] || '')); vrijStuks += qty || 0; vrijDozen += dozen || 0; return; }
+    res.regels.push(pbRegel(code || k[0], [code, k.slice(1, j - 1).join(' ')].filter(Boolean).join(' · '), qty, perDoos, { bruto_per:num(k[j + 7]) }));
+  });
+  if(vrij.length){
+    res.notities.push('Gratis vervangingsonderdelen (niet ingepland): ' + vrij.join(', ') + '.');
+    if(res.totaal_stuks != null) res.totaal_stuks -= vrijStuks;
+    if(res.totaal_eenheden != null) res.totaal_eenheden -= vrijDozen;
+  }
+  return res;
+}
+
+/* Qingdao Todo Rubber — omschrijving boven/onder de getallen; soms meerdere containers op één paklijst */
+function leesTodo(text, L){
+  const res = kopBasis(text);
+  res.ref = zoek1(text, /(TODO\d*-\d{8}-\d+)/i) || zoek1(text, /(PO\d{4}-\d{4,})/i);
+  const data = [], tekst = [], labels = [];
+  let inT = false, klaar = false;
+  L.forEach(l => {
+    if(klaar) return;
+    if(/Shipping Mark|Container No/i.test(l.s)){ inT = true; return; }
+    if(!inT || /^(KGS|CBMS)\b/i.test(l.s.trim())) return;
+    if(/^TOTAL\b/i.test(l.s.trim())){ klaar = true; const m = l.s.match(/(\d+)\s*PKG {3,}(\d+)\s*(pcs|rolls?|sets?)/i); if(m){ res.totaal_stuks = +m[2]; res.totaal_eenheden = +m[1]; } return; }
+    const k = kolommen(l.s);
+    k.forEach(x => { if(/^[A-Z]{3}U\d{7}$/.test(x)) labels.push({ c:x, y:l.y }); });
+    const txt = k.filter(x => !/^[A-Z]{3}U\d{7}$/.test(x) && !/^TODO$/i.test(x) && !/^\d+\s*PKG$|^\d+\s*(pcs|rolls?|sets?)$|kgs$|cbms$/i.test(x)).join(' ');
+    const m = l.s.match(/(\d+)\s*PKG {3,}(\d+)\s*(pcs|rolls?|sets?) {3,}([\d.,]+)\s*kgs {3,}([\d.,]+)\s*kgs/i);
+    if(m) data.push({ y:l.y, pkg:+m[1], qty:+m[2], eh:m[3].toLowerCase(), gw:num(m[5]), eigen:txt, rond:[] });
+    else if(txt) tekst.push({ y:l.y, t:txt });
+  });
+  tekst.forEach(t => {
+    let best = null;
+    data.forEach(d => { if(!best || Math.abs(d.y - t.y) < Math.abs(best.y - t.y)) best = d; });
+    if(best) best.rond.push(t);
+  });
+  data.forEach(d => {
+    const delen = d.rond.filter(t => t.y > d.y).sort((a, b) => b.y - a.y).map(t => t.t)
+      .concat(d.eigen ? [d.eigen] : [])
+      .concat(d.rond.filter(t => t.y <= d.y).sort((a, b) => b.y - a.y).map(t => t.t));
+    const oms = delen.join(' ');
+    const per = d.pkg ? d.qty / d.pkg : 1, bp = d.gw && d.pkg ? afr(d.gw / d.pkg) : null;
+    d.regel = pbRegel(oms, oms, d.qty, per, { bruto_per:bp, soort:(per >= 2 && bp >= 100) ? 'pallet' : 'los', eenheid:/roll/.test(d.eh) ? 'rol' : null });
+    res.regels.push(d.regel);
+  });
+  // meerdere containers: elk containernummer staat (verticaal gecentreerd) naast zijn eigen groep regels
+  if(labels.length > 1 && data.length >= labels.length){
+    const lab = labels.slice().sort((a, b) => b.y - a.y), rows = data.slice().sort((a, b) => b.y - a.y);
+    let beste = null;
+    const zoekDeling = (start, li, grenzen, fout) => {
+      if(beste && fout >= beste.fout) return;
+      if(li === lab.length - 1){
+        const g = rows.slice(start), f = fout + Math.abs(lab[li].y - (g[0].y + g[g.length - 1].y) / 2);
+        if(!beste || f < beste.fout) beste = { fout:f, grenzen:grenzen.concat([start]) };
+        return;
+      }
+      for(let e = start + 1; e <= rows.length - (lab.length - li - 1); e++){
+        const g = rows.slice(start, e);
+        zoekDeling(e, li + 1, grenzen.concat([start]), fout + Math.abs(lab[li].y - (g[0].y + g[g.length - 1].y) / 2));
+      }
+    };
+    zoekDeling(0, 0, [], 0);
+    beste.grenzen.forEach((s, li) => {
+      const e = li + 1 < beste.grenzen.length ? beste.grenzen[li + 1] : rows.length;
+      rows.slice(s, e).forEach(d => d.regel.container = lab[li].c);
+    });
+  } else if(labels.length === 1) data.forEach(d => d.regel.container = labels[0].c);
+  return res;
+}
+
+// herkenning: welke lezer hoort bij deze pakbon (naam = zoals de leverancier in Picqer heet)
+const PAKBON_LEV = [
+  { id:'fanda',     naam:'Hebei Haijie Modern Education Equipment Co., Ltd.', zoek:/haijie|fanda/i,         herken:/Fanda\s*\(Hong Kong\)|haijie\.net/i,     lees:leesFanda },
+  { id:'greatwall', naam:'Sanhe Great Wall Rubber Co., Ltd.',                zoek:/great\s*wall|sanhe/i,   herken:/GREAT WALL RUBBER/i,                    lees:leesGreatWall },
+  { id:'hongle',    naam:'Guangxi Hongle Plastic Products Co., Ltd',         zoek:/hongle/i,               herken:/HONGLE PLASTIC/i,                       lees:leesHongle },
+  { id:'besteel',   naam:'LUOYANG BESTEEL CO.,LTD',                          zoek:/besteel/i,              herken:/LUOYANG BESTEEL/i,                      lees:leesBesteel },
+  { id:'ningbo',    naam:'Ningbo Henri Development Trade Co',                zoek:/ningbo\s*henri/i,       herken:/NINGBO HENRI/i,                         lees:leesNingbo },
+  { id:'redsun',    naam:'Zhejiang Red Sun Edu. co. Ltd. (Wuzhi)',           zoek:/red\s*sun/i,            herken:/RED SUN EDUCATION/i,                    lees:leesRedSun },
+  { id:'selected',  naam:'Selected Furniture Company Limited',               zoek:/selected\s*furniture/i, herken:/Selected Furniture/i,                   lees:leesSelected },
+  { id:'todo',      naam:'Qingdao Todo Rubber Co., Ltd.',                    zoek:/todo\s*rubber|qingdao\s*todo/i, herken:/Todo Rubber/i,                 lees:leesTodo }
+];
+const WALLACE = { id:'wallace', naam:'Wallace Langford & Associates', zoek:/wallace/i };
+
+function alleLeveranciers(){
+  const set = new Set(Object.keys(BYLEV));
+  Object.values(VK).forEach(v => { if(v.leverancier) set.add(v.leverancier); });
+  BO.forEach(b => { if(b.leverancier) set.add(b.leverancier); });
+  CONT.forEach(c => { if(c.leverancier) set.add(c.leverancier); });
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+// de naam zoals hij in Picqer staat, als die al bekend is (producten, verkoop of backorders)
+const levNaam = prof => alleLeveranciers().find(l => prof.zoek.test(l)) || prof.naam;
+const tekstRegels = text => String(text || '').split(/\r?\n/).map((t, i) => ({ p:1, y:-i * 12, s:t }));
+// herkent de leverancier, leest de regels en verdeelt ze per containernummer (docs)
+function leesPakbonTekst(text, L){
+  L = L || tekstRegels(text);
+  const prof = PAKBON_LEV.find(pf => pf.herken.test(text));
+  let r;
+  if(prof){ r = prof.lees(text, L); r.lev = levNaam(prof); r.profiel = prof.id; }
+  else {
+    r = parsePakbon(text);
+    r.notities = [];
+    r.containers = r.container ? [r.container] : [...new Set(String(text).match(RX_CONT) || [])];
+    r.lev = (/wallace/i.test(text) || r.ref) ? levNaam(WALLACE) : null;
+    r.profiel = r.regels.length ? 'wallace' : null;
+  }
+  const conts = [...new Set(r.regels.map(x => x.container).filter(Boolean))];
+  r.docs = conts.length > 1
+    ? conts.map(cn => ({ container:cn, regels:r.regels.filter(x => x.container === cn), totaal_stuks:null, totaal_eenheden:null }))
+    : [{ container:conts[0] || r.container || (r.containers.length === 1 ? r.containers[0] : null), regels:r.regels, totaal_stuks:r.totaal_stuks, totaal_eenheden:r.totaal_eenheden }];
+  return r;
+}
+
+// Tekst uit een digitale PDF. Woorden die dicht bij elkaar staan worden met één spatie verbonden,
+// kolommen met drie spaties. Met metRegels komt er ook per regel de hoogte (y) mee: sommige
+// pakbonnen hebben samengevoegde cellen waarbij de omschrijving of het containernummer
+// naast de bijbehorende regels staat.
+async function pdfTekst(pdf, metRegels){
+  const out = [], regels = [];
   for(let p = 1; p <= pdf.numPages; p++){
     const page = await pdf.getPage(p);
     const tc = await page.getTextContent();
-    const items = tc.items.filter(i => i.str && i.str.trim()).map(i => ({ s:i.str.trim(), x:i.transform[4], y:i.transform[5] }));
+    const items = tc.items.filter(i => i.str && i.str.trim()).map(i => ({ s:i.str, x:i.transform[4], y:i.transform[5], w:i.width || 0, fs:Math.abs(i.transform[3]) || Math.abs(i.transform[0]) || 10 }));
     const lines = [];
     items.forEach(it => {
-      let L = lines.find(l => Math.abs(l.y - it.y) <= 3);
+      let L = lines.find(l => Math.abs(l.y - it.y) <= Math.max(2, it.fs * 0.35));
       if(!L){ L = { y:it.y, items:[] }; lines.push(L); }
       L.items.push(it);
     });
     lines.sort((a, b) => b.y - a.y);
-    lines.forEach(L => { L.items.sort((a, b) => a.x - b.x); out.push(L.items.map(i => i.s).join('  ')); });
+    lines.forEach(L => {
+      L.items.sort((a, b) => a.x - b.x);
+      let t = '', prev = null;
+      L.items.forEach(it => {
+        const w = it.s.replace(/\s+/g, ' ');
+        if(prev){
+          const gap = it.x - (prev.x + prev.w);
+          t = t.replace(/ +$/, '');
+          t += gap > prev.fs * 0.8 ? '   ' : (gap > prev.fs * 0.12 || / $/.test(prev.s) || /^ /.test(it.s) ? ' ' : '');
+          t += w.replace(/^ +/, '');
+        } else t += w.trim();
+        prev = it;
+      });
+      t = t.trim();
+      out.push(t); regels.push({ p, y:Math.round(L.y * 10) / 10, s:t });
+    });
   }
-  return out.join('\n');
+  const text = out.join('\n');
+  return metRegels ? { text, regels } : text;
 }
 async function ocrCanvasList(canvases, prog){
   if(!window.Tesseract) await loadScript(TESS.js);
@@ -677,7 +991,7 @@ function koppel(r, lev){
   let a = als.find(x => x.pakbon_code === key) || als.find(x => x.pakbon_code === tok);
   if(a && P[a.productcode]) return uit(a.productcode, 'alias', num(a.factor) || 1, 'geleerd');
   // 2. exact gelijk aan een Picqer-productcode of leverancierscode
-  let ex = pool.find(c => norm(c) === tok) || pool.find(c => P[c] && P[c].leverancier_code && norm(P[c].leverancier_code) === tok);
+  let ex = (key.length >= 4 && (pool.find(c => norm(c) === key) || Object.keys(P).find(c => norm(c) === key))) || pool.find(c => norm(c) === tok) || pool.find(c => P[c] && P[c].leverancier_code && norm(P[c].leverancier_code) === tok);
   if(!ex && tok.length >= 4) ex = Object.keys(P).find(c => norm(c) === tok);
   if(ex) return uit(ex, 'exact');
   // 3. code komt voor in de pakbontekst (langste wint)
@@ -834,17 +1148,21 @@ function punten(c, pl){
   if(!c.losdatum) add('losdatum', 'let', 'Losdatum ontbreekt.', null, null);
   if(!R.length) add('geenregels', 'info', 'Nog geen pakbon ingelezen.', null, 'pakbon');
   const pb = c.data.pakbon || {};
-  if(R.length && pb.totaal_stuks != null){
+  if(R.length && (pb.totaal_stuks != null || pb.totaal_eenheden != null)){
     const s = R.reduce((a, r) => a + (num(r.totaal) || 0), 0), e = R.reduce((a, r) => a + (num(r.aantal) || 0), 0);
-    if(s !== pb.totaal_stuks || (pb.totaal_eenheden != null && e !== pb.totaal_eenheden))
-      add('pbtot', 'fout', 'Regels tellen niet op tot het pakbontotaal (' + nf(s) + ' / ' + nf(e) + ' ingelezen, pakbon zegt ' + nf(pb.totaal_stuks) + ' / ' + nf(pb.totaal_eenheden) + '). Controleer de regels.', null, 'pakbon');
+    const mis = [];
+    if(pb.totaal_stuks != null && Math.abs(s - pb.totaal_stuks) > 0.01) mis.push(nf(s) + ' stuks ingelezen, pakbon zegt ' + nf(pb.totaal_stuks));
+    if(pb.totaal_eenheden != null && Math.abs(e - pb.totaal_eenheden) > 0.01) mis.push(nf(e) + ' pallets/dozen ingelezen, pakbon zegt ' + nf(pb.totaal_eenheden));
+    if(mis.length) add('pbtot', 'fout', 'Regels tellen niet op tot het pakbontotaal (' + mis.join('; ') + '). Controleer de regels.', null, 'pakbon');
   }
+  (pb.notities || []).forEach((t, i) => add('pbn-' + i, 'info', t, null, 'pakbon', 'pbn-' + i));
+  if((pb.andere_containers || []).length) add('pbc', 'info', 'Op dezelfde pakbon staan ook container ' + pb.andere_containers.join(', ') + '. Die worden apart ingepland.', null, null, 'pbc');
   R.forEach((r, i) => {
     const lab = (r.pakbon_code || ('regel ' + (i + 1)));
     if(!r.productcode) add('code-' + r.id, 'fout', lab + ': nog geen Picqer-productcode gekoppeld.', null, 'pakbon', 'code', lab);
     else if(!r.bevestigd) add('bev-' + r.id, 'let', lab + ' → ' + r.productcode + ': voorstel, nog bevestigen.', r.productcode, 'pakbon', 'bev', lab + ' → ' + r.productcode);
     const t = num(r.totaal), pe = num(r.per), a = num(r.aantal);
-    if(t && pe && a && t !== pe * a && !(r.soort === 'pallet' && t < pe * a && t > pe * (a - 1)))
+    if(t && pe && a && Math.abs(t - pe * a) > 0.01 && !(r.soort === 'pallet' && t < pe * a && t > pe * (a - 1)))
       add('som-' + r.id, 'let', lab + ': ' + nf(pe) + ' × ' + nf(a) + ' is niet ' + nf(t) + '.', r.productcode, 'pakbon', 'som', lab + ' (' + nf(pe) + ' × ' + nf(a) + ' ≠ ' + nf(t) + ')');
     if(r.productcode && r.factor_bron === 'voorstel' && !r.bevestigd)
       add('fac-' + r.id, 'let', lab + ': factor ' + r.factor + ' (1 stuk op de pakbon = ' + nf(r.factor) + ' in Picqer, ' + (eenheidVan(r.productcode) === 'st.' ? 'afgeleid uit productgeheugen' : 'Picqer telt in ' + eenheidVan(r.productcode)) + '). Klopt dat?', r.productcode, 'pakbon', 'fac', lab + ': 1 = ' + r.factor + ' ' + eenheidVan(r.productcode));
@@ -910,6 +1228,7 @@ async function route(){
   return viewHome();
 }
 window.addEventListener('hashchange', route);
+window.CP_TEST = { pdfTekst, leesPakbonTekst };
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 function rerender(){
   const y = window.scrollY;
@@ -996,7 +1315,7 @@ function containerKaart(c){
     <div class="grow">
       <h3>${esc(c.leverancier || 'Leverancier?')}</h3>
       <div class="small muted">${esc(c.pakbon_ref || '')}${c.pakbon_ref && c.containernummer ? ' · ' : ''}${esc(c.containernummer || '')}${c.transporteur ? ' · ' + esc(c.transporteur) : ''}</div>
-      <div class="small mt8">${g.R.length ? plural(g.n, 'product', 'producten') + ' · ' + plural(g.pallets, 'pallet', 'pallets') + (g.hier + g.vst + g.direct ? ` <span class="muted">(hier ${g.hier} · VST ${g.vst} · direct ${g.direct})</span>` : '') : '<span class="muted">nog geen pakbon</span>'}</div>
+      <div class="small mt8">${g.R.length ? (g.R.some(r => !r.productcode) ? plural(g.R.length, 'pakbonregel', 'pakbonregels') + ' · <b style="color:var(--warn)">' + g.R.filter(r => !r.productcode).length + ' nog koppelen</b>' : plural(g.n, 'product', 'producten') + ' · ' + plural(g.pallets, 'pallet', 'pallets')) + (g.hier + g.vst + g.direct ? ` <span class="muted">(hier ${g.hier} · VST ${g.vst} · direct ${g.direct})</span>` : '') : '<span class="muted">nog geen pakbon</span>'}</div>
       <div class="steps">
         ${st(g.R.length ? g.pakbonOk : null, 'Pakbon')}
         ${st(g.n ? g.akk === g.n : null, 'Verdeling ' + (g.n ? g.akk + '/' + g.n : ''))}
@@ -1010,11 +1329,21 @@ function viewHome(){
   const byDate = (a, b) => (a.losdatum || '9999').localeCompare(b.losdatum || '9999') || a.id - b.id;
   const open = CONT.filter(c => c.status !== 'afgerond').sort(byDate);
   const done = CONT.filter(c => c.status === 'afgerond').sort((a, b) => byDate(b, a));
-  const levs = Object.keys(BYLEV).sort();
+  const levs = alleLeveranciers();
   const def = levs.includes('Wallace Langford & Associates') ? 'Wallace Langford & Associates' : (levs[0] || '');
+  const bulk = UI.bulk;
   app.innerHTML = `
     ${dataStrip()}
-    <div class="row between wrap"><h2>Geplande containers</h2><button class="btn acc" data-act="nieuwtoggle">+ Nieuwe container</button></div>
+    <div class="row between wrap"><h2>Geplande containers</h2>
+      <div class="row wrap" style="gap:8px">
+        <label class="btn pri file" title="Kies alle pakbonnen tegelijk">Pakbonnen inlezen<input type="file" multiple accept=".pdf,.xlsx,.xls,.csv,.txt,image/*" data-change="pakbonnenBulk"></label>
+        <button class="btn acc" data-act="nieuwtoggle">+ Nieuwe container</button>
+      </div></div>
+    ${bulk ? `<div class="card mt12">
+      <div class="row between"><h3>${bulk.bezig ? 'Pakbonnen inlezen…' : 'Pakbonnen ingelezen'}</h3>${bulk.bezig ? '' : '<button class="btn ghost sm" data-act="bulkweg">Sluiten</button>'}</div>
+      <div class="small mt8" style="line-height:1.7">${bulk.log.map(x => `<div${x.cls === 'err' ? ' style="color:var(--bad)"' : x.cls === 'ok' ? '' : ' class="muted"'}>${x.cls === 'ok' ? '✓ ' : x.cls === 'err' ? '✗ ' : ''}${esc(x.t)}</div>`).join('')}</div>
+      ${bulk.bezig ? '' : '<p class="small muted mt8">Nieuwe containers staan hieronder zonder losdatum. Open ze om de koppelingen te bevestigen en de losdatum in te vullen.</p>'}
+    </div>` : `<p class="small muted mt8">Tip: met <b>Pakbonnen inlezen</b> kies je alle pakbonnen tegelijk. De app herkent de leverancier en maakt per containernummer een container aan; wat er al staat wordt overgeslagen.</p>`}
     <div class="card mt12" id="nieuw" ${UI.nieuw ? '' : 'hidden'}>
       <h3 class="mb8">Nieuwe container</h3>
       <div class="fields">
@@ -1448,7 +1777,7 @@ function codesVoorLijst(c){
   return eigen.length ? eigen : Object.keys(P).sort();
 }
 function kopKaart(c){
-  const levs = Object.keys(BYLEV).sort();
+  const levs = alleLeveranciers();
   if(c.leverancier && !levs.includes(c.leverancier)) levs.unshift(c.leverancier);
   const d = c.losdatum ? fdate(c.losdatum, { weekday:'short', day:'numeric', month:'short' }) : 'geen losdatum';
   const open = UI.kopEdit || !c.leverancier;
@@ -1525,7 +1854,7 @@ function tabPakbon(c){
         <button class="btn" data-act="plaktoggle">Regels plakken</button>
         <button class="btn" data-act="regeladd">+ Regel</button>
       </div></div>
-    ${pb.bestand ? `<p class="small muted mt8">${esc(pb.bestand)} · ${methode[pb.methode] || esc(pb.methode || '')}${pb.gelezen_op ? ' · ' + fdt(pb.gelezen_op) : ''}${pb.bl ? ' · B/L ' + esc(pb.bl) : ''}</p>` : ''}
+    ${pb.bestand ? `<p class="small muted mt8">${esc(pb.bestand)} · ${methode[pb.methode] || esc(pb.methode || '')}${pb.gelezen_op ? ' · ' + fdt(pb.gelezen_op) : ''}${pb.bl ? ' · B/L ' + esc(pb.bl) : ''}${pb.leverancier ? ' · herkend als ' + esc(pb.leverancier) : ''}</p>` : ''}
     <div class="status" id="pbstatus"></div>
     <div id="plakbox" class="mt12" ${UI.plak ? '' : 'hidden'}>
       <textarea id="plaktekst" placeholder="Plak hier de regels. Werkt met tekst van een pakbon, of simpel: productcode ⇥ aantal pallets ⇥ stuks per pallet (één regel per product)."></textarea>
@@ -1567,56 +1896,113 @@ function regelRij(c, r, i){
     <td class="n"><b>${nf((t || 0) * f)}</b> <span class="tiny muted">${eh}</span></td>
     <td><button class="btn ghost sm" data-act="regeldel" data-i="${i}" title="Regel verwijderen">✕</button></td></tr>`;
 }
+// leest één bestand (PDF, scan, foto, Excel of tekst) en herkent leverancier + regels
+async function leesBestand(file, st){
+  st = st || (() => {});
+  let text = '', methode = '', res = null;
+  if(/\.pdf$/i.test(file.name) || file.type === 'application/pdf'){
+    st('PDF lezen…');
+    if(!window.pdfjsLib) throw new Error('PDF-lezer niet geladen (internet?)');
+    const pdf = await pdfjsLib.getDocument({ data:await file.arrayBuffer() }).promise;
+    const t = await pdfTekst(pdf, true);
+    text = t.text; methode = 'pdf'; res = leesPakbonTekst(text, t.regels);
+    if(!res.regels.length && t.text.replace(/\s/g, '').length < 200){
+      st('Dit lijkt een scan. Tekst herkennen… (eerste keer ± 30 sec)');
+      const cvs = await pdfNaarCanvas(pdf);
+      text = await ocrCanvasList(cvs, (pr, s2) => st(pr >= 0 ? 'Tekst herkennen… ' + Math.round(pr * 100) + '%' : 'Tekstherkenning starten… (' + s2 + ')'));
+      methode = 'ocr'; res = leesPakbonTekst(text);
+    }
+  } else if(/^image\//.test(file.type)){
+    st('Foto lezen…');
+    const cvs = await afbeeldingNaarCanvas(file);
+    text = await ocrCanvasList(cvs, (pr, s2) => st(pr >= 0 ? 'Tekst herkennen… ' + Math.round(pr * 100) + '%' : 'Tekstherkenning starten… (' + s2 + ')'));
+    methode = 'ocr'; res = leesPakbonTekst(text);
+  } else if(/\.(xlsx|xls|csv)$/i.test(file.name)){
+    const arr = await leesSheet(file);
+    text = arr.map(r => r.map(v => v ?? '').join('\t')).join('\n');
+    res = leesPakbonTekst(arr.map(r => r.filter(v => v !== null && v !== '').join('   ')).join('\n'));
+    methode = 'excel';
+  } else {
+    text = await file.text(); res = leesPakbonTekst(text); methode = 'plak';
+  }
+  if(!res.regels.length){
+    const simpel = parseSimpel(text);
+    if(simpel.length){ res.regels = simpel; res.docs = [{ container:null, regels:simpel, totaal_stuks:null, totaal_eenheden:null }]; }
+  }
+  return { text, methode, res };
+}
 async function pakbonBestand(file){
-  const c = cur, st = (m, cls) => { const s = $('pbstatus'); if(s){ s.textContent = m; s.className = 'status ' + (cls || ''); } };
+  const c = cur, st = (m, cls) => { const s2 = $('pbstatus'); if(s2){ s2.textContent = m; s2.className = 'status ' + (cls || ''); } };
   if(c.data.regels.length && !confirm('De huidige regels worden vervangen door deze pakbon. Doorgaan?')) return;
   try{
-    let text = '', methode = '', regels = [], kop = {};
-    if(/\.pdf$/i.test(file.name) || file.type === 'application/pdf'){
-      st('PDF lezen…');
-      if(!window.pdfjsLib) throw new Error('PDF-lezer niet geladen (internet?)');
-      const pdf = await pdfjsLib.getDocument({ data:await file.arrayBuffer() }).promise;
-      text = await pdfTekst(pdf); methode = 'pdf';
-      let res = parsePakbon(text);
-      if(!res.regels.length){
-        st('Dit lijkt een scan. Tekst herkennen… (eerste keer ± 30 sec)');
-        const cvs = await pdfNaarCanvas(pdf);
-        text = await ocrCanvasList(cvs, (p, s) => st(p >= 0 ? 'Tekst herkennen… ' + Math.round(p * 100) + '%' : 'Tekstherkenning starten… (' + s + ')'));
-        methode = 'ocr'; res = parsePakbon(text);
-      }
-      regels = res.regels; kop = res;
-    } else if(/^image\//.test(file.type)){
-      st('Foto lezen…');
-      const cvs = await afbeeldingNaarCanvas(file);
-      text = await ocrCanvasList(cvs, (p, s) => st(p >= 0 ? 'Tekst herkennen… ' + Math.round(p * 100) + '%' : 'Tekstherkenning starten… (' + s + ')'));
-      methode = 'ocr'; kop = parsePakbon(text); regels = kop.regels;
-    } else if(/\.(xlsx|xls|csv)$/i.test(file.name)){
-      const arr = await leesSheet(file);
-      text = arr.map(r => r.map(v => v ?? '').join('\t')).join('\n');
-      kop = parsePakbon(arr.map(r => r.filter(v => v !== null && v !== '').join('  ')).join('\n'));
-      regels = kop.regels.length ? kop.regels : parseSimpel(text);
-      methode = 'excel';
-    } else {
-      text = await file.text(); kop = parsePakbon(text); regels = kop.regels.length ? kop.regels : parseSimpel(text); methode = 'plak';
-    }
-    zetRegels(c, regels, kop, file.name, methode, text);
-    if(!regels.length){ st('Geen pakbonregels herkend. Controleer de ingelezen tekst onderaan, of plak/voeg de regels handmatig toe.', 'err'); return; }
-    const n = c.data.regels.filter(r => !r.bevestigd).length;
-    st(regels.length + ' regels ingelezen' + (methode === 'ocr' ? ' uit een scan — controleer de getallen' : '') + '. ' + (n ? n + ' regel(s) vragen om je bevestiging.' : 'Alles automatisch gekoppeld.'), 'ok');
+    const { text, methode, res } = await leesBestand(file, st);
+    const doc = res.docs.find(d => d.container && d.container === c.containernummer) || res.docs[0];
+    const andere = res.docs.map(d => d.container).filter(x => x && x !== doc.container);
+    if(res.lev && res.lev !== c.leverancier) c.leverancier = res.lev;
+    vulRegels(c, doc, res, file.name, methode, text);
+    save();
+    const regels = c.data.regels;
+    const n = regels.filter(r => !r.bevestigd).length;
+    rerender();
+    st(!regels.length ? 'Geen pakbonregels herkend. Controleer de ingelezen tekst onderaan, of plak/voeg de regels handmatig toe.'
+      : regels.length + ' regels ingelezen' + (res.lev ? ' (' + res.lev + ')' : '') + (methode === 'ocr' ? ' uit een scan — controleer de getallen' : '') + '. ' +
+        (n ? n + ' regel(s) vragen om je bevestiging.' : 'Alles automatisch gekoppeld.') +
+        (andere.length ? ' Deze pakbon heeft ook container ' + andere.join(', ') + ' — lees hem in via "Pakbonnen inlezen" op het overzicht om die ook aan te maken.' : ''),
+      regels.length ? 'ok' : 'err');
   }catch(e){ st('Inlezen mislukt: ' + e.message, 'err'); }
 }
-function zetRegels(c, regels, kop, bestand, methode, text){
-  c.data.regels = regels.map((r, i) => Object.assign({ id:'r' + uid(), soort:'pallet', factor:1 }, r, { sl:r.sl || i + 1 }));
+// zet de regels van één container (doc) uit een ingelezen pakbon in container c (zonder scherm)
+function vulRegels(c, doc, kop, bestand, methode, text){
+  c.data.regels = doc.regels.map((r, i) => { const x = Object.assign({ id:'r' + uid(), soort:'pallet', factor:1 }, r, { sl:r.sl || i + 1 }); delete x.container; return x; });
   if(kop.ref && !c.pakbon_ref) c.pakbon_ref = kop.ref;
-  if(kop.container && !c.containernummer) c.containernummer = kop.container;
-  c.data.pakbon = { bestand, methode, gelezen_op:new Date().toISOString(), totaal_stuks:kop.totaal_stuks ?? null, totaal_eenheden:kop.totaal_eenheden ?? null, bl:kop.bl || null, eenheid:kop.perPallet ? 'pallet' : 'pakket' };
-  c.data.pakbon_ruw = (methode === 'ocr' || !regels.length) ? String(text || '').slice(0, 15000) : '';
+  if(doc.container && !c.containernummer) c.containernummer = doc.container;
+  c.data.pakbon = { bestand, methode, gelezen_op:new Date().toISOString(), totaal_stuks:doc.totaal_stuks ?? null, totaal_eenheden:doc.totaal_eenheden ?? null,
+    bl:kop.bl || null, eenheid:kop.perPallet ? 'pallet' : 'pakket', notities:kop.notities || [], leverancier:kop.lev || null,
+    andere_containers:(kop.docs || []).map(d => d.container).filter(x => x && x !== doc.container) };
+  c.data.pakbon_ruw = (methode === 'ocr' || !c.data.regels.length) ? String(text || '').slice(0, 15000) : '';
   c.data.verdeling = {};
   koppelAlles(c);
+}
+function zetRegels(c, regels, kop, bestand, methode, text){
+  vulRegels(c, { container:kop.container || null, regels, totaal_stuks:kop.totaal_stuks ?? null, totaal_eenheden:kop.totaal_eenheden ?? null }, kop, bestand, methode, text);
   save();
   const keep = $('pbstatus') ? [$('pbstatus').textContent, $('pbstatus').className] : null;
   rerender();
   if(keep && $('pbstatus')){ $('pbstatus').textContent = keep[0]; $('pbstatus').className = keep[1]; }
+}
+
+/* ---------- Meerdere pakbonnen tegelijk: per containernummer een container ---------- */
+async function pakbonnenBulk(files){
+  UI.bulk = { bezig:true, log:[] };
+  const opHome = () => !cur && !/^#\/(c|gegevens|vloernamen)/.test(location.hash || '#/');
+  const teken = () => { if(opHome()) viewHome(); };
+  const log = (t, cls) => { UI.bulk.log.push({ t, cls:cls || '' }); teken(); };
+  teken();
+  for(const f of files){
+    const inNaam = (f.name.toUpperCase().match(/[A-Z]{3}U\d{7}/) || [])[0];   // scheelt tekstherkenning van scans die er al zijn
+    if(inNaam && CONT.some(x => x.containernummer === inNaam)){ log(f.name + ': container ' + inNaam + ' stond er al, overgeslagen.', 'muted'); continue; }
+    const regel = { t:f.name + ': lezen…', cls:'muted' }; UI.bulk.log.push(regel); teken();
+    try{
+      const { text, methode, res } = await leesBestand(f, m => { regel.t = f.name + ': ' + m; teken(); });
+      UI.bulk.log.splice(UI.bulk.log.indexOf(regel), 1);
+      if(!res.regels.length){ log(f.name + ': geen regels herkend. Maak een container aan en lees hem daar in, of plak de regels.', 'err'); continue; }
+      for(const d of res.docs){
+        const naam = (res.lev || 'Leverancier?') + ' · ' + (d.container || res.ref || f.name);
+        const bestaat = CONT.find(x => d.container ? x.containernummer === d.container : (res.ref && x.pakbon_ref === res.ref && (x.leverancier || '') === (res.lev || '')));
+        if(bestaat){ log(naam + ': stond er al, overgeslagen.', 'muted'); continue; }
+        const r = await api('POST', 'containers', [{ leverancier:res.lev || null, pakbon_ref:res.ref || null, containernummer:d.container || null, status:'concept', data:{} }], { Prefer:'return=representation' });
+        const c = ensureData(r[0]); CONT.push(c);
+        vulRegels(c, d, res, f.name, methode, text);
+        await bewaarContainer(c);
+        const open = c.data.regels.filter(x => !x.bevestigd).length;
+        log(naam + ': ' + plural(c.data.regels.length, 'regel', 'regels') + (open ? ', ' + open + ' nog koppelen' : ', alles gekoppeld') + (methode === 'ocr' ? ' (scan)' : '') + '.', 'ok');
+      }
+    }catch(e){
+      const i = UI.bulk.log.indexOf(regel); if(i >= 0) UI.bulk.log.splice(i, 1);
+      log(f.name + ': mislukt — ' + e.message, 'err');
+    }
+  }
+  UI.bulk.bezig = false; teken();
 }
 
 /* ---------- Tab 2: verdeling ---------- */
@@ -2135,6 +2521,7 @@ const ACT = {
   },
   heropen: () => { cur.status = 'gelost'; save(); rerender(); },
   kopedit: () => { UI.kopEdit = !UI.kopEdit; rerender(); },
+  bulkweg: () => { UI.bulk = null; viewHome(); },
   // vloernamen
   vnopslaan: () => vloernamenOpslaan(),
   vnvoor: el => { (UI.vn.wijzig[el.dataset.code] = UI.vn.wijzig[el.dataset.code] || {}).name = el.dataset.v; rerenderLater(); },
@@ -2178,6 +2565,11 @@ app.addEventListener('toggle', e => { const d = e.target; if(d.dataset && d.data
    ===================================================================== */
 app.addEventListener('change', e => {
   const el = e.target;
+  if(el.dataset.change === 'pakbonnenBulk' && el.files){
+    const fs = [...el.files]; el.value = '';
+    if(fs.length) pakbonnenBulk(fs);
+    return;
+  }
   if(el.dataset.change && el.files){
     const f = el.files[0]; el.value = '';
     if(!f) return;
