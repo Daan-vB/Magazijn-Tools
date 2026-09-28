@@ -416,7 +416,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       if(mode === 'ean'){
         // een leeg aantal of lege productcode wist niet wat er al stond (bijv. 0 = label zonder aantal)
         const oud = cat[k] || {};
-        cat[k] = { name:r.name, ean:r.ean, qty:(r.qty || oud.qty || ''), sub:(r.sub || oud.sub || ''), used:Date.now() };
+        cat[k] = Object.assign({}, oud, { name:r.name, ean:r.ean, qty:(r.qty || oud.qty || ''), sub:(r.sub || oud.sub || ''), used:Date.now() });
       } else {
         cat[k] = { floor:r.floor, maat:r.maat||'', art:r.art, qty:r.qty, used:Date.now() };
       }
@@ -471,7 +471,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       if(mode === 'ean'){
         const name = val('name'), eanv = val('ean'), qty = val('qty'), sub = val('sub');
         newKey = name.toUpperCase();
-        rec = { name, ean: eanv, qty, sub, used: (old && old.used) || Date.now() };
+        rec = Object.assign({}, old || {}, { name, ean: eanv, qty, sub, used: (old && old.used) || Date.now() });
       } else {
         const floor = val('floor'), maat = val('maat'), art = val('art'), qty = val('qty');
         newKey = (floor + ' — ' + art).toUpperCase();
