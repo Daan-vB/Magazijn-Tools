@@ -490,7 +490,7 @@ function vnZetRegel(cat, code, naam, qty){
 }
 const geh1 = code => (GEH[String(code || '').toLowerCase()] || [])[0];
 // aanvulpallet: de picklocatie wordt per keer met een deel van de pallet aangevuld (ook oude code 0)
-const isAanvul = code => { const g = geh1(code); return !!(g && (g.aanvul === 'deel' || qtySoort(g.qty) === 'geen')); };
+const isAanvul = code => { const g = geh1(code); return !!(g && g.aanvul === 'deel'); };
 function sppVan(code){ const g = geh1(code); const n = g ? num(g.qty) : null; return n && n > 0 ? n : null; }
 const naamVan = code => (P[code] && P[code].naam) || (geh1(code) || {}).name || '';
 const labelNaam = code => { const g = geh1(code); return (g && g.name) || naamVan(code) || code; };
@@ -1551,6 +1551,12 @@ function viewHome(){
       <div class="row wrap mt8"><button class="btn pri" data-act="copyopslag">Kopieer SQL</button><button class="btn" data-act="opslagtest">Controleren</button></div>
       <p class="small muted mt8">Tot dan leest de app pakbonnen gewoon in, maar bewaart hij het bestand nog niet.</p>
     </div>` : '';
+  const voorbij = open.filter(isVoorbij);
+  const voorbijKaart = voorbij.length ? `<div class="card etabox">
+      <h3>Datum voorbij (${voorbij.length}) — al gelost?</h3>
+      <p class="small muted mt8">Is de container al binnen, vul dan de echte losdatum in en klik <b>Gelost</b>. De app rondt hem af (telt dan niet meer dubbel mee in de planning) en leert van de echte doorlooptijd. Nog niet binnen? Open de container en zet een nieuwe datum.</p>
+      <div class="etalijst mt8">${voorbij.map(c => `<div class="row wrap"><a href="#/c/${c.id}" class="grow"><b>${esc(levKort(c.leverancier))}</b> <span class="small muted">${esc([c.pakbon_ref, c.containernummer].filter(Boolean).join(' · '))} · ${esc(losTekst(c))}</span></a><input type="date" id="gl_${c.id}" value="${esc(c.losdatum)}" style="width:auto"><button class="btn ok sm" data-act="algelost" data-id="${c.id}">Gelost</button></div>`).join('')}</div>
+    </div>` : '';
   const etaKaart = zonderEta.length ? `<div class="card">
       <h3>Nog geen ETA (${zonderEta.length})</h3>
       <p class="small muted mt8">Vul de verwachte aankomst in. Dan plant de app vooruit en krijgt de pakbon zijn naam met ETA. Is de losdatum al gepland met de vervoerder, zet hem dan vast in de container.</p>
@@ -1581,7 +1587,7 @@ function viewHome(){
       <p class="small muted mt8">Ref en containernummer vult de app ook zelf in bij het inlezen van de pakbon.</p>
       <div class="row mt12"><button class="btn pri" data-act="nieuwmaak">Aanmaken en pakbon inlezen</button><button class="btn" data-act="nieuwtoggle">Annuleren</button></div>
     </div>
-    ${bulk && bulk.bezig ? '' : etaKaart}
+    ${bulk && bulk.bezig ? '' : voorbijKaart + etaKaart}
     ${open.length ? `<div class="cgrid">${open.map(containerKaart).join('')}</div>` : '<div class="card empty">Nog geen containers. Klik op <b>+ Nieuwe container</b>.</div>'}
     ${done.length ? `<h2 class="mt12" style="margin-top:22px">Afgerond</h2><div class="cgrid">${done.map(containerKaart).join('')}</div>` : ''}`;
 }
@@ -2033,6 +2039,8 @@ function kopKaart(c){
       <div class="row" style="gap:6px">${c.data.pakbon_bestand ? '<button class="btn sm" data-act="pbkijk" title="' + esc(pakbonNaam(c)) + '">📄 Pakbon</button>' : ''}<button class="btn sm" data-act="kopedit">${open ? 'Klaar' : 'Gegevens wijzigen'}</button></div>
     </div>
     ${c.data.verzonden ? `<div class="small muted mt8">Pakbon: ${esc(c.data.verzonden_bron || 'datum')} <b>${esc(fdate(c.data.verzonden, { day:'numeric', month:'short', year:'numeric' }))}</b>${c.data.eta_auto ? ` · ETA = + ${c.data.eta_auto.dagen} dagen (${c.data.eta_auto.n ? 'gemiddelde van ' + c.data.eta_auto.n + ' eerdere ' + esc(levKort(c.leverancier)) + '-container' + (c.data.eta_auto.n > 1 ? 's' : '') : 'standaard, nog niets geleerd voor ' + esc(levKort(c.leverancier))})` : c.losdatum && !ver ? ' · doorlooptijd ' + dagenTussen(c.data.verzonden, c.losdatum) + ' dagen' : ''}</div>` : ''}
+    ${isVoorbij(c) ? `<div class="etabox mt12"><div class="small"><b>De ${ver ? 'ETA' : 'losdatum'} is voorbij.</b> Al gelost? Vul de echte losdatum in: de app rondt hem af en leert van de doorlooptijd.</div>
+      <div class="row wrap mt8"><input type="date" id="gl_cur" value="${esc(c.losdatum)}" style="width:auto"><button class="btn ok" data-act="algelostcur">Gelost, afronden</button></div></div>` : ''}
     ${ver ? `<div class="etabox mt12"><div class="small"><b>ETA is nog een schatting.</b> Advies en verdeling zijn een voorlopige planning. Zodra de vervoerder de losdatum heeft gepland: vul hem hier in en zet hem vast.</div>
       <div class="row wrap mt8"><input type="date" id="def_datum" value="${esc(c.losdatum || '')}" style="width:auto"><input type="time" id="def_tijd" value="${esc(c.lostijd || '')}" style="width:auto"><button class="btn acc" data-act="etadef">Losdatum vastzetten</button></div></div>` : ''}
     <div class="fields mt12" ${open ? '' : 'hidden'}>
@@ -2210,7 +2218,7 @@ function pkVeld(code, k, info, V, d){
     const v = String(val || '');
     inp = `<select ${at}${cls}><option value="">— kies —</option>${MATEN.map(m => `<option ${m === v ? 'selected' : ''}>${m}</option>`).join('')}${v && !MATEN.includes(v) ? `<option selected>${esc(v)}</option>` : ''}<option value="anders">anders…</option></select>`;
   } else inp = `<input ${at}${cls} value="${esc(val)}" ${type === 'num' ? 'inputmode="decimal"' : 'autocapitalize="off" autocomplete="off"'}>`;
-  const hint = k === 'spp' ? 'in ' + info.ve.mv + ' · nvt = geen pallet · onb = onbekend' + (qtySoort(info.g && info.g.qty) === 'geen' ? ' · stond op 0 (oud): vul het echte aantal in' : '') : '';
+  const hint = k === 'spp' ? 'in ' + info.ve.mv + ' · nvt = geen pallet · onb = onbekend' + (qtySoort(info.g && info.g.qty) === 'geen' ? ' · stond op 0 (oud: label zonder aantal): vul het echte aantal in en zet zo nodig het vinkje aanvulpallet' : '') : '';
   return `<div class="fld${k === 'opm' || k === 'vn' ? ' breed' : ''}"><label>${lbl}</label>${inp}${isVoor ? `<div class="sugg">voorstel: ${esc(vs.bron)}</div>` : hint ? `<div class="sugg">${hint}</div>` : ''}${k === 'spp' && hint && isVoor ? `<div class="sugg">${hint}</div>` : ''}</div>`;
 }
 function pbRegelTekst(r, mv){
@@ -2561,6 +2569,16 @@ async function etaHerleer(lev){
   const k = levKort(lev);
   for(const o of CONT){ if(o.status !== 'afgerond' && levKort(o.leverancier) === k && o.data.eta_auto && o.data.verwacht && zetEtaAuto(o)){ try{ await bewaarContainer(o); }catch(e){} } }
 }
+// container is al gelost (datum voorbij): losdatum = werkelijke datum, afronden zodat de voorraad niet dubbel telt
+async function alGelost(c, datum){
+  c.losdatum = datum; delete c.data.verwacht; delete c.data.eta_auto;
+  const snap = {}; pools(c).order.forEach(code => { const f = feiten(code); snap[code] = { hm:f.hm, vrij:f.vrij, vst:f.vst, rate:f.rate, bo:f.bo }; });
+  c.data.snapshot = snap; c.data.afgerond_op = new Date().toISOString(); c.data.gelost_zonder_planning = !Object.keys(c.data.verdeling || {}).length;
+  c.status = 'afgerond';
+  await bewaarContainer(c);
+  await etaHerleer(c.leverancier);
+}
+const isVoorbij = c => c.status !== 'afgerond' && c.losdatum && c.losdatum < new Date().toISOString().slice(0, 10);
 // verwacht = ETA is nog een schatting (pakbon vroeg binnen); definitief = gepland met de vervoerder
 const isVerwacht = c => !!(c && c.data && c.data.verwacht);
 const losTekst = c => (isVerwacht(c) ? 'ETA ' : '') + fdate(c.losdatum, { weekday:'short', day:'numeric', month:'short' }) + (c.lostijd ? ' ' + c.lostijd : '');
@@ -3375,6 +3393,14 @@ const ACT = {
   pbtab: () => pakbonToon(cur, true),
   copyopslag: () => kopieer(OPSLAG_SQL),
   etapakbon: () => etaUitPakbonnen(),
+  algelost: async el => {
+    const c = CONT.find(x => x.id === +el.dataset.id), d = $('gl_' + el.dataset.id).value;
+    if(!c || !d) return;
+    try{ await alGelost(c, d); toast(levKort(c.leverancier) + ' ' + (c.containernummer || c.pakbon_ref || '') + ': gelost op ' + fdate(d, { day:'numeric', month:'short' }) + ', afgerond.'); }
+    catch(e){ toast('Opslaan mislukt: ' + e.message, 5000); }
+    if(cur) rerender(); else viewHome();
+  },
+  algelostcur: async () => { const d = $('gl_cur').value; if(!d) return; try{ await alGelost(cur, d); toast('Gelost op ' + fdate(d, { day:'numeric', month:'short' }) + ', afgerond.'); }catch(e){ toast('Opslaan mislukt: ' + e.message, 5000); } rerender(); },
   opslagtest: async () => { await opslagCheck(); viewHome(); toast(OPSLAG ? 'Opslag werkt. Pakbonnen worden vanaf nu bewaard.' : 'Opslagmap nog niet gevonden. Is de SQL uitgevoerd?', 5000); },
   smcopy: () => kopieer(stockmoveRegels(cur).join('\n')),
   smdown: () => { const blob = new Blob([stockmoveRegels(cur).join('\n') + '\n'], { type:'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stockmove-' + (cur.pakbon_ref || cur.containernummer || cur.id) + '.txt'; a.click(); },
