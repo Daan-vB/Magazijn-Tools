@@ -99,6 +99,13 @@
   table.vw tr.wk td{background:#eef2f6;border-top:2px solid #d3d9e0}
   table.vw tr.prod td{border-top:2px solid #e6eaef;padding-top:8px}
   table.vw tr.sub td{border-top:none;padding-top:2px;padding-bottom:2px}
+  #kijker{position:fixed;inset:0;z-index:50;background:rgba(15,20,28,.92);display:flex;flex-direction:column}
+  #kijker .kijk-kop{display:flex;gap:8px;align-items:center;padding:10px 14px;background:#10151c;color:#fff;flex-wrap:wrap}
+  #kijker .kijk-body{flex:1;overflow:auto;display:flex;justify-content:center}
+  #kijker iframe{flex:1 1 auto;align-self:stretch;width:100%;min-height:70vh;border:0;background:#fff}
+  #kijker img{max-width:100%;height:auto;align-self:flex-start;background:#fff}
+  .pbfile{background:#f4f6f9;border-radius:6px;padding:6px 10px}
+  .etalijst>.row{padding:6px 0;border-top:1px solid #eef1f4}
   .etabox{background:#fff8e6;border:1px solid #f0d08a;border-radius:8px;padding:10px 12px}
   .ccard h3{font-size:14.5px;margin-bottom:2px}
   .steps{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
@@ -296,6 +303,57 @@ async function api(method, path, body, extra){
   if(!res.ok){ const e = new Error(res.status + ' ' + txt.slice(0, 240)); e.status = res.status; e.body = txt; throw e; }
   return txt ? JSON.parse(txt) : null;
 }
+/* ---------- Opslag van pakbonbestanden (Supabase Storage, map 'pakbonnen') ---------- */
+const BUCKET = 'pakbonnen';
+let OPSLAG = null;          // true = werkt, false = map bestaat nog niet, null = onbekend
+const BLOBS = {};
+const OPSLAG_SQL = `-- Opslagmap voor pakbonnen (eenmalig uitvoeren)
+insert into storage.buckets (id, name, public) values ('pakbonnen', 'pakbonnen', false) on conflict (id) do nothing;
+drop policy if exists "pakbonnen lezen" on storage.objects;
+drop policy if exists "pakbonnen toevoegen" on storage.objects;
+drop policy if exists "pakbonnen wijzigen" on storage.objects;
+drop policy if exists "pakbonnen verwijderen" on storage.objects;
+create policy "pakbonnen lezen" on storage.objects for select to anon, authenticated using (bucket_id = 'pakbonnen');
+create policy "pakbonnen toevoegen" on storage.objects for insert to anon, authenticated with check (bucket_id = 'pakbonnen');
+create policy "pakbonnen wijzigen" on storage.objects for update to anon, authenticated using (bucket_id = 'pakbonnen') with check (bucket_id = 'pakbonnen');
+create policy "pakbonnen verwijderen" on storage.objects for delete to anon, authenticated using (bucket_id = 'pakbonnen');`;
+async function opslagCheck(){
+  try{
+    const r = await fetch(URL_ + '/storage/v1/object/list/' + BUCKET, { method:'POST', headers:Object.assign({ 'Content-Type':'application/json' }, H), body:JSON.stringify({ prefix:'', limit:1 }) });
+    OPSLAG = r.ok;
+  }catch(e){ OPSLAG = null; }
+}
+async function opslagZet(pad, file){
+  const r = await fetch(URL_ + '/storage/v1/object/' + BUCKET + '/' + pad, { method:'POST', body:file,
+    headers:Object.assign({ 'Content-Type':file.type || 'application/octet-stream', 'x-upsert':'true', 'cache-control':'3600' }, H) });
+  if(!r.ok){ const t = await r.text(); if(/bucket not found|not found/i.test(t) && r.status !== 403) OPSLAG = false; throw new Error(r.status + ' ' + t.slice(0, 160)); }
+  OPSLAG = true;
+}
+async function opslagHaal(pad){
+  if(BLOBS[pad]) return BLOBS[pad];
+  const r = await fetch(URL_ + '/storage/v1/object/' + BUCKET + '/' + pad, { headers:H });
+  if(!r.ok) throw new Error('pakbon ophalen mislukt (' + r.status + ')');
+  return (BLOBS[pad] = await r.blob());
+}
+// korte leveranciersnaam voor bestandsnamen
+const LEV_KORT = [[/wallace/i, 'Wallace'], [/fanda|haijie/i, 'Fanda'], [/great\s*wall/i, 'Great Wall'], [/hongle/i, 'Hongle'], [/besteel/i, 'Besteel'],
+  [/ningbo/i, 'Ningbo'], [/red\s*sun/i, 'Red Sun'], [/selected/i, 'Selected'], [/todo/i, 'Todo']];
+function levKort(l){ const m = LEV_KORT.find(([r]) => r.test(l || '')); return m ? m[1] : (String(l || 'Leverancier').split(/[\s,]+/)[0] || 'Leverancier'); }
+// "Hongle MIEU3705636 ETA 05-11.pdf" of, als de losdatum vastligt, "Hongle MIEU3705636 02-10 0900.pdf"
+function pakbonNaam(c, ext){
+  const b = (c.data && c.data.pakbon_bestand) || {};
+  ext = ext || b.ext || 'pdf';
+  const dm = d => d.slice(8, 10) + '-' + d.slice(5, 7);
+  const datum = !c.losdatum ? 'ETA onbekend' : isVerwacht(c) ? 'ETA ' + dm(c.losdatum) : dm(c.losdatum) + (c.lostijd ? ' ' + c.lostijd.replace(':', '') : '');
+  return [levKort(c.leverancier), c.containernummer || c.pakbon_ref, datum].filter(Boolean).join(' ').replace(/[\/\\:*?"<>|]/g, '-') + '.' + ext;
+}
+async function pakbonBewaar(c, file){
+  const ext = ((file.name.match(/\.([a-z0-9]+)$/i) || [])[1] || 'pdf').toLowerCase();
+  const pad = 'c' + c.id + '/pakbon.' + ext;
+  await opslagZet(pad, file);
+  BLOBS[pad] = file;
+  c.data.pakbon_bestand = { pad, ext, type:file.type || '', orig:file.name, grootte:file.size, op:new Date().toISOString() };
+}
 async function getAll(table, qs){
   const out = [];
   for(let from = 0; ; from += 1000){
@@ -384,6 +442,7 @@ async function load(){
     indexBackorders(bo);
     ALIAS = al; CONT = co; TODOS = td;
     CONT.forEach(ensureData);
+    await opslagCheck();
     setSync('verbonden', 'ok');
     return true;
   }catch(e){
@@ -1405,8 +1464,27 @@ function viewHome(){
   const levs = alleLeveranciers();
   const def = levs.includes('Wallace Langford & Associates') ? 'Wallace Langford & Associates' : (levs[0] || '');
   const bulk = UI.bulk;
+  const zonderEta = open.filter(c => !c.losdatum);
+  const opslagKaart = OPSLAG === false ? `<div class="card etabox">
+      <h3>Pakbonnen bewaren: eenmalig instellen</h3>
+      <ol class="small mt8" style="line-height:1.7;padding-left:18px">
+        <li>Klik hieronder op <b>Kopieer SQL</b>.</li>
+        <li>Open <a href="https://supabase.com/dashboard" target="_blank">supabase.com/dashboard</a> → project <b>Palletlabels</b>.</li>
+        <li>Klik links op <b>SQL Editor</b> → <b>New query</b>.</li>
+        <li>Plak (Cmd+V) en klik rechtsonder op <b>Run</b>. Je ziet "Success. No rows returned".</li>
+        <li>Kom terug en klik op <b>Controleren</b>.</li>
+      </ol>
+      <div class="row wrap mt8"><button class="btn pri" data-act="copyopslag">Kopieer SQL</button><button class="btn" data-act="opslagtest">Controleren</button></div>
+      <p class="small muted mt8">Tot dan leest de app pakbonnen gewoon in, maar bewaart hij het bestand nog niet.</p>
+    </div>` : '';
+  const etaKaart = zonderEta.length ? `<div class="card">
+      <h3>Nog geen ETA (${zonderEta.length})</h3>
+      <p class="small muted mt8">Vul de verwachte aankomst in. Dan plant de app vooruit en krijgt de pakbon zijn naam met ETA. Is de losdatum al gepland met de vervoerder, zet hem dan vast in de container.</p>
+      <div class="etalijst mt8">${zonderEta.map(c => `<div class="row wrap"><a href="#/c/${c.id}" class="grow"><b>${esc(levKort(c.leverancier))}</b> <span class="small muted">${esc([c.pakbon_ref, c.containernummer].filter(Boolean).join(' · '))}</span></a><input type="date" data-eta="${c.id}" style="width:auto"></div>`).join('')}</div>
+    </div>` : '';
   app.innerHTML = `
     ${dataStrip()}
+    ${opslagKaart}
     <div class="row between wrap"><h2>Geplande containers</h2>
       <div class="row wrap" style="gap:8px">
         <label class="btn pri file" title="Kies alle pakbonnen tegelijk">Pakbonnen inlezen<input type="file" multiple accept=".pdf,.xlsx,.xls,.csv,.txt,image/*" data-change="pakbonnenBulk"></label>
@@ -1415,8 +1493,8 @@ function viewHome(){
     ${bulk ? `<div class="card mt12">
       <div class="row between"><h3>${bulk.bezig ? 'Pakbonnen inlezen…' : 'Pakbonnen ingelezen'}</h3>${bulk.bezig ? '' : '<button class="btn ghost sm" data-act="bulkweg">Sluiten</button>'}</div>
       <div class="small mt8" style="line-height:1.7">${bulk.log.map(x => `<div${x.cls === 'err' ? ' style="color:var(--bad)"' : x.cls === 'ok' ? '' : ' class="muted"'}>${x.cls === 'ok' ? '✓ ' : x.cls === 'err' ? '✗ ' : ''}${esc(x.t)}</div>`).join('')}</div>
-      ${bulk.bezig ? '' : '<p class="small muted mt8">Open de nieuwe containers om de koppelingen te bevestigen. Staat de losdatum niet in de bestandsnaam, vul hem dan in de container in.</p>'}
-    </div>` : `<p class="small muted mt8">Tip: met <b>Pakbonnen inlezen</b> kies je alle pakbonnen tegelijk. De app herkent de leverancier en maakt per containernummer een container aan. Staat er een datum en tijd in de bestandsnaam (bijv. <i>Selected MIEU3762596 01-10 0900</i>), dan wordt dat de losdatum, ook voor containers die er al staan.</p>`}
+      ${bulk.bezig ? '' : '<p class="small muted mt8">Nieuwe containers zonder datum staan hieronder bij <b>Nog geen ETA</b>. Open een container om de producten te bevestigen.</p>'}
+    </div>` : `<p class="small muted mt8">Tip: met <b>Pakbonnen inlezen</b> kies je alle pakbonnen tegelijk. De app herkent de leverancier, maakt per containernummer een container aan en bewaart de pakbon als <i>Leverancier Container ETA dd-mm</i>. Een datum in de bestandsnaam neemt hij over: <i>ETA 05-11</i> = verwacht, <i>01-10 0900</i> = vaste losdatum. Zonder datum vul je de ETA daarna in.</p>`}
     <div class="card mt12" id="nieuw" ${UI.nieuw ? '' : 'hidden'}>
       <h3 class="mb8">Nieuwe container</h3>
       <div class="fields">
@@ -1428,6 +1506,7 @@ function viewHome(){
       <p class="small muted mt8">Ref en containernummer vult de app ook zelf in bij het inlezen van de pakbon.</p>
       <div class="row mt12"><button class="btn pri" data-act="nieuwmaak">Aanmaken en pakbon inlezen</button><button class="btn" data-act="nieuwtoggle">Annuleren</button></div>
     </div>
+    ${bulk && bulk.bezig ? '' : etaKaart}
     ${open.length ? `<div class="cgrid">${open.map(containerKaart).join('')}</div>` : '<div class="card empty">Nog geen containers. Klik op <b>+ Nieuwe container</b>.</div>'}
     ${done.length ? `<h2 class="mt12" style="margin-top:22px">Afgerond</h2><div class="cgrid">${done.map(containerKaart).join('')}</div>` : ''}`;
 }
@@ -1858,7 +1937,7 @@ function kopKaart(c){
     <div class="row between wrap">
       <div class="grow"><h2>${esc(c.leverancier || 'Leverancier?')} ${esc(c.pakbon_ref || '')}</h2>
         <div class="small muted">${esc(c.containernummer || 'containernummer?')} · <b style="color:var(--ink)">${ver ? 'ETA ' : ''}${esc(d)}${c.lostijd ? ' ' + esc(c.lostijd) : ''}</b>${ver ? ' <span class="badge b-warn">verwacht</span>' : ''}${c.transporteur ? ' · ' + esc(c.transporteur) : ''} · ${STATUS[c.status] || c.status}</div></div>
-      <button class="btn sm" data-act="kopedit">${open ? 'Klaar' : 'Gegevens wijzigen'}</button>
+      <div class="row" style="gap:6px">${c.data.pakbon_bestand ? '<button class="btn sm" data-act="pbkijk" title="' + esc(pakbonNaam(c)) + '">📄 Pakbon</button>' : ''}<button class="btn sm" data-act="kopedit">${open ? 'Klaar' : 'Gegevens wijzigen'}</button></div>
     </div>
     ${ver ? `<div class="etabox mt12"><div class="small"><b>ETA is nog een schatting.</b> Advies en verdeling zijn een voorlopige planning. Zodra de vervoerder de losdatum heeft gepland: vul hem hier in en zet hem vast.</div>
       <div class="row wrap mt8"><input type="date" id="def_datum" value="${esc(c.losdatum || '')}" style="width:auto"><input type="time" id="def_tijd" value="${esc(c.lostijd || '')}" style="width:auto"><button class="btn acc" data-act="etadef">Losdatum vastzetten</button></div></div>` : ''}
@@ -1932,6 +2011,8 @@ function tabPakbon(c, g){
         <button class="btn" data-act="plaktoggle">Regels plakken</button>
         <button class="btn" data-act="regeladd">+ Regel</button>
       </div></div>
+    ${c.data.pakbon_bestand ? `<div class="row wrap mt8 pbfile"><span class="grow">📄 <b>${esc(pakbonNaam(c))}</b></span><button class="btn sm" data-act="pbkijk">Bekijken</button><button class="btn ghost sm" data-act="pbtab">Nieuw tabblad</button></div>`
+      : R.length && OPSLAG !== false ? `<div class="row wrap mt8"><label class="btn sm file">Pakbonbestand bewaren<input type="file" accept=".pdf,.xlsx,.xls,.csv,image/*" data-change="pakbonBewaarIn"></label><span class="small muted">zonder opnieuw in te lezen</span></div>` : ''}
     ${pb.bestand ? `<p class="small muted mt8">${esc(pb.bestand)} · ${methode[pb.methode] || esc(pb.methode || '')}${pb.gelezen_op ? ' · ' + fdt(pb.gelezen_op) : ''}${pb.bl ? ' · B/L ' + esc(pb.bl) : ''}${pb.leverancier ? ' · herkend als ' + esc(pb.leverancier) : ''}</p>` : ''}
     <div class="status" id="pbstatus"></div>
     <div id="plakbox" class="mt12" ${UI.plak ? '' : 'hidden'}>
@@ -2241,6 +2322,7 @@ async function pakbonBestand(file){
     vulRegels(c, doc, res, file.name, methode, text);
     const inNaam = (file.name.toUpperCase().match(/[A-Z]{3}U\d{7}/) || [])[0];
     if(!inNaam || inNaam === c.containernummer) zetLosMoment(c, losMoment(file.name));
+    if(OPSLAG !== false){ try{ await pakbonBewaar(c, file); }catch(e){ toast('Pakbonbestand niet bewaard: ' + e.message, 5000); } }
     save();
     const regels = c.data.regels;
     const n = regels.filter(r => !r.bevestigd).length;
@@ -2252,6 +2334,35 @@ async function pakbonBestand(file){
       regels.length ? 'ok' : 'err');
   }catch(e){ st('Inlezen mislukt: ' + e.message, 'err'); }
 }
+// alleen het bestand bij de container bewaren, zonder de regels opnieuw in te lezen
+async function pakbonBewaarIn(file){
+  const c = cur;
+  try{ await pakbonBewaar(c, file); save(); rerender(); toast('Pakbon bewaard als "' + pakbonNaam(c) + '".'); }
+  catch(e){ toast('Bewaren mislukt: ' + e.message, 6000); rerender(); }
+}
+async function pakbonToon(c, nieuwVenster){
+  const b = c.data.pakbon_bestand; if(!b) return;
+  const w = nieuwVenster ? window.open('', '_blank') : null;
+  try{
+    const blob = await opslagHaal(b.pad);
+    const typed = blob.type ? blob : new Blob([blob], { type:b.type || (b.ext === 'pdf' ? 'application/pdf' : '') });
+    const url = URL.createObjectURL(typed);
+    if(nieuwVenster){ if(w && w.location) w.location.href = url; else window.open(url, '_blank'); return; }
+    UI.kijk = { url, naam:pakbonNaam(c), beeld:/^image\//.test(typed.type), pdf:/pdf/.test(typed.type) || b.ext === 'pdf' };
+    toonKijker();
+  }catch(e){ if(w && w.close) w.close(); toast(e.message, 5000); }
+}
+function toonKijker(){
+  let el = $('kijker');
+  if(!UI.kijk){ if(el) el.remove(); return; }
+  if(!el){ el = document.createElement('div'); el.id = 'kijker'; document.body.appendChild(el); }
+  const k = UI.kijk;
+  el.innerHTML = `<div class="kijk-kop"><b>${esc(k.naam)}</b><span class="grow"></span>
+    <a class="btn sm" href="${k.url}" target="_blank">Nieuw tabblad</a><a class="btn sm" href="${k.url}" download="${esc(k.naam)}">Downloaden</a><button class="btn sm" id="kijk_dicht">Sluiten</button></div>
+    <div class="kijk-body">${k.beeld ? `<img src="${k.url}" alt="">` : k.pdf ? `<iframe src="${k.url}" title="pakbon"></iframe>` : `<div class="empty" style="color:#fff">Dit bestand kan de browser niet tonen. Gebruik Downloaden.</div>`}</div>`;
+  $('kijk_dicht').onclick = () => { UI.kijk = null; toonKijker(); };
+}
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && UI.kijk){ UI.kijk = null; toonKijker(); } });
 // zet de regels van één container (doc) uit een ingelezen pakbon in container c (zonder scherm)
 function vulRegels(c, doc, kop, bestand, methode, text){
   c.data.regels = doc.regels.map((r, i) => { const x = Object.assign({ id:'r' + uid(), soort:'pallet', factor:1 }, r, { sl:r.sl || i + 1 }); delete x.container; return x; });
@@ -2314,15 +2425,22 @@ async function pakbonnenBulk(files){
   const opHome = () => !cur && !/^#\/(c|gegevens|vloernamen|vooruit)/.test(location.hash || '#/');
   const teken = () => { if(opHome()) viewHome(); };
   const log = (t, cls) => { UI.bulk.log.push({ t, cls:cls || '' }); teken(); };
+  const bewaar = async (c, f) => {
+    if(OPSLAG === false) return '';
+    try{ await pakbonBewaar(c, f); return ' Bewaard als "' + pakbonNaam(c) + '".'; }
+    catch(e){ return ' Bestand niet bewaard (' + e.message.slice(0, 60) + ').'; }
+  };
   teken();
   for(const f of files){
     const inNaam = (f.name.toUpperCase().match(/[A-Z]{3}U\d{7}/) || [])[0];   // scheelt tekstherkenning van scans die er al zijn
     const lm = losMoment(f.name);
     const alBekend = inNaam && CONT.find(x => x.containernummer === inNaam);
     if(alBekend && (alBekend.data.regels || []).length){
-      if(zetLosMoment(alBekend, lm)){
-        try{ await bewaarContainer(alBekend); log(f.name + ': container ' + inNaam + ' stond er al, lossen gezet op ' + losTekst(alBekend) + '.', 'ok'); }
-        catch(e){ log(f.name + ': lossen opslaan mislukt — ' + e.message, 'err'); }
+      const datum = zetLosMoment(alBekend, lm);
+      const bestand = !alBekend.data.pakbon_bestand ? await bewaar(alBekend, f) : '';
+      if(datum || bestand){
+        try{ await bewaarContainer(alBekend); log(f.name + ': container ' + inNaam + ' stond er al' + (datum ? ', lossen gezet op ' + losTekst(alBekend) : '') + '.' + bestand, 'ok'); }
+        catch(e){ log(f.name + ': opslaan mislukt — ' + e.message, 'err'); }
       } else log(f.name + ': container ' + inNaam + ' stond er al, overgeslagen.', 'muted');
       continue;
     }
@@ -2334,7 +2452,12 @@ async function pakbonnenBulk(files){
       for(const d of res.docs){
         const naam = (res.lev || 'Leverancier?') + ' · ' + (d.container || res.ref || f.name);
         const bestaat = CONT.find(x => d.container ? x.containernummer === d.container : (res.ref && x.pakbon_ref === res.ref && (x.leverancier || '') === (res.lev || '')));
-        if(bestaat && (bestaat.data.regels || []).length){ log(naam + ': stond er al, overgeslagen.', 'muted'); continue; }
+        if(bestaat && (bestaat.data.regels || []).length){
+          const bestand = !bestaat.data.pakbon_bestand ? await bewaar(bestaat, f) : '';
+          if(bestand){ await bewaarContainer(bestaat); log(naam + ': stond er al.' + bestand, 'ok'); }
+          else log(naam + ': stond er al, overgeslagen.', 'muted');
+          continue;
+        }
         let c = bestaat;   // container stond er al maar nog zonder pakbon: aanvullen
         if(!c){
           const r = await api('POST', 'containers', [{ leverancier:res.lev || null, pakbon_ref:res.ref || null, containernummer:d.container || null, status:'concept', data:{} }], { Prefer:'return=representation' });
@@ -2342,9 +2465,10 @@ async function pakbonnenBulk(files){
         } else if(res.lev) c.leverancier = res.lev;
         vulRegels(c, d, res, f.name, methode, text);
         if(!inNaam || d.container === inNaam) zetLosMoment(c, lm);
+        const bestand = await bewaar(c, f);
         await bewaarContainer(c);
         const open = c.data.regels.filter(x => !x.bevestigd).length;
-        log(naam + ': ' + plural(c.data.regels.length, 'regel', 'regels') + (open ? ', ' + open + ' nog koppelen' : ', alles gekoppeld') + (methode === 'ocr' ? ' (scan)' : '') + (c.losdatum ? ', lossen ' + losTekst(c) : '') + '.', 'ok');
+        log(naam + ': ' + plural(c.data.regels.length, 'regel', 'regels') + (open ? ', ' + open + ' nog koppelen' : ', alles gekoppeld') + (methode === 'ocr' ? ' (scan)' : '') + (c.losdatum ? ', lossen ' + losTekst(c) : ', nog geen ETA') + '.' + bestand, 'ok');
       }
     }catch(e){
       const i = UI.bulk.log.indexOf(regel); if(i >= 0) UI.bulk.log.splice(i, 1);
@@ -2793,7 +2917,7 @@ function tabUitvoer(c, g){
   const alleDest = {};
   pools(c).order.forEach(code => { const v = c.data.verdeling[code]; (v && v.porties || []).forEach(x => { if(x.soort === 'pallet' && DEST[x.dest].label) alleDest[x.dest] = (alleDest[x.dest] || 0) + (num(x.n) || 0); }); });
   return `${open ? `<div class="card" style="border-left:4px solid var(--bad)"><b>Let op:</b> er staan nog ${open} open punten. Je kunt alles al maken, maar controleer die eerst.</div>` : ''}
-  <div class="card out"><div class="row between wrap"><div><h3>PDF voor de losdag</h3><p class="small muted mt8">Blz. 1 samenvatting · blz. 2 werkbon magazijn (taal van de werkbon hieronder) · blz. 3 Stockmove-lijst: welke pallet, welk product, hoeveel.</p></div>
+  <div class="card out"><div class="row between wrap"><div><h3>PDF voor de losdag</h3><p class="small muted mt8">Eerst de pakbon${c.data.pakbon_bestand ? '' : ' (nog niet bewaard bij deze container)'}, dan de samenvatting, de werkbon voor het magazijn (taal van de werkbon hieronder) en de Stockmove-lijst: welke pallet, welk product, hoeveel.</p></div>
     <button class="btn pri" data-act="pdfall">PDF maken</button></div></div>
   ${tabPallets(c, g, true)}
   <div class="card out">
@@ -2826,7 +2950,7 @@ function tabUitvoer(c, g){
   </div>`;
 }
 /* ---------- Eén PDF: samenvatting, werkbon, Stockmove-lijst ---------- */
-function maakPdf(c){
+async function maakPdf(c, w){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });
   const W = 210, M = 14, R = W - M, H = 297;
@@ -2865,6 +2989,9 @@ function maakPdf(c){
   // ---- pagina 1: samenvatting
   nieuw('samenvatting', true);
   if(isVerwacht(c)){ tekst('VOORLOPIG — ETA is nog een schatting', { bold:true, size:10, kleur:[184, 110, 0] }); }
+  const pbx = c.data.pakbon_bestand;
+  if(!pbx) tekst('Let op: bij deze container is geen pakbonbestand bewaard, dus die zit niet in deze PDF.', { size:8.5, kleur:[100, 110, 120] });
+  else if(!(pbx.ext === 'pdf' || /^(jpe?g|png)$/.test(pbx.ext))) tekst('De pakbon is een ' + pbx.ext + '-bestand en zit niet in deze PDF.', { size:8.5, kleur:[100, 110, 120] });
   tekst((c.leverancier || '') + ' ' + (c.pakbon_ref || ''), { bold:true, size:16, na:1 });
   tekst([c.containernummer, aank, c.transporteur].filter(Boolean).join(' · '), { size:10.5, na:4 });
   const los = prods.reduce((a, { v }) => a + (v.porties || []).filter(x => x.soort !== 'pallet').length, 0);
@@ -2914,11 +3041,33 @@ function maakPdf(c){
     Object.entries(perProd).forEach(([code, x]) => tekst(code + ': ' + plural(x.n, 'pallet', 'pallets') + ' = ' + nf(x.u) + ' ' + verkoopEenheid(code).mv, { size:9.5, x:M + 2, na:0.6 }));
   }
   voet();
-  const naam = 'container-' + (c.pakbon_ref || c.containernummer || c.id) + '.pdf';
-  const url = doc.output('bloburl');
-  const w = window.open(url, '_blank');
-  if(!w){ const a = document.createElement('a'); a.href = url; a.download = naam; a.click(); }
-  toast('PDF gemaakt: samenvatting, werkbon en Stockmove-lijst.');
+  // pakbon vooraan
+  const naam = pakbonNaam(c, 'pdf').replace(/\.pdf$/, '') + ' - planning.pdf';
+  let bytes = doc.output('arraybuffer'), metPakbon = '';
+  const b = c.data.pakbon_bestand;
+  if(b && (b.ext === 'pdf' || /^(jpe?g|png)$/.test(b.ext))){
+    try{
+      if(!window.PDFLib) await loadScript('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js');
+      const { PDFDocument } = window.PDFLib;
+      const out = await PDFDocument.create();
+      const buf = await (await opslagHaal(b.pad)).arrayBuffer();
+      if(b.ext === 'pdf'){
+        const src = await PDFDocument.load(buf, { ignoreEncryption:true });
+        (await out.copyPages(src, src.getPageIndices())).forEach(x => out.addPage(x));
+      } else {
+        const img = b.ext === 'png' ? await out.embedPng(buf) : await out.embedJpg(buf);
+        const pw = 595.28, ph = 841.89, sc = Math.min((pw - 40) / img.width, (ph - 40) / img.height);
+        out.addPage([pw, ph]).drawImage(img, { x:(pw - img.width * sc) / 2, y:ph - 20 - img.height * sc, width:img.width * sc, height:img.height * sc });
+      }
+      const plan = await PDFDocument.load(bytes);
+      (await out.copyPages(plan, plan.getPageIndices())).forEach(x => out.addPage(x));
+      bytes = await out.save(); metPakbon = 'pakbon, ';
+    }catch(e){ toast('Pakbon kon niet vooraan in de PDF: ' + e.message, 6000); }
+  }
+  const url = URL.createObjectURL(new Blob([bytes], { type:'application/pdf' }));
+  if(w && w.location) w.location.href = url;
+  else if(!window.open(url, '_blank')){ const a = document.createElement('a'); a.href = url; a.download = naam; a.click(); }
+  toast('PDF gemaakt: ' + metPakbon + 'samenvatting, werkbon en Stockmove-lijst.');
 }
 function maakLabels(c){
   const lijst = labelLijst(c);
@@ -3058,7 +3207,11 @@ const ACT = {
   wbprint: () => { $('print').innerHTML = werkbonHtml(cur); document.body.classList.add('printing'); window.print(); },
   wbcopy: () => kopieer(werkbonTekst(cur)),
   labels: () => maakLabels(cur),
-  pdfall: () => maakPdf(cur),
+  pdfall: () => maakPdf(cur, window.open('', '_blank')),
+  pbkijk: () => pakbonToon(cur, window.innerWidth < 700),
+  pbtab: () => pakbonToon(cur, true),
+  copyopslag: () => kopieer(OPSLAG_SQL),
+  opslagtest: async () => { await opslagCheck(); viewHome(); toast(OPSLAG ? 'Opslag werkt. Pakbonnen worden vanaf nu bewaard.' : 'Opslagmap nog niet gevonden. Is de SQL uitgevoerd?', 5000); },
   smcopy: () => kopieer(stockmoveRegels(cur).join('\n')),
   smdown: () => { const blob = new Blob([stockmoveRegels(cur).join('\n') + '\n'], { type:'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stockmove-' + (cur.pakbon_ref || cur.containernummer || cur.id) + '.txt'; a.click(); },
   mailcopy: () => kopieer(mailtoVst(cur).body),
@@ -3127,7 +3280,7 @@ app.addEventListener('change', e => {
   if(el.dataset.change && el.files){
     const f = el.files[0]; el.value = '';
     if(!f) return;
-    ({ pakbonBestand, impProducten, impVerkoop, impBackorders })[el.dataset.change](f);
+    ({ pakbonBestand, pakbonBewaarIn, impProducten, impVerkoop, impBackorders })[el.dataset.change](f);
     return;
   }
   if(el.dataset.vn){
@@ -3136,6 +3289,12 @@ app.addEventListener('change', e => {
     rerenderLater(); return;
   }
   if(el.dataset.vnlos){ UI.vn.los[el.dataset.vnlos] = el.value.trim(); rerenderLater(); return; }
+  if(el.dataset.eta){
+    const c = CONT.find(x => x.id === +el.dataset.eta); if(!c || !el.value) return;
+    c.losdatum = el.value; c.data.verwacht = true;
+    bewaarContainer(c).then(() => { toast(levKort(c.leverancier) + ' ' + (c.containernummer || c.pakbon_ref || '') + ': ' + losTekst(c)); viewHome(); }).catch(e => toast('Opslaan mislukt: ' + e.message, 5000));
+    return;
+  }
   if(el.dataset.vw){ (UI.vw = UI.vw || {})[el.dataset.vw] = el.value; rerenderLater(); return; }
   if(el.dataset.vnf){
     UI.vn.f[el.dataset.vnf] = el.type === 'checkbox' ? el.checked : el.value;
