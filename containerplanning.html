@@ -95,6 +95,11 @@
   .ccard .date .d{font-size:22px;font-weight:800} .ccard .date .m{font-size:11px;text-transform:uppercase;letter-spacing:.05em}
   .ccard .date .w{font-size:10.5px;color:#9aa7b8;margin-top:2px}
   .ccard .date.none{background:#e9ecf0;color:#5b6673}
+  .ccard .date.eta{background:#fff;color:var(--ink);border:2px dashed #9aa7b8}
+  table.vw tr.wk td{background:#eef2f6;border-top:2px solid #d3d9e0}
+  table.vw tr.prod td{border-top:2px solid #e6eaef;padding-top:8px}
+  table.vw tr.sub td{border-top:none;padding-top:2px;padding-bottom:2px}
+  .etabox{background:#fff8e6;border:1px solid #f0d08a;border-radius:8px;padding:10px 12px}
   .ccard h3{font-size:14.5px;margin-bottom:2px}
   .steps{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
 
@@ -183,6 +188,7 @@
   <div class="brand"><h1>Containerplanning</h1><span class="sync" id="sync">laden…</span></div>
   <nav id="nav">
     <a href="#/" data-nav="home">Containers</a>
+    <a href="#/vooruit" data-nav="vooruit">Vooruit</a>
     <a href="#/gegevens" data-nav="gegevens">Gegevens</a>
     <a href="#/vloernamen" data-nav="vloernamen">Vloernamen</a>
     <a href="./productkaart.html">Productkaart</a>
@@ -501,7 +507,7 @@ const containerVelden = c => ({
   status:c.status || 'concept', data:c.data, updated_at:new Date().toISOString()
 });
 const bewaarContainer = c => api('PATCH', 'containers?id=eq.' + c.id, containerVelden(c), { Prefer:'return=minimal' });
-function save(){ if(!cur) return; dirty = true; setSaved('Opslaan…'); clearTimeout(saveT); saveT = setTimeout(doSave, 700); }
+function save(){ PLAN = null; if(!cur) return; dirty = true; setSaved('Opslaan…'); clearTimeout(saveT); saveT = setTimeout(doSave, 700); }
 async function doSave(){
   if(!cur || !dirty) return;
   dirty = false;
@@ -1105,39 +1111,70 @@ function restVan(pool, porties){
   r.ok = Math.abs(r.U) < 0.001 && Object.values(r.maten).every(v => v === 0) && Math.abs(r.los) < 0.001;
   return r;
 }
-function eerderGepland(c, code){
-  const out = { hier:0, bo:0, refs:[] };
-  CONT.forEach(o => {
-    if(o === c || o.status === 'afgerond') return;
-    const ok_ = x => (x.losdatum || '9999') + ' ' + (x.lostijd || '99'), eerder = ok_(o) < ok_(c) || (ok_(o) === ok_(c) && o.id < c.id);
-    if(!eerder) return;
-    const v = o.data && o.data.verdeling && o.data.verdeling[code];
-    if(!v || !v.porties) return;
-    let h = 0, b = 0;
-    v.porties.forEach(x => { if(DEST[x.dest] && DEST[x.dest].hier) h += portieU(x); if(x.dest === 'BO') b += portieU(x); });
-    if(h || b){ out.hier += h; out.bo += b; out.refs.push(o.pakbon_ref || o.containernummer || ('#' + o.id)); }
-  });
-  return out;
+/* ---------- Planning over alle open containers (vooruitkijken) ----------
+   Containers op datumvolgorde. Per product telt de app wat eerdere containers hier/BO/VST brengen
+   (vastgelegde verdeling, anders hun advies), en hoeveel er tot aankomst verkocht wordt. */
+let PLAN = null;
+const volgKey = x => (x.losdatum || '9999') + ' ' + (x.lostijd || '99') + ' ' + String(x.id).padStart(8, '0');
+function maandenTot(c){
+  if(!c.losdatum) return 0;
+  const d = new Date(c.losdatum + 'T12:00:00'), nu = new Date(); nu.setHours(12, 0, 0, 0);
+  return Math.max(0, (d - nu) / (30.44 * 864e5));
 }
-
-/* =====================================================================
-   Verdelingsadvies
-   Regel: eerst wat direct weggaat (backorders in hele pallets), dan
-   voorraad hier aanvullen tot X maanden verkoop, rest naar VST.
-   Losse stuks blijven altijd hier (picklocatie).
-   ===================================================================== */
+const leegEerder = () => ({ hier:0, bo:0, vst:0, vstUit:0, refs:[] });
+function planning(){
+  if(PLAN) return PLAN;
+  const plan = { per:{}, volg:[] };
+  const acc = {};
+  CONT.filter(o => o.status !== 'afgerond').sort((a, b) => volgKey(a).localeCompare(volgKey(b))).forEach(o => {
+    ensureData(o);
+    const pl = pools(o);
+    plan.volg.push(o.id); plan.per[o.id] = {};
+    pl.order.forEach(code => {
+      const a = acc[code] = acc[code] || leegEerder();
+      const eerder = { hier:a.hier, bo:a.bo, vst:a.vst, vstUit:a.vstUit, refs:a.refs.slice() };
+      const adv = adviesKern(o, pl.map[code], eerder);
+      const v = o.data.verdeling[code];
+      const vast = !!(v && v.porties && v.porties.length);
+      const porties = vast ? v.porties : adv.porties;
+      let h = 0, b = 0, vs = 0;
+      porties.forEach(x => { const u = portieU(x); if(DEST[x.dest] && DEST[x.dest].hier) h += u; else if(x.dest === 'BO') b += u; else if(x.dest === 'VST') vs += u; });
+      a.hier += h; a.bo += b; a.vst += vs; a.vstUit += adv.uitVst || 0;
+      if(h || b || vs) a.refs.push(o.pakbon_ref || o.containernummer || ('#' + o.id));
+      plan.per[o.id][code] = { eerder, adv, porties, vast, h, b, vs };
+    });
+  });
+  PLAN = plan;
+  return plan;
+}
+function eerderGepland(c, code){
+  const p = planning().per[c.id];
+  return (p && p[code] && p[code].eerder) || leegEerder();
+}
 function advies(c, pool){
+  const p = planning().per[c.id];
+  if(p && p[pool.code]) return p[pool.code].adv;
+  return adviesKern(c, pool, leegEerder());
+}
+function adviesKern(c, pool, eerder){
   const code = pool.code;
   const f = feiten(code);
-  const eerder = eerderGepland(c, code);
   const maanden = num(c.data.instellingen.maanden) || 1.5;
   const uitleg = [];
   const pallets = pool.pallets.slice();
   const porties = [];
   const psize = pallets.length ? pallets[0] : 0;
-  let vrij = f.vrij + eerder.hier + eerder.bo;
+  // voorraad hier bij aankomst: nu vrij + wat eerdere containers hier brengen − verkoop tot aankomst
+  const start = f.vrij + eerder.hier + eerder.bo;
+  const mnd = maandenTot(c);
+  const verbruik = f.rate ? f.rate * mnd : 0;
+  const vstOver = Math.max(0, f.vst + eerder.vst - eerder.vstUit);
+  const uitVst = Math.min(Math.max(0, verbruik - Math.max(0, start)), vstOver);
+  let vrij = start - verbruik + uitVst;
+  const proj = vrij;
   const bo = Math.max(0, f.bo - eerder.bo);
-  if(eerder.refs.length) uitleg.push('incl. ' + eerder.refs.join(', ') + ' (eerder/zelfde dag)');
+  if(eerder.refs.length) uitleg.push('incl. ' + eerder.refs.join(', ') + ' (eerder)');
+  if(verbruik >= 1 && mnd >= 0.1) uitleg.push('bij aankomst over ' + nf(mnd * 30.44 / 7, 1) + ' wk: −' + nf(verbruik) + ' verkoop' + (uitVst >= 1 ? ', ' + nf(uitVst) + ' terug uit VST' : '') + ' → hier ' + nf(vrij));
   // 1. backorders in hele pallets
   if(bo > 0 && psize > 0){
     let n = 0; while(n < pallets.length && (n + 1) * pallets[n] <= bo) n++;
@@ -1170,7 +1207,7 @@ function advies(c, pool){
     if(last && last.soort === 'pallet' && last.dest === dest && last.per === s) last.n++;
     else porties.push({ soort:'pallet', n:1, per:s, dest });
   });
-  return { porties, uitleg:uitleg.join(' · '), feiten:f, eerder };
+  return { porties, uitleg:uitleg.join(' · '), feiten:f, eerder, proj, verbruik, uitVst, mnd };
 }
 function portiesGelijk(a, b){
   const k = arr => (arr || []).filter(x => portieU(x) > 0).map(x => x.soort + ':' + x.dest + ':' + (x.soort === 'pallet' ? x.per : '') + ':' + x.n).sort().join('|');
@@ -1245,14 +1282,16 @@ const LVL = { fout:['b-bad', 'fout'], let:['b-warn', 'let op'], info:['b-info', 
    Router
    ===================================================================== */
 async function route(){
+  PLAN = null;
   const h = location.hash || '#/';
   let m;
-  const nu = h.startsWith('#/c/') ? 'home' : h.startsWith('#/gegevens') ? 'gegevens' : h.startsWith('#/vloernamen') ? 'vloernamen' : 'home';
+  const nu = h.startsWith('#/c/') ? 'home' : h.startsWith('#/gegevens') ? 'gegevens' : h.startsWith('#/vloernamen') ? 'vloernamen' : h.startsWith('#/vooruit') ? 'vooruit' : 'home';
   document.querySelectorAll('#nav a[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === nu));
   if(!h.startsWith('#/c/')){ if(dirty) await flushSave(); cur = null; setSaved(''); }
   if(['containers', 'pakbon_alias', 'verkoop', 'backorders'].some(t => MISSING.includes(t))) return viewSetup();
   if((m = h.match(/^#\/c\/(\d+)(?:\/(\w+))?/))) return viewContainer(+m[1], m[2] || 'pakbon');
   if(h.startsWith('#/gegevens')) return viewGegevens();
+  if(h.startsWith('#/vooruit')) return viewVooruit();
   if(h.startsWith('#/vloernamen')){
     const q = (h.split('?')[1] || '').split('&').find(x => x.startsWith('q='));
     if(q) UI.vn.f.q = decodeURIComponent(q.slice(2)).trim();
@@ -1271,7 +1310,7 @@ function rerender(){
 function focusKey(el){
   if(!el || el === document.body || !app.contains(el)) return null;
   if(el.id) return '#' + CSS.escape(el.id);
-  const attrs = ['data-regel', 'data-k', 'data-meta', 'data-p', 'data-inst', 'data-wb', 'data-vn', 'data-vk', 'data-vnlos', 'data-vnf', 'data-pk', 'data-pf'].filter(a => el.hasAttribute(a));
+  const attrs = ['data-regel', 'data-k', 'data-meta', 'data-p', 'data-inst', 'data-wb', 'data-vn', 'data-vk', 'data-vnlos', 'data-vnf', 'data-pk', 'data-pf', 'data-vw'].filter(a => el.hasAttribute(a));
   if(!attrs.length) return null;
   let sel = el.tagName.toLowerCase() + attrs.map(a => '[' + a + '="' + CSS.escape(el.getAttribute(a)) + '"]').join('');
   const port = el.closest('.portie'), box = el.closest('[data-code]');
@@ -1344,7 +1383,7 @@ function containerKaart(c){
   const d = c.losdatum ? new Date(c.losdatum + 'T12:00:00') : null;
   const st = (ok, txt) => `<span class="badge ${ok === true ? 'b-ok' : ok === false ? 'b-warn' : 'b-grey'}">${txt}</span>`;
   return `<a class="ccard" href="#/c/${c.id}">
-    <div class="date ${d ? '' : 'none'}">${d ? `<div class="d">${d.getDate()}</div><div class="m">${d.toLocaleDateString('nl-NL', { month:'short' })}</div><div class="w">${d.toLocaleDateString('nl-NL', { weekday:'short' })}${c.lostijd ? ' ' + esc(c.lostijd) : ''}</div>` : '<div class="m">geen<br>datum</div>'}</div>
+    <div class="date ${d ? '' : 'none'} ${isVerwacht(c) ? 'eta' : ''}">${d && isVerwacht(c) ? '<div class="m">ETA</div>' : ''}${d ? `<div class="d">${d.getDate()}</div><div class="m">${d.toLocaleDateString('nl-NL', { month:'short' })}</div><div class="w">${d.toLocaleDateString('nl-NL', { weekday:'short' })}${c.lostijd ? ' ' + esc(c.lostijd) : ''}</div>` : '<div class="m">geen<br>datum</div>'}</div>
     <div class="grow">
       <h3>${esc(c.leverancier || 'Leverancier?')}</h3>
       <div class="small muted">${esc(c.pakbon_ref || '')}${c.pakbon_ref && c.containernummer ? ' · ' : ''}${esc(c.containernummer || '')}${c.transporteur ? ' · ' + esc(c.transporteur) : ''}</div>
@@ -1354,6 +1393,7 @@ function containerKaart(c){
         ${st(g.n ? g.akk === g.n : null, 'Verdeling ' + (g.n ? g.akk + '/' + g.n : ''))}
         ${st(g.n ? g.pdMis === 0 : null, 'Productgegevens')}
         ${g.open ? `<span class="badge b-bad">${g.open} open</span>` : ''}
+        ${isVerwacht(c) ? '<span class="badge b-warn">ETA verwacht</span>' : ''}
         ${c.status !== 'concept' ? `<span class="badge b-info">${STATUS[c.status] || c.status}</span>` : ''}
       </div>
     </div></a>`;
@@ -1813,17 +1853,20 @@ function kopKaart(c){
   if(c.leverancier && !levs.includes(c.leverancier)) levs.unshift(c.leverancier);
   const d = c.losdatum ? fdate(c.losdatum, { weekday:'short', day:'numeric', month:'short' }) : 'geen losdatum';
   const open = UI.kopEdit || !c.leverancier;
+  const ver = isVerwacht(c);
   return `<div class="card">
     <div class="row between wrap">
       <div class="grow"><h2>${esc(c.leverancier || 'Leverancier?')} ${esc(c.pakbon_ref || '')}</h2>
-        <div class="small muted">${esc(c.containernummer || 'containernummer?')} · <b style="color:var(--ink)">${esc(d)}${c.lostijd ? ' ' + esc(c.lostijd) : ''}</b>${c.transporteur ? ' · ' + esc(c.transporteur) : ''} · ${STATUS[c.status] || c.status}</div></div>
+        <div class="small muted">${esc(c.containernummer || 'containernummer?')} · <b style="color:var(--ink)">${ver ? 'ETA ' : ''}${esc(d)}${c.lostijd ? ' ' + esc(c.lostijd) : ''}</b>${ver ? ' <span class="badge b-warn">verwacht</span>' : ''}${c.transporteur ? ' · ' + esc(c.transporteur) : ''} · ${STATUS[c.status] || c.status}</div></div>
       <button class="btn sm" data-act="kopedit">${open ? 'Klaar' : 'Gegevens wijzigen'}</button>
     </div>
+    ${ver ? `<div class="etabox mt12"><div class="small"><b>ETA is nog een schatting.</b> Advies en verdeling zijn een voorlopige planning. Zodra de vervoerder de losdatum heeft gepland: vul hem hier in en zet hem vast.</div>
+      <div class="row wrap mt8"><input type="date" id="def_datum" value="${esc(c.losdatum || '')}" style="width:auto"><input type="time" id="def_tijd" value="${esc(c.lostijd || '')}" style="width:auto"><button class="btn acc" data-act="etadef">Losdatum vastzetten</button></div></div>` : ''}
     <div class="fields mt12" ${open ? '' : 'hidden'}>
       <div class="fld" style="grid-column:span 2"><label>Leverancier</label><select data-meta="leverancier">${levs.map(l => `<option ${l === c.leverancier ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
       <div class="fld"><label>Pakbon-ref</label><input data-meta="pakbon_ref" value="${esc(c.pakbon_ref || '')}"></div>
       <div class="fld"><label>Containernummer</label><input data-meta="containernummer" value="${esc(c.containernummer || '')}"></div>
-      <div class="fld"><label>Losdatum</label><input type="date" data-meta="losdatum" value="${esc(c.losdatum || '')}"></div>
+      <div class="fld"><label>${ver ? 'ETA (verwacht)' : 'Losdatum'}</label><input type="date" data-meta="losdatum" value="${esc(c.losdatum || '')}"><label class="row small mt8" style="gap:6px;text-transform:none;font-weight:400;letter-spacing:0"><input type="checkbox" data-verwacht ${ver ? 'checked' : ''} style="width:auto"> nog verwacht (schatting)</label></div>
       <div class="fld"><label>Lostijd</label><input type="time" data-meta="lostijd" value="${esc(c.lostijd || '')}"></div>
       <div class="fld"><label>Transporteur</label><input data-meta="transporteur" value="${esc(c.transporteur || '')}" placeholder="bijv. Ziegler"></div>
       <div class="fld"><label>Status</label><select data-meta="status">${Object.entries(STATUS).map(([k, l]) => `<option value="${k}" ${k === c.status ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
@@ -2250,20 +2293,25 @@ function losMoment(naam){
     const p2 = x => String(x).padStart(2, '0');
     let tijd = null;
     if(m[4] != null){ const u = +m[4], mi = +m[5]; if(u <= 23 && mi <= 59) tijd = p2(u) + ':' + p2(mi); }
-    return { datum:j + '-' + p2(mnd) + '-' + p2(d), tijd };
+    return { datum:j + '-' + p2(mnd) + '-' + p2(d), tijd, verwacht:/\b(eta|verwacht)\b/i.test(t) };
   }
   return null;
 }
 function zetLosMoment(c, lm){
   if(!lm) return false;
-  const oud = (c.losdatum || '') + ' ' + (c.lostijd || '');
+  const sig = () => (c.losdatum || '') + ' ' + (c.lostijd || '') + ' ' + isVerwacht(c);
+  const oud = sig();
   c.losdatum = lm.datum; if(lm.tijd) c.lostijd = lm.tijd;
-  return oud !== (c.losdatum || '') + ' ' + (c.lostijd || '');
+  c.data = c.data || {};
+  if(lm.verwacht) c.data.verwacht = true; else delete c.data.verwacht;
+  return oud !== sig();
 }
-const losTekst = c => fdate(c.losdatum, { weekday:'short', day:'numeric', month:'short' }) + (c.lostijd ? ' ' + c.lostijd : '');
+// verwacht = ETA is nog een schatting (pakbon vroeg binnen); definitief = gepland met de vervoerder
+const isVerwacht = c => !!(c && c.data && c.data.verwacht);
+const losTekst = c => (isVerwacht(c) ? 'ETA ' : '') + fdate(c.losdatum, { weekday:'short', day:'numeric', month:'short' }) + (c.lostijd ? ' ' + c.lostijd : '');
 async function pakbonnenBulk(files){
   UI.bulk = { bezig:true, log:[] };
-  const opHome = () => !cur && !/^#\/(c|gegevens|vloernamen)/.test(location.hash || '#/');
+  const opHome = () => !cur && !/^#\/(c|gegevens|vloernamen|vooruit)/.test(location.hash || '#/');
   const teken = () => { if(opHome()) viewHome(); };
   const log = (t, cls) => { UI.bulk.log.push({ t, cls:cls || '' }); teken(); };
   teken();
@@ -2306,6 +2354,96 @@ async function pakbonnenBulk(files){
   UI.bulk.bezig = false; teken();
 }
 
+/* ---------- Vooruit: wat komt er, wat betekent het voor ruimte en voorraad ---------- */
+function weekVan(d){
+  const x = new Date(d + 'T12:00:00'), dag = (x.getDay() + 6) % 7;
+  x.setDate(x.getDate() - dag + 3);
+  const j = new Date(x.getFullYear(), 0, 4);
+  const w = 1 + Math.round(((x - j) / 864e5 - 3 + ((j.getDay() + 6) % 7)) / 7);
+  const ma = new Date(d + 'T12:00:00'); ma.setDate(ma.getDate() - dag);
+  return { key:x.getFullYear() + '-' + String(w).padStart(2, '0'), w, ma };
+}
+function viewVooruit(){
+  const plan = planning(), f_ = UI.vw = UI.vw || { lev:'' };
+  const vandaag = new Date().toISOString().slice(0, 10);
+  const alle = plan.volg.map(id => CONT.find(c => c.id === id)).filter(Boolean);
+  const levs = [...new Set(alle.map(c => c.leverancier).filter(Boolean))].sort();
+  const lijst = alle.filter(c => !f_.lev || c.leverancier === f_.lev);
+  // per container: pallets en plaatsen hier/VST
+  const som = c => {
+    const t = { n:0, hier:0, plaatsen:0, vst:0, direct:0, vast:0, prod:0, onb:0 };
+    const per = plan.per[c.id] || {};
+    Object.entries(per).forEach(([code, x]) => {
+      t.prod++; if(x.vast) t.vast++;
+      const pl_ = num((P[code] || {}).plaatsen);
+      x.porties.forEach(q => {
+        if(q.soort !== 'pallet') return;
+        const k = num(q.n) || 0; t.n += k;
+        if(q.dest === 'VST') t.vst += k;
+        else if(DEST[q.dest] && DEST[q.dest].hier){ t.hier += k; t.plaatsen += k * (pl_ || 1); if(!pl_) t.onb += k; }
+        else t.direct += k;
+      });
+    });
+    return t;
+  };
+  let rows = '', wk = null, wkTot = null;
+  const wkRij = () => wkTot ? `<tr class="wk"><td colspan="4"><b>Week ${wkTot.w}</b> <span class="small muted">vanaf ${esc(fdate(wkTot.ma.toISOString().slice(0, 10), { day:'numeric', month:'short' }))}</span></td><td class="n"><b>${wkTot.hier}</b></td><td class="n"><b>${nf(wkTot.plaatsen, 1)}</b></td><td class="n"><b>${wkTot.vst}</b></td><td colspan="2" class="small">${wkTot.plaatsen ? 'ruimte maken: ' + nf(wkTot.plaatsen, 1) + ' plaatsen ≈ ' + Math.ceil(wkTot.plaatsen / 4) + '–' + Math.ceil(wkTot.plaatsen / 3) + ' liggers' : ''}</td></tr>` : '';
+  const perWeek = [];
+  lijst.forEach(c => {
+    const t = som(c);
+    const w = c.losdatum ? weekVan(c.losdatum) : { key:'zzzz', w:'?', ma:new Date() };
+    if(!wk || wk !== w.key){ if(wkTot) perWeek.push(wkRij()); wk = w.key; wkTot = { w:w.w, ma:w.ma, hier:0, plaatsen:0, vst:0 }; }
+    wkTot.hier += t.hier; wkTot.plaatsen += t.plaatsen; wkTot.vst += t.vst;
+    const voorbij = c.losdatum && c.losdatum < vandaag;
+    perWeek.push(`<tr>
+      <td>${c.losdatum ? esc(losTekst(c)) : '<span class="muted">geen datum</span>'} ${isVerwacht(c) ? '<span class="badge b-warn">verwacht</span>' : c.losdatum ? '<span class="badge b-ok">gepland</span>' : ''}${voorbij ? ' <span class="badge b-bad" title="Datum is voorbij: rond hem af, anders telt de voorraad dubbel">afronden?</span>' : ''}</td>
+      <td><a href="#/c/${c.id}/verdeling"><b>${esc(c.leverancier || '?')}</b></a><div class="tiny muted">${esc([c.pakbon_ref, c.containernummer].filter(Boolean).join(' · '))}</div></td>
+      <td class="n">${t.prod}</td><td class="n">${t.n}</td><td class="n">${t.hier}</td><td class="n">${nf(t.plaatsen, 1)}${t.onb ? '<span class="tiny muted">*</span>' : ''}</td><td class="n">${t.vst}</td><td class="n">${t.direct || ''}</td>
+      <td class="small">${t.vast === t.prod && t.prod ? '<span class="badge b-ok">vastgelegd</span>' : t.vast ? t.vast + '/' + t.prod + ' vast, rest advies' : '<span class="muted">advies</span>'}</td></tr>`);
+  });
+  if(wkTot) perWeek.push(wkRij());
+  rows = perWeek.join('');
+  // per product: nu → per container → na
+  const codes = [];
+  lijst.forEach(c => Object.keys(plan.per[c.id] || {}).forEach(code => { if(!codes.includes(code)) codes.push(code); }));
+  codes.sort((a, b) => (num(feiten(b).rate) || 0) - (num(feiten(a).rate) || 0));
+  const q = String(f_.q || '').toLowerCase().replace(/\s+/g, '');
+  const zicht = codes.filter(code => !q || (code + naamVan(code)).toLowerCase().replace(/\s+/g, '').includes(q));
+  const eh = code => verkoopEenheid(code).mv;
+  const prodRows = zicht.map(code => {
+    const f = feiten(code);
+    const dek = x => x < 0 ? '<span class="badge b-bad">tekort</span>' : f.rate ? nf(x / f.rate, 1) + ' mnd' : '–';
+    const reeks = lijst.filter(c => plan.per[c.id] && plan.per[c.id][code]);
+    const regels = reeks.map(c => {
+      const x = plan.per[c.id][code], pool = pools(c).map[code];
+      const na = x.adv.proj + x.h + x.b;
+      return `<tr class="sub"><td></td><td class="small">${esc(c.losdatum ? losTekst(c) : 'geen datum')} · ${esc(c.pakbon_ref || c.containernummer || '')}</td>
+        <td class="n">+${nf(pool ? pool.totaalU : 0)}</td>
+        <td class="small">${x.porties.filter(y => portieU(y) > 0).map(y => `<span class="badge d-${y.dest}">${y.soort === 'pallet' ? y.n + '× ' + nf(y.per) : nf(y.n) + ' los'} → ${DEST[y.dest].nl}</span>`).join(' ')} ${x.vast ? '' : '<span class="tiny muted">(advies)</span>'}</td>
+        <td class="n">${nf(x.adv.proj)}</td><td class="n"><b>${nf(na)}</b></td><td class="n">${dek(na)}</td></tr>`;
+    }).join('');
+    return `<tr class="prod"><td><span class="code">${esc(code)}</span></td><td class="small">${esc(naamVan(code))}</td>
+      <td class="small" colspan="2">hier <b>${nf(f.hm)}</b> · VST <b>${nf(f.vst)}</b> · BO <b>${nf(f.bo)}</b> · verkoop <b>${f.rate === null ? '?' : nf(f.rate) + '/mnd'}</b> <span class="muted">(${eh(code)})</span></td>
+      <td></td><td class="n">${nf(f.vrij)}</td><td class="n">${dek(f.vrij)}</td></tr>${regels}`;
+  }).join('');
+  app.innerHTML = `
+    ${dataStrip()}
+    <div class="row between wrap"><h2>Vooruit: wat komt er</h2>
+      <select data-vw="lev" style="width:auto"><option value="">Alle leveranciers</option>${levs.map(l => `<option ${l === f_.lev ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
+    <p class="small muted mt8">Alle containers die nog niet zijn afgerond, op volgorde van (verwachte) aankomst. Zonder vastgelegde verdeling rekent de app met het advies: eerst backorders, dan hier aanvullen tot het doel, rest naar VST — rekening houdend met de verkoop tot aankomst en wat eerdere containers al brengen. Hoe verder weg, hoe grover de schatting.</p>
+    <div class="card mt12"><h3 class="mb8">Containers en ruimte hier</h3>
+      ${lijst.length ? `<div class="scroll"><table class="vw">
+        <tr><th>Aankomst</th><th>Container</th><th class="n">Prod.</th><th class="n">Pallets</th><th class="n">Hier</th><th class="n">Plaatsen</th><th class="n">VST</th><th class="n">Direct</th><th>Verdeling</th></tr>
+        ${rows}</table></div><p class="tiny muted mt8">* pallets zonder plaatsen-waarde tellen als 1 plaats. Hier = picklocatie, bulk (up) en vloer.</p>` : '<div class="empty">Geen open containers.</div>'}
+    </div>
+    <div class="card"><div class="row between wrap"><h3>Per product: voorraad hier na elke container</h3><input data-vw="q" value="${esc(f_.q || '')}" placeholder="zoek product" style="width:200px"></div>
+      <p class="small muted mt8">Bij aankomst = verwacht hier (vrij) vlak vóór de container, na verkoop tot die datum. Na = inclusief wat hier blijft en backorder-pallets. Gesorteerd op verkoop.</p>
+      ${zicht.length ? `<div class="scroll mt8"><table class="vw">
+        <tr><th>Product</th><th></th><th class="n">Binnen</th><th>Verdeling</th><th class="n">Bij aankomst</th><th class="n">Na</th><th class="n">Dekking</th></tr>
+        ${prodRows}</table></div>` : '<div class="empty">Geen producten.</div>'}
+    </div>`;
+}
+
 /* ---------- Tab 2: verdeling ---------- */
 function eenhTekst(c, code, per){
   const f = factorVan(c, code), eh = eenheidVan(code);
@@ -2332,7 +2470,8 @@ function tabVerdeling(c, g){
     (v && v.porties || []).forEach(x => { if(x.soort !== 'pallet'){ los++; return; } const k = num(x.n) || 0; if(x.dest === 'VST') vst += k; else if(DEST[x.dest].hier) hier += k; else direct += k; });
   });
   const leeg_ = pl.order.filter(code => !(c.data.verdeling[code] && c.data.verdeling[code].porties && c.data.verdeling[code].porties.length)).length;
-  return `${pkMis}<div class="card">
+  const etaBan = isVerwacht(c) ? `<div class="card etabox"><b>Voorlopige planning (ETA ${esc(fdate(c.losdatum, { day:'numeric', month:'short' }))}).</b> Het advies rekent met de verkoop tot aankomst en met de containers die eerder komen. Leg de verdeling pas vast als de losdatum definitief is — dan kloppen voorraad en backorders van dat moment.</div>` : '';
+  return `${etaBan}${pkMis}<div class="card">
     <div class="sumbar">
       <div><div class="big">${hier}</div><div class="lbl">pallets hier</div></div>
       <div><div class="big">${vst}</div><div class="lbl">naar VST</div></div>
@@ -2359,7 +2498,7 @@ function verdeelKaart(c, pool){
   // dekking na levering
   let hierU = 0, boU = 0;
   (v.porties || []).forEach(x => { if(DEST[x.dest] && DEST[x.dest].hier) hierU += portieU(x); if(x.dest === 'BO') boU += portieU(x); });
-  const na = f.vrij + adv.eerder.hier + adv.eerder.bo + hierU + boU;
+  const na = adv.proj + hierU + boU;
   const boOpen = f.boRegels.map(b => Math.max(0, (num(b.aantal) || 0) - (num(b.beschikbaar) || 0))).filter(x => x > 0);
   const boTop = boOpen.length ? plural(boOpen.length, 'order', 'orders') + (boOpen.length > 1 ? ', grootste ' + boOpen.slice(0, 3).map(x => nf(x)).join(', ') : '') : '';
   const maatSel = x => {
@@ -2654,6 +2793,8 @@ function tabUitvoer(c, g){
   const alleDest = {};
   pools(c).order.forEach(code => { const v = c.data.verdeling[code]; (v && v.porties || []).forEach(x => { if(x.soort === 'pallet' && DEST[x.dest].label) alleDest[x.dest] = (alleDest[x.dest] || 0) + (num(x.n) || 0); }); });
   return `${open ? `<div class="card" style="border-left:4px solid var(--bad)"><b>Let op:</b> er staan nog ${open} open punten. Je kunt alles al maken, maar controleer die eerst.</div>` : ''}
+  <div class="card out"><div class="row between wrap"><div><h3>PDF voor de losdag</h3><p class="small muted mt8">Blz. 1 samenvatting · blz. 2 werkbon magazijn (taal van de werkbon hieronder) · blz. 3 Stockmove-lijst: welke pallet, welk product, hoeveel.</p></div>
+    <button class="btn pri" data-act="pdfall">PDF maken</button></div></div>
   ${tabPallets(c, g, true)}
   <div class="card out">
     <div class="row between wrap"><h3>1. Werkbon voor het magazijn</h3>
@@ -2683,6 +2824,101 @@ function tabUitvoer(c, g){
     ${c.status === 'afgerond' ? `<span class="badge b-ok">Afgerond ${c.data.afgerond_op ? fdate(c.data.afgerond_op, { day:'numeric', month:'short' }) : ''}</span> <button class="btn sm" data-act="heropen">Heropenen</button>` : `<button class="btn ok" data-act="afronden">Container afronden</button>`}</div>
     <p class="small muted mt8">Afronden bewaart de cijfers van nu (voorraad, verkoop, backorders) bij deze container, zodat je later kunt terugzien waarom zo verdeeld is.</p>
   </div>`;
+}
+/* ---------- Eén PDF: samenvatting, werkbon, Stockmove-lijst ---------- */
+function maakPdf(c){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const W = 210, M = 14, R = W - M, H = 297;
+  const safe = t => String(t == null ? '' : t).replace(/→/g, '->').replace(/≈/g, '~').replace(/[✓✔]/g, 'v').replace(/[^\x00-\xFF€–—…‘’“”•]/g, '');
+  let y = M, pagina = '';
+  const kopTekst = `${c.leverancier || ''} ${c.pakbon_ref || ''} · ${c.containernummer || ''}`;
+  const voet = () => { doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(120); doc.text(safe(kopTekst + ' · ' + pagina), M, H - 8); doc.text('gemaakt ' + new Date().toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }), R, H - 8, { align:'right' }); doc.setTextColor(16, 21, 28); };
+  const nieuw = (titel, eerste) => { if(!eerste){ voet(); doc.addPage(); } pagina = titel; y = M; };
+  const ruimte = h => { if(y + h > H - 16){ voet(); doc.addPage(); y = M; } };
+  const tekst = (t, o) => {
+    o = o || {}; doc.setFont('helvetica', o.bold ? 'bold' : 'normal'); doc.setFontSize(o.size || 10); doc.setTextColor(...(o.kleur || [16, 21, 28]));
+    const regels = doc.splitTextToSize(safe(t), (o.w || (R - (o.x || M))));
+    const lh = (o.size || 10) * 0.42;
+    ruimte(regels.length * lh);
+    doc.text(regels, o.x || M, y + lh * 0.8); y += regels.length * lh + (o.na ?? 1.5);
+    doc.setTextColor(16, 21, 28);
+  };
+  const lijn = () => { doc.setDrawColor(210); doc.line(M, y, R, y); y += 2; };
+  const tabel = (kol, rijen) => {
+    const lh = 4.4;
+    const kop = () => { doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setFillColor(238, 242, 246); doc.rect(M, y, R - M, 6, 'F'); kol.forEach(k => doc.text(safe(k.t), k.r ? k.x + k.w : k.x, y + 4.2, { align:k.r ? 'right' : 'left' })); y += 7; };
+    kop();
+    rijen.forEach(r => {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+      const cel = kol.map((k, i) => doc.splitTextToSize(safe(r[i] ?? ''), k.w));
+      const h = Math.max(...cel.map(x => x.length)) * lh + 1.5;
+      if(y + h > H - 16){ voet(); doc.addPage(); y = M; kop(); doc.setFont('helvetica', 'normal'); doc.setFontSize(9); }
+      kol.forEach((k, i) => { doc.setFont('helvetica', k.b ? 'bold' : 'normal'); doc.text(cel[i], k.r ? k.x + k.w : k.x, y + 3.4, { align:k.r ? 'right' : 'left' }); });
+      y += h; doc.setDrawColor(228); doc.line(M, y - 0.6, R, y - 0.6);
+    });
+    y += 2;
+  };
+  const { prods, tel } = werkbonData(c);
+  const aank = c.losdatum ? (isVerwacht(c) ? 'ETA ' : '') + fdate(c.losdatum, { weekday:'long', day:'numeric', month:'long' }) + (c.lostijd ? ' ' + c.lostijd : '') : 'geen datum';
+  const sm = stockmoveRegels(c);
+  // ---- pagina 1: samenvatting
+  nieuw('samenvatting', true);
+  if(isVerwacht(c)){ tekst('VOORLOPIG — ETA is nog een schatting', { bold:true, size:10, kleur:[184, 110, 0] }); }
+  tekst((c.leverancier || '') + ' ' + (c.pakbon_ref || ''), { bold:true, size:16, na:1 });
+  tekst([c.containernummer, aank, c.transporteur].filter(Boolean).join(' · '), { size:10.5, na:4 });
+  const los = prods.reduce((a, { v }) => a + (v.porties || []).filter(x => x.soort !== 'pallet').length, 0);
+  const box = [[tel.hier + tel.vst + tel.direct, 'pallets totaal'], [tel.hier, 'hier · ' + nf(tel.plaatsen, 1) + ' plaatsen'], [tel.vst, 'naar VST' + (tel.vstKg ? ' · ' + nf(tel.vstKg) + ' kg' : '')], [tel.direct, 'direct weg']];
+  const bw = (R - M - 9) / 4;
+  box.forEach(([n, l], i) => { const x = M + i * (bw + 3); doc.setFillColor(244, 246, 249); doc.roundedRect(x, y, bw, 18, 2, 2, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text(String(n), x + 4, y + 9); doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text(safe(l), x + 4, y + 14.5); });
+  y += 23;
+  if(tel.plaatsen) tekst('Ruimte maken hier: ' + nf(tel.plaatsen, 1) + ' palletplaatsen ≈ ' + Math.ceil(tel.plaatsen / 4) + '–' + Math.ceil(tel.plaatsen / 3) + ' liggers (4 of 3 plaatsen per ligger).', { size:10, na:3 });
+  const telDest = (v, f) => (v.porties || []).filter(x => x.soort === 'pallet' && f(x)).reduce((a, x) => a + (num(x.n) || 0), 0);
+  tabel([{ t:'Product', x:M, w:34, b:true }, { t:'Naam', x:M + 36, w:62 }, { t:'Binnen', x:M + 100, w:28, r:true }, { t:'Hier', x:M + 132, w:12, r:true }, { t:'VST', x:M + 148, w:12, r:true }, { t:'Direct', x:M + 164, w:16, r:true }],
+    prods.map(({ code, pool, v }) => [code, labelNaam(code), nf(pool.totaalU) + ' ' + verkoopEenheid(code).mv, telDest(v, x => DEST[x.dest] && DEST[x.dest].hier) || '', telDest(v, x => x.dest === 'VST') || '', telDest(v, x => x.dest === 'BO' || x.dest === 'KLANT') || '']));
+  if(los) tekst('Losse aantallen (niet op pallet) staan op de werkbon.', { size:8.5, kleur:[100, 110, 120], na:3 });
+  const pts = punten(c, pools(c)).filter(p => (p.lvl === 'fout' || p.lvl === 'let') && !c.data.punten_klaar[p.key]);
+  if(pts.length){ y += 2; tekst('Open punten (' + pts.length + ')', { bold:true, size:11, na:1.5 }); pts.slice(0, 15).forEach(p => tekst('• ' + p.tekst, { size:9, x:M + 2, na:0.8 })); if(pts.length > 15) tekst('… en ' + (pts.length - 15) + ' meer', { size:9, x:M + 2 }); }
+  if(c.data.werkbon.extra){ y += 2; tekst('Notities', { bold:true, size:11, na:1.5 }); tekst(c.data.werkbon.extra, { size:9.5 }); }
+  // ---- pagina 2: werkbon magazijn
+  const T = c.data.werkbon.taal === 'nl' ? 'nl' : 'en';
+  nieuw(T === 'en' ? 'unloading plan' : 'werkbon');
+  const box2 = document.createElement('div'); box2.innerHTML = werkbonHtml(c);
+  tekst(box2.querySelector('h1').textContent, { bold:true, size:15, na:1 });
+  tekst(box2.querySelector('h1').nextElementSibling.textContent, { size:10.5, na:4 });
+  lijn();
+  box2.querySelectorAll('.wl').forEach(wl => {
+    const code = wl.querySelector('.code').textContent, naam = (wl.querySelector('.small') || {}).textContent || '';
+    ruimte(12);
+    tekst(code + '   ' + naam, { bold:true, size:10.5, na:0.8 });
+    const li = [...wl.querySelectorAll('li')];
+    if(li.length) li.forEach(x => tekst('•  ' + x.textContent, { size:10, x:M + 4, na:0.6 }));
+    else tekst((wl.querySelector('.muted:not(.small)') || { textContent:'' }).textContent, { size:9.5, x:M + 4 });
+    const opm = wl.querySelector('.tiny'); if(opm) tekst(opm.textContent, { size:8.5, x:M + 4, kleur:[100, 110, 120] });
+    y += 2.5;
+  });
+  lijn();
+  tekst(box2.querySelector('.tot').textContent, { bold:true, size:10.5 });
+  const mk = box2.querySelector('.tot').nextElementSibling; if(mk && !mk.querySelector('b + div, div')) tekst(mk.textContent, { size:10 });
+  if(c.data.werkbon.extra){ y += 2; tekst((T === 'en' ? 'Notes' : 'Notities') + ':', { bold:true, size:10.5, na:1 }); tekst(c.data.werkbon.extra, { size:10 }); }
+  // ---- pagina 3: Stockmove-lijst per pallet
+  nieuw('Stockmove');
+  tekst('Stockmove — pallets naar VST', { bold:true, size:15, na:1 });
+  tekst(sm.length ? sm.length + ' pallets · van Hoofdmagazijn naar Bulk van Spreuwel. Voorraad eerst op "geen specifieke locatie" zetten.' : 'Geen pallets naar VST in deze container.', { size:10, na:4 });
+  if(sm.length){
+    let nr = 0;
+    tabel([{ t:'#', x:M, w:8, r:true }, { t:'Productcode', x:M + 12, w:40, b:true }, { t:'Naam op label', x:M + 55, w:90 }, { t:'Aantal', x:M + 150, w:30, r:true }],
+      sm.map(r => { const [code, aantal] = r.split('\t'); nr++; return [nr, code, labelNaam(code), nf(num(aantal)) + ' ' + verkoopEenheid(code).mv]; }));
+    const perProd = {}; sm.forEach(r => { const [code, a] = r.split('\t'); perProd[code] = perProd[code] || { n:0, u:0 }; perProd[code].n++; perProd[code].u += num(a) || 0; });
+    y += 2; tekst('Totaal per product', { bold:true, size:10.5, na:1.5 });
+    Object.entries(perProd).forEach(([code, x]) => tekst(code + ': ' + plural(x.n, 'pallet', 'pallets') + ' = ' + nf(x.u) + ' ' + verkoopEenheid(code).mv, { size:9.5, x:M + 2, na:0.6 }));
+  }
+  voet();
+  const naam = 'container-' + (c.pakbon_ref || c.containernummer || c.id) + '.pdf';
+  const url = doc.output('bloburl');
+  const w = window.open(url, '_blank');
+  if(!w){ const a = document.createElement('a'); a.href = url; a.download = naam; a.click(); }
+  toast('PDF gemaakt: samenvatting, werkbon en Stockmove-lijst.');
 }
 function maakLabels(c){
   const lijst = labelLijst(c);
@@ -2786,7 +3022,7 @@ const ACT = {
   advneem: el => { const code = el.dataset.code, pl = pools(cur); const a = advies(cur, pl.map[code]); cur.data.verdeling[code] = { porties:a.porties.map(x => Object.assign({}, x)), bevestigd:false, bron:'advies' }; save(); rerender(); },
   advalles: () => {
     const pl = pools(cur);
-    pl.order.forEach(code => { const v = cur.data.verdeling[code]; if(v && v.porties && v.porties.length) return; cur.data.verdeling[code] = { porties:advies(cur, pl.map[code]).porties, bevestigd:false, bron:'advies' }; });
+    pl.order.forEach(code => { const v = cur.data.verdeling[code]; if(v && v.porties && v.porties.length) return; cur.data.verdeling[code] = { porties:advies(cur, pl.map[code]).porties.map(x => Object.assign({}, x)), bevestigd:false, bron:'advies' }; });
     save(); rerender();
   },
   akkalles: () => {
@@ -2822,6 +3058,7 @@ const ACT = {
   wbprint: () => { $('print').innerHTML = werkbonHtml(cur); document.body.classList.add('printing'); window.print(); },
   wbcopy: () => kopieer(werkbonTekst(cur)),
   labels: () => maakLabels(cur),
+  pdfall: () => maakPdf(cur),
   smcopy: () => kopieer(stockmoveRegels(cur).join('\n')),
   smdown: () => { const blob = new Blob([stockmoveRegels(cur).join('\n') + '\n'], { type:'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stockmove-' + (cur.pakbon_ref || cur.containernummer || cur.id) + '.txt'; a.click(); },
   mailcopy: () => kopieer(mailtoVst(cur).body),
@@ -2831,6 +3068,13 @@ const ACT = {
   },
   heropen: () => { cur.status = 'gelost'; save(); rerender(); },
   kopedit: () => { UI.kopEdit = !UI.kopEdit; rerender(); },
+  etadef: () => {
+    const d = $('def_datum').value; if(!d){ toast('Vul de losdatum in.'); return; }
+    cur.losdatum = d; cur.lostijd = $('def_tijd').value || null; delete cur.data.verwacht;
+    if(cur.status === 'concept') cur.status = 'ingepland';
+    save(); toast('Losdatum vastgezet: ' + losTekst(cur) + '. Controleer nu de verdeling met de actuele cijfers.', 5000);
+    location.hash = '#/c/' + cur.id + '/verdeling';
+  },
   bulkweg: () => { UI.bulk = null; viewHome(); },
   // vloernamen
   vnopslaan: () => vloernamenOpslaan(),
@@ -2892,6 +3136,7 @@ app.addEventListener('change', e => {
     rerenderLater(); return;
   }
   if(el.dataset.vnlos){ UI.vn.los[el.dataset.vnlos] = el.value.trim(); rerenderLater(); return; }
+  if(el.dataset.vw){ (UI.vw = UI.vw || {})[el.dataset.vw] = el.value; rerenderLater(); return; }
   if(el.dataset.vnf){
     UI.vn.f[el.dataset.vnf] = el.type === 'checkbox' ? el.checked : el.value;
     rerenderLater(); return;
@@ -2905,6 +3150,7 @@ app.addEventListener('change', e => {
     if(k === 'spp' || k === 'maat') rerenderLater();
     return;
   }
+  if(el.hasAttribute('data-verwacht')){ if(el.checked) cur.data.verwacht = true; else delete cur.data.verwacht; save(); rerenderLater(); return; }
   if(el.dataset.meta){
     const k = el.dataset.meta; let v = el.value.trim();
     if(k === 'containernummer') v = v.toUpperCase();
