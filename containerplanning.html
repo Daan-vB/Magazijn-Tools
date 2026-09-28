@@ -337,7 +337,7 @@ async function opslagHaal(pad){
 }
 // korte leveranciersnaam voor bestandsnamen
 const LEV_KORT = [[/wallace/i, 'Wallace'], [/fanda|haijie/i, 'Fanda'], [/great\s*wall/i, 'Great Wall'], [/hongle/i, 'Hongle'], [/besteel/i, 'Besteel'],
-  [/ningbo/i, 'Ningbo'], [/red\s*sun/i, 'Red Sun'], [/selected/i, 'Selected'], [/todo/i, 'Todo']];
+  [/ningbo/i, 'Ningbo'], [/red\s*sun/i, 'Red Sun'], [/selected/i, 'Selected'], [/todo/i, 'Todo'], [/gardenya/i, 'Gardenya']];
 function levKort(l){ const m = LEV_KORT.find(([r]) => r.test(l || '')); return m ? m[1] : (String(l || 'Leverancier').split(/[\s,]+/)[0] || 'Leverancier'); }
 // "Hongle MIEU3705636 ETA 05-11.pdf" of, als de losdatum vastligt, "Hongle MIEU3705636 02-10 0900.pdf"
 function pakbonNaam(c, ext){
@@ -934,6 +934,76 @@ function leesTodo(text, L){
 }
 
 // herkenning: welke lezer hoort bij deze pakbon (naam = zoals de leverancier in Picqer heet)
+// Gardenya (Turkije): rollen per pallet, gemengde pallets, geen productcodes en geen containernummer
+function leesGardenya(text, L){
+  const res = kopBasis(text);
+  const dat = zoek1(text, /Date\s*:\s*([\d.\/-]+)/i);
+  res.ref = dat ? 'PL ' + dat : null;
+  const prods = [], pallets = [];
+  L.forEach(l => {
+    const k = kolommen(l.s);
+    let pal = null;
+    if(k.length >= 5 && /^\d{1,2}$/.test(k[0]) && /[A-Za-z]/.test(k[1])){ pal = +k[0]; k.shift(); }
+    if(k.length >= 4 && /[A-Za-z]/.test(k[0]) && /^\d+$/.test(k[1]) && /^[\d.,]+$/.test(k[2]) && !/^TOTAL/i.test(k[0])){
+      prods.push({ oms:k[0].replace(/\s+/g, ' ').trim(), n:+k[1], kg:num(k[2]), y:l.y, p:l.p });
+      if(pal !== null) pallets.push({ n:pal, y:l.y, p:l.p, bruto:num(k[5]) });
+    } else if(k.length >= 6 && /^\d{1,2}$/.test(k[0]) && /^[\d.,]+$/.test(k[1]) && /^[\d.,]+$/.test(k[2])){
+      pallets.push({ n:+k[0], y:l.y, p:l.p, bruto:num(k[2]) });
+    }
+    const t = l.s.match(/TOTAL\s*\(KGS\)\s+(\d+)/i); if(t) res.totaal_stuks = +t[1];
+  });
+  const som = {};
+  prods.forEach(x => { (som[x.oms] = som[x.oms] || { n:0, kg:x.kg }).n += x.n; });
+  Object.entries(som).forEach(([oms, x]) => res.regels.push(pbRegel(oms, oms + ' (rollen)', x.n, 1, { bruto_per:x.kg })));
+  if(pallets.length){
+    const inh = {};
+    prods.forEach(x => {
+      const best = pallets.filter(q => q.p === x.p).reduce((b, q) => !b || Math.abs(q.y - x.y) < Math.abs(b.y - x.y) ? q : b, null);
+      if(best) (inh[best.n] = inh[best.n] || []).push(x.n + '× ' + x.oms);
+    });
+    res.notities.push('Gemengde pallets (' + pallets.length + '): ' + Object.keys(inh).sort((a, b) => a - b).map(n => 'pallet ' + n + ': ' + inh[n].join(' + ')).join(' · ') + '.');
+  }
+  return res;
+}
+// datum op de pakbon (verscheping / invoice / documentdatum) → basis voor de ETA
+const MND = { jan:1, feb:2, mar:3, maa:3, mrt:3, apr:4, may:5, mei:5, mag:5, jun:6, giu:6, jul:7, lug:7, aug:8, ago:8, sep:9, set:9, oct:10, okt:10, ott:10, nov:11, dec:12, dic:12 };
+function datumTok(s){
+  s = String(s || '');
+  const iso = (y, mo, d) => {
+    if(y < 100) y += 2000;
+    const dt = new Date(y, mo - 1, d);
+    if(!mo || dt.getMonth() !== mo - 1 || dt.getDate() !== d || y < 2020 || y > 2040) return null;
+    return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  };
+  const mn = w => MND[String(w || '').slice(0, 3).toLowerCase()];
+  let m;
+  if((m = s.match(/\b(20\d\d)\s*[-\/.]\s*(\d{1,2})\s*[-\/.]\s*(\d{1,2})\b/))) return iso(+m[1], +m[2], +m[3]);
+  if((m = s.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s*[-\/. ]\s*([a-z]{3,9})\.?\s*[-\/., ]?\s*(\d{4}|\d{2})\b/i)) && mn(m[2])) return iso(+m[3], mn(m[2]), +m[1]);
+  if((m = s.match(/\b([a-z]{3,9})\.?\s*(\d{1,2})(?:st|nd|rd|th)?\s*,?\s*(20\d\d)\b/i)) && mn(m[1])) return iso(+m[3], mn(m[1]), +m[2]);
+  if((m = s.match(/\b(\d{1,2})[.\/-](\d{1,2})[.\/-](20\d\d)\b/))) return iso(+m[3], +m[2], +m[1]);
+  return null;
+}
+function docDatum(text){
+  const regels = String(text || '').split(/\r?\n/);
+  const nu = Date.now();
+  const redelijk = d => { const t = new Date(d + 'T12:00:00').getTime(); return t > nu - 300 * 864e5 && t < nu + 14 * 864e5; };
+  const LABELS = [
+    [/shipped\s+on\s+board|on\s+board\s+date|laden\s+on\s+board/i, 'verscheept'],
+    [/\bETD\b/i, 'ETD'],
+    [/B\/L[^\n]{0,40}?\bDT\b/i, 'B/L-datum'],
+    [/invoice\s*date|\bCI\s*Date/i, 'invoicedatum'],
+    [/\bdate\b|\bdatum\b/i, 'datum pakbon']
+  ];
+  for(const [rx, bron] of LABELS){
+    for(let i = 0; i < regels.length; i++){
+      const m = regels[i].match(rx); if(!m) continue;
+      let d = datumTok(regels[i].slice(m.index + m[0].length));
+      for(let j = 1; j <= 2 && !d && i + j < regels.length; j++) d = datumTok(regels[i + j]);
+      if(d && redelijk(d)) return { datum:d, bron };
+    }
+  }
+  return null;
+}
 const PAKBON_LEV = [
   { id:'fanda',     naam:'Hebei Haijie Modern Education Equipment Co., Ltd.', zoek:/haijie|fanda/i,         herken:/Fanda\s*\(Hong Kong\)|haijie\.net/i,     lees:leesFanda },
   { id:'greatwall', naam:'Sanhe Great Wall Rubber Co., Ltd.',                zoek:/great\s*wall|sanhe/i,   herken:/GREAT WALL RUBBER/i,                    lees:leesGreatWall },
@@ -942,6 +1012,7 @@ const PAKBON_LEV = [
   { id:'ningbo',    naam:'Ningbo Henri Development Trade Co',                zoek:/ningbo\s*henri/i,       herken:/NINGBO HENRI/i,                         lees:leesNingbo },
   { id:'redsun',    naam:'Zhejiang Red Sun Edu. co. Ltd. (Wuzhi)',           zoek:/red\s*sun/i,            herken:/RED SUN EDUCATION/i,                    lees:leesRedSun },
   { id:'selected',  naam:'Selected Furniture Company Limited',               zoek:/selected\s*furniture/i, herken:/Selected Furniture/i,                   lees:leesSelected },
+  { id:'gardenya',  naam:'Gardenya Plastik Sanayi Ticaret Ltd. Sti.',        zoek:/gardenya/i,             herken:/gardenya/i,                             lees:leesGardenya },
   { id:'todo',      naam:'Qingdao Todo Rubber Co., Ltd.',                    zoek:/todo\s*rubber|qingdao\s*todo/i, herken:/Todo Rubber/i,                 lees:leesTodo }
 ];
 const WALLACE = { id:'wallace', naam:'Wallace Langford & Associates', zoek:/wallace/i };
@@ -969,6 +1040,7 @@ function leesPakbonTekst(text, L){
     r.lev = (/wallace/i.test(text) || r.ref) ? levNaam(WALLACE) : null;
     r.profiel = r.regels.length ? 'wallace' : null;
   }
+  r.verzonden = docDatum(text);
   const conts = [...new Set(r.regels.map(x => x.container).filter(Boolean))];
   r.docs = conts.length > 1
     ? conts.map(cn => ({ container:cn, regels:r.regels.filter(x => x.container === cn), totaal_stuks:null, totaal_eenheden:null }))
@@ -1480,6 +1552,7 @@ function viewHome(){
   const etaKaart = zonderEta.length ? `<div class="card">
       <h3>Nog geen ETA (${zonderEta.length})</h3>
       <p class="small muted mt8">Vul de verwachte aankomst in. Dan plant de app vooruit en krijgt de pakbon zijn naam met ETA. Is de losdatum al gepland met de vervoerder, zet hem dan vast in de container.</p>
+      ${zonderEta.some(c => c.data.pakbon_bestand) ? `<div class="row wrap mt8"><button class="btn pri" data-act="etapakbon" ${UI.etaBezig ? 'disabled' : ''}>${UI.etaBezig ? 'Bezig… ' + UI.etaBezig : 'ETA berekenen uit de pakbondatum'}</button><span class="small muted">verzend-/invoicedatum van de pakbon + ${ETA_STANDAARD} dagen, of het geleerde gemiddelde per leverancier</span></div>` : ''}
       <div class="etalijst mt8">${zonderEta.map(c => `<div class="row wrap"><a href="#/c/${c.id}" class="grow"><b>${esc(levKort(c.leverancier))}</b> <span class="small muted">${esc([c.pakbon_ref, c.containernummer].filter(Boolean).join(' · '))}</span></a><input type="date" data-eta="${c.id}" style="width:auto"></div>`).join('')}</div>
     </div>` : '';
   app.innerHTML = `
@@ -1834,9 +1907,27 @@ async function impProducten(file){
     st('Opslaan… ' + rows.length + ' producten');
     await upsert('producten', rows, 'productcode');
     await load();
+    const nk = await herkoppelOpen();
     viewGegevens();
-    $('st_prod').textContent = rows.length + ' producten bijgewerkt uit Picqer.'; $('st_prod').className = 'status ok';
+    $('st_prod').textContent = rows.length + ' producten bijgewerkt uit Picqer.' + (nk ? ' ' + nk + ' pakbonregel' + (nk > 1 ? 's' : '') + ' in open containers nu gekoppeld.' : ''); $('st_prod').className = 'status ok';
   }catch(e){ $('st_prod').textContent = 'Import mislukt: ' + e.message; $('st_prod').className = 'status err'; }
+}
+// na een nieuwe Picqer-import: nog niet gekoppelde pakbonregels in open containers opnieuw proberen
+async function herkoppelOpen(){
+  let n = 0;
+  for(const c of CONT){
+    if(c.status === 'afgerond' || !(c.data.regels || []).length) continue;
+    const prof = PAKBON_LEV.concat([WALLACE]).find(pf => pf.zoek.test(c.leverancier || ''));
+    let wijz = false;
+    if(prof){ const ln = levNaam(prof); if(ln !== c.leverancier){ c.leverancier = ln; wijz = true; } }
+    c.data.regels.forEach(r => {
+      if(r.productcode) return;
+      const k = koppel(r, c.leverancier);
+      if(k.productcode){ Object.assign(r, k); n++; wijz = true; }
+    });
+    if(wijz){ try{ await bewaarContainer(c); }catch(e){} }
+  }
+  return n;
 }
 async function impVerkoop(file){
   const st = (m, c) => { $('st_vk').textContent = m; $('st_vk').className = 'status ' + (c || ''); };
@@ -1939,6 +2030,7 @@ function kopKaart(c){
         <div class="small muted">${esc(c.containernummer || 'containernummer?')} · <b style="color:var(--ink)">${ver ? 'ETA ' : ''}${esc(d)}${c.lostijd ? ' ' + esc(c.lostijd) : ''}</b>${ver ? ' <span class="badge b-warn">verwacht</span>' : ''}${c.transporteur ? ' · ' + esc(c.transporteur) : ''} · ${STATUS[c.status] || c.status}</div></div>
       <div class="row" style="gap:6px">${c.data.pakbon_bestand ? '<button class="btn sm" data-act="pbkijk" title="' + esc(pakbonNaam(c)) + '">📄 Pakbon</button>' : ''}<button class="btn sm" data-act="kopedit">${open ? 'Klaar' : 'Gegevens wijzigen'}</button></div>
     </div>
+    ${c.data.verzonden ? `<div class="small muted mt8">Pakbon: ${esc(c.data.verzonden_bron || 'datum')} <b>${esc(fdate(c.data.verzonden, { day:'numeric', month:'short', year:'numeric' }))}</b>${c.data.eta_auto ? ` · ETA = + ${c.data.eta_auto.dagen} dagen (${c.data.eta_auto.n ? 'gemiddelde van ' + c.data.eta_auto.n + ' eerdere ' + esc(levKort(c.leverancier)) + '-container' + (c.data.eta_auto.n > 1 ? 's' : '') : 'standaard, nog niets geleerd voor ' + esc(levKort(c.leverancier))})` : c.losdatum && !ver ? ' · doorlooptijd ' + dagenTussen(c.data.verzonden, c.losdatum) + ' dagen' : ''}</div>` : ''}
     ${ver ? `<div class="etabox mt12"><div class="small"><b>ETA is nog een schatting.</b> Advies en verdeling zijn een voorlopige planning. Zodra de vervoerder de losdatum heeft gepland: vul hem hier in en zet hem vast.</div>
       <div class="row wrap mt8"><input type="date" id="def_datum" value="${esc(c.losdatum || '')}" style="width:auto"><input type="time" id="def_tijd" value="${esc(c.lostijd || '')}" style="width:auto"><button class="btn acc" data-act="etadef">Losdatum vastzetten</button></div></div>` : ''}
     <div class="fields mt12" ${open ? '' : 'hidden'}>
@@ -2322,6 +2414,7 @@ async function pakbonBestand(file){
     vulRegels(c, doc, res, file.name, methode, text);
     const inNaam = (file.name.toUpperCase().match(/[A-Z]{3}U\d{7}/) || [])[0];
     if(!inNaam || inNaam === c.containernummer) zetLosMoment(c, losMoment(file.name));
+    zetEtaAuto(c);
     if(OPSLAG !== false){ try{ await pakbonBewaar(c, file); }catch(e){ toast('Pakbonbestand niet bewaard: ' + e.message, 5000); } }
     save();
     const regels = c.data.regels;
@@ -2333,6 +2426,26 @@ async function pakbonBestand(file){
         (andere.length ? ' Deze pakbon heeft ook container ' + andere.join(', ') + ' — lees hem in via "Pakbonnen inlezen" op het overzicht om die ook aan te maken.' : ''),
       regels.length ? 'ok' : 'err');
   }catch(e){ st('Inlezen mislukt: ' + e.message, 'err'); }
+}
+// verzenddatum ophalen uit bewaarde pakbonnen van containers zonder datum, en daaruit de ETA
+async function etaUitPakbonnen(){
+  const lijst = CONT.filter(c => c.status !== 'afgerond' && !c.losdatum && c.data.pakbon_bestand);
+  let n = 0, geen = [];
+  UI.etaBezig = '0 / ' + lijst.length; viewHome();
+  for(const c of lijst){
+    try{
+      if(!c.data.verzonden){
+        const b = c.data.pakbon_bestand, blob = await opslagHaal(b.pad);
+        const f = new File([blob], b.orig || ('pakbon.' + b.ext), { type:b.type || blob.type });
+        const { res } = await leesBestand(f, () => {});
+        if(res.verzonden){ c.data.verzonden = res.verzonden.datum; c.data.verzonden_bron = res.verzonden.bron; }
+      }
+      if(zetEtaAuto(c)){ await bewaarContainer(c); n++; } else geen.push(levKort(c.leverancier) + ' ' + (c.containernummer || c.pakbon_ref || ''));
+    }catch(e){ geen.push(levKort(c.leverancier) + ' ' + (c.containernummer || c.pakbon_ref || '') + ' (' + e.message.slice(0, 40) + ')'); }
+    UI.etaBezig = (lijst.indexOf(c) + 1) + ' / ' + lijst.length; if(!cur && !/^#\/(c|gegevens|vloernamen|vooruit)/.test(location.hash || '#/')) viewHome();
+  }
+  UI.etaBezig = null; viewHome();
+  toast(n + ' ETA\'s berekend uit de pakbondatum.' + (geen.length ? ' Geen datum gevonden bij: ' + geen.join(', ') + ' — vul die zelf in.' : ''), geen.length ? 9000 : 4000);
 }
 // alleen het bestand bij de container bewaren, zonder de regels opnieuw in te lezen
 async function pakbonBewaarIn(file){
@@ -2372,6 +2485,7 @@ function vulRegels(c, doc, kop, bestand, methode, text){
     bl:kop.bl || null, eenheid:kop.perPallet ? 'pallet' : 'pakket', notities:kop.notities || [], leverancier:kop.lev || null,
     andere_containers:(kop.docs || []).map(d => d.container).filter(x => x && x !== doc.container) };
   c.data.pakbon_ruw = (methode === 'ocr' || !c.data.regels.length) ? String(text || '').slice(0, 15000) : '';
+  if(kop.verzonden){ c.data.verzonden = kop.verzonden.datum; c.data.verzonden_bron = kop.verzonden.bron; }
   c.data.verdeling = {};
   koppelAlles(c);
 }
@@ -2413,9 +2527,35 @@ function zetLosMoment(c, lm){
   const sig = () => (c.losdatum || '') + ' ' + (c.lostijd || '') + ' ' + isVerwacht(c);
   const oud = sig();
   c.losdatum = lm.datum; if(lm.tijd) c.lostijd = lm.tijd;
-  c.data = c.data || {};
+  c.data = c.data || {}; delete c.data.eta_auto;
   if(lm.verwacht) c.data.verwacht = true; else delete c.data.verwacht;
   return oud !== sig();
+}
+// doorlooptijd verzenddatum → losdatum, geleerd per leverancier uit containers met een vaste losdatum
+const ETA_STANDAARD = 42;
+const dagenTussen = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5);
+const plusDagen = (d, n) => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
+function doorloopVan(lev){
+  const k = levKort(lev);
+  const lijst = CONT.filter(o => levKort(o.leverancier) === k && o.data && o.data.verzonden && o.losdatum && !o.data.verwacht)
+    .map(o => dagenTussen(o.data.verzonden, o.losdatum)).filter(x => x >= 5 && x <= 150);
+  if(!lijst.length) return { dagen:ETA_STANDAARD, n:0 };
+  return { dagen:Math.round(lijst.reduce((a, b) => a + b, 0) / lijst.length), n:lijst.length, min:Math.min(...lijst), max:Math.max(...lijst) };
+}
+// ETA automatisch uit de verzenddatum (alleen als er nog geen datum is, of als de vorige ook automatisch was)
+function zetEtaAuto(c){
+  if(!c.data || !c.data.verzonden) return false;
+  if(c.losdatum && !c.data.eta_auto) return false;
+  if(c.losdatum && !c.data.verwacht) return false;
+  const d = doorloopVan(c.leverancier), eta = plusDagen(c.data.verzonden, d.dagen);
+  const oud = c.losdatum + '|' + JSON.stringify(c.data.eta_auto || null);
+  c.losdatum = eta; c.lostijd = null; c.data.verwacht = true; c.data.eta_auto = { dagen:d.dagen, n:d.n };
+  return oud !== c.losdatum + '|' + JSON.stringify(c.data.eta_auto);
+}
+// na een vaste losdatum: automatische ETA's van dezelfde leverancier bijwerken met het nieuwe gemiddelde
+async function etaHerleer(lev){
+  const k = levKort(lev);
+  for(const o of CONT){ if(o.status !== 'afgerond' && levKort(o.leverancier) === k && o.data.eta_auto && o.data.verwacht && zetEtaAuto(o)){ try{ await bewaarContainer(o); }catch(e){} } }
 }
 // verwacht = ETA is nog een schatting (pakbon vroeg binnen); definitief = gepland met de vervoerder
 const isVerwacht = c => !!(c && c.data && c.data.verwacht);
@@ -2465,10 +2605,11 @@ async function pakbonnenBulk(files){
         } else if(res.lev) c.leverancier = res.lev;
         vulRegels(c, d, res, f.name, methode, text);
         if(!inNaam || d.container === inNaam) zetLosMoment(c, lm);
+        zetEtaAuto(c);
         const bestand = await bewaar(c, f);
         await bewaarContainer(c);
         const open = c.data.regels.filter(x => !x.bevestigd).length;
-        log(naam + ': ' + plural(c.data.regels.length, 'regel', 'regels') + (open ? ', ' + open + ' nog koppelen' : ', alles gekoppeld') + (methode === 'ocr' ? ' (scan)' : '') + (c.losdatum ? ', lossen ' + losTekst(c) : ', nog geen ETA') + '.' + bestand, 'ok');
+        log(naam + ': ' + plural(c.data.regels.length, 'regel', 'regels') + (open ? ', ' + open + ' nog koppelen' : ', alles gekoppeld') + (methode === 'ocr' ? ' (scan)' : '') + (c.losdatum ? ', lossen ' + losTekst(c) + (c.data.eta_auto ? ' (verzonden ' + fdate(c.data.verzonden, { day:'numeric', month:'short' }) + ' + ' + c.data.eta_auto.dagen + ' dagen)' : '') : ', nog geen ETA (geen datum op de pakbon gevonden)') + '.' + bestand, 'ok');
       }
     }catch(e){
       const i = UI.bulk.log.indexOf(regel); if(i >= 0) UI.bulk.log.splice(i, 1);
@@ -2520,7 +2661,7 @@ function viewVooruit(){
     wkTot.hier += t.hier; wkTot.plaatsen += t.plaatsen; wkTot.vst += t.vst;
     const voorbij = c.losdatum && c.losdatum < vandaag;
     perWeek.push(`<tr>
-      <td>${c.losdatum ? esc(losTekst(c)) : '<span class="muted">geen datum</span>'} ${isVerwacht(c) ? '<span class="badge b-warn">verwacht</span>' : c.losdatum ? '<span class="badge b-ok">gepland</span>' : ''}${voorbij ? ' <span class="badge b-bad" title="Datum is voorbij: rond hem af, anders telt de voorraad dubbel">afronden?</span>' : ''}</td>
+      <td>${c.losdatum ? esc(losTekst(c)) : '<span class="muted">geen datum</span>'} ${isVerwacht(c) ? '<span class="badge b-warn">verwacht</span>' : c.losdatum ? '<span class="badge b-ok">gepland</span>' : ''}${voorbij ? (isVerwacht(c) ? ' <span class="badge b-warn" title="Berekende ETA ligt in het verleden: navragen bij de vervoerder en de losdatum vastzetten">ETA voorbij?</span>' : ' <span class="badge b-bad" title="Datum is voorbij: rond hem af, anders telt de voorraad dubbel">afronden?</span>') : ''}</td>
       <td><a href="#/c/${c.id}/verdeling"><b>${esc(c.leverancier || '?')}</b></a><div class="tiny muted">${esc([c.pakbon_ref, c.containernummer].filter(Boolean).join(' · '))}</div></td>
       <td class="n">${t.prod}</td><td class="n">${t.n}</td><td class="n">${t.hier}</td><td class="n">${nf(t.plaatsen, 1)}${t.onb ? '<span class="tiny muted">*</span>' : ''}</td><td class="n">${t.vst}</td><td class="n">${t.direct || ''}</td>
       <td class="small">${t.vast === t.prod && t.prod ? '<span class="badge b-ok">vastgelegd</span>' : t.vast ? t.vast + '/' + t.prod + ' vast, rest advies' : '<span class="muted">advies</span>'}</td></tr>`);
@@ -2555,6 +2696,11 @@ function viewVooruit(){
     <div class="row between wrap"><h2>Vooruit: wat komt er</h2>
       <select data-vw="lev" style="width:auto"><option value="">Alle leveranciers</option>${levs.map(l => `<option ${l === f_.lev ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
     <p class="small muted mt8">Alle containers die nog niet zijn afgerond, op volgorde van (verwachte) aankomst. Zonder vastgelegde verdeling rekent de app met het advies: eerst backorders, dan hier aanvullen tot het doel, rest naar VST — rekening houdend met de verkoop tot aankomst en wat eerdere containers al brengen. Hoe verder weg, hoe grover de schatting.</p>
+    ${(() => {
+      const ks = [...new Set(CONT.map(c => levKort(c.leverancier)).filter(Boolean))].sort();
+      const rij = ks.map(k => { const d = doorloopVan(CONT.find(c => levKort(c.leverancier) === k).leverancier); return `<span class="badge ${d.n ? 'b-info' : 'b-grey'}" title="${d.n ? 'min ' + d.min + ' · max ' + d.max + ' dagen' : 'nog geen containers met vaste losdatum én pakbondatum'}">${esc(k)}: ${d.dagen} d${d.n ? ' (' + d.n + '×)' : ' (standaard)'}</span>`; }).join(' ');
+      return `<div class="card mt12"><h3>Doorlooptijd pakbondatum → lossen</h3><p class="small muted mt8">Zolang er geen losdatum is, rekent de app de ETA als pakbondatum + deze dagen. Elke container waarvan je de losdatum vastzet, maakt het gemiddelde per leverancier beter; open ETA's schuiven dan automatisch mee.</p><div class="chips mt8">${rij}</div></div>`;
+    })()}
     <div class="card mt12"><h3 class="mb8">Containers en ruimte hier</h3>
       ${lijst.length ? `<div class="scroll"><table class="vw">
         <tr><th>Aankomst</th><th>Container</th><th class="n">Prod.</th><th class="n">Pallets</th><th class="n">Hier</th><th class="n">Plaatsen</th><th class="n">VST</th><th class="n">Direct</th><th>Verdeling</th></tr>
@@ -3211,6 +3357,7 @@ const ACT = {
   pbkijk: () => pakbonToon(cur, window.innerWidth < 700),
   pbtab: () => pakbonToon(cur, true),
   copyopslag: () => kopieer(OPSLAG_SQL),
+  etapakbon: () => etaUitPakbonnen(),
   opslagtest: async () => { await opslagCheck(); viewHome(); toast(OPSLAG ? 'Opslag werkt. Pakbonnen worden vanaf nu bewaard.' : 'Opslagmap nog niet gevonden. Is de SQL uitgevoerd?', 5000); },
   smcopy: () => kopieer(stockmoveRegels(cur).join('\n')),
   smdown: () => { const blob = new Blob([stockmoveRegels(cur).join('\n') + '\n'], { type:'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stockmove-' + (cur.pakbon_ref || cur.containernummer || cur.id) + '.txt'; a.click(); },
@@ -3223,9 +3370,9 @@ const ACT = {
   kopedit: () => { UI.kopEdit = !UI.kopEdit; rerender(); },
   etadef: () => {
     const d = $('def_datum').value; if(!d){ toast('Vul de losdatum in.'); return; }
-    cur.losdatum = d; cur.lostijd = $('def_tijd').value || null; delete cur.data.verwacht;
+    cur.losdatum = d; cur.lostijd = $('def_tijd').value || null; delete cur.data.verwacht; delete cur.data.eta_auto;
     if(cur.status === 'concept') cur.status = 'ingepland';
-    save(); toast('Losdatum vastgezet: ' + losTekst(cur) + '. Controleer nu de verdeling met de actuele cijfers.', 5000);
+    save(); etaHerleer(cur.leverancier); toast('Losdatum vastgezet: ' + losTekst(cur) + '. Controleer nu de verdeling met de actuele cijfers.', 5000);
     location.hash = '#/c/' + cur.id + '/verdeling';
   },
   bulkweg: () => { UI.bulk = null; viewHome(); },
@@ -3291,7 +3438,7 @@ app.addEventListener('change', e => {
   if(el.dataset.vnlos){ UI.vn.los[el.dataset.vnlos] = el.value.trim(); rerenderLater(); return; }
   if(el.dataset.eta){
     const c = CONT.find(x => x.id === +el.dataset.eta); if(!c || !el.value) return;
-    c.losdatum = el.value; c.data.verwacht = true;
+    c.losdatum = el.value; c.data.verwacht = true; delete c.data.eta_auto;
     bewaarContainer(c).then(() => { toast(levKort(c.leverancier) + ' ' + (c.containernummer || c.pakbon_ref || '') + ': ' + losTekst(c)); viewHome(); }).catch(e => toast('Opslaan mislukt: ' + e.message, 5000));
     return;
   }
@@ -3314,6 +3461,7 @@ app.addEventListener('change', e => {
     const k = el.dataset.meta; let v = el.value.trim();
     if(k === 'containernummer') v = v.toUpperCase();
     cur[k] = v || null;
+    if(k === 'losdatum') delete cur.data.eta_auto;
     save(); rerenderLater(); if(k === 'leverancier') koppelAlles(cur); return;
   }
   if(el.dataset.regel !== undefined){
