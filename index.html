@@ -414,7 +414,9 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       const k = (mode === 'ean' ? r.name : r.floor + ' — ' + r.art).toUpperCase();
       if(!cat[k]) added++;
       if(mode === 'ean'){
-        cat[k] = { name:r.name, ean:r.ean, qty:r.qty, sub:r.sub||'', used:Date.now() };
+        // een leeg aantal of lege productcode wist niet wat er al stond (bijv. 0 = label zonder aantal)
+        const oud = cat[k] || {};
+        cat[k] = { name:r.name, ean:r.ean, qty:(r.qty || oud.qty || ''), sub:(r.sub || oud.sub || ''), used:Date.now() };
       } else {
         cat[k] = { floor:r.floor, maat:r.maat||'', art:r.art, qty:r.qty, used:Date.now() };
       }
@@ -606,7 +608,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       const metaR = mode === 'ean' ? esc(p.ean) : esc(p.art);
       return '<button type="button" data-k="' + esc(k) + '">' +
         '<span>' + esc(naam) + '</span>' +
-        '<span class="meta">' + esc(p.qty) + ' st · ' + metaR + '</span></button>';
+        '<span class="meta">' + (mode === 'ean' && !heeftAantal(p.qty) ? (String(p.qty).trim() === '0' ? 'geen aantal' : esc(p.qty || '–')) : esc(p.qty) + ' st') + ' · ' + metaR + '</span></button>';
     }).join('');
     sugg.hidden = false;
     sugg.querySelectorAll('button').forEach(b => b.addEventListener('click', async () => {
@@ -619,7 +621,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/,'') + '\n' : '') + line + '\n';
       search.value = ''; sugg.hidden = true;
       const naam = mode === 'ean' ? p.name : p.floor;
-      setStatus('Toegevoegd: ' + naam + ' (' + p.qty + ' stuks) — aantal aanpassen kan in de regel zelf.', 'ok');
+      setStatus('Toegevoegd: ' + naam + (mode === 'ean' && !heeftAantal(p.qty) ? ' (label zonder aantal)' : ' (' + p.qty + ' stuks)') + ' — aantal aanpassen kan in de regel zelf.', 'ok');
     }));
   }
   search.addEventListener('input', showSuggestions);
@@ -692,6 +694,9 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     return 36;
   }
   function isEan(code){ return /^\d{12,13}$/.test(code) || /^\d{8}$/.test(code); }
+  // Alleen een positief getal komt als aantal op het label. 0 = bewust geen aantal
+  // (bulkpallet waar de picklocatie uit wordt aangevuld); leeg, nvt en onb ook niet.
+  function heeftAantal(q){ const s = String(q == null ? '' : q).trim().replace(',', '.'); return /^\d+(\.\d+)?$/.test(s) && parseFloat(s) > 0; }
 
   function parse(){
     const raw = $('data').value.trim();
@@ -703,11 +708,11 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       if(i === 0 && looksLikeHeader(c)) return;
       if(mode === 'ean'){
         const [name, ean, qty, sub] = c;
-        if(!name || !ean || !qty){
-          errors.push('Regel ' + (i+1) + ' overgeslagen (naam, EAN of aantal ontbreekt): "' + line.slice(0,60) + '"');
+        if(!name || !ean){
+          errors.push('Regel ' + (i+1) + ' overgeslagen (naam of EAN ontbreekt): "' + line.slice(0,60) + '"');
           return;
         }
-        rows.push({ name, ean: ean.replace(/\s+/g,''), qty, sub: sub || '' });
+        rows.push({ name, ean: ean.replace(/\s+/g,''), qty: qty || '', sub: sub || '' });
       } else {
         const [floor, maat, art, qty] = c;
         if(!floor){
@@ -745,7 +750,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
             (r.sub ? '<div class="lbl-sub">' + esc(r.sub) + '</div>' : '') +
           '</div>' +
           '<div class="lbl-bar"><svg id="bc-' + idx + '"></svg></div>' +
-          '<div class="lbl-qty"><span class="num">' + esc(r.qty) + '</span><span class="unit">stuks</span></div>';
+          (heeftAantal(r.qty) ? '<div class="lbl-qty"><span class="num">' + esc(r.qty) + '</span><span class="unit">stuks</span></div>' : '');
         preview.appendChild(lbl);
 
         const common = { height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 };
@@ -835,11 +840,13 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       doc.setTextColor(16,21,28);
     }
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(58);
-    doc.text(String(r.qty), pageW/2 - 8, 178, {align:'right'});
-    doc.setFontSize(15);
-    doc.text('STUKS', pageW/2 + 6, 178, {align:'left'});
+    if(heeftAantal(r.qty)){
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(58);
+      doc.text(String(r.qty), pageW/2 - 8, 178, {align:'right'});
+      doc.setFontSize(15);
+      doc.text('STUKS', pageW/2 + 6, 178, {align:'left'});
+    }
   }
 
   function drawGeenLabel(doc, r, idx){
