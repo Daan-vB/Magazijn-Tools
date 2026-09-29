@@ -2724,6 +2724,22 @@ function ontvangstVerdeelPlan(o, lev){
   per.forEach(p => { p.vol = Object.values(p.open).every(v => v <= 0.0001); });
   return { lev:k, per:per.filter(p => p.regels.length), extra };
 }
+async function ontvangstVoorboek(i){
+  const x = UI.ontv[i], c = CONT.find(k => k.id === +($('ov_c_' + i).value || x.cid)), d = ($('ov_d_' + i) || {}).value || '';
+  if(!c){ toast('Kies de container.'); return; }
+  c.data.voorboekingen = (c.data.voorboekingen || []).filter(v => !(v.rc && v.rc === x.o.rc));
+  c.data.voorboekingen.push({ rc:x.o.rc || null, datum:d || null, regels:x.o.regels.map(r => ({ code:r.code, aantal:r.aantal })) });
+  try{ await bewaarContainer(c); }catch(e){ toast('Opslaan mislukt: ' + e.message, 6000); return; }
+  UI.ontv.splice(i, 1);
+  toast(levKort(c.leverancier) + ' ' + (c.containernummer || c.pakbon_ref || '') + ': opgeboekt door Jim onthouden (' + x.o.regels.map(r => nf(r.aantal) + '× ' + r.code).join(', ') + '). Container blijft open.', 7000);
+  viewHome();
+}
+async function voorboekWeg(c, rc){
+  c.data.voorboekingen = (c.data.voorboekingen || []).filter(v => (v.rc || '') !== (rc || ''));
+  if(!c.data.voorboekingen.length) delete c.data.voorboekingen;
+  try{ await bewaarContainer(c); }catch(e){ toast('Opslaan mislukt: ' + e.message, 6000); }
+  rerender();
+}
 async function ontvangstVerdeel(i){
   const x = UI.ontv[i], d = $('ov_d_' + i).value;
   if(!d){ toast('Vul de ontvangstdatum in.'); return; }
@@ -2775,6 +2791,7 @@ function ontvangstMatch(o){
 function ontvangstVergelijk(c, o){
   const ontv = {}, rij = [], pbs = {};
   o.regels.forEach(x => ontv[norm(x.code)] = (ontv[norm(x.code)] || 0) + x.aantal);
+  (c.data.voorboekingen || []).filter(v => !(v.rc && v.rc === o.rc)).forEach(v => v.regels.forEach(x => ontv[norm(x.code)] = (ontv[norm(x.code)] || 0) + x.aantal));   // eerder al opgeboekt telt mee
   c.data.regels.forEach(r => { const code = r.productcode || r.pakbon_code, k = norm(code); (pbs[k] = pbs[k] || { code, pb:0 }).pb += (num(r.totaal) || 0) * (num(r.factor) || 1); });
   Object.entries(c.data.geleverd || {}).forEach(([k, g]) => { if(pbs[k]) pbs[k].pb = Math.max(0, pbs[k].pb - (num(g) || 0)); });
   Object.entries(pbs).forEach(([k, x]) => { const on = ontv[k] || 0; rij.push({ code:x.code, pb:x.pb, on, vs:on - x.pb }); delete ontv[k]; });
@@ -2819,7 +2836,9 @@ function ontvangstKaart(){
         <div class="row wrap mt8"><label class="small">Hoort bij</label>
           <select id="ov_c_${i}" data-ovc="${i}" style="width:auto">${c ? '' : '<option value="">— kies container —</option>'}${open.map(k => `<option value="${k.id}" ${k.id === x.cid ? 'selected' : ''}>${esc(levKort(k.leverancier) + ' ' + (k.containernummer || k.pakbon_ref || '') + (k.losdatum ? ' · ' + losTekst(k) : ''))}</option>`).join('')}</select>
           <label class="small">gelost op</label><input type="date" id="ov_d_${i}" value="${esc(x.datum)}" style="width:auto">
+          <button class="btn pri sm" data-act="ontvvoor" data-i="${i}" ${c ? '' : 'disabled'}>Alleen opgeboekt (nog niet gelost)</button>
           <button class="btn ok sm" data-act="ontvok" data-i="${i}" ${c ? '' : 'disabled'}>Klopt: gelost en afronden</button><button class="btn ghost sm" data-act="ontvdel" data-i="${i}">Negeren</button></div>
+        <div class="small muted mt8">Boekt Jim vóór het lossen al iets op? Kies <b>Alleen opgeboekt</b>: de container blijft open en de app onthoudt wat er al staat. <b>Gelost en afronden</b> sluit de container.</div>
         ${(() => { const pl = ontvangstVerdeelPlan(x.o, (c && c.leverancier) || x.o.lev); const zinvol = pl.per.length > 1 || (pl.per.length === 1 && (!pl.per[0].vol || pl.extra.length)) ; if(!zinvol || !vs.length) return '';
           return `<div class="verdeel mt8"><div class="small"><b>Past niet precies op één pakbon?</b> Verdelen over de open pakbonnen van ${esc(pl.lev)}, oudste eerst:</div>
             <ul class="small mt8" style="padding-left:18px;line-height:1.6">${pl.per.map(p => `<li><b>${esc(p.c.pakbon_ref || p.c.containernummer || '#' + p.c.id)}</b>: ${p.regels.map(r => nf(r.t) + '× ' + esc(r.code)).join(', ')} → ${p.vol ? '<span class="badge b-ok">helemaal geleverd, afronden</span>' : '<span class="badge b-info">deels, restant blijft open</span>'}</li>`).join('')}${pl.extra.length ? `<li>Extra geleverd (niet besteld): ${pl.extra.map(e => nf(e.aantal) + '× ' + esc(e.code)).join(', ')}</li>` : ''}</ul>
@@ -3661,6 +3680,11 @@ function mailtoVst(c){
   const body = 'Hoi,\n\nWe hebben wat pallets die naar de opslag mogen (' + n + ' pallets). Zie bijlage. Ze staan vanmiddag klaar!\n\nBedankt alvast!';
   return { href:'mailto:' + VST_MAIL.to.join(',') + '?cc=' + encodeURIComponent(VST_MAIL.cc.join(',')) + '&subject=' + encodeURIComponent(VST_MAIL.subject) + '&body=' + encodeURIComponent(body), body, n };
 }
+function voorboekKaart(c){
+  const v = c.data.voorboekingen || [];
+  if(!v.length) return '';
+  return `<div class="card etabox"><b>Al opgeboekt in Picqer, container nog niet gelost</b>${v.map(x => `<div class="small mt8"><b>${esc(x.rc || 'ontvangst')}</b>${x.datum ? ' · ' + esc(fdate(x.datum, { day:'numeric', month:'short' })) : ''}: ${x.regels.map(r => nf(r.aantal) + '× ' + esc(r.code)).join(' · ')} <button class="btn ghost sm" data-act="vboweg" data-rc="${esc(x.rc || '')}">verwijderen</button></div>`).join('')}</div>`;
+}
 function tabUitvoer(c, g){
   const lab = labelLijst(c), sm = stockmoveRegels(c), mail = mailtoVst(c);
   const open = g.pts.filter(p => (p.lvl === 'fout' || p.lvl === 'let') && !c.data.punten_klaar[p.key]).length;
@@ -3670,6 +3694,9 @@ function tabUitvoer(c, g){
   return `${open ? `<div class="card" style="border-left:4px solid var(--bad)"><b>Let op:</b> er staan nog ${open} open punten. Je kunt alles al maken, maar controleer die eerst.</div>` : ''}
   <div class="card out"><div class="row between wrap"><div><h3>PDF voor de losdag</h3><p class="small muted mt8">Eerst de pakbon${c.data.pakbon_bestand ? '' : ' (nog niet bewaard bij deze container)'}, dan de samenvatting, de werkbon voor het magazijn (taal van de werkbon hieronder) en de Stockmove-lijst: welke pallet, welk product, hoeveel.</p></div>
     <button class="btn pri" data-act="pdfall">PDF maken</button></div></div>
+  ${voorboekKaart(c)}
+  <div class="card out"><div class="row between wrap"><div><h3>Overzicht voor mij (PDF)</h3><p class="small muted mt8">Per product: hoeveel pallets bulk, pick, backorders, klant en VST, en per backorder-order het aantal. Bevat alle open containers met dezelfde losdatum${c.losdatum ? ' (' + esc(fdate(c.losdatum, { weekday:'short', day:'numeric', month:'short' })) + ')' : ''}. Backorders zoals nu ingeladen${BO.length ? ' (' + esc(fdt(BO.map(b => b.geimporteerd_op).filter(Boolean).sort().pop())) + ')' : ': nog geen'}.</p></div>
+    <button class="btn pri" data-act="pdfover">Overzicht maken</button></div></div>
   ${tabPallets(c, g, true)}
   <div class="card out">
     <div class="row between wrap"><h3>1. Werkbon voor het magazijn</h3>
@@ -3820,6 +3847,119 @@ async function maakPdf(c, w){
   if(w && w.location) w.location.href = url;
   else if(!window.open(url, '_blank')){ const a = document.createElement('a'); a.href = url; a.download = naam; a.click(); }
   toast('PDF gemaakt: ' + metPakbon + 'samenvatting, werkbon en Stockmove-lijst.');
+}
+/* ---------- Overzicht voor Daan: per product hier / pick / backorders / klant / VST + backorders per order ---------- */
+function overzichtData(cs){
+  const per = {};
+  cs.forEach(c => {
+    const pl = pools(c), ref = c.pakbon_ref || c.containernummer || '#' + c.id;
+    pl.order.forEach(code => {
+      const o = per[code] = per[code] || { code, binnen:0, perC:[], dest:{}, notes:[], opm:[], geenVerdeling:[], boek:[] };
+      const pool = pl.map[code], v = c.data.verdeling[code];
+      o.binnen += pool.totaalU; o.perC.push({ ref, u:pool.totaalU });
+      const porties = (v && v.porties || []).filter(x => portieU(x) > 0);
+      if(!porties.length) o.geenVerdeling.push(ref);
+      porties.forEach(x => {
+        const k = x.dest === 'GROUND' ? 'UP' : x.dest, d = o.dest[k] = o.dest[k] || { pal:0, u:0, los:0 };
+        if(x.soort === 'pallet') d.pal += num(x.n) || 0; else d.los += num(x.n) || 0;
+        d.u += portieU(x);
+        if(x.note) o.notes.push((x.soort === 'pallet' ? x.n + ' pallet' + (x.n === 1 ? '' : 's') : 'los') + ' ' + (DEST[x.dest] || {}).nl.toLowerCase() + ': ' + x.note);
+      });
+      if(v && v.opmerking) o.opm.push(v.opmerking);
+      (c.data.voorboekingen || []).forEach(vb => vb.regels.forEach(r => { if(norm(r.code) === norm(code)) o.boek.push({ rc:vb.rc, datum:vb.datum, aantal:r.aantal }); }));
+    });
+  });
+  return Object.values(per).sort((a, b) => a.code.localeCompare(b.code, 'nl', { sensitivity:'base', numeric:true }));
+}
+async function maakOverzichtPdf(c, w){
+  const d0 = c.losdatum;
+  const cs = (d0 ? CONT.filter(k => k.status !== 'afgerond' && k.losdatum === d0 && (k.data.regels || []).length) : []);
+  if(!cs.some(k => k.id === c.id)) cs.unshift(c);
+  cs.sort((a, b) => String(a.pakbon_ref || '').localeCompare(String(b.pakbon_ref || ''), 'nl', { numeric:true }));
+  const prods = overzichtData(cs);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const W = 210, M = 14, R = W - M, H = 297;
+  const safe = t => String(t == null ? '' : t).replace(/→/g, '->').replace(/≈/g, '~').replace(/[✓✔]/g, 'v').replace(/[^\x00-\xFF€–—…‘’“”•]/g, '');
+  let y = M, pag = 1;
+  const voet = () => { doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(120); doc.text(safe('Losdag-overzicht · ' + (d0 ? fdate(d0, { day:'numeric', month:'short' }) : '') + ' · pagina ' + pag), M, H - 8); doc.text('gemaakt ' + new Date().toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }), R, H - 8, { align:'right' }); doc.setTextColor(16, 21, 28); };
+  const kolommen = [{ t:'Binnen', r:98 }, { t:'Bulk', r:118 }, { t:'Pick', r:138 }, { t:'Backorders', r:158 }, { t:'Klant', r:178 }, { t:'VST', r:R }];
+  const kop = () => { doc.setFillColor(238, 242, 246); doc.rect(M, y, R - M, 6, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(16, 21, 28); doc.text('Product', M + 1, y + 4.2); kolommen.forEach(k => doc.text(k.t, k.r - 1, y + 4.2, { align:'right' })); y += 7.5; };
+  const nieuwePagina = () => { voet(); doc.addPage(); pag++; y = M; kop(); };
+  const tekst = (t, o) => {
+    o = o || {}; doc.setFont('helvetica', o.bold ? 'bold' : 'normal'); doc.setFontSize(o.size || 10); doc.setTextColor(...(o.kleur || [16, 21, 28]));
+    const regels = doc.splitTextToSize(safe(t), (o.w || (R - (o.x || M))));
+    const lh = (o.size || 10) * 0.42;
+    if(o.pagina !== false && y + regels.length * lh > H - 16){ nieuwePagina(); }
+    doc.text(regels, o.x || M, y + lh * 0.8); y += regels.length * lh + (o.na ?? 1.5);
+    doc.setTextColor(16, 21, 28);
+  };
+  const cel = (o, k) => {
+    const d = o.dest[k], mv = verkoopEenheid(o.code).mv;
+    if(!d) return null;
+    const a = d.pal ? String(d.pal) + (d.los ? ' + los' : '') : 'los';
+    return [a, nf(d.u) + ' ' + mv];
+  };
+  const bo = code => { const b = BOBY[code]; if(!b || !b.regels.length) return null; const bes = b.regels.reduce((a, r) => a + Math.min(num(r.aantal) || 0, num(r.beschikbaar) || 0), 0); return { b, bes }; };
+
+  // ---- kop
+  tekst('Losdag-overzicht', { bold:true, size:16, na:1 });
+  tekst(cs.map(k => levKort(k.leverancier) + ' ' + (k.pakbon_ref || '') + (k.containernummer ? ' (' + k.containernummer + ')' : '')).join(' · '), { size:10.5, na:1 });
+  tekst((d0 ? fdate(d0, { weekday:'long', day:'numeric', month:'long' }) : 'geen losdatum') + ' · backorders ingeladen ' + (BO.length ? fdt(BO.map(b => b.geimporteerd_op).filter(Boolean).sort().pop()) : 'nooit'), { size:9, kleur:[100, 110, 120], na:3 });
+  const vbs = [];
+  cs.forEach(k => (k.data.voorboekingen || []).forEach(v => vbs.push(levKort(k.leverancier) + ' ' + (k.pakbon_ref || '') + ' — ' + (v.rc || 'ontvangst') + (v.datum ? ' (' + fdate(v.datum, { day:'numeric', month:'short' }) + ')' : '') + ': ' + v.regels.map(r => nf(r.aantal) + '× ' + r.code).join(', '))));
+  if(vbs.length){ tekst('Al opgeboekt in Picqer (container nog niet gelost)', { bold:true, size:10, na:1 }); vbs.forEach(t => tekst('• ' + t, { size:9, x:M + 2, na:0.8 })); y += 2; }
+  // ---- totalen
+  const tot = { UP:0, PICK:0, BO:0, KLANT:0, VST:0 };
+  prods.forEach(o => Object.keys(tot).forEach(k => { tot[k] += (o.dest[k] || { pal:0 }).pal; }));
+  const box = [[tot.UP, 'pallets bulk'], [tot.PICK, 'pallets pick'], [tot.BO, 'pallets backorders'], [tot.KLANT, 'pallets klant'], [tot.VST, 'pallets VST']];
+  const bw = (R - M - 12) / 5;
+  box.forEach(([n, l], i) => { const x = M + i * (bw + 3); doc.setFillColor(244, 246, 249); doc.roundedRect(x, y, bw, 16, 2, 2, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text(String(n), x + 3.5, y + 8); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.text(safe(l), x + 3.5, y + 13); });
+  y += 21;
+  tekst('Cijfers per product: aantal pallets (bovenaan), daaronder de stuks/meters. Bulk = up en grondlocatie.', { size:8.5, kleur:[100, 110, 120], na:2.5 });
+  kop();
+  // ---- producten
+  prods.forEach(o => {
+    const naam = labelNaam(o.code), mv = verkoopEenheid(o.code).mv;
+    const sub = [];
+    const b = bo(o.code);
+    if(b){
+      const tot2 = b.b.regels.reduce((a, r) => a + (num(r.aantal) || 0), 0), lijst = b.b.regels.map(r => nf(num(r.aantal) || 0));
+      const beschTxt = b.bes >= tot2 - 0.001 ? 'allemaal al beschikbaar' : b.bes > 0 ? nf(b.bes) + ' beschikbaar' : 'nog niets beschikbaar';
+      sub.push({ t:'Backorders: ' + b.b.regels.length + ' order' + (b.b.regels.length === 1 ? '' : 's') + ' · ' + nf(tot2) + ' ' + mv + ' (' + beschTxt + '): ' + (lijst.length > 24 ? lijst.slice(0, 24).join(' · ') + ' … +' + (lijst.length - 24) : lijst.join(' · ')), bold:true });
+    } else sub.push({ t:'Backorders: geen', kleur:[100, 110, 120] });
+    if(o.boek.length) sub.push({ t:'Al opgeboekt in Picqer: ' + nf(o.boek.reduce((a, x) => a + x.aantal, 0)) + ' ' + mv + ' (' + o.boek.map(x => (x.rc || 'ontvangst') + (x.datum ? ', ' + fdate(x.datum, { day:'numeric', month:'short' }) : '')).join('; ') + ')', kleur:[20, 90, 160] });
+    if(o.perC.length > 1) sub.push({ t:'Binnen: ' + o.perC.map(x => x.ref + ' ' + nf(x.u) + ' ' + mv).join(' · '), kleur:[100, 110, 120] });
+    if(o.geenVerdeling.length) sub.push({ t:'Nog geen verdeling vastgelegd' + (cs.length > 1 ? ' bij ' + o.geenVerdeling.join(', ') : ''), kleur:[184, 60, 40] });
+    o.notes.forEach(n => sub.push({ t:n, kleur:[100, 110, 120] }));
+    o.opm.forEach(n => sub.push({ t:n, kleur:[100, 110, 120] }));
+    // hoogte van dit blok
+    doc.setFontSize(8.5);
+    const subH = sub.reduce((a, x) => a + doc.splitTextToSize(safe(x.t), R - M - 4).length * 3.7 + 0.6, 0);
+    const naamRegels = doc.splitTextToSize(safe(naam), 62);
+    const kopH = Math.max(10, 4.6 + naamRegels.length * 3.6);
+    if(y + kopH + subH + 3 > H - 16) nieuwePagina();
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(16, 21, 28); doc.text(safe(o.code), M + 1, y + 4.2);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 110, 120); doc.text(naamRegels, M + 1, y + 8.2); doc.setTextColor(16, 21, 28);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text(safe(nf(o.binnen)), 97, y + 4.4, { align:'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100, 110, 120); doc.text(safe(mv), 97, y + 8.2, { align:'right' }); doc.setTextColor(16, 21, 28);
+    [['UP', 118], ['PICK', 138], ['BO', 158], ['KLANT', 178], ['VST', R]].forEach(([k, rx]) => {
+      const cc = cel(o, k);
+      if(!cc){ doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(190); doc.text('–', rx - 1, y + 4.4, { align:'right' }); doc.setTextColor(16, 21, 28); return; }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(cc[0].length > 4 ? 9 : 11); doc.text(safe(cc[0]), rx - 1, y + 4.6, { align:'right' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100, 110, 120); doc.text(safe(cc[1]), rx - 1, y + 8.4, { align:'right' }); doc.setTextColor(16, 21, 28);
+    });
+    y += kopH;
+    sub.forEach(x => tekst(x.t, { size:8.5, x:M + 3, w:R - M - 5, bold:x.bold, kleur:x.kleur, na:0.6, pagina:false }));
+    doc.setDrawColor(220); doc.line(M, y + 0.8, R, y + 0.8); y += 3;
+  });
+  if(!prods.length) tekst('Geen producten met een pakbon in deze container(s).', { size:10 });
+  voet();
+  const naamF = 'Losdag-overzicht ' + (d0 || 'container') + '.pdf';
+  const url = URL.createObjectURL(new Blob([doc.output('arraybuffer')], { type:'application/pdf' }));
+  if(w && w.location) w.location.href = url;
+  else if(!window.open(url, '_blank')){ const a = document.createElement('a'); a.href = url; a.download = naamF; a.click(); }
+  toast('Overzicht gemaakt: ' + prods.length + ' producten, ' + cs.length + ' container' + (cs.length === 1 ? '' : 's') + '.');
 }
 function maakLabels(c, eigenLijst){
   const lijst = eigenLijst || labelLijst(c);
@@ -3977,6 +4117,9 @@ const ACT = {
   etapakbon: () => etaUitPakbonnen(),
   ontvok: el => ontvangstBevestig(+el.dataset.i),
   ontvverdeel: el => ontvangstVerdeel(+el.dataset.i),
+  ontvvoor: el => ontvangstVoorboek(+el.dataset.i),
+  vboweg: el => voorboekWeg(cur, el.dataset.rc),
+  pdfover: () => maakOverzichtPdf(cur, window.open('', '_blank')),
   ontvdel: el => { UI.ontv.splice(+el.dataset.i, 1); viewHome(); },
   ontvweg: () => { UI.ontv = []; viewHome(); },
   algelost: async el => {
