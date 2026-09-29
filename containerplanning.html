@@ -2152,7 +2152,8 @@ function puntenKaart(c, pts){
   const regel = (gr, klaar) => {
     const [cls, lbl] = LVL[gr.lvl];
     const een = gr.items.length === 1;
-    const tekst = een ? esc(gr.items[0].tekst) : `<b>${esc(GROEP[gr.type] || gr.type)}</b> <span class="muted">(${gr.items.length})</span>: ${gr.items.map(p => esc(p.kort)).join(' · ')}`;
+    const tekst = een ? esc(gr.items[0].tekst) : `<details class="ptgroep"><summary><b>${esc(GROEP[gr.type] || gr.type)}</b> <span class="muted">(${gr.items.length}) — klik voor de losse punten</span></summary>
+      ${gr.items.map(p => `<div class="row" style="gap:8px;padding:4px 0;border-top:1px solid #eef1f4"><span class="grow small">${esc(p.tekst)}</span>${klaar ? '' : `<button class="btn ghost sm" data-act="ptklaar" data-keys="${esc(p.key)}" title="Dit punt afvinken">✓</button>`}</div>`).join('')}</details>`;
     const keys = gr.items.map(p => p.key).join('|');
     const todoKan = gr.items.some(p => p.code && !p.eigen) && !klaar;
     const link = gr.tab === 'vloernamen'
@@ -3585,7 +3586,7 @@ const ACT = {
         TODOS.push(...(r || []));
       }
       lijst.forEach(p => cur.data.punten_klaar[p.key] = true); save(); rerender();
-      toast(nieuw.length ? nieuw.length + ' punt(en) op de todo-lijst gezet (zie productkaart).' : 'Stond al op de todo-lijst.');
+      toast(nieuw.length ? nieuw.length + ' punt(en) op de todo-lijst gezet — te vinden in de Productkaart, bij de leverancier.' : 'Stond al op de todo-lijst (Productkaart, bij de leverancier).', 6000);
     }catch(e){ toast('Mislukt: ' + e.message); }
   },
   // pakbon
