@@ -1690,6 +1690,10 @@ function viewGegevens(){
       <button class="btn pri" data-act="backup">Back-up downloaden</button></div>
   </div>
   <div class="card">
+    <div class="row between wrap"><div><h2>Koppelingen importeren</h2><p class="small muted mt8">Een koppelbestand (bijv. van Claude) met per pakbonomschrijving de Picqer-productcode en omrekenfactor. Regels zonder code of met zekerheid <i>vraag</i> worden overgeslagen; verwijder vooraf wat niet klopt. Daarna koppelt de app de open containers opnieuw.</p><div class="status small" id="st_kop"></div></div>
+      <label class="btn file">Koppelbestand kiezen<input type="file" accept=".xlsx,.xls" data-change="impKoppelingen"></label></div>
+  </div>
+  <div class="card">
     <h2>Picqer-gegevens</h2>
     <p class="small muted mt8">De app rekent met de laatste exports. Werk ze bij vlak voor je een container plant (duurt 1 minuut). Alles komt in de gedeelde database, dus de productkaart ziet het ook.</p>
   </div>
@@ -2004,6 +2008,36 @@ async function impProducten(file){
     viewGegevens();
     $('st_prod').textContent = rows.length + ' producten bijgewerkt uit Picqer.' + (nk ? ' ' + nk + ' pakbonregel' + (nk > 1 ? 's' : '') + ' in open containers nu gekoppeld.' : ''); $('st_prod').className = 'status ok';
   }catch(e){ $('st_prod').textContent = 'Import mislukt: ' + e.message; $('st_prod').className = 'status err'; }
+}
+// koppelbestand: Leverancier | Op de pakbon | Picqer-productcode | Factor | Zekerheid
+async function impKoppelingen(file){
+  const st = (m, cls) => { const e = $('st_kop'); if(e){ e.textContent = m; e.className = 'status small ' + (cls || ''); } };
+  try{
+    const arr = await leesSheet(file);
+    const h = (arr[0] || []).map(x => String(x || '').toLowerCase());
+    const col = rx => h.findIndex(x => rx.test(x));
+    const iL = col(/leverancier/), iP = col(/pakbon/), iC = col(/picqer|productcode/), iF = col(/factor/), iZ = col(/zeker/);
+    if(iP < 0 || iC < 0) throw new Error('kolommen "Op de pakbon" en "Picqer-productcode" niet gevonden');
+    const levNamen = [...new Set(CONT.map(c => c.leverancier).concat(alleLeveranciers()).filter(Boolean))];
+    const rows = [], fout = [];
+    arr.slice(1).forEach(r => {
+      const code0 = txt(r[iC]), pb = txt(r[iP]), z = String(r[iZ] || '').toLowerCase();
+      if(!pb || !code0 || /vraag/.test(z)) return;
+      const code = PLOW[code0.toLowerCase()];
+      if(!code){ fout.push(code0 + ' (staat niet in de Picqer-import)'); return; }
+      const lk = levKort(txt(r[iL]) || '');
+      const lev = levNamen.find(l => levKort(l) === lk) || txt(r[iL]);
+      rows.push({ leverancier:lev, pakbon_code:norm(pb), pakbon_tekst:pb.slice(0, 200), productcode:code, factor:num(r[iF]) || 1, bevestigd_op:new Date().toISOString() });
+    });
+    if(!rows.length) throw new Error('geen bruikbare regels' + (fout.length ? ': ' + fout.join(', ') : ''));
+    st('Opslaan… ' + rows.length + ' koppelingen');
+    const saved = await upsert('pakbon_alias', rows, 'leverancier,pakbon_code');
+    const sleutel = a => a.leverancier + '|' + a.pakbon_code;
+    const nieuw = new Set((saved.length ? saved : rows).map(sleutel));
+    ALIAS = ALIAS.filter(a => !nieuw.has(sleutel(a))).concat(saved.length ? saved : rows);
+    const nk = await herkoppelOpen();
+    st(rows.length + ' koppelingen opgeslagen, ' + nk + ' pakbonregel(s) in open containers nu gekoppeld.' + (fout.length ? ' Overgeslagen: ' + fout.join(', ') + '.' : ''), 'ok');
+  }catch(e){ st('Import mislukt: ' + e.message, 'err'); }
 }
 // na een nieuwe Picqer-import: nog niet gekoppelde pakbonregels in open containers opnieuw proberen
 async function herkoppelOpen(){
@@ -3825,7 +3859,7 @@ app.addEventListener('change', e => {
   if(el.dataset.change && el.files){
     const f = el.files[0]; el.value = '';
     if(!f) return;
-    ({ pakbonBestand, pakbonBewaarIn, impProducten, impVerkoop, impBackorders })[el.dataset.change](f);
+    ({ pakbonBestand, pakbonBewaarIn, impProducten, impVerkoop, impBackorders, impKoppelingen })[el.dataset.change](f);
     return;
   }
   if(el.dataset.vn){
