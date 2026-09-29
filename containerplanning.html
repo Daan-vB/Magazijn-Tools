@@ -992,6 +992,25 @@ function leesGardenya(text, L){
   }
   return res;
 }
+// Picqer-inkoopbestelling (PDF): exacte Picqer-codes, PO-nummer en besteldatum
+function leesPicqerPO(text, L){
+  const res = kopBasis(text);
+  res.ref = (String(text).match(/\bPO\d{4}-\d+\b/) || [])[0] || null;
+  const kop = L.find(l => /Inkoopbestelling/i.test(l.s) && !/^Inkoopbestelling/i.test(l.s.trim()));
+  res.levTekst = kop ? kolommen(kop.s)[0] : null;
+  const d = String(text).match(/\bDatum\s+(\d{1,2}-\d{1,2}-\d{4})/);
+  res.poDatum = d ? datumTok(d[1]) : null;
+  let bezig = false;
+  L.forEach(l => {
+    const k = kolommen(l.s);
+    if(/^Leverancier$/i.test(k[0]) && k.includes('Aantal')){ bezig = true; return; }
+    if(!bezig) return;
+    if(/^Totaal$/i.test(k[0])){ bezig = false; res.totaal_stuks = num(k[1]); return; }
+    if(k.length >= 3 && /^\d+$/.test(k[2])) res.regels.push(Object.assign(pbRegel(k[0], k[1], +k[2], 1), { productcode:PLOW[k[0].toLowerCase()] || '' }));
+  });
+  res.isPO = true;
+  return res;
+}
 // datum op de pakbon (verscheping / invoice / documentdatum) → basis voor de ETA
 const MND = { jan:1, feb:2, mar:3, maa:3, mrt:3, apr:4, may:5, mei:5, mag:5, jun:6, giu:6, jul:7, lug:7, aug:8, ago:8, sep:9, set:9, oct:10, okt:10, ott:10, nov:11, dec:12, dic:12 };
 function datumTok(s){
@@ -1057,6 +1076,14 @@ const tekstRegels = text => String(text || '').split(/\r?\n/).map((t, i) => ({ p
 // herkent de leverancier, leest de regels en verdeelt ze per containernummer (docs)
 function leesPakbonTekst(text, L){
   L = L || tekstRegels(text);
+  if(/Inkoopbestelling\s+PO\d{4}-\d+/i.test(text)){
+    const r = leesPicqerPO(text, L);
+    const prof = PAKBON_LEV.concat([WALLACE]).find(pf => pf.zoek.test(r.levTekst || ''));
+    r.lev = prof ? levNaam(prof) : (r.levTekst || null); r.profiel = 'po';
+    r.verzonden = r.poDatum ? { datum:r.poDatum, bron:'inkoopbestelling' } : null;
+    r.docs = [{ container:null, regels:r.regels, totaal_stuks:r.totaal_stuks, totaal_eenheden:null }];
+    return r;
+  }
   const prof = PAKBON_LEV.find(pf => pf.herken.test(text));
   let r;
   if(prof){ r = prof.lees(text, L); r.lev = levNaam(prof); r.profiel = prof.id; }
@@ -2114,6 +2141,9 @@ function kopKaart(c){
       <div class="row" style="gap:6px">${c.data.pakbon_bestand ? '<button class="btn sm" data-act="pbkijk" title="' + esc(pakbonNaam(c)) + '">📄 Pakbon</button>' : ''}<button class="btn sm" data-act="kopedit">${open ? 'Klaar' : 'Gegevens wijzigen'}</button></div>
     </div>
     ${c.data.verzonden ? `<div class="small muted mt8">Pakbon: ${esc(c.data.verzonden_bron || 'datum')} <b>${esc(fdate(c.data.verzonden, { day:'numeric', month:'short', year:'numeric' }))}</b>${c.data.eta_auto ? ` · ETA = + ${c.data.eta_auto.dagen} dagen (${c.data.eta_auto.n ? 'gemiddelde van ' + c.data.eta_auto.n + ' eerdere ' + esc(levKort(c.leverancier)) + '-container' + (c.data.eta_auto.n > 1 ? 's' : '') : 'standaard, nog niets geleerd voor ' + esc(levKort(c.leverancier))})` : c.losdatum && !ver ? ' · doorlooptijd ' + dagenTussen(c.data.verzonden, c.losdatum) + ' dagen' : ''}</div>` : ''}
+    ${c.data.po ? (() => { const pb = pakbonEenheden(c), vs = []; const po = {}; c.data.po.regels.forEach(x => po[norm(x.code)] = (po[norm(x.code)] || 0) + x.aantal);
+        new Set(Object.keys(po).concat(Object.keys(pb))).forEach(key => { const a = po[key] || 0, b = pb[key] ? pb[key].u : 0; if(Math.abs(a - b) > 0.001) vs.push(((pb[key] && pb[key].code) || (c.data.po.regels.find(x => norm(x.code) === key) || {}).code) + ': besteld ' + nf(a) + ', pakbon ' + nf(b)); });
+        return `<div class="small mt8">Inkoopbestelling <b>${esc(c.data.po.nr)}</b> (${esc(fdate(c.data.po.datum, { day:'numeric', month:'short' }))}): ${c.data.po.regels.map(x => nf(x.aantal) + '× ' + esc(x.code)).join(', ')} ${vs.length ? '<span class="badge b-warn">verschil met pakbon: ' + esc(vs.join(' · ')) + '</span>' : '<span class="badge b-ok">gelijk aan pakbon</span>'}</div>`; })() : ''}
     ${(c.data.leveringen || []).length ? `<div class="small mt8">Deelleveringen: ${c.data.leveringen.map(l => '<b>' + esc(l.rc || '') + '</b> ' + esc(fdate(l.datum, { day:'numeric', month:'short' })) + ': ' + l.regels.map(r => nf(r.aantal) + '× ' + esc(r.code)).join(', ') + ((l.extra || []).length ? ' <span class="muted">(+ extra: ' + l.extra.map(e => nf(e.aantal) + '× ' + esc(e.code)).join(', ') + ')</span>' : '')).join(' · ')}${c.status !== 'afgerond' ? ' <span class="badge b-info">restant nog onderweg</span>' : ''}</div>` : ''}
     ${c.data.ontvangst ? `<div class="small mt8">Ontvangen in Picqer: <b>${esc(c.data.ontvangst.rc || '')}</b> op ${esc(fdate(c.data.ontvangst.datum, { day:'numeric', month:'short' }))} · ${(c.data.ontvangst.verschillen || []).length ? '<span class="badge b-warn">' + c.data.ontvangst.verschillen.length + ' verschil(len) met pakbon: ' + c.data.ontvangst.verschillen.map(r => esc(r.code) + ' ' + (r.vs > 0 ? '+' : '') + nf(r.vs)).join(', ') + '</span>' : '<span class="badge b-ok">klopt met pakbon</span>'}</div>` : ''}
     ${isVoorbij(c) ? `<div class="etabox mt12"><div class="small"><b>De ${ver ? 'ETA' : 'losdatum'} is voorbij.</b> Al gelost? Vul de echte losdatum in: de app rondt hem af en leert van de doorlooptijd.</div>
@@ -2527,6 +2557,21 @@ async function ontvangstVerdeel(i){
   toast(plan.per.length + ' pakbon(nen) bijgewerkt: ' + plan.per.filter(p => p.vol).length + ' helemaal geleverd en afgerond, ' + plan.per.filter(p => !p.vol).length + ' deels (restant blijft open).' + (plan.extra.length ? ' Extra geleverd (niet besteld): ' + plan.extra.map(e => e.aantal + '× ' + e.code).join(', ') + '.' : ''), 9000);
   viewHome();
 }
+// welke open pakbon (zelfde leverancier, nog zonder inkoopbestelling) hoort bij deze inkoopbestelling
+function poMatch(r, alleenId, alleenC){
+  const k = levKort(r.lev || ''), po = {};
+  r.regels.forEach(x => { const key = norm(x.productcode || x.pakbon_code); po[key] = (po[key] || 0) + x.totaal; });
+  let best = null;
+  const kand = alleenC ? [alleenC] : alleenId ? CONT.filter(c => c.id === alleenId) : CONT;
+  kand.filter(c => c.status !== 'afgerond' && !c.data.po && !c.pakbon_ref?.startsWith('PO') && levKort(c.leverancier) === k && (c.data.regels || []).length).forEach(c => {
+    const pb = {}; Object.entries(pakbonEenheden(c)).forEach(([key, x]) => pb[key] = x.u);
+    const keys = new Set(Object.keys(po).concat(Object.keys(pb)));
+    let mn = 0, mx = 0; keys.forEach(key => { const a = po[key] || 0, b = pb[key] || 0; mn += Math.min(a, b); mx += Math.max(a, b); });
+    const sc = mx ? mn / mx : 0;
+    if(sc >= 0.6 && (!best || sc > best.sc)) best = { c, sc };
+  });
+  return best;
+}
 // welke open container past het best bij deze ontvangst
 function ontvangstMatch(o){
   const codes = new Set(o.regels.map(x => norm(x.code)));
@@ -2805,13 +2850,15 @@ async function pakbonnenBulk(files){
   const opHome = () => !cur && !/^#\/(c|gegevens|vloernamen|vooruit)/.test(location.hash || '#/');
   const teken = () => { if(opHome()) viewHome(); };
   const log = (t, cls) => { UI.bulk.log.push({ t, cls:cls || '' }); teken(); };
+  const poLijst = [];
   const bewaar = async (c, f) => {
     if(OPSLAG === false) return '';
     try{ await pakbonBewaar(c, f); return ' Bewaard als "' + pakbonNaam(c) + '".'; }
     catch(e){ return ' Bestand niet bewaard (' + e.message.slice(0, 60) + ').'; }
   };
   teken();
-  for(const f of files){
+  const verwerk = async lijst => {
+  for(const f of lijst){
     const inNaam = (f.name.toUpperCase().match(/[A-Z]{3}U\d{7}/) || [])[0];   // scheelt tekstherkenning van scans die er al zijn
     const lm = losMoment(f.name);
     const alBekend = inNaam && CONT.find(x => x.containernummer === inNaam);
@@ -2829,6 +2876,20 @@ async function pakbonnenBulk(files){
       const { text, methode, res } = await leesBestand(f, m => { regel.t = f.name + ': ' + m; teken(); });
       UI.bulk.log.splice(UI.bulk.log.indexOf(regel), 1);
       if(!res.regels.length){ log(f.name + ': geen regels herkend. Maak een container aan en lees hem daar in, of plak de regels.', 'err'); continue; }
+      if(res.isPO && !f._poRonde){ poLijst.push(f); continue; }
+      if(res.isPO){
+        const zelfde = CONT.find(c => c.pakbon_ref === res.ref || (c.data.po && c.data.po.nr === res.ref));
+        if(zelfde){ log(f.name + ': inkoopbestelling ' + res.ref + ' stond er al (' + levKort(zelfde.leverancier) + ' ' + (zelfde.pakbon_ref || '') + '), overgeslagen.', 'muted'); continue; }
+        const m = f._poBest ? poMatch(res, f._poBest) : null;
+        if(m){
+          const c = m.c;
+          c.data.po = { nr:res.ref, datum:res.poDatum, regels:res.regels.map(r => ({ code:r.productcode || r.pakbon_code, aantal:r.totaal })), score:Math.round(m.sc * 100) };
+          if(OPSLAG !== false){ try{ await opslagZet('c' + c.id + '/po.pdf', f); c.data.po.pad = 'c' + c.id + '/po.pdf'; }catch(e){} }
+          await bewaarContainer(c);
+          log(f.name + ': inkoopbestelling ' + res.ref + ' hoort bij ' + levKort(c.leverancier) + ' ' + (c.pakbon_ref || c.containernummer || '') + ' (' + Math.round(m.sc * 100) + '% gelijk) — gekoppeld, geen nieuwe levering aangemaakt.', 'ok');
+          continue;
+        }
+      }
       for(const d of res.docs){
         const naam = (res.lev || 'Leverancier?') + ' · ' + (d.container || res.ref || f.name);
         const bestaat = CONT.find(x => d.container ? x.containernummer === d.container : (res.ref && x.pakbon_ref === res.ref && (x.leverancier || '') === (res.lev || '')));
@@ -2855,6 +2916,20 @@ async function pakbonnenBulk(files){
       const i = UI.bulk.log.indexOf(regel); if(i >= 0) UI.bulk.log.splice(i, 1);
       log(f.name + ': mislukt — ' + e.message, 'err');
     }
+  }
+  };
+  await verwerk(files);
+  if(poLijst.length){
+    // inkoopbestellingen: eerst alle scores, dan de beste paren eerst koppelen
+    const gelezen = [];
+    for(const f of poLijst){ try{ const { res } = await leesBestand(f, () => {}); gelezen.push({ f, res }); }catch(e){ log(f.name + ': mislukt — ' + e.message, 'err'); } }
+    const paren = [];
+    gelezen.forEach((g, i) => CONT.forEach(c => { const m = poMatch(g.res, null, c); if(m) paren.push({ i, c, sc:m.sc }); }));
+    paren.sort((a, b) => b.sc - a.sc);
+    const bezet = new Set(), klaar = new Set();
+    paren.forEach(p => { if(klaar.has(p.i) || bezet.has(p.c.id)) return; gelezen[p.i].f._poBest = p.c.id; klaar.add(p.i); bezet.add(p.c.id); });
+    gelezen.forEach(g => g.f._poRonde = true);
+    await verwerk(gelezen.map(g => g.f));
   }
   UI.bulk.bezig = false; teken();
 }
