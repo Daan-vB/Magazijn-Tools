@@ -42,6 +42,7 @@
   button.act{border:none;border-radius:6px;padding:13px 20px;font-size:14.5px;font-weight:700;cursor:pointer;width:100%}
   .btn-save{background:var(--beam-orange);color:#fff}.btn-save:hover{background:#c84a08}
   button.act:disabled{background:#33404f;color:#73818f;cursor:not-allowed}
+  .btn-uit{background:transparent;border:1px solid #6b3434 !important;color:#f0a0a0;margin-top:10px;padding:10px 16px !important;font-size:13.5px !important}.btn-uit:hover{background:#2a1a1a}
   .status{font-size:13px;color:#9aa7b8;min-height:18px;line-height:1.45}
   .status.err{color:#ff8a5c}.status.ok{color:#7ed99a}
   .placeholder{color:#73818f;font-size:14px;line-height:1.6;margin-top:30px}
@@ -444,6 +445,7 @@
       '</div>' +
       '<div class="sec"><h3>Voorbeeld</h3><div id="g_prev"></div></div>' +
       '<button class="act btn-save" id="g_save">Opslaan voor ' + codes.length + ' product' + (codes.length === 1 ? '' : 'en') + '</button>' +
+      '<button class="act btn-uit" id="g_uit" title="Niet meer in gebruik: weg uit de lijsten en het productgeheugen">Uitfaseren (niet meer in gebruik) voor ' + codes.length + ' product' + (codes.length === 1 ? '' : 'en') + '</button>' +
       '<div class="status" id="f_status"></div>';
     Object.entries(bewaar).forEach(([id, v]) => { if($(id)) $(id).value = v; });
     const upd = () => {
@@ -464,6 +466,7 @@
     upd();
     $('card').querySelectorAll('.gsel button').forEach(b => b.addEventListener('click', () => { sel.delete(b.dataset.c); renderList(); selChanged(); }));
     $('g_save').addEventListener('click', groepOpslaan);
+    $('g_uit').addEventListener('click', () => uitfaseer([...sel]));
     if(openPanel){ $('panel').classList.add('open'); $('panel').scrollTop = 0; }
   }
   async function groepOpslaan(){
@@ -596,6 +599,7 @@
         '<div><label class="fld" for="f_opm">Opmerking</label><textarea id="f_opm" placeholder="bijv. blokpallet, niet stapelen">' + esc(r.opmerking || '') + '</textarea></div>' +
       '</div>' +
       '<button class="act btn-save" id="f_save">Opslaan</button>' +
+      '<button class="act btn-uit" id="f_uit" title="Niet meer in gebruik: weg uit de lijsten en het productgeheugen">Uitfaseren (niet meer in gebruik)</button>' +
       '<div class="status" id="f_status"></div>';
 
     const PALLET_KG = 15; // standaard gewicht leeg pallet, opgeteld bij het productgewicht
@@ -617,6 +621,7 @@
       if(hoogteSugg) $('f_hoogte').value = hoogteSugg;
     };
     $('f_save').addEventListener('click', () => save(code));
+    $('f_uit').addEventListener('click', () => uitfaseer([code]));
     $('panel').classList.add('open');
     $('panel').scrollTop = 0;
     document.querySelectorAll('tr.r').forEach(tr => tr.classList.toggle('sel', tr.dataset.c === code));
@@ -671,6 +676,30 @@
       fStatus('Opslaan mislukt: ' + e.message, 'err');
       $('f_save').disabled = false;
     }
+  }
+
+  // niet meer in gebruik: weg uit het productgeheugen en verborgen (actief = nee), net als X bij Vloernamen
+  async function uitfaseer(codes){
+    codes = [...new Set(codes.filter(Boolean))];
+    if(!codes.length) return;
+    if(!confirm(codes.length + ' product' + (codes.length === 1 ? '' : 'en') + ' uitfaseren?\n\n' + codes.join(', ') +
+      '\n\nWeg uit deze lijst en uit het productgeheugen (dus ook uit de Palletlabel-generator). Zet ze in Picqer ook op inactief, anders komen ze bij de volgende Picqer-import terug. Terugzetten kan onderaan de pagina Vloernamen in de Containerplanning.')) return;
+    try{
+      const set = new Set(codes.map(c => c.toLowerCase()));
+      const cat = await fetchCatalog();
+      Object.keys(cat).forEach(k => { if(cat[k] && set.has(String(cat[k].sub == null ? '' : cat[k].sub).trim().toLowerCase())) delete cat[k]; });
+      await saveCatalog(cat); indexCatalog(cat);
+      for(const c of codes){
+        if(!prod[c] || prod[c]._alleenGeheugen) continue;
+        const res = await fetch(URL_ + '/rest/v1/producten?productcode=eq.' + encodeURIComponent(c), {
+          method:'PATCH', headers:Object.assign({}, H, { 'Content-Type':'application/json', Prefer:'return=minimal' }), body:JSON.stringify({ actief:false })
+        });
+        if(!res.ok) throw new Error(c + ': ' + res.status);
+      }
+      codes.forEach(c => { delete prod[c]; sel.delete(c); });
+      renderList(); renderSelbar();
+      placeholder(codes.length + ' product' + (codes.length === 1 ? '' : 'en') + ' uitgefaseerd (' + codes.join(', ') + '). Zet ze in Picqer ook op inactief.');
+    }catch(e){ fStatus('Uitfaseren mislukt: ' + e.message, 'err'); }
   }
 
   /* ================= Picqer-import ================= */
