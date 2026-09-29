@@ -1261,11 +1261,12 @@ const VOORSTEL = [
   ['Great Wall', 'Trailer Mat 17mm x1m x 2m', 'TRAILER17', 1, 1, 'Alfaflex Trailer Mat 17 mm 100x200'],
   ['Great Wall', 'HAMER BLOW MATS 6mm x1.8m x 10mx 1P', '01080680', 10, 0, 'Rubberselect loper hamerslag 6 mm 180 cm per meter'],
   ['Great Wall', 'HAMER BLOW MATS 6mm x2m x 10mx 1P', '01080620', 10, 0, 'Rubberselect loper hamerslag 6 mm 200 cm per meter']
-].map(([lev, tekst, code, factor, zeker, toel]) => ({ lk:lev, k:norm(tekst), code, factor, zeker:!!zeker, toel }));
-function voorstelVoor(r, lev){
+].map(([lev, tekst, code, factor, zeker, toel]) => ({ lk:lev, k:norm(tekst), code, factor, zeker:!!zeker, toel, bron:/^Alfaflex/.test(toel) ? 'Alfaflex NV' : /^Rubberselect/.test(toel) ? 'Rubberselect' : '' }));
+// ruw = ook als het Picqer-product nog niet in de import staat (om dat te kunnen melden)
+function voorstelVoor(r, lev, ruw){
   const lk = levKort(lev || ''), key = norm(r.pakbon_code), tok = norm(eersteCode(r.pakbon_code || r.omschrijving));
   const txt = norm((r.pakbon_code || '') + ' ' + (r.omschrijving || '') + ' ' + (r.context || ''));
-  const lijst = VOORSTEL.filter(x => (!lev || x.lk === lk) && PLOW[x.code.toLowerCase()]);
+  const lijst = VOORSTEL.filter(x => (!lev || x.lk === lk) && (ruw || PLOW[x.code.toLowerCase()]));
   let v = lijst.find(x => x.k === key) || lijst.find(x => x.k === tok);
   if(!v) lijst.forEach(x => { if(x.k.length >= 6 && txt.includes(x.k) && (!v || x.k.length > v.k.length)) v = x; });
   return v || null;
@@ -1336,9 +1337,14 @@ function kandidaten(r, lev, n){
   return uit.sort((a, b) => b.sc - a.sc || a.code.localeCompare(b.code)).slice(0, n || 4).map(x => x.code);
 }
 // pakbonregel aan een Picqer-product koppelen (vanuit het productenscherm); de omrekening vraagt de productkaart daarna zelf
+// uitleg als een ingetypte code niet in de Picqer-import staat
+function onbekendCode(v){
+  const x = VOORSTEL.find(y => y.code.toLowerCase() === String(v).trim().toLowerCase());
+  return '"' + v + '" staat nog niet in de Picqer-import. Importeer eerst de productexport van ' + (x && x.bron ? x.bron : 'de leverancier van dit product') + ' bij Gegevens, daarna kun je hem kiezen.';
+}
 async function regelKoppel(c, r, v){
   const canon = PLOW[String(v || '').trim().toLowerCase()];
-  if(!canon){ toast('"' + v + '" bestaat niet in de Picqer-import. Kies een code uit de lijst.', 4000); return; }
+  if(!canon){ toast(onbekendCode(v), 7000); return; }
   r.productcode = canon; r.match = 'handmatig'; r.bevestigd = true; delete r.vs;
   const fv = factorVoorstel(canon, r); r.factor = fv.factor; r.factor_bron = fv.bron;
   PLAN = null;
@@ -2551,15 +2557,19 @@ const cKort = c => (c.containernummer || c.pakbon_ref || 'container ' + c.id) + 
 // pakbonregels zonder Picqer-product: hier kiezen (typ code of naam, of klik een suggestie), of de regel weghalen
 function koppelBlok(items, metContainer){
   if(!items.length) return '';
+  const ruw = items.map(({ c, r }) => { const v = voorstelVoor(r, c.leverancier, true); return v && !PLOW[v.code.toLowerCase()] ? v : null; });
+  const mist = ruw.filter(Boolean), bronnen = [...new Set(mist.map(v => v.bron).filter(Boolean))];
   return `<div class="card" style="border-left:4px solid var(--bad)">
     <h2>Nog niet gekoppeld <span class="badge b-bad">${items.length}</span></h2>
+    ${mist.length ? `<div class="etabox mt12"><div class="small"><b>Importeer eerst de Picqer-productexport van ${esc(bronnen.length ? bronnen.join(' en ') : 'de leverancier')}.</b> Voor ${mist.length} regel${mist.length > 1 ? 's' : ''} weet de app al welk product het is, maar dat product staat nog niet in de Picqer-import. Na het importeren (Gegevens) staan ze vanzelf gekoppeld als voorstel.</div><a class="btn sm mt8" href="#/gegevens">Naar Gegevens</a></div>` : ''}
     <p class="small muted mt8">Kies bij elke pakbonregel het Picqer-product: typ een code of naam, of klik een suggestie. Komt het niet meer of is het verpakking: haal de regel weg.</p>
-    <div class="vgrid mt12">${items.map(({ c, r }) => {
-      const k = kandidaten(r, c.leverancier, 4);
+    <div class="vgrid mt12">${items.map(({ c, r }, ix) => {
+      const k = mist.length && ruw[ix] ? [] : kandidaten(r, c.leverancier, 4);
       return `<div class="vcard bad" data-kc="${c.id}" data-kr="${esc(r.id)}" style="min-width:0;overflow-wrap:anywhere">
         <div class="vhead"><b>${esc(r.pakbon_code || r.omschrijving || 'regel')}</b>${metContainer ? ` <span class="small muted">${esc(cKort(c))}</span>` : ''}</div>
         <div class="small muted mt8">${esc(r.omschrijving && r.pakbon_code ? r.omschrijving : '')}${r.context ? ' · ' + esc(String(r.context).slice(0, 90)) : ''}</div>
         <div class="small mt8">${nf(num(r.totaal) || 0)} op de pakbon${num(r.aantal) && num(r.per) ? ' (' + nf(num(r.aantal)) + ' × ' + nf(num(r.per)) + ')' : ''}</div>
+        ${ruw[ix] ? `<div class="sugg mt8">Voorstel: <b>${esc(ruw[ix].code)}</b> — ${esc(ruw[ix].toel)} <span class="badge b-warn">nog niet geïmporteerd</span></div>` : ''}
         <div class="row wrap mt8"><input class="code" list="${metContainer ? 'dl-codes-sup' : 'dl-codes'}" data-kop="1" placeholder="Picqer-product: typ code of naam" autocomplete="off" autocapitalize="off" style="flex:1 1 200px;min-width:0">
           <button class="btn ghost sm" data-act="regelweg2" title="Regel van de pakbon halen">regel weghalen</button></div>
         ${k.length ? `<div class="row wrap mt8" style="gap:6px">${k.map(code => `<button class="btn sm" data-act="kies" data-code="${esc(code)}" title="${esc(naamVan(code))}" style="max-width:100%;white-space:normal;text-align:left;height:auto;line-height:1.3">${esc(code)} <span class="muted">${esc(naamVan(code)).slice(0, 34)}</span></button>`).join('')}</div>` : ''}
@@ -3150,6 +3160,9 @@ function wijzer(open){
     if(m){ nMis += m; nLev++; }
   });
   if(nMis) L.push({ prio:3, tekst:nMis + ' product' + (nMis > 1 ? 'en' : '') + ' of pakbonregel' + (nMis > 1 ? 's' : '') + ' bij ' + nLev + ' leverancier' + (nLev > 1 ? 's' : '') + ' missen nog gegevens — per leverancier in één scherm invullen', link:'#/producten', knop:'invullen' });
+  const mistImp = new Set();
+  open.forEach(c => (c.data.regels || []).forEach(r => { if(r.productcode) return; const v = voorstelVoor(r, c.leverancier, true); if(v && !PLOW[v.code.toLowerCase()]) mistImp.add(v.bron || levKort(c.leverancier)); }));
+  if(mistImp.size) L.push({ prio:2, tekst:'Importeer de Picqer-productexport van ' + [...mistImp].join(' en ') + ': pakbonregels wachten op die producten (Gegevens)', link:'#/gegevens', knop:'importeren' });
   const lb = laatsteBackup();
   if(!lb || Date.now() - new Date(lb) > 7 * 864e5) L.push({ prio:4, tekst:lb ? 'Laatste back-up is ouder dan een week' : 'Nog geen back-up gemaakt op dit apparaat', link:'#/gegevens', knop:'back-up' });
   if(!L.length) return `<div class="card wijzer"><h3>Wat nu</h3><p class="small mt8"><span class="badge b-ok">alles bij</span> Geen acties nodig voor de komende week.</p></div>`;
@@ -4101,7 +4114,7 @@ app.addEventListener('change', e => {
     const r = cur.data.regels[+el.dataset.regel], k = el.dataset.k;
     if(k === 'productcode'){
       const v = el.value.trim(), canon = PLOW[v.toLowerCase()];
-      if(v && !canon){ toast('"' + v + '" bestaat niet in de Picqer-import. Kies een code uit de lijst.', 4000); el.value = r.productcode || ''; return; }
+      if(v && !canon){ toast(onbekendCode(v), 7000); el.value = r.productcode || ''; return; }
       r.productcode = canon || ''; r.match = canon ? 'handmatig' : 'onbekend'; r.bevestigd = !!canon;
       if(canon){ const fv = factorVoorstel(canon, r); r.factor = fv.factor; r.factor_bron = fv.bron === 'voorstel' ? 'bevestigd' : fv.bron; leer(r); }
     } else if(k === 'pakbon_code'){ r.pakbon_code = el.value.trim(); if(!r.bevestigd) Object.assign(r, koppel(r, cur.leverancier)); }
