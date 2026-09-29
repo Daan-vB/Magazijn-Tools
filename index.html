@@ -10,6 +10,7 @@
 <title>Palletlabel Generator — A4</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="bestanden.js"></script>
 <style>
   :root{
     --rack-blue:#1d4ea0;
@@ -648,7 +649,9 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     const blob = new Blob([JSON.stringify(cat, null, 2)], {type:'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = (mode === 'ean' ? 'productgeheugen-palletlabels.json' : 'productgeheugen-verpakking.json');
+    a.download = window.Bestanden
+      ? (mode === 'ean' ? Bestanden.naam('geheugen', { aantal:Object.keys(cat).length }) : Bestanden.naam('tekst', { tekst:'Productgeheugen verpakking ' + Bestanden.vandaag() + ' (' + Object.keys(cat).length + ' producten)', ext:'json' }))
+      : (mode === 'ean' ? 'productgeheugen-palletlabels.json' : 'productgeheugen-verpakking.json');
     a.click();
     setStatus('Back-up gedownload (' + Object.keys(cat).length + ' producten, modus: ' + (mode==='ean'?'met barcode':'zonder barcode') + ').', 'ok');
   });
@@ -920,9 +923,19 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
         if(lastMode === 'ean') drawEanLabel(doc, r, idx);
         else drawGeenLabel(doc, r, idx);
       });
-      const blobUrl = doc.output('bloburl');
-      window.open(blobUrl, '_blank');
-      setStatus(lastRows.length + ' label(s) als PDF geopend — print vanuit dat tabblad.', 'ok');
+      // naam en map komen uit bestanden.js
+      const B = window.Bestanden;
+      const aanv = lastMode === 'ean' ? lastRows.filter(r => isAanvulQ(r.qty)) : [];
+      const eerste = r => lastMode === 'ean' ? (r.sub || r.name) : r.floor;
+      let naam, soort = 'palletlabels';
+      if(B){
+        if(aanv.length === lastRows.length && lastRows.length === 1){ soort = 'aanvullabel'; naam = B.naam('aanvullabel', { tekst:eerste(lastRows[0]), datum:B.vandaag() }); }
+        else naam = B.naam('palletlabels', { datum:B.vandaag(), tekst:eerste(lastRows[0]) + (lastRows.length > 1 ? ' (+' + (lastRows.length - 1) + ' meer)' : '') + (aanv.length && aanv.length < lastRows.length ? ' incl. aanvulpallet' : '') });
+      } else naam = 'palletlabels.pdf';
+      doc.setProperties({ title:naam.replace(/\.pdf$/, '') });
+      if(B) B.aanbieden(doc.output('blob'), naam, soort, { titel:lastRows.length + ' label' + (lastRows.length === 1 ? '' : 's') + ' klaar' });
+      else window.open(doc.output('bloburl'), '_blank');
+      setStatus(lastRows.length + ' label(s) klaar als "' + naam + '".', 'ok');
     }catch(e){
       setStatus('PDF maken is mislukt: ' + e.message, 'err');
     }

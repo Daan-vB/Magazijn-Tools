@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="bestanden.js"></script>
 <style>
   :root{
     --rack-blue:#1d4ea0;
@@ -366,8 +367,12 @@ RH90x150HD	5"></textarea>
       rows.forEach(r => {
         for(let k = 0; k < labelsFor(r); k++){ drawLabel(doc, r, n === 0); n++; }
       });
-      window.open(doc.output('bloburl'), '_blank');
-      setStatus(n + ' labels als PDF geopend. Print vanuit dat tabblad.', 'ok');
+      const B = window.Bestanden;
+      const naam = B ? B.naam('palletlabels', { datum:B.vandaag(), tekst:'containerlijst (' + rows.length + ' regels)' }) : 'palletlabels.pdf';
+      doc.setProperties({ title:naam.replace(/\.pdf$/, '') });
+      if(B) B.aanbieden(doc.output('blob'), naam, 'palletlabels', { titel:n + ' labels klaar' });
+      else window.open(doc.output('bloburl'), '_blank');
+      setStatus(n + ' labels klaar als "' + naam + '".', 'ok');
     }catch(e){
       setStatus('PDF maken is mislukt: ' + e.message, 'err');
     }

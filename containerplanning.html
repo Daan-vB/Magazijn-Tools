@@ -11,6 +11,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="bestanden.js"></script>
 <style>
   :root{--blue:#1d4ea0;--orange:#e8590c;--ink:#10151c;--bg:#eef1f5;--line:#cdd5df;--soft:#f6f8fb;--muted:#5b6673;--ok:#1c7a4a;--warn:#b86e00;--bad:#b3261e}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -343,12 +344,18 @@ const LEV_KORT = [[/wallace/i, 'Wallace'], [/fanda|haijie/i, 'Fanda'], [/great\s
   [/ningbo/i, 'Ningbo'], [/red\s*sun/i, 'Red Sun'], [/selected/i, 'Selected'], [/todo/i, 'Todo'], [/gardenya/i, 'Gardenya']];
 function levKort(l){ const m = LEV_KORT.find(([r]) => r.test(l || '')); return m ? m[1] : (String(l || 'Leverancier').split(/[\s,]+/)[0] || 'Leverancier'); }
 // "Hongle MIEU3705636 ETA 05-11.pdf" of, als de losdatum vastligt, "Hongle MIEU3705636 02-10 0900.pdf"
+// bestandsnamen en mappen komen uit bestanden.js (één afspraak voor alle tools)
+const bnCtx = c => ({ lev:levKort(c.leverancier), ref:c.pakbon_ref, cont:c.containernummer, datum:c.losdatum, tijd:c.lostijd, verwacht:isVerwacht(c) });
+const bnNaam = (soort, o) => window.Bestanden ? Bestanden.naam(soort, o) : String((o && (o.tekst || o.code || o.cont || o.ref)) || soort) + '.' + ((o && o.ext) || (soort === 'stockmove' ? 'txt' : soort === 'backup' ? 'json' : 'pdf'));
+function bestandKlaar(blob, naam, soort, titel){
+  if(window.Bestanden) return Bestanden.aanbieden(blob, naam, soort, { titel });
+  const url = URL.createObjectURL(blob);
+  if(!window.open(url, '_blank')){ const a = document.createElement('a'); a.href = url; a.download = naam; a.click(); }
+}
 function pakbonNaam(c, ext){
   const b = (c.data && c.data.pakbon_bestand) || {};
   ext = ext || b.ext || 'pdf';
-  const dm = d => d.slice(8, 10) + '-' + d.slice(5, 7);
-  const datum = !c.losdatum ? 'ETA onbekend' : isVerwacht(c) ? 'ETA ' + dm(c.losdatum) : dm(c.losdatum) + (c.lostijd ? ' ' + c.lostijd.replace(':', '') : '');
-  return [levKort(c.leverancier), c.containernummer || c.pakbon_ref, datum].filter(Boolean).join(' ').replace(/[\/\\:*?"<>|]/g, '-') + '.' + ext;
+  return bnNaam('pakbon', Object.assign(bnCtx(c), { ext }));
 }
 async function pakbonBewaar(c, file){
   const ext = ((file.name.match(/\.([a-z0-9]+)$/i) || [])[1] || 'pdf').toLowerCase();
@@ -2172,12 +2179,10 @@ async function backupMaken(){
     const [co, al, ca, pr, td] = await Promise.all([getAll('containers', 'select=*&order=id'), getAll('pakbon_alias', 'select=*'), api('GET', 'catalog?select=*'),
       getAll('producten', 'select=productcode,palletmaat,lengte_cm,breedte_cm,hoogte_cm,gewicht_kg,plaatsen,max_per_ligger,opmerking,eenheid,actief'), getAll('todos', 'select=*').catch(() => [])]);
     const data = { gemaakt:new Date().toISOString(), app:'containerplanning', containers:co, pakbon_alias:al, catalog:ca, producten_palletdata:pr.filter(r => ['palletmaat', 'hoogte_cm', 'gewicht_kg', 'plaatsen', 'max_per_ligger', 'opmerking'].some(k => !leeg(r[k])) || r.actief === false), todos:td };
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type:'application/json' }));
-    const nu = new Date(), dd = x => String(x).padStart(2, '0');
-    a.download = 'containerplanning-backup-' + nu.getFullYear() + '-' + dd(nu.getMonth() + 1) + '-' + dd(nu.getDate()) + '.json'; a.click();
+    const bnB = bnNaam('backup', {}), blobB = new Blob([JSON.stringify(data)], { type:'application/json' });
+    if(window.Bestanden) Bestanden.download(blobB, bnB); else { const a = document.createElement('a'); a.href = URL.createObjectURL(blobB); a.download = bnB; a.click(); }
     try{ localStorage.setItem('cp_backup', data.gemaakt); }catch(_){}
-    toast('Back-up gedownload: ' + co.length + ' containers, ' + al.length + ' koppelingen, productgeheugen en palletdata.', 5000);
+    toast('Back-up gedownload als "' + bnB + '"' + (window.Bestanden ? ' — hoort in ' + Bestanden.mapTekst('backup') : '') + '.', 8000);
     if(!cur) route();
   }catch(e){ toast('Back-up mislukt: ' + e.message, 6000); }
 }
@@ -3729,9 +3734,11 @@ function tabUitvoer(c, g){
   </div>`;
 }
 /* ---------- Eén PDF: samenvatting, werkbon, Stockmove-lijst ---------- */
-async function maakPdf(c, w){
+async function maakPdf(c){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const naam = bnNaam('losplanning', bnCtx(c));
+  doc.setProperties({ title:naam.replace(/\.pdf$/, '') });
   const W = 210, M = 14, R = W - M, H = 297;
   const safe = t => String(t == null ? '' : t).replace(/→/g, '->').replace(/≈/g, '~').replace(/[✓✔]/g, 'v').replace(/[^\x00-\xFF€–—…‘’“”•]/g, '');
   let y = M, pagina = '';
@@ -3821,7 +3828,6 @@ async function maakPdf(c, w){
   }
   voet();
   // pakbon vooraan
-  const naam = pakbonNaam(c, 'pdf').replace(/\.pdf$/, '') + ' - planning.pdf';
   let bytes = doc.output('arraybuffer'), metPakbon = '';
   const b = c.data.pakbon_bestand;
   if(b && (b.ext === 'pdf' || /^(jpe?g|png)$/.test(b.ext))){
@@ -3840,13 +3846,11 @@ async function maakPdf(c, w){
       }
       const plan = await PDFDocument.load(bytes);
       (await out.copyPages(plan, plan.getPageIndices())).forEach(x => out.addPage(x));
+      out.setTitle(naam.replace(/\.pdf$/, ''));
       bytes = await out.save(); metPakbon = 'pakbon, ';
     }catch(e){ toast('Pakbon kon niet vooraan in de PDF: ' + e.message, 6000); }
   }
-  const url = URL.createObjectURL(new Blob([bytes], { type:'application/pdf' }));
-  if(w && w.location) w.location.href = url;
-  else if(!window.open(url, '_blank')){ const a = document.createElement('a'); a.href = url; a.download = naam; a.click(); }
-  toast('PDF gemaakt: ' + metPakbon + 'samenvatting, werkbon en Stockmove-lijst.');
+  bestandKlaar(new Blob([bytes], { type:'application/pdf' }), naam, 'losplanning', 'PDF voor de losdag klaar (' + metPakbon + 'samenvatting, werkbon, Stockmove)');
 }
 /* ---------- Overzicht voor Daan: per product hier / pick / backorders / klant / VST + backorders per order ---------- */
 function overzichtData(cs){
@@ -3871,7 +3875,7 @@ function overzichtData(cs){
   });
   return Object.values(per).sort((a, b) => a.code.localeCompare(b.code, 'nl', { sensitivity:'base', numeric:true }));
 }
-async function maakOverzichtPdf(c, w){
+async function maakOverzichtPdf(c){
   const d0 = c.losdatum;
   const cs = (d0 ? CONT.filter(k => k.status !== 'afgerond' && k.losdatum === d0 && (k.data.regels || []).length) : []);
   if(!cs.some(k => k.id === c.id)) cs.unshift(c);
@@ -3879,6 +3883,8 @@ async function maakOverzichtPdf(c, w){
   const prods = overzichtData(cs);
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const naamF = bnNaam('overzicht', { datum:d0, verwacht:isVerwacht(c), items:cs.map(k => ({ lev:levKort(k.leverancier), ref:k.pakbon_ref, cont:k.containernummer })) });
+  doc.setProperties({ title:naamF.replace(/\.pdf$/, '') });
   const W = 210, M = 14, R = W - M, H = 297;
   const safe = t => String(t == null ? '' : t).replace(/→/g, '->').replace(/≈/g, '~').replace(/[✓✔]/g, 'v').replace(/[^\x00-\xFF€–—…‘’“”•]/g, '');
   let y = M, pag = 1;
@@ -3955,11 +3961,7 @@ async function maakOverzichtPdf(c, w){
   });
   if(!prods.length) tekst('Geen producten met een pakbon in deze container(s).', { size:10 });
   voet();
-  const naamF = 'Losdag-overzicht ' + (d0 || 'container') + '.pdf';
-  const url = URL.createObjectURL(new Blob([doc.output('arraybuffer')], { type:'application/pdf' }));
-  if(w && w.location) w.location.href = url;
-  else if(!window.open(url, '_blank')){ const a = document.createElement('a'); a.href = url; a.download = naamF; a.click(); }
-  toast('Overzicht gemaakt: ' + prods.length + ' producten, ' + cs.length + ' container' + (cs.length === 1 ? '' : 's') + '.');
+  bestandKlaar(new Blob([doc.output('arraybuffer')], { type:'application/pdf' }), naamF, 'overzicht', 'Overzicht klaar (' + prods.length + ' producten, ' + cs.length + ' container' + (cs.length === 1 ? '' : 's') + ')');
 }
 function maakLabels(c, eigenLijst){
   const lijst = eigenLijst || labelLijst(c);
@@ -3995,10 +3997,12 @@ function maakLabels(c, eigenLijst){
       doc.setFontSize(15); doc.text('STUKS', W / 2 + 6, 178, { align:'left' });
     }
   });
-  const url = doc.output('bloburl');
-  const w = window.open(url, '_blank');
-  if(!w){ const a = document.createElement('a'); a.href = url; a.download = 'palletlabels-' + (c.pakbon_ref || c.containernummer || c.id) + '.pdf'; a.click(); }
-  toast(lijst.length + ' labels gemaakt.');
+  const codesAanvul = [...new Set(lijst.filter(x => x.aanvul).map(x => x.code))];
+  const naamL = eigenLijst && lijst.every(x => x.aanvul) && codesAanvul.length === 1
+    ? bnNaam('aanvullabel', { code:codesAanvul[0], datum:window.Bestanden ? Bestanden.vandaag() : '' })
+    : bnNaam('palletlabels', Object.assign(bnCtx(c), { tekst:lijst.some(x => x.aanvul) && !lijst.every(x => x.aanvul) ? 'incl. aanvulpallet' : '' }));
+  doc.setProperties({ title:naamL.replace(/\.pdf$/, '') });
+  bestandKlaar(doc.output('blob'), naamL, naamL.startsWith('Aanvulpallet') ? 'aanvullabel' : 'palletlabels', lijst.length + ' label' + (lijst.length === 1 ? '' : 's') + ' klaar');
 }
 function kopieer(t){
   if(navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(t).then(() => toast('Gekopieerd.'));
@@ -4105,10 +4109,10 @@ const ACT = {
   regelweg2: el => { const b = el.closest('[data-kc]'), c = CONT.find(x => x.id === +b.dataset.kc), r = c && c.data.regels.find(x => String(x.id) === b.dataset.kr); if(r) regelWeg(c, r); },
   pkallesop: () => productenOpslaan([...new Set([...document.querySelectorAll('[data-pk]')].map(e => e.dataset.pk))]),
   // uitvoer
-  wbprint: () => { $('print').innerHTML = werkbonHtml(cur); document.body.classList.add('printing'); window.print(); },
+  wbprint: () => { $('print').innerHTML = werkbonHtml(cur); document.body.classList.add('printing'); const t0 = document.title; document.title = bnNaam('werkbon', bnCtx(cur)).replace(/\.pdf$/, ''); const terug = () => { document.title = t0; window.removeEventListener('afterprint', terug); }; window.addEventListener('afterprint', terug); window.print(); },
   wbcopy: () => kopieer(werkbonTekst(cur)),
   labels: () => maakLabels(cur),
-  pdfall: () => maakPdf(cur, window.open('', '_blank')),
+  pdfall: () => maakPdf(cur),
   pbkijk: () => pakbonToon(cur, window.innerWidth < 700),
   pbtab: () => pakbonToon(cur, true),
   copyopslag: () => kopieer(OPSLAG_SQL),
@@ -4119,7 +4123,7 @@ const ACT = {
   ontvverdeel: el => ontvangstVerdeel(+el.dataset.i),
   ontvvoor: el => ontvangstVoorboek(+el.dataset.i),
   vboweg: el => voorboekWeg(cur, el.dataset.rc),
-  pdfover: () => maakOverzichtPdf(cur, window.open('', '_blank')),
+  pdfover: () => maakOverzichtPdf(cur),
   ontvdel: el => { UI.ontv.splice(+el.dataset.i, 1); viewHome(); },
   ontvweg: () => { UI.ontv = []; viewHome(); },
   algelost: async el => {
@@ -4132,7 +4136,7 @@ const ACT = {
   algelostcur: async () => { const d = $('gl_cur').value; if(!d) return; try{ await alGelost(cur, d); toast('Gelost op ' + fdate(d, { day:'numeric', month:'short' }) + ', afgerond.'); }catch(e){ toast('Opslaan mislukt: ' + e.message, 5000); } rerender(); },
   opslagtest: async () => { await opslagCheck(); viewHome(); toast(OPSLAG ? 'Opslag werkt. Pakbonnen worden vanaf nu bewaard.' : 'Opslagmap nog niet gevonden. Is de SQL uitgevoerd?', 5000); },
   smcopy: () => kopieer(stockmoveRegels(cur).join('\n')),
-  smdown: () => { const blob = new Blob([stockmoveRegels(cur).join('\n') + '\n'], { type:'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'stockmove-' + (cur.pakbon_ref || cur.containernummer || cur.id) + '.txt'; a.click(); },
+  smdown: () => bestandKlaar(new Blob([stockmoveRegels(cur).join('\n') + '\n'], { type:'text/plain' }), bnNaam('stockmove', bnCtx(cur)), 'stockmove', 'Stockmove-lijst klaar'),
   mailcopy: () => kopieer(mailtoVst(cur).body),
   afronden: () => {
     const snap = {}; pools(cur).order.forEach(code => { const f = feiten(code); snap[code] = { hm:f.hm, vrij:f.vrij, vst:f.vst, rate:f.rate, bo:f.bo }; });
