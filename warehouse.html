@@ -30,6 +30,11 @@
   .top nav::-webkit-scrollbar{display:none}
   .top nav a{color:#c4cfdd;text-decoration:none;padding:6px 10px;border-radius:6px;font-weight:600;font-size:13.5px;white-space:nowrap}
   .top nav a.on{background:#222b37;color:#fff}
+  .top .subnav{flex-basis:100%;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin:2px -4px 0;padding-top:6px;border-top:1px solid #222b37}
+  .top .subnav::-webkit-scrollbar{display:none}
+  .top .subnav a{color:#9fb0c4;text-decoration:none;padding:5px 10px;border-radius:14px;font-weight:600;font-size:13px;white-space:nowrap}
+  .top .subnav a.on{background:#f08a4b;color:#10151c}
+  .top nav a.klein{font-size:12px;color:#8a98aa}
   .top nav .sep{width:1px;background:#33404f;margin:4px 6px}
   .top .saved{margin-left:auto;font-size:12px;color:#8fa0b5}
 
@@ -130,6 +135,9 @@
   .meta.rood{color:var(--bad);font-weight:700}
   .verwerk{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:12px 14px} .verwerk.klaar{background:#dff3e8;border-color:#b5e0c7}
   .printonly{display:none}
+  .ab-voortgang{min-width:190px;font-size:13px;text-align:right}
+  .ab-voortgang .balk{height:8px;border-radius:4px;background:#e9ecf0;margin-top:4px;overflow:hidden}
+  .ab-voortgang .balk i{display:block;height:100%;background:var(--ok)}
   .gangkop{display:flex;align-items:center;gap:8px;margin:14px 0 2px;padding-top:10px;border-top:2px solid var(--ink)}
   .gangkop:first-child{margin-top:0;border-top:none;padding-top:0}
   .gangkop b{font-size:15px}
@@ -212,32 +220,19 @@
 <body>
 <header class="top">
   <div class="brand"><h1>IVOL <span>Warehouse</span></h1><span class="sync" id="sync">laden…</span></div>
-  <nav id="nav">
-    <a href="#/" data-nav="vandaag">Vandaag</a>
-    <a href="#/aanvullen" data-nav="aanvullen">Aanvullen</a>
-    <a href="#/invul" data-nav="invul">Invullen</a>
-    <a href="#/base" data-nav="base">Aanvulbase</a>
-    <a href="#/locaties" data-nav="locaties">Locaties</a>
-    <a href="#/triage" data-nav="triage">Triage</a>
-    <a href="#/planning" data-nav="planning">Planning</a>
-    <a href="#/gegevens" data-nav="gegevens">Gegevens</a>
-    <span class="sep"></span>
-    <a href="./containerplanning.html">Containers</a>
-    <a href="./productkaart.html">Productkaart</a>
-    <a href="./">Palletlabels</a>
-    <a href="./junior.html">Junior</a>
-  </nav>
+  <nav id="nav"></nav>
   <span class="saved" id="saved"></span>
 </header>
 <main id="app"><div class="empty">Laden…</div></main>
 <div id="toast" hidden></div>
 
+<script src="wh/menu.js?v=1"></script>
 <script src="wh/core.js?v=9"></script>
 <script src="wh/logica.js?v=8"></script>
 <script src="wh/planning.js?v=8"></script>
 <script src="wh/triage.js?v=2"></script>
 <script src="wh/dag.js?v=4"></script>
 <script src="wh/barcode.js?v=1"></script>
-<script src="wh/views.js?v=9"></script>
+<script src="wh/views.js?v=10"></script>
 </body>
 </html>

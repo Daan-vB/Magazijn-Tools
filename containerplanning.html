@@ -12,6 +12,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="bestanden.js"></script>
+<script src="wh/menu.js?v=1"></script>
 <style>
   :root{--blue:#1d4ea0;--orange:#e8590c;--ink:#10151c;--bg:#eef1f5;--line:#cdd5df;--soft:#f6f8fb;--muted:#5b6673;--ok:#1c7a4a;--warn:#b86e00;--bad:#b3261e}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -31,6 +32,11 @@
   .top nav a{white-space:nowrap}
   .top nav a{color:#c4cfdd;text-decoration:none;padding:6px 10px;border-radius:6px;font-weight:600;font-size:13.5px}
   .top nav a.on{background:#222b37;color:#fff}
+  .top .subnav{flex-basis:100%;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin:2px -4px 0;padding-top:6px;border-top:1px solid #222b37}
+  .top .subnav::-webkit-scrollbar{display:none}
+  .top .subnav a{color:#9fb0c4;text-decoration:none;padding:5px 10px;border-radius:14px;font-weight:600;font-size:13px;white-space:nowrap}
+  .top .subnav a.on{background:#f08a4b;color:#10151c}
+  .top nav a.klein{font-size:12px;color:#8a98aa}
   .top .saved{margin-left:auto;font-size:12px;color:#8fa0b5}
   .top .saved.err{color:#ff9a86}
 
@@ -198,20 +204,7 @@
 <body>
 <header class="top">
   <div class="brand"><h1>IVOL <span style="color:#f08a4b">Warehouse</span></h1><span class="sync" id="sync">laden…</span></div>
-  <nav id="nav">
-    <a href="./warehouse.html#/">Vandaag</a>
-    <a href="./warehouse.html#/aanvullen">Aanvullen</a>
-    <a href="./warehouse.html#/base">Aanvulbase</a>
-    <a href="./warehouse.html#/locaties">Locaties</a>
-    <a href="./warehouse.html#/planning">Planning</a>
-    <a href="#/" data-nav="home">Containers</a>
-    <a href="#/vooruit" data-nav="vooruit">Vooruit</a>
-    <a href="#/producten" data-nav="producten">Producten</a>
-    <a href="#/gegevens" data-nav="gegevens">Gegevens</a>
-    <a href="#/vloernamen" data-nav="vloernamen">Vloernamen</a>
-    <a href="./productkaart.html">Productkaart</a>
-    <a href="./">Palletlabels</a>
-  </nav>
+  <nav id="nav"></nav>
   <span class="saved" id="saved"></span>
 </header>
 <main id="app"><div class="empty">Laden…</div></main>
@@ -1621,7 +1614,7 @@ async function route(){
   let m;
   if(!h.startsWith('#/producten')) SUP = null;
   const nu = h.startsWith('#/producten') ? 'producten' : h.startsWith('#/c/') ? 'home' : h.startsWith('#/gegevens') ? 'gegevens' : h.startsWith('#/vloernamen') ? 'vloernamen' : h.startsWith('#/vooruit') ? 'vooruit' : 'home';
-  document.querySelectorAll('#nav a[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === nu));
+  if(window.WHM) WHM.zet('cp:' + nu);
   if(!h.startsWith('#/c/')){ if(dirty) await flushSave(); cur = null; setSaved(''); }
   if(['containers', 'pakbon_alias', 'verkoop', 'backorders'].some(t => MISSING.includes(t))) return viewSetup();
   if((m = h.match(/^#\/c\/(\d+)(?:\/(\w+))?/))) return viewContainer(+m[1], m[2] || 'pakbon');

@@ -53,8 +53,7 @@ function parseHash(){
 function route(){
   const { delen, q } = parseHash();
   const naam = delen[0] || 'vandaag';
-  const navNaam = { p:'base', containerdag:'vandaag', controle:'vandaag', backorders:'aanvullen', ruimte:'vandaag' }[naam] || naam;
-  document.querySelectorAll('#nav a[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === navNaam));
+  if(window.WHM) WHM.zet(naam);
   if(D.fout){ app.innerHTML = geenVerbinding(); return; }
   try{
     if(naam === 'containerdag') return WHD.viewContainerdag(delen[1]);
@@ -65,6 +64,7 @@ function route(){
     if(naam === 'overzicht') return viewVandaag();
     if(naam === 'aanvullen') return viewAanvullen(delen[1] || 'nu');
     if(naam === 'base') return viewBase(q);
+    if(naam === 'abcheck') return viewAB();
     if(naam === 'locaties') return viewLocaties(delen[1] || '', q);
     if(naam === 'triage') return WHT.view();
     if(naam === 'planning') return viewPlanning();
@@ -184,7 +184,7 @@ function viewAanvullen(tab){
   if(!D.ADV) mis.push('aanvuladvies-PDF');
   if(!Object.keys(D.LOC).length) mis.push('locatie-export');
   const tabs = [['nu', '1 · Nu verplaatsen', C.mv.filter(m => WHL.mvStaat(m.code, vd) !== 'klaar').length, 'hot'], ['vst', 'Van VST', C.vst.length, 'vst'],
-    ['ronde', '2 · Aanvulronde', C.ronde.filter(r => !tik('rd:' + vd + ':' + r.code)).length, ''], ['niet', 'Niet nu', C.deels.length, ''], ['vast', 'Vastzittend', C.vast.length, '']];
+    ['ronde', '2 · Aanvulronde', C.ronde.filter(r => !tik('rd:' + vd + ':' + r.code) && !C.uitzetten.includes(r)).length, ''], ['niet', 'Niet nu', C.deels.length, ''], ['vast', 'Vastzittend', C.vast.length, '']];
   const kop = `<div class="tabs">${tabs.map(([k, t, n, cls]) => `<a class="tab ${k === tab ? 'on' : ''} ${n ? cls : ''}" href="#/aanvullen/${k}">${esc(t)} <span class="nr">${nf(n)}</span></a>`).join('')}</div>
     ${mis.length ? `<div class="card reason">Ontbreekt: <b>${esc(mis.join(', '))}</b>. <a href="#/gegevens">Inladen →</a></div>` : ''}
     ${D.ADV ? `<div class="small muted mb8 noprint">Advies van ${esc(fdt(D.ADV.datum))} · backorders van ${esc(fdt(dataDatums().backorders))}</div>` : ''}`;
@@ -311,7 +311,8 @@ function tabVst(C, vd){
 }
 function tabRonde(C, vd){
   if(!D.ADV) return '<div class="card empty">Lees eerst het aanvuladvies (PDF) in bij <a href="#/gegevens">Gegevens</a>.</div>';
-  const lijst = C.ronde.filter(r => !UI.rondeGang || r.gang === UI.rondeGang);
+  const uitSet = new Set(C.uitzetten.map(r => r.code));
+  const lijst = C.ronde.filter(r => !uitSet.has(r.code) && (!UI.rondeGang || r.gang === UI.rondeGang));
   let vorige = null, html = '';
   lijst.forEach(r => {
     if(r.gang !== vorige){
@@ -344,7 +345,7 @@ function rondeHtml(r, vd){
       <div class="route"><span class="rl">van</span>${locs(r.bulk)}<span class="pijl">→</span><span class="rl">naar</span>${r.geenPick ? '<span class="badge b-warn">geen picklocatie</span>' : locs(r.pick)}</div>
       ${r.deels ? `<div class="meta">${badge('backorder, order nog niet compleet', 'b-grey')} ${esc(r.deels.orders.map(o => o.nr).join(', '))}: gewoon aanvullen, maakt de order niet compleet</div>` : ''}
       ${WHL.bereken().vst.some(v => v.code === r.code) ? '<div class="meta"><span class="badge b-vst">wacht op VST</span> verplaatsen maakt geen order compleet, zie Van VST</div>' : ''}
-      <div class="meta">pickvoorraad ${nf(r.pickst)}${pr ? ' · Picqer ' + (pr.pq.lvl ?? '–') + '/' + (pr.pq.tot ?? '–') + ' → voorstel ' + (f.lvl ?? '–') + '/' + (f.tot ?? '–') + ' ' + badge(typeNaam[f.type] || f.type || '', typeCls[f.type]) : ''} <button class="btn ghost sm" data-a="open" data-k="r:${esc(r.code)}">${open ? 'sluit' : 'instellen'}</button></div>
+      <div class="meta">pickvoorraad ${nf(r.pickst)}${pr && f.type !== 'bulk' ? ' · Picqer ' + (pr.pq.lvl ?? '–') + '/' + (pr.pq.tot ?? '–') + ' → voorstel ' + (f.lvl ?? '–') + '/' + (f.tot ?? '–') : ''}${pr ? ' ' + badge(typeNaam[f.type] || f.type || '', typeCls[f.type]) : ''} <button class="btn ghost sm" data-a="open" data-k="r:${esc(r.code)}">${open ? 'sluit' : 'instellen'}</button></div>
       ${open && pr ? `<div class="edit">${editVelden(pr)}</div>` : ''}
     </div>
     <div class="bc">${bc(r.code)}</div>
@@ -474,6 +475,80 @@ function baseRij(p){
       <div class="route">${p.picks.length ? locs(p.picks) : ''}${f.nieuwePick ? ' ' + badge('nieuw: ' + f.pick, 'b-warn') : ''}${p.bulks.length ? ' <span class="pijl">·</span> ' + locs(p.bulks.slice(0, 4)) + (p.bulks.length > 4 ? ' +' + (p.bulks.length - 4) : '') : ''}${p.conts.length ? ' ' + locs(p.conts) : ''}</div>
       <div class="meta">${badge(typeNaam[f.type] || f.type, typeCls[f.type])} ${p.abc ? badge('ABC ' + p.abc, 'b-grey') : ''} ${triBadges(p.code)}voorraad ${nf(p.st)}${p.vst ? ' · VST ' + nf(p.vst) : ''} · verkoop ${p.vk === null ? '?' : nf(p.vk, 1)}/mnd${p.spp ? ' · ' + nf(p.spp) + '/pallet' : ''} · Picqer ${p.pq.lvl ?? '–'}/${p.pq.tot ?? '–'} → <b>${f.lvl ?? '–'}/${f.tot ?? '–'}</b>
         <button class="btn ghost sm" data-a="open" data-k="b:${esc(p.code)}">${open ? 'sluit' : 'aanpassen'}</button></div>
+      ${open ? `<div class="edit">${editVelden(p)}</div>` : ''}</div>
+    <div>${badge(st[0], st[1])}</div></div>`;
+}
+
+/* =====================================================================
+   A/B-CHECK: lopers die een goede picklocatie en echte aanvulniveaus moeten hebben
+   Loper = ABC A of B (Picqer) of triage Belangrijk/Medium. Per loper wat er nog mist, meest verkocht eerst.
+   ===================================================================== */
+const AB_STAP = [
+  ['pick', 'Geen picklocatie', 'Staat alleen op bulk of op geen specifieke locatie. Met "bulk in backorder" blijft elke order hangen tot iemand verplaatst. Geef een vaste picklocatie (voorstel: vrije vloerplek onder de bulk).'],
+  ['tijd', 'Picklocatie op tijdelijk', 'Ontkoppelt bij voorraad 0: daarna weet Picqer niet meer waar hij hoort. Zet de locatie op vast (Locaties → import).'],
+  ['niveau', 'Geen aanvulniveau in Picqer', 'Heeft een picklocatie, maar Picqer vult niet aan (aanvulniveau of "vul aan tot" leeg). Vul de niveaus in en importeer.'],
+  ['afwijk', 'Niveau wijkt af van het voorstel', 'Picqer-waarden (vaak de standaard 1 / 11) passen niet bij de verkoop of de palletgrootte. Controleer en bevestig.'],
+  ['meer', 'Meerdere picklocaties', 'Twee of meer picklocaties: bewust (bv. pallet + doos) of opruimen?'],
+  ['ok', 'In orde', 'Picklocatie vast, niveaus in Picqer en bevestigd of gelijk aan het voorstel.']
+];
+function abLopers(){
+  const C = WHL.bereken();
+  const tri = c => window.WHT ? WHT.statusVan(c) : '';
+  return Object.values(C.prof).filter(p => {
+    if(p.virt || (D.P[p.code] || {}).actief === false) return false;
+    const t = tri(p.code);
+    if(t === 'r' || t === 'x') return false;                     // triage zegt zelden/weg
+    return p.abc === 'A' || p.abc === 'B' || t === 'g' || t === 'o';
+  }).map(p => {
+    const f = p.final, mist = [];
+    const pi = f.pick ? WHL.locInfo(f.pick) : null;
+    if(!f.pick || f.type === 'bulk' || f.type === 'los') mist.push('pick');
+    else {
+      if(pi && pi.bestaat && pi.tijd) mist.push('tijd');
+      if(p.pq.lvl === null || p.pq.tot === null) mist.push('niveau');
+      else if(p.imp && p.status !== 'bevestigd') mist.push('afwijk');
+      if(p.picks.length > 1) mist.push('meer');
+      if(f.nieuwePick && p.status !== 'bevestigd') mist.push('pick');
+    }
+    return { p, mist, stap:mist[0] || 'ok' };
+  }).sort((a, b) => (b.p.vk || 0) - (a.p.vk || 0) || a.p.code.localeCompare(b.p.code));
+}
+function viewAB(){
+  const lijst = abLopers();
+  const sel = UI.ab || (lijst.some(x => x.stap === 'pick') ? 'pick' : 'niveau');
+  const tel = k => lijst.filter(x => k === 'ok' ? x.stap === 'ok' : x.mist.includes(k)).length;
+  const rij = AB_STAP.find(x => x[0] === sel) || AB_STAP[0];
+  const toon = lijst.filter(x => sel === 'ok' ? x.stap === 'ok' : x.mist.includes(sel));
+  const max = UI.abMax || 100;
+  const nA = lijst.filter(x => x.p.abc === 'A').length, nB = lijst.filter(x => x.p.abc === 'B').length;
+  const ok = tel('ok');
+  // zonder picklocatie alleen bevestigen als de app een picklocatie voorstelt (anders zou je "alleen bulk" bevestigen)
+  const magBev = x => x.p.status !== 'bevestigd' && !(sel === 'pick' && !x.p.final.nieuwePick);
+  const nBev = toon.filter(magBev).length;
+  app.__bev = toon.filter(magBev).map(x => x.p.code);
+  app.innerHTML = `<div class="card"><div class="row wrap between"><div><h2>A/B-check</h2>
+      <div class="small muted">${nf(lijst.length)} lopers (${nf(nA)} A, ${nf(nB)} B, rest triage Belangrijk/Medium). Een loper hoort een vaste picklocatie en echte aanvulniveaus te hebben, anders blijven orders in backorder hangen. Werk de stappen van links naar rechts af; meest verkocht eerst.</div></div>
+      <div class="ab-voortgang"><b>${nf(ok)}</b> / ${nf(lijst.length)} in orde<div class="balk"><i style="width:${lijst.length ? Math.round(ok / lijst.length * 100) : 0}%"></i></div></div></div>
+    <div class="tabs mt12">${AB_STAP.map(([k, t]) => `<a class="tab ${k === sel ? 'on' : ''} ${k !== 'ok' && tel(k) ? 'hot' : ''}" href="javascript:void 0" data-a="ab" data-v="${k}">${esc(t)} <span class="nr">${nf(tel(k))}</span></a>`).join('')}</div>
+    <div class="reason">${esc(rij[2])}${sel === 'pick' ? ' Zonder voorstel: tik instellen en typ zelf een picklocatie.' : ''}</div></div>
+  <div class="card">${toon.slice(0, max).map(x => abRij(x)).join('') || '<div class="empty">Niets in deze stap.</div>'}
+    ${toon.length > max ? `<div class="row mt12"><button class="btn" data-a="ab-meer">Toon meer (${nf(toon.length - max)})</button></div>` : ''}</div>
+  <div class="card"><h3>Naar Picqer</h3><div class="small muted mt4">Alleen de lopers uit deze stap. Import in Picqer: Producten → Importeren → "Alleen bestaande producten bijwerken". Test een nieuw soort import eerst met 2–3 producten.</div>
+    <div class="row wrap mt8"><button class="btn sm ok" data-a="ab-bev" ${nBev ? '' : 'disabled'}>Bevestig alle zichtbare (${nf(nBev)})</button>
+      <button class="btn sm pri" data-a="ab-exp-aanvul">Picqer-import aanvulniveaus</button>
+      <button class="btn sm" data-a="ab-exp-koppel">Picqer-import picklocaties koppelen</button>
+      ${sel === 'tijd' ? '<a class="btn sm" href="#/locaties">Locatie-import (vast zetten)</a>' : ''}</div></div>`;
+  app.__lijst = toon.map(x => x.p);
+}
+function abRij(x){
+  const p = x.p, f = p.final, open = UI.open['ab:' + p.code];
+  const st = { voorstel:['voorstel', 'b-warn'], bevestigd:['bevestigd', 'b-ok'], gelijk:['= Picqer', 'b-grey'] }[p.status];
+  const naamStap = k => (AB_STAP.find(s => s[0] === k) || [k, k])[1].toLowerCase();
+  return `<div class="mv" style="grid-template-columns:1fr auto">
+    <div><div><a class="code" href="#/p/${encodeURIComponent(p.code)}">${esc(p.code)}</a> <span class="desc">${esc(p.naam)}</span> ${p.abc ? badge('ABC ' + p.abc, 'b-grey') : ''} ${triBadges(p.code)}</div>
+      <div class="route">${p.picks.length ? '<span class="rl">pick</span>' + locs(p.picks) : ''}${f.nieuwePick ? ' ' + badge('voorstel pick: ' + f.pick, 'b-warn') : ''}${p.bulks.length ? ' <span class="rl">bulk</span>' + locs(p.bulks.slice(0, 3)) + (p.bulks.length > 3 ? ' +' + (p.bulks.length - 3) : '') : ''}${p.conts.length ? ' ' + locs(p.conts) : ''}${!p.locs.length ? badge('geen locatie', 'b-warn') : ''}</div>
+      <div class="meta">verkoop ${p.vk === null ? '?' : nf(p.vk, 1)}/mnd${p.spp ? ' · ' + nf(p.spp) + '/pallet' : ''} · voorraad ${nf(p.st)}${p.vst ? ' · VST ' + nf(p.vst) : ''} · Picqer ${p.pq.lvl ?? '–'}/${p.pq.tot ?? '–'} → <b>${f.lvl ?? '–'}/${f.tot ?? '–'}</b> ${badge(typeNaam[f.type] || f.type || '', typeCls[f.type])}${x.mist.length > 1 ? ' · ook: ' + esc(x.mist.slice(1).map(naamStap).join(', ')) : ''}
+        <button class="btn ghost sm" data-a="open" data-k="ab:${esc(p.code)}">${open ? 'sluit' : 'instellen'}</button></div>
       ${open ? `<div class="edit">${editVelden(p)}</div>` : ''}</div>
     <div>${badge(st[0], st[1])}</div></div>`;
 }
@@ -710,6 +785,26 @@ document.addEventListener('click', async ev => {
   }
   if(a === 'open'){ UI.open[b.dataset.k] = !UI.open[b.dataset.k]; rerender(); return; }
   if(a === 'volg'){ try{ localStorage.setItem('wh-volg', b.dataset.v); }catch(e){} rerender(); return; }
+  if(a === 'ab'){ UI.ab = b.dataset.v; UI.abMax = 100; rerender(); return; }
+  if(a === 'ab-meer'){ UI.abMax = (UI.abMax || 100) + 200; rerender(); return; }
+  if(a === 'ab-bev'){
+    const l = app.__bev || [];
+    if(!l.length || !confirm(l.length + ' producten bevestigen zoals ze nu staan (picklocatie en niveaus)?')) return;
+    await bevestig(l); return;
+  }
+  if(a === 'ab-exp-aanvul' || a === 'ab-exp-koppel'){
+    const set = new Set((app.__lijst || []).map(p => p.code));
+    if(a === 'ab-exp-aanvul'){
+      const r = WHL.importAanvul(p => set.has(p.code));
+      if(!r.length){ toast('Niets dat afwijkt van Picqer'); return; }
+      WH.excel(['Productcode', 'Aanvulniveau Hoofdmagazijn', 'Vul pickvoorraad aan tot Hoofdmagazijn'], r, 'Picqer import aanvulniveaus AB ' + vandaag() + ' (' + r.length + ').xlsx');
+    } else {
+      const r = WHL.importKoppel(p => set.has(p.code));
+      if(!r.length){ toast('Geen nieuwe picklocaties in deze stap'); return; }
+      WH.excel(['Productcode', 'Voorraadlocatie Hoofdmagazijn'], r, 'Picqer import picklocaties koppelen AB ' + vandaag() + ' (' + r.length + ').xlsx');
+    }
+    return;
+  }
   if(a === 'verwerk' || a === 'dz'){
     const k = a === 'verwerk' ? 'dg:' + vandaag() + ':verwerk' : 'dz:' + b.dataset.nr;
     const v = D.TAKEN[k] ? null : { op:new Date().toISOString() };
