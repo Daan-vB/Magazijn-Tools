@@ -3667,9 +3667,16 @@ function labelLijst(c){
   const pl = pools(c);
   pl.order.forEach(code => {
     const v = c.data.verdeling[code];
+    // zelfde nummering als IVOL Warehouse → Containerdag (cp:<container>:<product>:<n>), zodat de geplande bulkplek op het label komt
+    let upI = 0;
     (v && v.porties || []).forEach(x => {
-      if(x.soort !== 'pallet' || !UI.labelDest[x.dest]) return;
-      for(let i = 0; i < (num(x.n) || 0); i++) out.push({ code, name:labelNaam(code), ean:eanVan(code) || code, stuks:num(x.per), dest:x.dest });
+      const bulk = x.dest === 'UP' || x.dest === 'GROUND';
+      if(x.soort !== 'pallet'){ if(bulk && num(x.n)) upI++; return; }
+      for(let i = 0; i < (num(x.n) || 0); i++){
+        const key = bulk ? 'cp:' + c.id + ':' + code + ':' + (upI++) : null;
+        if(!UI.labelDest[x.dest]) continue;
+        out.push({ code, name:labelNaam(code), ean:eanVan(code) || code, stuks:num(x.per), dest:x.dest, key });
+      }
     });
   });
   if(UI.aanvulLabels !== false) aanvulCodes(c).forEach(code => out.push(aanvulLabel(code)));
@@ -3722,7 +3729,7 @@ function tabUitvoer(c, g){
     <div class="row between wrap"><h3>2. Palletlabels</h3><button class="btn acc" data-act="labels" ${lab.length ? '' : 'disabled'}>PDF maken (${lab.length} labels)</button></div>
     <div class="row wrap mt8 small">Labels voor: ${Object.keys(DEST).filter(k => DEST[k].label).map(k => `<label class="row" style="gap:4px"><input type="checkbox" data-labeldest="${k}" ${UI.labelDest[k] ? 'checked' : ''}> ${DEST[k].nl} (${alleDest[k] || 0})</label>`).join('')}
       ${aanvulCodes(c).length ? `<label class="row" style="gap:4px"><input type="checkbox" data-aanvullabels ${UI.aanvulLabels !== false ? 'checked' : ''}> + aanvulpallet-labels (${aanvulCodes(c).length})</label>` : ''}</div>
-    <p class="small muted mt8">Zelfde opmaak als de palletlabel-generator: naam, productcode, barcode en aantal (in Picqer-eenheden, bijv. 60 m). Elke pallet krijgt zijn aantal. Voor producten met het vinkje <b>aanvulpallet</b> komt er per product één extra label bij (<i>AANVULPALLET</i> in plaats van het aantal) voor de pallet die wordt aangebroken. Direct-weg-pallets krijgen geen label.</p>
+    <p class="small muted mt8">Zelfde opmaak als de palletlabel-generator: naam, productcode, barcode en aantal (in Picqer-eenheden, bijv. 60 m). Elke pallet krijgt zijn aantal. Voor producten met het vinkje <b>aanvulpallet</b> komt er per product één extra label bij (<i>AANVULPALLET</i> in plaats van het aantal) voor de pallet die wordt aangebroken. Direct-weg-pallets krijgen geen label. <b>Bovenaan elk label staat waar de pallet heen gaat</b>: de bulkplek uit IVOL Warehouse → Containerdag (Ruimte plannen), de picklocatie of VST. Plan de plekken dus vóór je de labels print.</p>
   </div>
   <div class="card out">
     <div class="row between wrap"><h3>3. Stockmove-lijst (${sm.length} pallets naar VST)</h3><div class="row"><button class="btn" data-act="smcopy" ${sm.length ? '' : 'disabled'}>Kopieer</button><button class="btn" data-act="smdown" ${sm.length ? '' : 'disabled'}>Download .txt</button></div></div>
@@ -3982,9 +3989,29 @@ async function maakOverzichtPdf(c){
   voet();
   bestandKlaar(new Blob([doc.output('arraybuffer')], { type:'application/pdf' }), naamF, 'overzicht', 'Overzicht klaar (' + prods.length + ' producten, ' + cs.length + ' container' + (cs.length === 1 ? '' : 's') + ')');
 }
-function maakLabels(c, eigenLijst){
+// bestemming per label: geplande bulkplek (Containerdag), picklocatie, VST
+async function labelBestemming(lijst){
+  let T = {};
+  try{ const r = await api('GET', 'catalog?key=eq.wh-taken&select=data'); T = (r && r.length ? r[0].data : {}) || {}; }catch(e){ /* zonder planning: alleen de soort */ }
+  const pickVan = code => String((P[code] || {}).locaties_hm || '').split(',').map(x => x.trim()).filter(l => /^[A-Z]{2}\d{2}[A-D]0\d$/.test(l) || /^AH\d{2}[A-D]\d{2}$/.test(l));
+  let n = 0;
+  lijst.forEach(r => {
+    if(r.aanvul) return;
+    if(r.key){
+      const g = T[r.key] && T[r.key].loc ? T[r.key] : T['cvs:' + r.key];
+      r.naar = g && g.loc ? [g.loc].concat(g.extra || []).join(' + ') : '';
+      r.soortTxt = r.dest === 'GROUND' ? 'GROND' : 'BULK';
+      if(r.naar) n++;
+    } else if(r.dest === 'PICK'){ r.naar = pickVan(r.code).join(' / '); r.soortTxt = 'PICK'; }
+    else if(r.dest === 'VST'){ r.naar = ''; r.soortTxt = 'VST'; }
+  });
+  return n;
+}
+async function maakLabels(c, eigenLijst){
   const lijst = eigenLijst || labelLijst(c);
   if(!lijst.length) return;
+  const metPlek = await labelBestemming(lijst);
+  if(!eigenLijst && lijst.some(r => r.key) && !metPlek) toast('Nog geen bulkplekken gepland: labels zonder plek. Plan ze in IVOL Warehouse → Containerdag.', 5000);
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
   const W = 297;
@@ -3992,6 +4019,15 @@ function maakLabels(c, eigenLijst){
   const isEan = s => /^\d{12,13}$/.test(s) || /^\d{8}$/.test(s);
   lijst.forEach((r, i) => {
     if(i) doc.addPage('a4', 'landscape');
+    // bovenrand: waar deze pallet heen gaat
+    if(r.soortTxt){
+      doc.setFillColor(r.dest === 'VST' ? 91 : 16, r.dest === 'VST' ? 45 : 21, r.dest === 'VST' ? 145 : 28);
+      doc.rect(0, 0, W, 17, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(26);
+      doc.text((r.naar ? 'NAAR ' + r.naar : r.soortTxt === 'VST' ? 'NAAR VST (opslag)' : 'NAAR ' + r.soortTxt), 10, 12.5);
+      doc.setFontSize(13); doc.setFont('helvetica', 'normal');
+      doc.text(r.soortTxt + (c && c.pakbon_ref ? ' · ' + c.pakbon_ref : ''), W - 10, 12, { align:'right' });
+    }
     doc.setTextColor(16, 21, 28); doc.setFont('helvetica', 'bold'); doc.setFontSize(size(r.name.length));
     doc.text(r.name, W / 2, 48, { align:'center' });
     doc.setFont('helvetica', 'normal'); doc.setFontSize(18); doc.setTextColor(57, 67, 79);

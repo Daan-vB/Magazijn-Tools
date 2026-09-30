@@ -84,7 +84,9 @@ function dagPlan(dag, vastzetten){
   const cs = contVan(dag);
   const all = { cs, bo:[], vst:[], up:[], pick:[], geen:[] };
   cs.forEach(c => { const p = plan(c); ['bo', 'vst', 'up', 'pick'].forEach(k => all[k].push(...p[k])); p.geen.forEach(code => all.geen.push({ c, code })); });
-  all.voorstel = bulkVoorstellen(all.up);
+  all.zones = zonesVan(cs);
+  all.voorstel = bulkVoorstellen(all.up, all.zones);
+  all.zoneInfo = zoneOverzicht(all.up, all.zones, all.voorstel);
   // voorstellen vastzetten (cvs:<pallet>): anders schuiven ze op zodra de nieuwe voorraad-export de plekken bezet meldt
   if(vastzetten){
     const patch = {};
@@ -136,7 +138,43 @@ function palletInfo(code, note){
   const zij = /zijkant|buiten/i.test((p.opmerking || '') + ' ' + (note || ''));
   return { plaatsen, k, kg, maxLig, zij, maat:p.palletmaat || '', hoogte:num(p.hoogte_cm) };
 }
-function bulkVoorstellen(pallets){
+/* ---------- ruimte plannen: zone per product (Daan geeft de richting, de app deelt in) ----------
+   Zone-tekst: "CC 07-22" (gang + secties), "CD 23-21" (achteraan beginnen), "BE" (hele gang), meerdere met komma.
+   Bewaard in wh-taken: cz:<cid>:<code> {zone}; czv:<cid>:<code> = zone vrijgemaakt (bezette plekken in de zone tellen dan als vrij). */
+function parseZone(txt){
+  const delen = [], fout = [];
+  String(txt || '').toUpperCase().split(/[,;+]/).map(x => x.replace(/\s+/g, '').replace(/T\/M|TOT/g, '-')).filter(Boolean).forEach(d => {
+    const m = /^([A-Z]{2})(\d{1,2})?(?:-(?:[A-Z]{2})?(\d{1,2}))?$/.exec(d);
+    if(!m){ fout.push(d); return; }
+    const a = m[2] ? +m[2] : null, b = m[3] ? +m[3] : a;
+    delen.push({ gang:m[1], van:a === null ? 0 : a, tot:b === null ? 99 : b, tekst:d });
+  });
+  return { delen, fout };
+}
+function zonesVan(cs){
+  const z = {};
+  cs.forEach(c => Object.keys(D.TAKEN).forEach(k => {
+    if(!k.startsWith('cz:' + c.id + ':')) return;
+    const code = k.slice(('cz:' + c.id + ':').length), v = D.TAKEN[k];
+    if(!v || !v.zone) return;
+    const pz = parseZone(v.zone);
+    if(pz.delen.length) z[c.id + '|' + code] = { tekst:v.zone, delen:pz.delen, vrij:!!D.TAKEN['czv:' + c.id + ':' + code] };
+  }));
+  return z;
+}
+// liggers van een zone in volgorde: secties in de opgegeven richting, dan hoogte laag → hoog
+function zoneLiggers(L, zone){
+  const out = [];
+  zone.delen.forEach(d => {
+    const lo = Math.min(d.van, d.tot), hi = Math.max(d.van, d.tot), af = d.van > d.tot;
+    Object.values(L).filter(g => g.gang === d.gang && g.sec >= lo && g.sec <= hi)
+      .sort((a, b) => (af ? b.sec - a.sec : a.sec - b.sec) || a.h - b.h)
+      .forEach(g => { if(!out.includes(g)) out.push(g); });
+  });
+  return out;
+}
+function bulkVoorstellen(pallets, zones){
+  zones = zones || {};
   LEVREF = null;
   const L = ligBouw();
   const res = {};
@@ -151,6 +189,31 @@ function bulkVoorstellen(pallets){
     const t = tv(p.key), vs = tv('cvs:' + p.key);
     if(t && t.loc){ reserveer(t.loc, p.code); res[p.key] = { loc:t.loc, extra:[], geplaatst:true }; }
     else if(vs && vs.loc){ [vs.loc].concat(vs.extra || []).forEach(n => reserveer(n, p.code)); res[p.key] = { loc:vs.loc, extra:vs.extra || [], reden:vs.reden || '', vast:true }; }
+  });
+  // eerst de producten met een zone (in lossvolgorde), dan de rest
+  pallets.forEach(p => {
+    const z = zones[p.cid + '|' + p.code];
+    if(res[p.key] || !z) return;
+    const pi = palletInfo(p.code, p.note);
+    for(const g of zoneLiggers(L, z)){
+      const letters = Object.keys(g.pos).sort();
+      const t = telLig[g.k] || {};
+      if((t[p.code] || 0) >= pi.maxLig) continue;
+      if(pi.kg >= 600 && Object.values(t).reduce((a, n) => a + n, 0) >= pi.maxLig) continue;
+      let gevonden = null;
+      for(let s0 = 0; s0 + pi.k <= letters.length; s0++){
+        const run = letters.slice(s0, s0 + pi.k);
+        if(run.some((l, j) => j && l.charCodeAt(0) !== run[j - 1].charCodeAt(0) + 1)) continue;
+        if(run.some(l => g.pos[l].res || (g.pos[l].bezet && !z.vrij))) continue;
+        gevonden = run; break;
+      }
+      if(!gevonden) continue;
+      const namen = gevonden.map(l => g.pos[l].naam);
+      namen.forEach(n => reserveer(n, p.code));
+      res[p.key] = { loc:namen[0], extra:namen.slice(1), reden:'zone ' + z.tekst + (pi.k > 1 ? ' · ' + pi.k + ' plaatsen' : '') };
+      break;
+    }
+    if(!res[p.key]) res[p.key] = { loc:null, extra:[], reden:'zone ' + z.tekst + ' is vol: eerst vrijmaken (Ruimte plannen)', zoneVol:true };
   });
   pallets.forEach(p => {
     if(res[p.key]) return;
@@ -205,6 +268,62 @@ function pickDoel(code){
   const pr = WHL.prof(code);
   if(pr && pr.final.pick) return { locs:[pr.final.pick], nieuw:true };
   return { locs:[] };
+}
+// per product (per container): pallets, plaatsen, waar ze nu heen gaan, en bij een zone: plekken, vrij, bezet
+function zoneOverzicht(up, zones, voorstel){
+  const L = ligBouw();
+  const per = {};
+  up.forEach(p => {
+    const k = p.cid + '|' + p.code;
+    const o = per[k] = per[k] || { k, cid:p.cid, c:p.c, code:p.code, pallets:0, plaatsen:0, geplaatst:0, toegewezen:0, gangen:{}, zone:zones[k] || null, keys:[] };
+    const pi = palletInfo(p.code, p.note);
+    o.pallets++; o.plaatsen += pi.k; o.keys.push(p.key);
+    const v = voorstel[p.key] || {};
+    if(v.loc){ o.toegewezen++; const g = WHL.locInfo(v.loc).gang; if(g) o.gangen[g] = (o.gangen[g] || 0) + 1; }
+    if(v.geplaatst) o.geplaatst++;
+  });
+  Object.values(per).forEach(o => {
+    o.tekort = o.pallets - o.toegewezen;
+    if(!o.zone) return;
+    o.plek = 0; o.vrijN = 0; o.bezet = [];
+    zoneLiggers(L, o.zone).forEach(g => Object.keys(g.pos).sort().forEach(l => { const q = g.pos[l]; o.plek++; if(q.bezet) o.bezet.push(q.naam); else o.vrijN++; }));
+  });
+  return per;
+}
+// wat moet er weg uit de zones die vol zijn, en waarheen (vrije bulkplek buiten de zones, dichtbij de picklocatie van wat erop staat)
+function vrijmaakLijst(P){
+  const L = ligBouw();
+  const inZone = new Set(), gereserveerd = new Set();
+  Object.values(P.zoneInfo).forEach(o => { if(o.zone) zoneLiggers(L, o.zone).forEach(g => Object.values(g.pos).forEach(q => inZone.add(q.naam))); });
+  Object.values(P.voorstel).forEach(v => { if(v.loc) [v.loc].concat(v.extra || []).forEach(n => gereserveerd.add(n)); });
+  const vrij = [];
+  Object.values(L).forEach(g => { if(g.h === 0) return; Object.keys(g.pos).forEach(l => { const q = g.pos[l]; if(!q.bezet && !inZone.has(q.naam) && !gereserveerd.has(q.naam)) vrij.push({ naam:q.naam, g }); }); });
+  const out = [];
+  Object.values(P.zoneInfo).forEach(o => {
+    if(!o.zone || o.zone.vrij || o.tekort <= 0) return;
+    const pi = palletInfo(o.code);
+    let nodig = o.tekort * pi.k;
+    for(const naam of o.bezet){
+      if(nodig <= 0) break;
+      nodig--;
+      const codes = ((D.LOC[naam] || {}).codes || []).map(c => D.PLOW[String(c).toLowerCase()] || c);
+      const code0 = codes[0] || null;
+      const refs = code0 ? WHL.locsVan(code0).map(WHL.locInfo).filter(i => i.std) : [];
+      const ref = refs.find(i => i.h < 10) || refs.find(i => i.naam !== naam) || null;
+      let best = null, bi = -1;
+      vrij.forEach((v, i) => {
+        let sc = 0;
+        if(ref){ if(v.g.gang === ref.gang) sc = Math.abs(v.g.sec - ref.sec) * 2; else if(v.g.hal === ref.hal) sc = 60 + gangAfst(v.g.gang, ref.gang) * 15 + Math.abs(v.g.sec - ref.sec); else sc = 400; }
+        else sc = 200;
+        sc += Math.max(0, (v.g.h - 10) / 10) * 2;
+        if(!best || sc < best.sc){ best = { sc, naam:v.naam }; bi = i; }
+      });
+      if(bi >= 0) vrij.splice(bi, 1);
+      const vr = codes.map(c => { const q = D.VR[c] && D.VR[c].locs[naam]; return c + ' ' + WHL.naamVan(c).slice(0, 30) + (q ? ' (' + nf(q) + ')' : ''); });
+      out.push({ voor:o, van:naam, codes, tekst:vr.join(', ') || 'niets gekoppeld: kijk wat er staat', naar:best ? best.naam : null });
+    }
+  });
+  return out;
 }
 function boVan(code){
   const r = D.BO.filter(x => (D.PLOW[String(x.productcode || '').toLowerCase()] || x.productcode) === code);
@@ -297,14 +416,41 @@ function viewContainerdag(dagArg){
       <div class="td">${esc(WHL.naamVan(x.code))} · ${esc(cNaam(x.c))}${nieuw.length ? ' · palletnummers: <b>' + esc(nieuw.join(', ')) + '</b>' : ' · palletnummers: na de VST-export zichtbaar'}</div></div></div>`;
   }).join('') + `<div class="small muted mt8">Stockmove-lijst en VST-mail: <a href="./containerplanning.html">Containers → Uitvoer</a>.</div>` : '<div class="small muted">Niets naar VST.</div>';
 
+  // 0. ruimte plannen (dagen vooraf): zone per product
+  const zi = Object.values(P.zoneInfo);
+  const vl = vrijmaakLijst(P);
+  const zoneRij = o => {
+    const gang = Object.entries(o.gangen).sort((a, b) => b[1] - a[1]).map(([g, n]) => g + ' ' + n).join(', ');
+    const zk = o.cid + '|' + o.code;
+    return `<div class="mv" style="grid-template-columns:1fr auto">
+      <div><div><a class="code" href="#/p/${encodeURIComponent(o.code)}">${esc(o.code)}</a> <span class="desc">${esc(WHL.naamVan(o.code))} · ${esc(cNaam(o.c))}</span></div>
+        <div class="meta">${plural(o.pallets, 'pallet', 'pallets')}${o.plaatsen !== o.pallets ? ' · ' + nf(o.plaatsen) + ' plaatsen' : ''}${gang ? ' · nu naar ' + esc(gang) : ''}${o.tekort > 0 ? ' · <b style="color:var(--bad)">' + plural(o.tekort, 'pallet', 'pallets') + ' zonder plek</b>' : ''}</div>
+        <div class="row wrap mt4 noprint"><input class="loc" data-zone="${esc(zk)}" value="${esc(o.zone ? o.zone.tekst : '')}" placeholder="zone, bv. CC 07-22" style="width:170px">
+          <button class="btn sm" data-d="zone-op" data-k="${esc(zk)}">Opslaan</button>
+          ${o.zone ? `<span class="small muted">zone: ${nf(o.plek)} plekken · ${nf(o.vrijN)} vrij · ${nf(o.bezet.length)} bezet</span>` : '<span class="small muted">geen zone: app kiest dichtbij de picklocatie</span>'}
+          ${o.zone && (o.tekort > 0 || o.zone.vrij) ? `<button class="btn sm ${o.zone.vrij ? 'ok' : ''}" data-d="zone-vrij" data-k="${esc(zk)}">${o.zone.vrij ? '✓ Zone vrijgemaakt' : 'Zone is vrijgemaakt'}</button>` : ''}</div>
+        ${o.zone && o.tekort > 0 && !o.zone.vrij ? '<div class="meta rood">Past niet in de vrije plekken van de zone. Laat eerst vrijmaken (lijst hieronder) en tik dan Zone is vrijgemaakt.</div>' : ''}
+        ${o.zone && o.tekort > 0 && o.zone.vrij ? `<div class="meta rood">Zone is te klein: nog ${plural(o.tekort, 'pallet', 'pallets')} zonder plek${palletInfo(o.code).kg >= 500 ? ' (zwaar: max ' + palletInfo(o.code).maxLig + ' per ligger)' : ''}. Maak de zone groter, bv. ${esc(o.zone.tekst)} + een sectie erbij.</div>` : ''}</div>
+      <div class="aant">${nf(o.toegewezen)}/${nf(o.pallets)}<small>ingedeeld</small></div></div>`;
+  };
+  const s0 = zi.length ? `<div class="small muted mb8">Geef per product de richting: gang en secties, bv. <b>CC 07-22</b>, <b>CD 23-21</b> (achteraan beginnen) of <b>BE</b>; meerdere met een komma. De app deelt de pallets daar in, op volgorde van lossen: per sectie, van laag naar hoog, brede en zware pallets volgens Containers. Zonder zone kiest de app zelf een vrije plek dichtbij de picklocatie. De plek komt op het palletlabel.</div>
+    <div class="row wrap mb8 noprint"><input class="loc" id="zone-alle" placeholder="zone voor alle producten" style="width:190px"><button class="btn sm" data-d="zone-alle">Voor alle producten</button></div>
+    ${zi.map(zoneRij).join('')}` : '<div class="small muted">Geen pallets naar bulk.</div>';
+  const vrijKaart = vl.length ? `<div class="card vrijlijst" style="border-left:5px solid var(--bad)"><div class="row wrap between"><div><h3>Vrijmaken vóór het lossen (${vl.length})</h3>
+      <div class="small muted">Deze pallets staan in een zone die nodig is. Verplaats ze naar de voorgestelde vrije plek (ook in Picqer) en tik daarna bij het product <b>Zone is vrijgemaakt</b>. Vrij = geen product gekoppeld${D.VRDATUM ? ' en geen voorraad' : ''} volgens de laatste export: kijk ter plekke.</div></div>
+      <button class="btn sm pri noprint" data-d="print-vrij">Print lijst</button></div>
+    <div class="scroll mt8"><table><tr><th>Van (zone)</th><th>Wat staat er (Picqer)</th><th>Naar (vrij)</th><th>Voor</th></tr>
+      ${vl.map(x => `<tr><td class="loc">${esc(x.van)}</td><td class="small">${esc(x.tekst)}</td><td class="loc">${x.naar ? esc(x.naar) : '<span class="badge b-bad">zelf kiezen</span>'}</td><td class="small">${esc(x.voor.code)} · ${esc(cNaam(x.voor.c))}</td></tr>`).join('')}</table></div></div>` : '';
+
   const stap = (nr, titel, sub, body, open) => `<div class="card"><div class="row between"><h3>${nr}. ${esc(titel)}</h3><span class="small muted">${sub || ''}</span></div><div class="mt8">${body}</div></div>`;
   app.innerHTML = kop
-    + stap(1, 'Voor het lossen', '', s1)
-    + stap(2, 'Apart zetten voor orders', P.bo.filter(x => tik(x.key)).length + '/' + P.bo.length, s2)
-    + stap(3, 'Naar bulk (up)', nGepl + '/' + P.up.length + ' geplaatst', (P.up.length ? `<div class="small muted mb8">Voorstel van de app: vrije bulkplek dichtbij de picklocatie, brede en zware pallets volgens Containers. Staat er toch iets? Typ de plek waar hij echt staat en tik Geplaatst.</div>` : '') + (s3 || '<div class="small muted">Geen pallets naar bulk.</div>'))
-    + stap(4, 'Naar picklocatie (los en overig)', P.pick.filter(x => tik(x.key)).length + '/' + P.pick.length, s4)
-    + stap(5, 'Naar VST', P.vst.filter(x => tik(x.key)).length + '/' + P.vst.length, s5)
-    + `<div class="card" style="border-left:5px solid var(--ok)"><h3>6. Alles gedaan?</h3><div class="small muted mt4">Maak in Picqer de exports van ná het verplaatsen en laat de app alles nalopen: welke bulkplekken, juiste aantallen, gemiste locaties, wat nog op geen specifieke locatie staat en de VST-palletnummers.</div>
+    + stap(1, 'Ruimte plannen (dagen vooraf)', zi.filter(o => o.zone).length + '/' + zi.length + ' met zone', s0) + vrijKaart
+    + stap(2, 'Voor het lossen', '', s1)
+    + stap(3, 'Apart zetten voor orders', P.bo.filter(x => tik(x.key)).length + '/' + P.bo.length, s2)
+    + stap(4, 'Naar bulk (up)', nGepl + '/' + P.up.length + ' geplaatst', (P.up.length ? `<div class="small muted mb8">Plek per pallet (zone of voorstel van de app). Staat er toch iets? Typ de plek waar hij echt staat en tik Geplaatst.</div>` : '') + (s3 || '<div class="small muted">Geen pallets naar bulk.</div>'))
+    + stap(5, 'Naar picklocatie (los en overig)', P.pick.filter(x => tik(x.key)).length + '/' + P.pick.length, s4)
+    + stap(6, 'Naar VST', P.vst.filter(x => tik(x.key)).length + '/' + P.vst.length, s5)
+    + `<div class="card" style="border-left:5px solid var(--ok)"><h3>7. Alles gedaan?</h3><div class="small muted mt4">Maak in Picqer de exports van ná het verplaatsen en laat de app alles nalopen: welke bulkplekken, juiste aantallen, gemiste locaties, wat nog op geen specifieke locatie staat en de VST-palletnummers.</div>
       <div class="row wrap mt8"><a class="btn ok" href="#/controle/${dag}">Klaar → controleren</a></div></div>`;
 }
 function vstNieuw(code){
@@ -710,6 +856,37 @@ document.addEventListener('click', async ev => {
     V().rerender(); return;
   }
   if(a === 'plaats-weg'){ await zetTaak(b.dataset.k, null); V().rerender(); return; }
+  if(a === 'zone-op' || a === 'zone-alle'){
+    const P = dagPlan(kiesDag());
+    const lijst = a === 'zone-alle'
+      ? Object.values(P.zoneInfo).map(o => [o, ($('zone-alle') || {}).value || ''])
+      : [[P.zoneInfo[b.dataset.k], (document.querySelector(`[data-zone="${CSS.escape(b.dataset.k)}"]`) || {}).value || '']];
+    const patch = {};
+    for(const [o, tekst] of lijst){
+      if(!o) continue;
+      const z = tekst.trim().toUpperCase();
+      const pz = parseZone(z);
+      if(z && (!pz.delen.length || pz.fout.length)){ toast('Zone niet begrepen: ' + (pz.fout.join(', ') || z) + '. Voorbeeld: CC 07-22'); return; }
+      patch['cz:' + o.cid + ':' + o.code] = z ? { zone:z, op:new Date().toISOString() } : null;
+      patch['czv:' + o.cid + ':' + o.code] = null;
+      o.keys.forEach(k => { const t = tv(k); if(!(t && t.loc)) patch['cvs:' + k] = null; });   // niet-geplaatste voorstellen opnieuw laten indelen
+    }
+    Object.entries(patch).forEach(([k, v]) => { if(v === null) delete D.TAKEN[k]; else D.TAKEN[k] = v; });
+    b.disabled = true;
+    try{ await WH.catPatch('wh-taken', patch); }catch(e){ /* melding al getoond */ }
+    V().rerender(); return;
+  }
+  if(a === 'zone-vrij'){
+    const [cid, ...rest] = b.dataset.k.split('|'); const code = rest.join('|');
+    const k = 'czv:' + cid + ':' + code;
+    const P = dagPlan(kiesDag()); const o = P.zoneInfo[b.dataset.k];
+    const patch = { [k]:D.TAKEN[k] ? null : { op:new Date().toISOString() } };
+    if(o) o.keys.forEach(x => { const t = tv(x); if(!(t && t.loc)) patch['cvs:' + x] = null; });
+    Object.entries(patch).forEach(([x, v]) => { if(v === null) delete D.TAKEN[x]; else D.TAKEN[x] = v; });
+    try{ await WH.catPatch('wh-taken', patch); }catch(e){}
+    V().rerender(); return;
+  }
+  if(a === 'print-vrij'){ document.body.classList.add('printvrij'); window.print(); setTimeout(() => document.body.classList.remove('printvrij'), 500); return; }
   if(a === 'iv-op'){ await invulOpslaan(); return; }
   if(a === 'iv-over'){ UI.invul.i++; V().rerender(); window.scrollTo(0, 0); return; }
   if(a === 'iv-terug'){ UI.invul.i = Math.max(0, UI.invul.i - 1); V().rerender(); window.scrollTo(0, 0); return; }
@@ -727,5 +904,5 @@ document.addEventListener('keydown', ev => {
   if(inp){ ev.preventDefault(); const k = inp.dataset.loc; const btn = document.querySelector(`[data-d="plaats"][data-k="${CSS.escape(k)}"]`); if(btn) btn.click(); }
 });
 
-return { viewVandaag, viewContainerdag, viewControle, viewBackorders, viewRuimte, viewInvul, dagPlan, plan, bulkVoorstellen, ruimte, boDiff, kiesDag, invulLijst };
+return { viewVandaag, viewContainerdag, viewControle, viewBackorders, viewRuimte, viewInvul, dagPlan, plan, bulkVoorstellen, ruimte, boDiff, kiesDag, invulLijst, parseZone, vrijmaakLijst };
 })();
