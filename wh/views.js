@@ -5,7 +5,7 @@
 'use strict';
 const { $, esc, leeg, num, nf, plural, fdate, fdt, dagenOud, toast, D, vandaag, isoDag } = WH;
 const app = $('app');
-const UI = { mvGang:'', rondeGang:'', base:{ q:'', hal:'', type:'', status:'', abc:'', f:'', gang:'', max:150 }, lastHash:'', locSel:null, locQ:'', vk:{ van:'', tot:'', vol:true }, open:{} };
+const UI = { mvGang:'', rondeGang:'', base:{ q:'', hal:'', type:'', status:'', abc:'', f:'', gang:'', afd:'', tri:'', max:150 }, lastHash:'', locSel:null, locQ:'', vk:{ van:'', tot:'', vol:true }, open:{} };
 
 /* ---------- kleine bouwstenen ---------- */
 const badge = (t, cls) => `<span class="badge ${cls || 'b-grey'}">${esc(t)}</span>`;
@@ -58,6 +58,7 @@ function route(){
     if(naam === 'aanvullen') return viewAanvullen(delen[1] || 'nu');
     if(naam === 'base') return viewBase(q);
     if(naam === 'locaties') return viewLocaties(delen[1] || '', q);
+    if(naam === 'triage') return WHT.view();
     if(naam === 'planning') return viewPlanning();
     if(naam === 'gegevens') return viewGegevens();
     if(naam === 'p') return viewProduct(delen.slice(1).join('/'));
@@ -334,7 +335,7 @@ function viewBase(q){
   // filters uit de link alleen toepassen als de link zelf verandert (anders overschrijft de link je eigen keuze)
   if(location.hash !== UI.lastHash){
     UI.lastHash = location.hash;
-    if(Object.keys(q || {}).length){ Object.assign(UI.base, { q:'', hal:'', type:'', status:'', abc:'', f:'', gang:'', max:150 }); Object.keys(q).forEach(k => { if(k in UI.base) UI.base[k] = q[k]; }); }
+    if(Object.keys(q || {}).length){ Object.assign(UI.base, { q:'', hal:'', type:'', status:'', abc:'', f:'', gang:'', afd:'', tri:'', max:150 }); Object.keys(q).forEach(k => { if(k in UI.base) UI.base[k] = q[k]; }); }
   }
   const B = UI.base;
   const gangen = B.gang ? String(B.gang).split(',') : null;
@@ -348,6 +349,8 @@ function viewBase(q){
     if(B.type && p.final.type !== B.type) return false;
     if(B.status && p.status !== B.status) return false;
     if(B.abc && (p.abc || '-') !== B.abc) return false;
+    if(B.afd && (window.WHT ? WHT.afdVan(p.code) : '') !== (B.afd === '-' ? '' : B.afd)) return false;
+    if(B.tri && (window.WHT ? WHT.statusVan(p.code) : '') !== (B.tri === '-' ? '' : B.tri)) return false;
     if(B.f === 'nieuw' && !p.final.nieuwePick) return false;
     if(B.f === 'legbord' && p.final.type !== 'legbord') return false;
     if(B.f === 'wijzigt' && !p.picqerWijzigt) return false;
@@ -368,6 +371,8 @@ function viewBase(q){
       <select data-bf="type"><option value="">alle soorten</option>${Object.entries(typeNaam).map(([k, t]) => `<option value="${k}" ${B.type === k ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
       <select data-bf="status"><option value="">alle statussen</option>${['voorstel', 'bevestigd', 'gelijk'].map(s => `<option ${B.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
       <select data-bf="abc"><option value="">ABC</option>${['A', 'B', 'C', '-'].map(s => `<option ${B.abc === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+      <select data-bf="afd"><option value="">alle afdelingen</option>${['-'].concat(window.WHT ? WHT.afdelingen() : []).map(s => `<option value="${esc(s)}" ${B.afd === s ? 'selected' : ''}>${s === '-' ? 'zonder afdeling' : esc(s)}</option>`).join('')}</select>
+      <select data-bf="tri"><option value="">triage: alles</option>${[['g', 'Belangrijk'], ['o', 'Medium'], ['r', 'Zelden'], ['x', 'Weg'], ['-', 'nog niet beoordeeld']].map(([k, t]) => `<option value="${k}" ${B.tri === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <select data-bf="f"><option value="">geen extra filter</option>${[['nieuw', 'nieuwe picklocatie'], ['wijzigt', 'wijkt af van Picqer'], ['legbord', 'doos/bak: capaciteit'], ['tijd', 'picklocatie tijdelijk']].map(([k, t]) => `<option value="${k}" ${B.f === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
       ${B.gang ? `<span class="badge b-info">gang ${esc(B.gang)}</span> <button class="btn ghost sm" data-a="basegang">×</button>` : ''}
     </div>
@@ -382,13 +387,18 @@ function viewBase(q){
     ${lijst.length > toon.length ? `<div class="row mt12"><button class="btn" data-a="meer">Toon meer (${nf(lijst.length - toon.length)} verborgen)</button></div>` : ''}</div>`;
   app.__lijst = lijst;
 }
+const triBadges = c => {
+  if(!window.WHT) return '';
+  const s = WHT.statusVan(c), a = WHT.afdVan(c);
+  return (s ? badge(WHT.SL[s], { g:'b-ok', o:'b-warn', r:'b-bad', x:'b-grey' }[s]) + ' ' : '') + (a ? badge(a, 'b-info') + ' ' : '');
+};
 function baseRij(p){
   const f = p.final, open = UI.open['b:' + p.code];
   const st = { voorstel:['voorstel', 'b-warn'], bevestigd:['bevestigd', 'b-ok'], gelijk:['= Picqer', 'b-grey'] }[p.status];
   return `<div class="mv" style="grid-template-columns:1fr auto">
     <div><div><a class="code" href="#/p/${encodeURIComponent(p.code)}">${esc(p.code)}</a> <span class="desc">${esc(p.naam)}</span></div>
       <div class="route">${p.picks.length ? locs(p.picks) : ''}${f.nieuwePick ? ' ' + badge('nieuw: ' + f.pick, 'b-warn') : ''}${p.bulks.length ? ' <span class="pijl">·</span> ' + locs(p.bulks.slice(0, 4)) + (p.bulks.length > 4 ? ' +' + (p.bulks.length - 4) : '') : ''}${p.conts.length ? ' ' + locs(p.conts) : ''}</div>
-      <div class="meta">${badge(typeNaam[f.type] || f.type, typeCls[f.type])} ${p.abc ? badge('ABC ' + p.abc, 'b-grey') : ''} voorraad ${nf(p.st)}${p.vst ? ' · VST ' + nf(p.vst) : ''} · verkoop ${p.vk === null ? '?' : nf(p.vk, 1)}/mnd${p.spp ? ' · ' + nf(p.spp) + '/pallet' : ''} · Picqer ${p.pq.lvl ?? '–'}/${p.pq.tot ?? '–'} → <b>${f.lvl ?? '–'}/${f.tot ?? '–'}</b>
+      <div class="meta">${badge(typeNaam[f.type] || f.type, typeCls[f.type])} ${p.abc ? badge('ABC ' + p.abc, 'b-grey') : ''} ${triBadges(p.code)}voorraad ${nf(p.st)}${p.vst ? ' · VST ' + nf(p.vst) : ''} · verkoop ${p.vk === null ? '?' : nf(p.vk, 1)}/mnd${p.spp ? ' · ' + nf(p.spp) + '/pallet' : ''} · Picqer ${p.pq.lvl ?? '–'}/${p.pq.tot ?? '–'} → <b>${f.lvl ?? '–'}/${f.tot ?? '–'}</b>
         <button class="btn ghost sm" data-a="open" data-k="b:${esc(p.code)}">${open ? 'sluit' : 'aanpassen'}</button></div>
       ${open ? `<div class="edit">${editVelden(p)}</div>` : ''}</div>
     <div>${badge(st[0], st[1])}</div></div>`;

@@ -102,8 +102,12 @@ function maakProfiel(code, bezet){
 
   // ---- voorstel ----
   const wk = vk === null ? null : vk / 4.33;
-  const loper = vk !== null ? vk >= 2 : (abc === 'A' || abc === 'B' || bo.orders >= 2);
+  const tri = (D.TRIAGE || {})[code] || null, triS = tri && tri.s ? tri.s : (window.WHT ? WHT.statusVan(code) : '');
+  // Triage (Daan): Belangrijk/Medium = picklocatie, Zelden/Weg = alleen bulk; zonder triage bepalen verkoop, ABC en backorders
+  const loper = (triS === 'g' || triS === 'o') ? true : (triS === 'r' || triS === 'x') ? false : (vk !== null ? vk >= 2 : (abc === 'A' || abc === 'B' || bo.orders >= 2));
   const v = { pick:picks[0] || null, nieuwePick:false, lvl:null, tot:null, type:null, zeker:vk !== null, loper };
+  if(triS) pr.redenen.push({ lvl:'info', t:'triage: ' + (window.WHT ? WHT.SLANG[triS] : triS) });
+  if((triS === 'r' || triS === 'x') && picks.length) pr.redenen.push({ lvl:'let', t:'triage zegt "' + (window.WHT ? WHT.SL[triS] : triS) + '", maar er is een picklocatie: klopt dat?' });
   if(!picks.length){
     if(loper && bulks.length){
       const vrij = vrijeVloerOnder(bulks, bezet);

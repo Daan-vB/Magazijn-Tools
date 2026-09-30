@@ -13,7 +13,7 @@ window.WH = (function(){
 const URL_ = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
 const KEY  = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
 const H    = { apikey:KEY, Authorization:'Bearer ' + KEY };
-const CAT_KEYS = ['wh-locaties', 'wh-vst-locaties', 'wh-pq', 'wh-advies', 'wh-aanvul', 'wh-taken'];
+const CAT_KEYS = ['wh-locaties', 'wh-vst-locaties', 'wh-pq', 'wh-advies', 'wh-aanvul', 'wh-taken', 'wh-triage'];
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 /* ---------- hulpjes ---------- */
@@ -104,7 +104,7 @@ function catPatch(key, patch){
     const d = (r && r.data) || {};
     Object.entries(patch).forEach(([k, v]) => { if(v === null) delete d[k]; else d[k] = v; });
     await catZet(key, d);
-    D[{ 'wh-aanvul':'AANVUL', 'wh-taken':'TAKEN' }[key]] = d;
+    D[{ 'wh-aanvul':'AANVUL', 'wh-taken':'TAKEN', 'wh-triage':'TRIAGE' }[key]] = d;
     setSaved('Opgeslagen ' + new Date().toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' }));
     return d;
   });
@@ -115,7 +115,7 @@ function catPatch(key, patch){
 /* ---------- gegevens in het geheugen ---------- */
 const D = {
   P:{}, PLOW:{}, VK:{}, BO:[], GEH:{}, CONT:[],
-  LOC:{}, LOCDATUM:null, VSTLOC:{}, VSTDATUM:null, PQ:{}, PQDATUM:null, ADV:null, AANVUL:{}, TAKEN:{},
+  LOC:{}, LOCDATUM:null, VSTLOC:{}, VSTDATUM:null, PQ:{}, PQDATUM:null, ADV:null, AANVUL:{}, TAKEN:{}, TRIAGE:{},
   catTijd:{}, missend:[], geladen:0, fout:null
 };
 const PROD_SEL = 'productcode,naam,leverancier,leverancier_code,ean,locaties_hm,voorraad_hm,gereserveerd_hm,vrij_hm,voorraad_vst,abc,actief,tags,eenheid,palletmaat,picqer_datum';
@@ -151,6 +151,7 @@ async function load(){
     D.ADV = C['wh-advies'] || null;
     D.AANVUL = C['wh-aanvul'] || {};
     D.TAKEN = C['wh-taken'] || {};
+    D.TRIAGE = C['wh-triage'] || {};
     D.geladen = Date.now(); D.fout = null;
     if(window.WHL) WHL.reset();
     setSync('verbonden', 'ok');
