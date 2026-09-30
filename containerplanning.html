@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Containers">
+<meta name="apple-mobile-web-app-title" content="IVOL Warehouse">
 <meta name="theme-color" content="#10151c">
-<title>Containerplanning</title>
+<title>IVOL Warehouse · Containers</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
@@ -26,7 +26,9 @@
   .top h1{font-size:17px;font-weight:800;white-space:nowrap}
   .sync{display:inline-block;color:#fff;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border-radius:3px;background:#33404f}
   .sync.ok{background:var(--ok)} .sync.err{background:var(--bad)}
-  .top nav{display:flex;gap:2px;flex-wrap:wrap}
+  .top nav{display:flex;gap:2px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;max-width:100%}
+  .top nav::-webkit-scrollbar{display:none}
+  .top nav a{white-space:nowrap}
   .top nav a{color:#c4cfdd;text-decoration:none;padding:6px 10px;border-radius:6px;font-weight:600;font-size:13.5px}
   .top nav a.on{background:#222b37;color:#fff}
   .top .saved{margin-left:auto;font-size:12px;color:#8fa0b5}
@@ -195,8 +197,13 @@
 </head>
 <body>
 <header class="top">
-  <div class="brand"><h1>Containerplanning</h1><span class="sync" id="sync">laden…</span></div>
+  <div class="brand"><h1>IVOL <span style="color:#f08a4b">Warehouse</span></h1><span class="sync" id="sync">laden…</span></div>
   <nav id="nav">
+    <a href="./warehouse.html#/">Vandaag</a>
+    <a href="./warehouse.html#/aanvullen">Aanvullen</a>
+    <a href="./warehouse.html#/base">Aanvulbase</a>
+    <a href="./warehouse.html#/locaties">Locaties</a>
+    <a href="./warehouse.html#/planning">Planning</a>
     <a href="#/" data-nav="home">Containers</a>
     <a href="#/vooruit" data-nav="vooruit">Vooruit</a>
     <a href="#/producten" data-nav="producten">Producten</a>
