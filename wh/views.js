@@ -108,6 +108,7 @@ function viewVandaag(){
   const straks = WHP.TAKEN.filter(t => t.datum > vd).slice(0, 5);
   const ritme = WHP.werkdag(vd) ? WHP.DAGRITME : [];
   const openVragen = WHP.VRAGEN.filter(v => !tik('v:' + v.id)).length;
+  kpiVastleggen(vd, { mv:C.mv.length, orders:nVol, vst:C.vst.length, vstOrders:C.vstOrders.length, ronde:C.ronde.length, vast:C.vast.length, bo:new Set(D.BO.map(r => r.bestelling)).size, bev:nBev });
 
   app.innerHTML = `
   <div class="card"><div class="row wrap between"><div><h2 style="font-size:19px;text-transform:capitalize">${esc(dagNaam)}</h2>
@@ -137,6 +138,22 @@ function viewVandaag(){
 
   <div class="card"><div class="row between"><h3>Nog van jou nodig</h3><a class="small" href="#/planning">${openVragen} open →</a></div>
     <div class="small muted mt4">De app bouwt door zonder deze antwoorden; ze maken de voorstellen beter.</div></div>`;
+}
+// cijfers per dag bewaren (eerste keer per dag, en alleen als de backorders van vandaag zijn) → trend op Planning
+function kpiVastleggen(vd, k){
+  const bo = dataDatums().backorders;
+  if(!bo || isoDag(bo) !== vd) return;
+  const oud = D.TAKEN['kpi:' + vd];
+  if(oud && oud.bo === k.bo && oud.mv === k.mv && oud.ronde === k.ronde) return;
+  const v = Object.assign({ op:new Date().toISOString() }, k);
+  D.TAKEN['kpi:' + vd] = v;
+  WH.catPatch('wh-taken', { ['kpi:' + vd]:v }).catch(() => {});
+}
+function kpiTabel(){
+  const rijen = Object.entries(D.TAKEN).filter(([k]) => k.startsWith('kpi:')).map(([k, v]) => Object.assign({ dag:k.slice(4) }, v)).sort((a, b) => b.dag.localeCompare(a.dag)).slice(0, 20);
+  if(!rijen.length) return '<div class="small muted">Nog geen cijfers. Elke dag dat je de backorders inlaadt en Vandaag opent, legt de app ze vast.</div>';
+  return `<div class="scroll"><table><tr><th>Dag</th><th class="n">Backorders</th><th class="n">Vast door bulk</th><th class="n">te verplaatsen</th><th class="n">VST-orders</th><th class="n">Aanvulronde</th><th class="n">Vastzittend</th><th class="n">Bevestigd</th></tr>
+    ${rijen.map(r => `<tr><td>${esc(fdate(r.dag))}</td><td class="n">${nf(r.bo)}</td><td class="n">${nf(r.orders)}</td><td class="n">${nf(r.mv)}</td><td class="n">${nf(r.vstOrders)}</td><td class="n">${nf(r.ronde)}</td><td class="n">${nf(r.vast)}</td><td class="n">${nf(r.bev)}</td></tr>`).join('')}</table></div>`;
 }
 function taakHtml(t, vd){
   const k = 't:' + t.id;
@@ -181,7 +198,7 @@ function tabNu(C, vd){
   const nOrders = new Set(C.mv.flatMap(m => m.orders)).size;
   return `<div class="card"><div class="row wrap between"><div><h2>Nu verplaatsen</h2>
       <div class="small muted">${plural(C.mv.length, 'product', 'producten')} blokkeren ${plural(nOrders, 'order', 'orders')} die verder compleet zijn. Oudste order eerst. Na verplaatsen: Picqer → Backorders → <b>Verwerk backorders</b>.</div></div>
-      <span class="badge b-bad">${open.length} open</span></div>
+      <div class="row"><span class="badge b-bad">${open.length} open</span><button class="btn sm" data-a="print">Print lijst</button></div></div>
     <div class="mt12">${gangFilter(C.mv, UI.mvGang, 'gang')}</div>
     ${lijst.map(m => mvHtml(m, vd)).join('')}</div>`;
 }
@@ -231,7 +248,8 @@ function tabRonde(C, vd){
   });
   const uit = C.uitzetten;
   return `<div class="card"><div class="row wrap between"><div><h2>Aanvulronde</h2>
-      <div class="small muted">Rest van het Picqer-advies (zonder wachtende orders), per gang in looprichting van de bulk. Tik af wat je hebt verplaatst; pas meteen de instellingen aan waar het advies niet klopt.</div></div></div>
+      <div class="small muted">Rest van het Picqer-advies (zonder wachtende orders), per gang in looprichting van de bulk. Tik af wat je hebt verplaatst; pas meteen de instellingen aan waar het advies niet klopt.</div></div>
+      <button class="btn sm" data-a="print">Print lijst</button></div>
     <div class="mt12">${gangFilter(C.ronde, UI.rondeGang, 'gang')}</div>${html || '<div class="empty">Leeg.</div>'}</div>
     ${uit.length ? `<div class="card"><h3>Uit het advies halen (${uit.length})</h3>
       <div class="small muted">Geen picklocatie, (bijna) geen verkoop, geen orders: horen niet in het advies. <b>1.</b> Neem ze mee in de Picqer-import (aanvulniveau en vul aan tot leeg). <b>2.</b> Blijven ze staan, zet dan in Picqer bij het product het knopje "Vul pickvoorraad aan van bulk locaties" uit.</div>
@@ -484,6 +502,7 @@ function viewPlanning(){
   ${Object.entries(weken).map(([w, ts]) => `<div class="card week ${+w === nu ? 'nu' : ''}"><h3>${esc(titel[w] || 'Week ' + w)}</h3>
     ${ts.map(t => `<div class="task ${tik('t:' + t.id) ? 'klaar' : ''}">${tikKnop('t:' + t.id)}<div class="grow"><div class="tt"><span class="prio p${t.prio}"></span>${esc(t.titel)} ${badge(fdate(t.datum), t.datum === vd ? 'b-warn' : 'b-grey')}</div>
       <div class="td">${esc(t.uitleg)} ${t.link ? `<a href="${esc(t.link)}">open</a>` : ''}</div><div class="wie mt4">${esc(t.wie)}</div></div></div>`).join('')}</div>`).join('')}
+  <div class="card"><h3>Cijfers per dag</h3><div class="small muted mb8">Orders in backorder, hoeveel daarvan alleen op een bulkverplaatsing wachten, en de rest. Hiermee meet je of het beter gaat.</div>${kpiTabel()}</div>
   <div class="card"><h3>Dagritme (elke werkdag)</h3>${WHP.DAGRITME.map(r => `<div class="task"><div class="code" style="flex:0 0 46px">${esc(r.tijd)}</div><div class="grow"><div class="tt">${esc(r.titel)}</div><div class="td">${esc(r.uitleg)}</div></div></div>`).join('')}</div>
   <div class="card" id="vragen"><h3>Nog van jou nodig</h3><div class="small muted">Verzameld tijdens het bouwen, niet dringend. Vink af als het geregeld is.</div>
     ${WHP.VRAGEN.map(v => `<div class="task ${tik('v:' + v.id) ? 'klaar' : ''}">${tikKnop('v:' + v.id)}<div class="grow"><div class="tt">${esc(v.titel)}</div><div class="td">${esc(v.waarom)}${v.waar ? ' <i>' + esc(v.waar) + '</i>' : ''}</div></div></div>`).join('')}</div>`;
@@ -606,6 +625,7 @@ document.addEventListener('click', async ev => {
     return;
   }
   if(a === 'cel'){ UI.locSel = b.dataset.l; rerender(); return; }
+  if(a === 'print'){ window.print(); return; }
   if(a === 'kopieer'){
     const t = $(b.dataset.id).textContent;
     try{ await navigator.clipboard.writeText(t); toast('Gekopieerd'); }catch(e){ toast('Kopiëren lukt niet; selecteer de tekst'); }

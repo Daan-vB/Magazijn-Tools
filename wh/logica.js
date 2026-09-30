@@ -91,7 +91,7 @@ function maakProfiel(code, bezet){
   const bo = (C.boPer[code] || { orders:0, stuks:0 });
   const pr = {
     code, naam:p.naam || '', lev:p.leverancier || '', abc, st:num(p.voorraad_hm) || 0, vrij:num(p.vrij_hm), vst:num(p.voorraad_vst) || 0,
-    vk, spp, locs, picks, bulks, conts, pq:{ lvl:leeg(pq[0]) ? null : pq[0], tot:leeg(pq[1]) ? null : pq[1] }, virt:pq[4] === 1,
+    vk, spp, locs, picks, bulks, conts, pq:{ lvl:leeg(pq[0]) ? null : pq[0], tot:leeg(pq[1]) ? null : pq[1] }, virt:pq[2] === 1,
     bo, redenen:[]
   };
   const pi = picks.length ? locInfo(picks[0]) : null;
@@ -186,7 +186,7 @@ function bereken(){
   Object.keys(C.boPer).forEach(c => codes.add(c));
   Object.keys(D.AANVUL).forEach(c => codes.add(c));
   (D.ADV && D.ADV.rows || []).forEach(r => codes.add(D.PLOW[r.code.toLowerCase()] || r.code));
-  const volg = [...codes].filter(c => D.P[c] && !((D.PQ[c] || [])[4] === 1)).sort((a, b) => (vkVan(b) || 0) - (vkVan(a) || 0) || String(a).localeCompare(b));
+  const volg = [...codes].filter(c => D.P[c] && !((D.PQ[c] || [])[2] === 1)).sort((a, b) => (vkVan(b) || 0) - (vkVan(a) || 0) || String(a).localeCompare(b));
   const bezet = new Set();
   Object.values(D.AANVUL).forEach(e => { if(e && e.pick) bezet.add(e.pick); });
   volg.forEach(c => { C.prof[c] = maakProfiel(c, bezet); });

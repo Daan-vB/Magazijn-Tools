@@ -3,7 +3,7 @@
    Zelfde Supabase-project als Containerplanning en Palletlabels.
    Nieuwe gegevens staan als rijen in tabel `catalog` (key → data jsonb):
      wh-locaties   Picqer-locatie-export (naam, bulk, tijdelijk, exclusief, bovenliggend, productcodes)
-     wh-pq         extra Picqer-productvelden (aanvulniveau, vul aan tot, bestelniveau, gewenst)
+     wh-pq         extra Picqer-productvelden: [aanvulniveau, vul aan tot, virtueel]
      wh-advies     laatst ingelezen Picqer-aanvuladvies (PDF)
      wh-aanvul     aanvulbase: per product bevestigde of aangepaste instellingen
      wh-taken      afgevinkte taken, verplaatsingen, dagritme, notities
@@ -199,7 +199,7 @@ async function impProducten(arr, st){
   const head = (arr[0] || []).map(h => String(h ?? '').trim());
   // "Breedte/Hoogte/Lengte" komen twee keer voor (product + productveld): neem de eerste
   const idx = {}; Object.entries(PROD_MAP).forEach(([k, h]) => idx[k] = head.indexOf(h));
-  const iPQ = ['Aanvulniveau Hoofdmagazijn', 'Vul pickvoorraad aan tot Hoofdmagazijn', 'Bestelniveau Hoofdmagazijn', 'Gewenste aantal Hoofdmagazijn'].map(h => head.indexOf(h));
+  const iPQ = ['Aanvulniveau Hoofdmagazijn', 'Vul pickvoorraad aan tot Hoofdmagazijn'].map(h => head.indexOf(h));
   const iType = head.indexOf('Type');
   if(idx.productcode < 0) throw new Error('kolom "Productcode" niet gevonden');
   const nu = new Date().toISOString(), rows = [], pq = {};
@@ -215,9 +215,10 @@ async function impProducten(arr, st){
       else r[k] = txt(v);
     });
     rows.push(r);
-    const w = iPQ.map(j => j < 0 ? null : num(a[j]));
+    // [aanvulniveau, vul aan tot, virtueel/oneindig]
+    const lvl = iPQ[0] < 0 ? null : num(a[iPQ[0]]), tot = iPQ[1] < 0 ? null : num(a[iPQ[1]]);
     const virt = iType >= 0 && /virtu|oneindig/i.test(String(a[iType] || ''));
-    if(w.some(x => x !== null) || virt) pq[code] = w.concat(virt ? [1] : []);
+    if(lvl !== null || tot !== null || virt) pq[code] = [lvl, tot, virt ? 1 : 0];
   }
   if(!rows.length) throw new Error('geen producten gevonden');
   await upsert('producten', rows, 'productcode', (i, n) => st('Producten opslaan… ' + nf(i) + ' / ' + nf(n)));
