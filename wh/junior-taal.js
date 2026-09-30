@@ -192,6 +192,7 @@ el:{
 
 /* ---- testdag 30-9: prioriteit, "niet nu", barcode, papieren lijst, Verwerk backorders ---- */
 Object.assign(window.JT.nl, {
+  meldKnop:'klopt niet / past niet', meldGedaan:'gemeld', meldUitleg:'Wat past er echt op de picklocatie? Daan ziet het en past het aanvulniveau aan.', meldMax:'Max op picklocatie', meldNoot:'Opmerking', meldVb:'bv. 2 dozen van 8, bulk leeg, andere plek', opslaan:'Opslaan', sluit:'Sluiten',
   kar:'Retourkar',
   pallets:'{n} pallet|{n} pallets',
   'tegel.niet':'Niet nu', 'tegel.nietSub':'Picqer-advies, maar de order is nog niet compleet',
@@ -219,6 +220,7 @@ Object.assign(window.JT.nl, {
   ]
 });
 Object.assign(window.JT.en, {
+  meldKnop:'not right / does not fit', meldGedaan:'reported', meldUitleg:'What really fits on the pick location? Daan sees it and adjusts the replenishment level.', meldMax:'Max on pick location', meldNoot:'Remark', meldVb:'e.g. 2 boxes of 8, bulk empty, other place', opslaan:'Save', sluit:'Close',
   kar:'Return cart',
   pallets:'{n} pallet|{n} pallets',
   'tegel.niet':'Not now', 'tegel.nietSub':'Picqer advice, but the order is not complete yet',
@@ -246,6 +248,7 @@ Object.assign(window.JT.en, {
   ]
 });
 Object.assign(window.JT.es, {
+  meldKnop:'no cuadra / no cabe', meldGedaan:'avisado', meldUitleg:'¿Cuánto cabe de verdad en la ubicación pick? Daan lo ve y ajusta el nivel de reposición.', meldMax:'Máx. en ubicación pick', meldNoot:'Comentario', meldVb:'p. ej. 2 cajas de 8, bulk vacío, otro sitio', opslaan:'Guardar', sluit:'Cerrar',
   kar:'Carro devoluciones',
   pallets:'{n} palé|{n} palés',
   'tegel.niet':'Ahora no', 'tegel.nietSub':'consejo de Picqer, pero el pedido aún no está completo',
@@ -273,6 +276,7 @@ Object.assign(window.JT.es, {
   ]
 });
 Object.assign(window.JT.el, {
+  meldKnop:'δεν ταιριάζει / δεν χωράει', meldGedaan:'δηλώθηκε', meldUitleg:'Πόσα χωράνε πραγματικά στη θέση pick; Ο Daan το βλέπει και προσαρμόζει το επίπεδο αναπλήρωσης.', meldMax:'Μέγ. στη θέση pick', meldNoot:'Σχόλιο', meldVb:'π.χ. 2 κούτες των 8, άδειο bulk, άλλη θέση', opslaan:'Αποθήκευση', sluit:'Κλείσιμο',
   kar:'Καρότσι επιστροφών',
   pallets:'{n} παλέτα|{n} παλέτες',
   'tegel.niet':'Όχι τώρα', 'tegel.nietSub':'πρόταση Picqer, αλλά η παραγγελία δεν είναι ακόμα πλήρης',

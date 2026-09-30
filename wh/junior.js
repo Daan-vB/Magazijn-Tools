@@ -9,7 +9,7 @@
 'use strict';
 const { $, esc, num, nf, D, vandaag, isoDag, toast } = WH;
 const app = $('app');
-const UI = { gangNu:'', gangRonde:'', cont:null, contTijd:0 };
+const UI = { gangNu:'', gangRonde:'', cont:null, contTijd:0, meld:null };
 
 /* ---------- taal ---------- */
 const TALEN = ['nl', 'en', 'es', 'el'];
@@ -149,6 +149,20 @@ function gangFilter(items, sel, w){
   return `<div class="filters mb8 noprint"><span class="small muted">${esc(t('gang'))}</span> <button class="btn sm ${!sel ? 'pri' : ''}" data-a="gang" data-w="${w}" data-v="">${esc(t('alle'))}</button>${g.map(x => `<button class="btn sm ${sel === x ? 'pri' : ''}" data-a="gang" data-w="${w}" data-v="${esc(x)}">${esc(x === 'Retourkar' ? t('kar') : x)}</button>`).join('')}</div>`;
 }
 const kortDatum = d => datum(d, { day:'numeric', month:'short' });
+// "klopt niet": wat past er op de picklocatie + opmerking → aanvulbase (Daan bevestigt, gaat later mee in de Picqer-import)
+function meldKnop(code){
+  const e = D.AANVUL[code] || {};
+  const iets = e.max || e.noot;
+  return `<button class="btn sm ghost noprint" data-a="meld" data-code="${esc(code)}">✎ ${esc(t(iets ? 'meldGedaan' : 'meldKnop'))}</button>`;
+}
+function meldForm(code){
+  if(UI.meld !== code) return '';
+  const e = D.AANVUL[code] || {};
+  return `<div class="meld noprint" data-meld="${esc(code)}"><div class="small muted">${esc(t('meldUitleg'))}</div>
+    <div class="row wrap mt8"><label class="small">${esc(t('meldMax'))}<br><input class="num" data-mf="max" inputmode="numeric" value="${esc(e.max ?? '')}"></label>
+      <label class="small grow">${esc(t('meldNoot'))}<br><input data-mf="noot" value="${esc(e.noot || '')}" placeholder="${esc(t('meldVb'))}"></label></div>
+    <div class="row wrap mt8"><button class="btn sm pri" data-a="meld-op" data-code="${esc(code)}">${esc(t('opslaan'))}</button><button class="btn sm" data-a="meld" data-code="">${esc(t('sluit'))}</button></div></div>`;
+}
 const bc = code => window.WHB ? WHB.svg(code) : '';
 const naarHtml = m => m.naar ? locs(m.naar) : `<span class="badge b-warn">${esc(t('geenLoc'))}</span>` + (m.voorstelPick ? ` <span class="small muted">${esc(t('ofNieuw'))}</span> ${locBadge(m.voorstelPick)}` : '');
 function tabNu(L, vd){
@@ -188,6 +202,7 @@ function mvHtml(m, vd){
       <div class="route"><span class="rl">${esc(t('van'))}</span>${locs(m.van) || `<span class="badge b-grey">${esc(t('bulkOnb'))}</span>`}<span class="pijl">→</span><span class="rl">${esc(t('naar'))}</span>${naarHtml(m)}</div>
       <div class="meta">${esc(mvMeta(m))}</div>
       ${st === 'nogopen' ? `<div class="meta rood">${esc(t('nogOpen', { a:tijd(tk.op), b:tijd(vw.op) }))}</div>` : ''}
+      <div class="mt4">${meldKnop(m.code)}</div>${meldForm(m.code)}
     </div>
     <div class="bc">${bc(m.code)}</div>
     <div class="aant">${nf(m.verpl)}<small>${esc(t('verpl'))}</small></div>
@@ -210,6 +225,7 @@ function tabRonde(L, vd){
         <div class="route"><span class="rl">${esc(t('van'))}</span>${locs(r.bulk)}<span class="pijl">→</span><span class="rl">${esc(t('naar'))}</span>${r.geenPick ? `<span class="badge b-warn">${esc(t('geenPick'))}</span>` : locs(r.pick)}</div>
         <div class="meta">${esc(rondeMeta(r))}</div>
         ${L.vstSet.has(r.code) ? `<div class="meta"><span class="badge b-vst">VST</span> ${esc(t('wachtVst'))}</div>` : ''}
+        <div class="mt4">${meldKnop(r.code)}</div>${meldForm(r.code)}
       </div>
       <div class="bc">${bc(r.code)}</div>
       <div class="aant">${nf(r.aantal)}<small>${esc(t('advies'))}</small></div></div>`;
@@ -368,6 +384,19 @@ document.addEventListener('click', async ev => {
   }
   if(a === 'gang'){ if(b.dataset.w === 'ronde') UI.gangRonde = b.dataset.v; else UI.gangNu = b.dataset.v; rerender(); return; }
   if(a === 'print'){ window.print(); return; }
+  if(a === 'meld'){ UI.meld = b.dataset.code || null; rerender(); const i = document.querySelector('[data-meld] input'); if(i) i.focus(); return; }
+  if(a === 'meld-op'){
+    const code = b.dataset.code, box = document.querySelector(`[data-meld="${CSS.escape(code)}"]`); if(!box) return;
+    const max = num(box.querySelector('[data-mf="max"]').value), noot = box.querySelector('[data-mf="noot"]').value.trim();
+    const oud = Object.assign({}, D.AANVUL[code] || {});
+    if(max && max > 0) oud.max = max; else delete oud.max;
+    if(noot) oud.noot = noot; else delete oud.noot;
+    oud.meld = { op:new Date().toISOString(), via:'junior' };
+    b.disabled = true;
+    try{ await WH.catPatch('wh-aanvul', { [code]:oud }); WHL.reset(); UI.meld = null; toast(t('opgeslagen')); rerender(); }
+    catch(e){ b.disabled = false; }
+    return;
+  }
   if(a === 'volg'){ try{ localStorage.setItem('junior-volg', b.dataset.v); }catch(e){} rerender(); return; }
   if(a === 'verwerk'){
     const k = 'dg:' + vandaag() + ':verwerk';

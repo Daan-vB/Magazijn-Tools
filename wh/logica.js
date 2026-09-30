@@ -154,6 +154,7 @@ function maakProfiel(code, bezet){
 
   // ---- eigen (bevestigd/aangepast in de app) ----
   const e = D.AANVUL[code] || null;
+  if(e && e.meld) pr.redenen.push({ lvl:'let', t:'gemeld vanuit het magazijn' + (e.max ? ': max ' + e.max + ' op de picklocatie' : '') + (e.noot ? ' · "' + e.noot + '"' : '') });
   pr.eigen = e;
   const f = Object.assign({}, v);
   if(e){

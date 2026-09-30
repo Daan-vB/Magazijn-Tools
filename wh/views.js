@@ -428,6 +428,7 @@ function viewBase(q){
     if(B.f === 'legbord' && p.final.type !== 'legbord') return false;
     if(B.f === 'wijzigt' && !p.picqerWijzigt) return false;
     if(B.f === 'tijd' && !p.redenen.some(r => /tijdelijk/.test(r.t))) return false;
+    if(B.f === 'gemeld' && !(p.eigen && p.eigen.meld)) return false;
     return true;
   }).sort((a, b) => (b.vk || 0) - (a.vk || 0) || a.code.localeCompare(b.code));
   const tel = s => alle.filter(p => p.status === s).length;
@@ -446,7 +447,7 @@ function viewBase(q){
       <select data-bf="abc"><option value="">ABC</option>${['A', 'B', 'C', '-'].map(s => `<option ${B.abc === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
       <select data-bf="afd"><option value="">alle afdelingen</option>${['-'].concat(window.WHT ? WHT.afdelingen() : []).map(s => `<option value="${esc(s)}" ${B.afd === s ? 'selected' : ''}>${s === '-' ? 'zonder afdeling' : esc(s)}</option>`).join('')}</select>
       <select data-bf="tri"><option value="">triage: alles</option>${[['g', 'Belangrijk'], ['o', 'Medium'], ['r', 'Zelden'], ['x', 'Weg'], ['-', 'nog niet beoordeeld']].map(([k, t]) => `<option value="${k}" ${B.tri === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
-      <select data-bf="f"><option value="">geen extra filter</option>${[['nieuw', 'nieuwe picklocatie'], ['wijzigt', 'wijkt af van Picqer'], ['legbord', 'doos/bak: capaciteit'], ['tijd', 'picklocatie tijdelijk']].map(([k, t]) => `<option value="${k}" ${B.f === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <select data-bf="f"><option value="">geen extra filter</option>${[['nieuw', 'nieuwe picklocatie'], ['wijzigt', 'wijkt af van Picqer'], ['legbord', 'doos/bak: capaciteit'], ['tijd', 'picklocatie tijdelijk'], ['gemeld', 'gemeld vanuit het magazijn (Junior)']].map(([k, t]) => `<option value="${k}" ${B.f === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
       ${B.gang ? `<span class="badge b-info">gang ${esc(B.gang)}</span> <button class="btn ghost sm" data-a="basegang">×</button>` : ''}
     </div>
     <div class="row wrap mt12">
