@@ -39,7 +39,7 @@ const TAKEN = [
   { id:'o-1019-ritme', datum:'2026-10-19', prio:1, wie:'Daan · team', titel:'Vaste aanvulmomenten invoeren', uitleg:'Voorstel: 07:30 Nu verplaatsen, 13:00 aanvulronde, 16:30 Verwerk backorders. Wie doet wat (reachtruck).', link:'#/' },
   { id:'o-1020-halc', datum:'2026-10-20', prio:3, wie:'Daan', titel:'Hal C en DA–DE uitdiepen', uitleg:'Looproute en gangvolgorde vastleggen, zodat de app lijsten in looprichting sorteert.', link:L.loc },
   { id:'o-1021-legbord', datum:'2026-10-21', prio:3, wie:'Daan', titel:'Legbordcapaciteit midden vastleggen', uitleg:'Per product max aantal op de picklocatie (vul aan tot). Aanvulbase → filter legbord.', link:L.base + '?f=legbord' },
-  { id:'o-1022-maxime', datum:'2026-10-22', prio:2, wie:'Daan · Maxime', titel:'Maxime: app laten zien en koppeling bespreken', uitleg:'app-fundament.md + demo IVOL Warehouse. Vraag: API-sleutel met alleen lezen (producten, voorraad per locatie, backorders, verkoop).', link:null },
+  { id:'o-1022-maxime', datum:'2026-10-22', prio:2, wie:'Daan · Maxime', titel:'Maxime: app laten zien en koppeling bespreken', uitleg:'app-fundament.md + demo IVOL Warehouse. Vraag: API-sleutel met alleen lezen (producten, voorraad per locatie, voorraadgeschiedenis, backorders, verkoop). Voorraad per locatie en geschiedenis zijn niet te exporteren in Picqer.', link:null },
   { id:'o-1023-eval', datum:'2026-10-23', prio:3, wie:'Daan', titel:'Evaluatie aanvullen', uitleg:'Hoeveel orders zaten vast door bulk op 30-9 en nu? Wat kost de aanvulronde?', link:'#/' },
   // ---- week 44 ----
   { id:'o-1026-verkoop', datum:'2026-10-26', prio:2, wie:'Daan', titel:'Aanvulbase herberekenen met verse verkoop', uitleg:'Magazijnverkopen 6 maanden inladen; app past voorstellen aan; afwijkingen importeren.', link:L.geg },
@@ -59,7 +59,8 @@ const DAGRITME = [
 // wat de app nog van Daan nodig heeft (niet gevraagd, hier verzameld)
 const VRAGEN = [
   { id:'v-verkoop', titel:'Magazijnverkopen-export, alle leveranciers, laatste 6 maanden', waarom:'Dan rekent de app de aanvulniveaus op echte verkoop i.p.v. voorlopige waarden.', waar:'Picqer → Rapporten → Magazijnverkopen, geen leveranciersfilter → inladen bij Gegevens.' },
-  { id:'v-mutaties', titel:'Bestaat er een export van voorraadmutaties / verplaatsingen?', waarom:'Dan leert de app hoeveel er per keer wordt aangevuld (hele pallet of doos) per product.', waar:'Picqer → Rapporten of Producten → voorraadgeschiedenis.' },
+  { id:'v-perlocatie', titel:'Voorraad per locatie (hoeveel op pick, hoeveel op bulk)', waarom:'Geen standaard export in Picqer; wel via de API. Daarmee weet de app precies wat er op pick ligt.', waar:'Via Maxime (alleen lezen).' },
+  { id:'v-mutaties', titel:'Voorraadgeschiedenis / verplaatsingen', waarom:'Per product zichtbaar in Picqer, niet als export; wel via de API (met locatie, reden en wie). Dan leert de app hoeveel er per keer wordt aangevuld.', waar:'Via Maxime (alleen lezen).' },
   { id:'v-legbord', titel:'Hoeveel past er op een legbordlocatie (midden, whiteboards)?', waarom:'Bepaalt "vul aan tot" voor klein spul. Per product invullen in Aanvulbase of een vuistregel per gang.', waar:'Aanvulbase → filter legbord.' },
   { id:'v-avloer', titel:'Hal A vloer (00): altijd een pallet, of ook bakken/dozen?', waarom:'Vloerpick = aanvullen met een hele pallet. Klopt dat ook in hal A?', waar:'' },
   { id:'v-ritme', titel:'Vaste aanvulmomenten en wie (reachtruck)', waarom:'Dan zet de app het dagritme op naam en tijd.', waar:'' },
