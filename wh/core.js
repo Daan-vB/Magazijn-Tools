@@ -13,7 +13,7 @@ window.WH = (function(){
 const URL_ = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
 const KEY  = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
 const H    = { apikey:KEY, Authorization:'Bearer ' + KEY };
-const CAT_KEYS = ['wh-locaties', 'wh-pq', 'wh-advies', 'wh-aanvul', 'wh-taken'];
+const CAT_KEYS = ['wh-locaties', 'wh-vst-locaties', 'wh-pq', 'wh-advies', 'wh-aanvul', 'wh-taken'];
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 /* ---------- hulpjes ---------- */
@@ -115,7 +115,7 @@ function catPatch(key, patch){
 /* ---------- gegevens in het geheugen ---------- */
 const D = {
   P:{}, PLOW:{}, VK:{}, BO:[], GEH:{}, CONT:[],
-  LOC:{}, LOCDATUM:null, PQ:{}, PQDATUM:null, ADV:null, AANVUL:{}, TAKEN:{},
+  LOC:{}, LOCDATUM:null, VSTLOC:{}, VSTDATUM:null, PQ:{}, PQDATUM:null, ADV:null, AANVUL:{}, TAKEN:{},
   catTijd:{}, missend:[], geladen:0, fout:null
 };
 const PROD_SEL = 'productcode,naam,leverancier,leverancier_code,ean,locaties_hm,voorraad_hm,gereserveerd_hm,vrij_hm,voorraad_vst,abc,actief,tags,eenheid,palletmaat,picqer_datum';
@@ -146,6 +146,8 @@ async function load(){
     });
     zetLocaties(C['wh-locaties']);
     zetPQ(C['wh-pq']);
+    D.VSTLOC = {}; D.VSTDATUM = C['wh-vst-locaties'] ? C['wh-vst-locaties'].datum : null;
+    ((C['wh-vst-locaties'] || {}).rows || []).forEach(([pal, codes]) => String(codes).split('|').forEach(c => (D.VSTLOC[c] = D.VSTLOC[c] || []).push(pal)));
     D.ADV = C['wh-advies'] || null;
     D.AANVUL = C['wh-aanvul'] || {};
     D.TAKEN = C['wh-taken'] || {};
@@ -206,6 +208,7 @@ async function impProducten(arr, st){
   for(let i = 1; i < arr.length; i++){
     const a = arr[i], code = txt(a[idx.productcode]);
     if(!code) continue;
+    const rauw = String(a[idx.productcode]);
     const r = { productcode:code, picqer_datum:nu };
     Object.keys(PROD_MAP).forEach(k => {
       if(k === 'productcode' || idx[k] < 0) return;
@@ -215,10 +218,10 @@ async function impProducten(arr, st){
       else r[k] = txt(v);
     });
     rows.push(r);
-    // [aanvulniveau, vul aan tot, virtueel/oneindig]
     const lvl = iPQ[0] < 0 ? null : num(a[iPQ[0]]), tot = iPQ[1] < 0 ? null : num(a[iPQ[1]]);
     const virt = iType >= 0 && /virtu|oneindig/i.test(String(a[iType] || ''));
-    if(lvl !== null || tot !== null || virt) pq[code] = [lvl, tot, virt ? 1 : 0];
+    // [aanvulniveau, vul aan tot, virtueel, exacte Picqer-code als die spaties heeft]
+    if(lvl !== null || tot !== null || virt || rauw !== code) pq[code] = [lvl, tot, virt ? 1 : 0].concat(rauw !== code ? [rauw] : []);
   }
   if(!rows.length) throw new Error('geen producten gevonden');
   await upsert('producten', rows, 'productcode', (i, n) => st('Producten opslaan… ' + nf(i) + ' / ' + nf(n)));
@@ -242,8 +245,14 @@ async function impLocaties(arr){
     rows.push([naam, bool(a[iB]) ? 1 : 0, bool(a[iT]) ? 1 : 0, iE >= 0 && bool(a[iE]) ? 1 : 0, iP >= 0 ? (txt(a[iP]) || '') : '', codes]);
   }
   if(!rows.length) throw new Error('geen locaties gevonden');
+  // Picqer exporteert per magazijn. VST ("Bulk van Spreuwel") = palletnummers (cijfers): apart bewaren, anders overschrijft hij het Hoofdmagazijn
+  const numeriek = rows.filter(r => /^\d/.test(r[0])).length;
+  if(numeriek > rows.length * 0.6){
+    await catZet('wh-vst-locaties', { datum:new Date().toISOString(), rows:rows.filter(r => r[5]).map(r => [r[0], r[5]]) });
+    return rows.length + ' VST-palletlocaties ingelezen (Bulk van Spreuwel), ' + rows.filter(r => r[5]).length + ' met product';
+  }
   await catZet('wh-locaties', { datum:new Date().toISOString(), rows });
-  return rows.length + ' locaties ingelezen';
+  return rows.length + ' locaties Hoofdmagazijn ingelezen';
 }
 
 /* ---------- import: backorders ---------- */
@@ -277,10 +286,11 @@ async function impVerkoop(arr, van, tot, volledig, st){
   if(!van || !tot || tot < van) throw new Error('vul eerst de periode van de export in');
   const maanden = (new Date(tot) - new Date(van)) / 864e5 / 30.44 + 1 / 30.44;
   const head = (arr[0] || []).map(h => String(h ?? '').trim());
-  const ic = head.indexOf('Productcode'), ia = head.indexOf('Aantal'), il = head.indexOf('Leverancier');
+  const ic = head.indexOf('Productcode'), ia = head.indexOf('Aantal'), il = head.indexOf('Leverancier'), im = head.indexOf('Magazijn');
   const som = {}, levVan = {};
   for(let i = 1; i < arr.length; i++){
     const code = txt(arr[i][ic]); if(!code) continue;
+    if(im >= 0 && arr[i][im] && !/hoofdmagazijn/i.test(String(arr[i][im]))) continue;
     const c2 = D.PLOW[code.toLowerCase()] || code;
     som[c2] = (som[c2] || 0) + (num(arr[i][ia]) || 0);
     if(il >= 0 && arr[i][il]) levVan[c2] = String(arr[i][il]).trim();

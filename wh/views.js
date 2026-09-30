@@ -14,8 +14,8 @@ const locs = arr => (arr || []).map(locBadge).join(' ');
 const kort = d => d ? fdate(d, { day:'numeric', month:'short' }) : '';
 const tik = key => !!(D.TAKEN[key]);
 function tikKnop(key, label){ return `<button class="chk" data-a="tik" data-k="${esc(key)}" aria-label="${esc(label || 'klaar')}">${tik(key) ? '✓' : ''}</button>`; }
-const typeNaam = { vloer:'pallet (vloer)', legbord:'doos/bak (klein)', speciaal:'speciale plek', bulk:'alleen bulk', leeg:'geen voorraad hier' };
-const typeCls = { vloer:'b-pick', legbord:'b-info', speciaal:'b-grey', bulk:'b-bulk', leeg:'b-grey' };
+const typeNaam = { vloer:'pallet (vloer)', legbord:'doos/bak (klein)', speciaal:'speciale plek', bulk:'alleen bulk', los:'geen locatie', retour:'alleen retourkar', leeg:'geen voorraad hier' };
+const typeCls = { vloer:'b-pick', legbord:'b-info', speciaal:'b-grey', bulk:'b-bulk', los:'b-warn', retour:'b-warn', leeg:'b-grey' };
 function exportLeeftijd(iso){
   if(!iso) return badge('ontbreekt', 'b-bad');
   const d = dagenOud(iso);
@@ -216,6 +216,11 @@ function mvHtml(m, vd){
     <div class="aant">${nf(m.stuks)}<small>voor orders</small></div>
   </div>`;
 }
+// palletnummers bij VST: laagste (= oudste) eerst, zoveel als nodig
+function vstPallets(v){
+  const p = (D.VSTLOC[v.code] || []).slice().sort((a, b) => (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0));
+  return v.pallets ? p.slice(0, v.pallets) : p;
+}
 function tabVst(C, vd){
   if(!C.vst.length) return '<div class="card empty">Geen backorders die met VST-voorraad compleet worden.</div>';
   const rijen = C.vst.map(v => {
@@ -224,9 +229,9 @@ function tabVst(C, vd){
       <td><a class="code" href="#/p/${encodeURIComponent(v.code)}">${esc(v.code)}</a><div class="desc">${esc(v.naam)}</div></td>
       <td class="n">${nf(v.nodig)}</td><td class="n">${nf(v.vstVoorraad)}</td><td class="n hide-m">${v.vk === null ? '–' : nf(v.vk, 1)}</td>
       <td class="n"><b>${nf(v.terug)}</b>${v.pallets ? `<div class="desc">${plural(v.pallets, 'pallet', 'pallets')} à ${nf(v.spp)}</div>` : '<div class="desc">stuks/pallet onbekend</div>'}</td>
-      <td class="small hide-m">${plural(v.orders.length, 'order', 'orders')}<div class="desc">sinds ${esc(kort(v.datum))}</div></td></tr>`;
+      <td class="small hide-m">${plural(v.orders.length, 'order', 'orders')}<div class="desc">sinds ${esc(kort(v.datum))}</div>${(D.VSTLOC[v.code] || []).length ? `<div class="desc">${D.VSTLOC[v.code].length} pallets bij VST · voorstel: ${esc(vstPallets(v).join(', '))}</div>` : ''}</td></tr>`;
   }).join('');
-  const mail = 'Hoi Edwin,\n\nWil je de volgende producten terugsturen naar IVOL?\n\n' + C.vst.filter(v => !tik('vst:' + vd + ':' + v.code)).map(v => '- ' + v.code + ': ' + (v.pallets ? v.pallets + ' pallet' + (v.pallets > 1 ? 's' : '') + ' (' + v.terug + ' stuks)' : v.terug + ' stuks')).join('\n') + '\n\nAlvast bedankt.\n\nMet vriendelijke groet,\nDaan van Brunschot\nIVOL';
+  const mail = 'Hoi Edwin,\n\nWil je de volgende producten terugsturen naar IVOL?\n\n' + C.vst.filter(v => !tik('vst:' + vd + ':' + v.code)).map(v => '- ' + v.code + ': ' + (v.pallets ? v.pallets + ' pallet' + (v.pallets > 1 ? 's' : '') + ' (' + v.terug + ' stuks)' : v.terug + ' stuks') + ((D.VSTLOC[v.code] || []).length ? ' — palletnummers' + (v.pallets && v.pallets < D.VSTLOC[v.code].length ? ' (voorstel, oudste eerst)' : '') + ': ' + vstPallets(v).join(', ') : '')).join('\n') + '\n\nAlvast bedankt.\n\nMet vriendelijke groet,\nDaan van Brunschot\nIVOL';
   const mailto = 'mailto:planning@vanspreuweltransport.nl,edwin@vanspreuweltransport.nl?cc=' + encodeURIComponent('sala@ivol.nl') + '&subject=' + encodeURIComponent('Terughalen naar IVOL') + '&body=' + encodeURIComponent(mail);
   return `<div class="card"><h2>Van VST halen</h2>
     <div class="small muted">Orders die niet compleet zijn in het Hoofdmagazijn maar wel met de voorraad bij VST. Terughalen = nodig voor de orders + aanvullen tot 1,5 maand verkoop, afgerond op hele pallets. Orders die ook met VST niet compleet zijn staan hier niet (wacht op inkoop). Palletnummers: Stockmove-terughaaladvies.</div>
@@ -526,6 +531,7 @@ function viewGegevens(){
   <div class="card"><h3>Stand</h3><div class="scroll mt8"><table><tr><th>Bron</th><th>Leeftijd</th><th class="n">Aantal</th></tr>
     ${rij('Productexport', 'producten', nf(Object.keys(D.P).length), 'Picqer → Producten → Exporteren (alle producten). Neemt ook aanvulniveaus mee.')}
     ${rij('Locatie-export', 'locaties', nf(Object.keys(D.LOC).length), 'Picqer → Instellingen → Locaties → Import/Export → Exporteren.')}
+    <tr><td><b>VST-palletlocaties</b><div class="desc">Zelfde locatie-export, maar dan van magazijn Bulk van Spreuwel: palletnummers per product.</div></td><td>${exportLeeftijd(D.VSTDATUM)}</td><td class="n">${nf(Object.keys(D.VSTLOC).length)} producten</td></tr>
     ${rij('Backorders', 'backorders', nf(D.BO.length) + ' regels', 'Picqer → Backorders → Exporteer backorders.')}
     ${rij('Magazijnverkopen', 'verkoop', nf(Object.keys(D.VK).length), 'Picqer → Rapporten → Magazijnverkopen, periode hierboven invullen.')}
     ${rij('Aanvuladvies', 'advies', D.ADV ? nf(D.ADV.rows.length) + ' regels' : '–', 'Picqer → Aanvuladvies → PDF (picklijst bulklocaties).')}

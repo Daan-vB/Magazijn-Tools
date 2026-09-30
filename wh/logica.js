@@ -91,7 +91,7 @@ function maakProfiel(code, bezet){
   const bo = (C.boPer[code] || { orders:0, stuks:0 });
   const pr = {
     code, naam:p.naam || '', lev:p.leverancier || '', abc, st:num(p.voorraad_hm) || 0, vrij:num(p.vrij_hm), vst:num(p.voorraad_vst) || 0,
-    vk, spp, locs, picks, bulks, conts, pq:{ lvl:leeg(pq[0]) ? null : pq[0], tot:leeg(pq[1]) ? null : pq[1] }, virt:pq[2] === 1,
+    vk, spp, locs, picks, bulks, conts, vstPallets:(D.VSTLOC[code] || []), pq:{ lvl:leeg(pq[0]) ? null : pq[0], tot:leeg(pq[1]) ? null : pq[1] }, virt:pq[2] === 1,
     bo, redenen:[]
   };
   const pi = picks.length ? locInfo(picks[0]) : null;
@@ -112,7 +112,13 @@ function maakProfiel(code, bezet){
     }
   }
   if(!v.pick){
-    v.type = pr.st > 0 ? 'bulk' : 'leeg';          // alleen bulk: order zet verplaatsing in gang, niet aanvullen
+    if(pr.st <= 0) v.type = 'leeg';
+    else if(bulks.length) v.type = 'bulk';          // alleen bulk: order zet verplaatsing in gang, niet aanvullen
+    else if(conts.length) v.type = 'retour';        // alleen op een retourkar
+    else {
+      v.type = 'los';                               // voorraad op "geen specifieke locatie" (wel pickbaar)
+      if(loper) pr.redenen.push({ lvl:'let', t:'loopt, maar staat op geen specifieke locatie: geef een vaste picklocatie' });
+    }
   }else{
     const soort = pickSoort(locInfo(v.pick), spp);
     v.type = soort;
@@ -124,6 +130,7 @@ function maakProfiel(code, bezet){
       // hele pallet: zakt de pick onder ±1 week verkoop, dan precies één volle pallet erbij
       const l = wk === null ? 1 : Math.min(Math.max(1, heelGetal(wk)), Math.max(1, spp - 1));
       v.lvl = l; v.tot = l - 1 + spp;
+      if(wk !== null && wk > spp) pr.redenen.push({ lvl:'let', t:'verkoopt ' + Math.round(wk / spp * 10) / 10 + ' pallets per week: dagelijks aanvullen of 2 pallets op de vloer' });
     }else if(soort === 'vloer'){
       const l = wk === null ? 1 : Math.max(1, heelGetal(wk));
       v.lvl = l; v.tot = Math.max(l + 1, huidigTot || 0, wk === null ? 0 : heelGetal(4 * wk));
@@ -156,7 +163,7 @@ function maakProfiel(code, bezet){
 // wat de Picqer-import voor dit product zou zetten (null = niets veranderen)
 function importWaarden(pr){
   const f = pr.final;
-  if(f.type === 'leeg') return null;                                            // geen voorraad hier
+  if(f.type === 'leeg' || f.type === 'los' || f.type === 'retour') return null;    // geen voorraad hier / geen locatie / retourkar: niets aan veranderen
   if(f.type === 'bulk' && pr.voorstel.loper && !(pr.eigen && pr.eigen.ok)) return null;   // loopt maar mist een picklocatie: eerst kiezen
   let lvl = f.lvl, tot = f.tot;
   if(f.type === 'bulk'){ lvl = null; tot = null; }                              // alleen bulk: uit het advies
@@ -301,13 +308,14 @@ function analyseOrders(){
 }
 
 /* ---------- Picqer-importbestanden ---------- */
+const pqCode = code => { const q = D.PQ[code]; return q && q[3] ? q[3] : code; };   // exacte code (soms met spatie)
 const leegOf = v => leeg(v) ? '' : v;
 function importAanvul(filter){
   const b = bereken();
   const rijen = [];
   Object.values(b.prof).forEach(pr => {
     if(filter && !filter(pr)) return;
-    if(pr.imp) rijen.push([pr.code, leegOf(pr.imp.lvl), leegOf(pr.imp.tot)]);
+    if(pr.imp) rijen.push([pqCode(pr.code), leegOf(pr.imp.lvl), leegOf(pr.imp.tot)]);
   });
   return rijen.sort((a, b) => String(a[0]).localeCompare(b[0]));
 }
@@ -320,7 +328,7 @@ function importKoppel(filter){
     if(!f.pick || pr.locs.includes(f.pick)) return;
     if(pr.conts.length) return;                    // eerst van de retourkar af, anders kan de import mislopen
     const nieuw = pr.locs.filter(l => soortLoc(l) !== 'container').concat([f.pick]);
-    rijen.push([pr.code, nieuw.join(', ')]);
+    rijen.push([pqCode(pr.code), nieuw.join(', ')]);
   });
   return rijen.sort((a, b) => String(a[0]).localeCompare(b[0]));
 }
