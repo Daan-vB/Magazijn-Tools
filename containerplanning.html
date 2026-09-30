@@ -3711,7 +3711,11 @@ function tabUitvoer(c, g){
   const perDest = {}; lab.forEach(l => perDest[l.dest] = (perDest[l.dest] || 0) + 1);
   const alleDest = {};
   pools(c).order.forEach(code => { const v = c.data.verdeling[code]; (v && v.porties || []).forEach(x => { if(x.soort === 'pallet' && DEST[x.dest].label) alleDest[x.dest] = (alleDest[x.dest] || 0) + (num(x.n) || 0); }); });
+  const boTijd = BO.map(b => b.geimporteerd_op).filter(Boolean).sort().pop();
+  const boUren = boTijd ? (Date.now() - new Date(boTijd).getTime()) / 36e5 : null;
+  const boOud = boUren === null || boUren > 12;
   return `${open ? `<div class="card" style="border-left:4px solid var(--bad)"><b>Let op:</b> er staan nog ${open} open punten. Je kunt alles al maken, maar controleer die eerst.</div>` : ''}
+  ${boOud ? `<div class="card" style="border-left:4px solid var(--bad)"><b>Backorders ${boTijd ? 'van ' + esc(fdt(boTijd)) : 'niet ingeladen'}.</b> Laad vlak vóór de losdag-PDF een verse backorder-export in (Gegevens → Backorders) en kijk de verdeling na (stap Verdeling). Anders gaan er meer of minder pallets direct weg dan op de werkbon staat (testdag 30-9).</div>` : ''}
   <div class="card out"><div class="row between wrap"><div><h3>PDF voor de losdag</h3><p class="small muted mt8">Eerst de pakbon${c.data.pakbon_bestand ? '' : ' (nog niet bewaard bij deze container)'}, dan de samenvatting, de werkbon voor het magazijn (taal van de werkbon hieronder) en de Stockmove-lijst: welke pallet, welk product, hoeveel. Maak hem als alles is ingevuld: dan staat hij ook in IVOL Junior (Sala, Kate).${c.data.magazijn_pdf ? ' <b>In Junior sinds ' + esc(fdt(c.data.magazijn_pdf.op)) + '</b>; opnieuw maken vervangt hem.' : ''}</p></div>
     <button class="btn pri" data-act="pdfall">PDF maken</button></div></div>
   ${voorboekKaart(c)}
