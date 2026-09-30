@@ -3700,7 +3700,7 @@ function tabUitvoer(c, g){
   <div class="card out"><div class="row between wrap"><div><h3>PDF voor de losdag</h3><p class="small muted mt8">Eerst de pakbon${c.data.pakbon_bestand ? '' : ' (nog niet bewaard bij deze container)'}, dan de samenvatting, de werkbon voor het magazijn (taal van de werkbon hieronder) en de Stockmove-lijst: welke pallet, welk product, hoeveel.</p></div>
     <button class="btn pri" data-act="pdfall">PDF maken</button></div></div>
   ${voorboekKaart(c)}
-  <div class="card out"><div class="row between wrap"><div><h3>Overzicht voor mij (PDF)</h3><p class="small muted mt8">Per product: hoeveel pallets bulk, pick, backorders, klant en VST, en per backorder-order het aantal. Bevat alle open containers met dezelfde losdatum${c.losdatum ? ' (' + esc(fdate(c.losdatum, { weekday:'short', day:'numeric', month:'short' })) + ')' : ''}. Backorders zoals nu ingeladen${BO.length ? ' (' + esc(fdt(BO.map(b => b.geimporteerd_op).filter(Boolean).sort().pop())) + ')' : ': nog geen'}.</p></div>
+  <div class="card out"><div class="row between wrap"><div><h3>Overzicht voor mij (PDF)</h3><p class="small muted mt8">Per product: hoeveel pallets bulk, pick, backorders, klant en VST, en per backorder-order het aantal. Bevat alle open containers met dezelfde vastgezette losdatum${c.losdatum ? ' (' + esc(fdate(c.losdatum, { weekday:'short', day:'numeric', month:'short' })) + ')' : ''}. Backorders zoals nu ingeladen${BO.length ? ' (' + esc(fdt(BO.map(b => b.geimporteerd_op).filter(Boolean).sort().pop())) + ')' : ': nog geen'}.</p></div>
     <button class="btn pri" data-act="pdfover">Overzicht maken</button></div></div>
   ${tabPallets(c, g, true)}
   <div class="card out">
@@ -3877,7 +3877,7 @@ function overzichtData(cs){
 }
 async function maakOverzichtPdf(c){
   const d0 = c.losdatum;
-  const cs = (d0 ? CONT.filter(k => k.status !== 'afgerond' && k.losdatum === d0 && (k.data.regels || []).length) : []);
+  const cs = (d0 && !isVerwacht(c) ? CONT.filter(k => k.status !== 'afgerond' && k.losdatum === d0 && !isVerwacht(k) && (k.data.regels || []).length) : []);   // alleen vastgezette losdatums, geen verwachte ETA's
   if(!cs.some(k => k.id === c.id)) cs.unshift(c);
   cs.sort((a, b) => String(a.pakbon_ref || '').localeCompare(String(b.pakbon_ref || ''), 'nl', { numeric:true }));
   const prods = overzichtData(cs);
