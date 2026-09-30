@@ -112,6 +112,11 @@
   .tile.t-grey{border-left-color:#9aa7b8}
   .verwerk{background:var(--soft);box-shadow:none;border:1px solid var(--line)} .verwerk.klaar{background:#dff3e8;border-color:#b5e0c7}
   .printonly{display:none}
+  .handleiding h2{font-size:20px;margin-bottom:6px}
+  .handleiding h3{font-size:16px;margin:18px 0 6px;padding-top:12px;border-top:1px solid #eef1f5}
+  .handleiding p{margin:6px 0}
+  .handleiding ul,.handleiding ol{margin:6px 0 6px 22px;display:grid;gap:5px}
+  .handleiding li{padding-left:2px}
   .btn.ghost{border-color:transparent;background:transparent;color:var(--muted);padding-left:0}
   .meld{background:var(--soft);border-radius:8px;padding:10px;margin-top:6px}
   .meld input{font:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;width:100%;min-width:90px}
@@ -125,6 +130,7 @@
     main{max-width:none;padding:0}
     .card{box-shadow:none;padding:0;margin-bottom:10px}
     .printonly{display:block}
+    .handleiding{font-size:11.5px} .handleiding h3{break-after:avoid} .handleiding li{break-inside:avoid}
     .pkop{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:2px solid #000;padding-bottom:4px;font-size:12px}
     .pkop b{font-size:15px;white-space:nowrap}
     .pkop span{text-align:right}
@@ -164,6 +170,7 @@
     <a href="#/" data-nav="vandaag" data-t="nav.vandaag">Vandaag</a>
     <a href="#/aanvullen" data-nav="aanvullen" data-t="nav.aanvullen">Aanvullen</a>
     <a href="#/containers" data-nav="containers" data-t="nav.containers">Containers</a>
+    <a href="#/handleiding" data-nav="handleiding" data-t="nav.handleiding">Handleiding</a>
     <a href="./" target="_blank" rel="noopener"><span data-t="nav.labels">Palletlabels</span> ↗</a>
   </nav>
   <div class="rechts">
@@ -178,7 +185,8 @@
 <script src="wh/logica.js?v=8"></script>
 <script src="wh/triage.js?v=2"></script>
 <script src="wh/barcode.js?v=1"></script>
-<script src="wh/junior-taal.js?v=3"></script>
-<script src="wh/junior.js?v=4"></script>
+<script src="wh/junior-taal.js?v=4"></script>
+<script src="wh/junior-handleiding.js?v=1"></script>
+<script src="wh/junior.js?v=5"></script>
 </body>
 </html>

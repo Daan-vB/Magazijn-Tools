@@ -85,6 +85,7 @@ function route(){
   try{
     if(naam === 'aanvullen') return viewAanvullen(h[1] === 'ronde' ? 'ronde' : h[1] === 'niet' ? 'niet' : 'nu');
     if(naam === 'containers') return viewContainers();
+    if(naam === 'handleiding') return viewHandleiding();
     return viewVandaag();
   }catch(e){
     console.error(e);
@@ -320,6 +321,13 @@ async function inlezen(files){
   const s = $('impst');
   if(s){ s.innerHTML = log.join('<br>'); s.className = 'status ' + (log.some(l => l.startsWith('✗')) ? 'err' : 'ok'); }
   if(iets) toast(t('bijgewerkt'));
+}
+
+/* ---------- Handleiding ---------- */
+function viewHandleiding(){
+  const h = (window.JH && (JH[taal] || JH.nl)) || '';
+  app.innerHTML = `<div class="card noprint"><div class="row wrap between"><span class="small muted">${esc(t('handTaal'))}</span><button class="btn sm pri" data-a="print">${esc(t('print'))}</button></div></div>
+    <div class="card handleiding">${h}</div>`;
 }
 
 /* ---------- Containers ---------- */
