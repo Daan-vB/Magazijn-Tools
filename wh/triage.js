@@ -17,7 +17,7 @@ const T = { seed:null, laden:null, byCode:null, overig:null, overigTijd:0 };
 /* ---------- lijsten laden ---------- */
 function laad(){
   if(!T.laden){
-    T.laden = fetch('wh/triage-lijsten.json?v=1').then(r => { if(!r.ok) throw new Error('triage-lijsten.json niet gevonden (' + r.status + ')'); return r.json(); }).then(s => {
+    T.laden = fetch('wh/triage-lijsten.json?v=2').then(r => { if(!r.ok) throw new Error('triage-lijsten.json niet gevonden (' + r.status + ')'); return r.json(); }).then(s => {
       T.seed = s; T.byCode = new Map();
       Object.entries(s.tabs).forEach(([tab, arr]) => arr.forEach(([code, fam, lev, afd, st]) => T.byCode.set(code, { tab, fam, lev, afd: s.afds[afd] || '', st: st || '' })));
       if(window.WHL) WHL.reset();
