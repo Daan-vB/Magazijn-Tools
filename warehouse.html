@@ -9,6 +9,7 @@
 <title>IVOL Warehouse</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
 <script src="bestanden.js"></script>
 <style>
   :root{--blue:#1d4ea0;--orange:#e8590c;--ink:#10151c;--bg:#eef1f5;--line:#cdd5df;--soft:#f6f8fb;--muted:#5b6673;--ok:#1c7a4a;--warn:#b86e00;--bad:#b3261e;
@@ -119,7 +120,11 @@
   .mv .aant{font-size:20px;font-weight:800;text-align:right;line-height:1}
   .mv .aant small{display:block;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase}
   .mv .meta{font-size:12px;color:var(--muted);margin-top:3px}
-  .mv .edit{grid-column:2/4;background:var(--soft);border-radius:8px;padding:8px 10px;margin-top:4px}
+  .mv .edit{grid-column:2/-1;background:var(--soft);border-radius:8px;padding:8px 10px;margin-top:4px}
+  .mv.metbc{grid-template-columns:auto 1fr auto auto}
+  .mv .bc{text-align:center;line-height:1;padding-top:2px;max-width:240px}
+  .mv .bc svg{display:block;max-width:100%;height:auto}
+  .mv .bc .bc-noot{font-size:9.5px;color:var(--bad);font-weight:700;margin-top:2px}
   .gangkop{display:flex;align-items:center;gap:8px;margin:14px 0 2px;padding-top:10px;border-top:2px solid var(--ink)}
   .gangkop:first-child{margin-top:0;border-top:none;padding-top:0}
   .gangkop b{font-size:15px}
@@ -153,12 +158,17 @@
   #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:13.5px;z-index:60;box-shadow:0 4px 16px rgba(0,0,0,.25);max-width:90vw}
 
   @media print{
-    .top,.tabs,.filters,.btn,.chk,#toast,.noprint{display:none !important}
+    .top,.tabs,.filters,.btn,#toast,.noprint{display:none !important}
+    .chk{width:18px !important;height:18px !important;border:1.5px solid #333 !important;border-radius:3px !important;background:#fff !important;color:transparent !important}
     body{background:#fff;font-size:12px}
     main{max-width:none;padding:0}
     .card{box-shadow:none;padding:0;margin-bottom:10px}
     .mv{break-inside:avoid;padding:6px 0}
     .mv.klaar{display:none}
+    .mv{grid-template-columns:auto 1fr auto !important}
+    .mv.metbc{grid-template-columns:auto 1fr auto auto !important}
+    .mv .bc,.mv .aant{grid-column:auto !important}
+    .mv .aant{text-align:right !important}
     .gangkop{break-after:avoid}
     a{color:inherit;text-decoration:none}
   }
@@ -172,6 +182,7 @@
     .mv{grid-template-columns:auto 1fr}
     .mv .aant{grid-column:2;text-align:left}
     .mv .edit{grid-column:1/-1}
+    .mv .bc{grid-column:2;justify-self:start}
   }
 </style>
 </head>
@@ -198,11 +209,12 @@
 <main id="app"><div class="empty">Laden…</div></main>
 <div id="toast" hidden></div>
 
-<script src="wh/core.js?v=7"></script>
+<script src="wh/core.js?v=8"></script>
 <script src="wh/logica.js?v=7"></script>
 <script src="wh/planning.js?v=7"></script>
 <script src="wh/triage.js?v=2"></script>
 <script src="wh/dag.js?v=2"></script>
-<script src="wh/views.js?v=7"></script>
+<script src="wh/barcode.js?v=1"></script>
+<script src="wh/views.js?v=8"></script>
 </body>
 </html>

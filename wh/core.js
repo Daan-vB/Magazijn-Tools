@@ -162,6 +162,7 @@ async function load(){
     D.TRIAGE = C['wh-triage'] || {};
     D.geladen = Date.now(); D.fout = null;
     if(window.WHL) WHL.reset();
+    if(window.WHB) WHB.reset();
     setSync('verbonden', 'ok');
     return true;
   }catch(e){

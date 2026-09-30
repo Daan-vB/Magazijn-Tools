@@ -11,6 +11,7 @@ const UI = { mvGang:'', rondeGang:'', base:{ q:'', hal:'', type:'', status:'', a
 const badge = (t, cls) => `<span class="badge ${cls || 'b-grey'}">${esc(t)}</span>`;
 const locBadge = l => { const s = WHL.soortLoc(l); return `<span class="badge ${s === 'pick' ? 'b-pick' : s === 'bulk' ? 'b-bulk' : s === 'container' ? 'b-warn' : 'b-grey'}"><span class="loc">${esc(l)}</span></span>`; };
 const locs = arr => (arr || []).map(locBadge).join(' ');
+const bc = code => window.WHB ? WHB.svg(code) : '';                 // kleine barcode (EAN) om in Picqer te scannen
 const kort = d => d ? fdate(d, { day:'numeric', month:'short' }) : '';
 const tik = key => !!(D.TAKEN[key]);
 function tikKnop(key, label){ return `<button class="chk" data-a="tik" data-k="${esc(key)}" aria-label="${esc(label || 'klaar')}">${tik(key) ? '✓' : ''}</button>`; }
@@ -214,13 +215,14 @@ function mvHtml(m, vd){
   const k = 'mv:' + vd + ':' + m.code;
   const pr = WHL.prof(m.code);
   const naar = m.naar ? locs(m.naar) : m.voorstelPick ? `<span class="badge b-warn">geen specifieke locatie</span> <span class="small muted">of nieuw:</span> ${locBadge(m.voorstelPick)}` : '<span class="badge b-warn">geen specifieke locatie</span>';
-  return `<div class="mv ${tik(k) ? 'klaar' : ''}">
+  return `<div class="mv metbc ${tik(k) ? 'klaar' : ''}">
     <div class="task" style="border:0;padding:0">${tikKnop(k, 'verplaatst')}</div>
     <div><div><a class="code" href="#/p/${encodeURIComponent(m.code)}">${esc(m.code)}</a> <span class="desc">${esc(m.naam)}</span></div>
       <div class="route">${locs(m.van) || '<span class="badge b-grey">bulk onbekend</span>'}<span class="pijl">→</span>${naar}</div>
       <div class="meta">${plural(m.orders.length, 'order', 'orders')} sinds ${esc(kort(m.datum))}${m.pickst !== null && m.pickst !== undefined ? ' · pickvoorraad ' + nf(m.pickst) : ''}${m.advAantal ? ' · Picqer-advies ' + nf(m.advAantal) : ''} · ${esc(m.t)}</div>
       ${pr && pr.final.type === 'bulk' && pr.bulks.length ? '<div class="meta">Alleen bulk: na verplaatsen blijft er geen picklocatie. Loopt het vaker? Geef een picklocatie in <a href="#/p/' + encodeURIComponent(m.code) + '">Aanvulbase</a>.</div>' : ''}
     </div>
+    <div class="bc">${bc(m.code)}</div>
     <div class="aant">${nf(m.stuks)}<small>voor orders</small></div>
   </div>`;
 }
@@ -274,7 +276,7 @@ function rondeHtml(r, vd){
   const pr = r.pr;
   const open = UI.open['r:' + r.code];
   const f = pr ? pr.final : null;
-  return `<div class="mv ${tik(k) ? 'klaar' : ''}">
+  return `<div class="mv metbc ${tik(k) ? 'klaar' : ''}">
     <div class="task" style="border:0;padding:0">${tikKnop(k, 'aangevuld')}</div>
     <div><div><a class="code" href="#/p/${encodeURIComponent(r.code)}">${esc(r.code)}</a> <span class="desc">${esc(r.naam || (pr && pr.naam) || '')}</span></div>
       <div class="route">${locs(r.bulk)}<span class="pijl">→</span>${r.geenPick ? '<span class="badge b-warn">geen picklocatie</span>' : locs(r.pick)}</div>
@@ -282,6 +284,7 @@ function rondeHtml(r, vd){
       <div class="meta">pickvoorraad ${nf(r.pickst)}${pr ? ' · Picqer ' + (pr.pq.lvl ?? '–') + '/' + (pr.pq.tot ?? '–') + ' → voorstel ' + (f.lvl ?? '–') + '/' + (f.tot ?? '–') + ' ' + badge(typeNaam[f.type] || f.type || '', typeCls[f.type]) : ''} <button class="btn ghost sm" data-a="open" data-k="r:${esc(r.code)}">${open ? 'sluit' : 'instellen'}</button></div>
       ${open && pr ? `<div class="edit">${editVelden(pr)}</div>` : ''}
     </div>
+    <div class="bc">${bc(r.code)}</div>
     <div class="aant">${nf(r.aantal)}<small>advies</small></div></div>`;
 }
 function tabVast(C){

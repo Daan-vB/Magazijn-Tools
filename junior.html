@@ -102,11 +102,13 @@
   #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;z-index:60;box-shadow:0 4px 16px rgba(0,0,0,.25);max-width:90vw}
 
   @media print{
-    .top,.noprint,#toast,.chk{display:none !important}
+    .top,.noprint,#toast{display:none !important}
+    .chk{width:18px !important;height:18px !important;border:1.5px solid #333 !important;border-radius:3px !important;background:#fff !important;color:transparent !important}
     body{background:#fff;font-size:12px}
     main{max-width:none;padding:0}
     .card{box-shadow:none;padding:0;margin-bottom:10px}
-    .mv{break-inside:avoid;padding:6px 0;grid-template-columns:1fr auto}
+    .mv{break-inside:avoid;padding:6px 0;grid-template-columns:auto 1fr auto}
+    .mv .aant{grid-column:auto !important;text-align:right !important}
     .mv.klaar{display:none}
     .gangkop{break-after:avoid}
   }
@@ -138,10 +140,10 @@
 <main id="app"><div class="empty">…</div></main>
 <div id="toast" hidden></div>
 
-<script src="wh/core.js?v=7"></script>
+<script src="wh/core.js?v=8"></script>
 <script src="wh/logica.js?v=7"></script>
 <script src="wh/triage.js?v=2"></script>
 <script src="wh/junior-taal.js?v=1"></script>
-<script src="wh/junior.js?v=1"></script>
+<script src="wh/junior.js?v=2"></script>
 </body>
 </html>
