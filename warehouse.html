@@ -125,6 +125,11 @@
   .mv .bc{text-align:center;line-height:1;padding-top:2px;max-width:240px}
   .mv .bc svg{display:block;max-width:100%;height:auto}
   .mv .bc .bc-noot{font-size:9.5px;color:var(--bad);font-weight:700;margin-top:2px}
+  .mv .rl{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:2px}
+  .mv.nogopen{background:#fff4f3;box-shadow:inset 4px 0 0 var(--bad);padding-left:8px}
+  .meta.rood{color:var(--bad);font-weight:700}
+  .verwerk{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:12px 14px} .verwerk.klaar{background:#dff3e8;border-color:#b5e0c7}
+  .printonly{display:none}
   .gangkop{display:flex;align-items:center;gap:8px;margin:14px 0 2px;padding-top:10px;border-top:2px solid var(--ink)}
   .gangkop:first-child{margin-top:0;border-top:none;padding-top:0}
   .gangkop b{font-size:15px}
@@ -158,7 +163,23 @@
   #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:13.5px;z-index:60;box-shadow:0 4px 16px rgba(0,0,0,.25);max-width:90vw}
 
   @media print{
-    .top,.tabs,.filters,.btn,#toast,.noprint{display:none !important}
+    @page{size:A4 portrait;margin:10mm}
+    .top,.tabs,.filters,.btn,#toast,.noprint,.scherm{display:none !important}
+    .printonly{display:block}
+    .pkop{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:2px solid #000;padding-bottom:4px;font-size:11px}
+    .pkop b{font-size:15px;white-space:nowrap} .pkop span{text-align:right}
+    .ptip{font-size:10px;margin:4px 0 6px;color:#333}
+    .ptab{width:100%;border-collapse:collapse;table-layout:fixed}
+    .ptab th{font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;text-align:left;border-bottom:1.5px solid #000;padding:3px 4px}
+    .ptab td{border-bottom:1px solid #bbb;padding:5px 4px;vertical-align:middle}
+    .ptab tr{break-inside:avoid}
+    .ptab .pvak{display:inline-block;width:14px;height:14px;border:1.5px solid #000;border-radius:2px}
+    .ptab .pn{font-size:10px;color:#333} .ptab .pm{font-size:9px;color:#555}
+    .ptab .loc{font-size:12.5px;font-weight:800;padding-right:8px;white-space:normal;word-break:break-word} .ptab .naar{font-size:14px} .ptab .pgeen{font-size:10px;font-weight:700;white-space:normal;display:block;line-height:1.2}
+    .ptab .pa{font-size:17px;font-weight:800;text-align:right;padding-right:10px}
+    .ptab .pbc svg{display:block;height:36px;width:auto;max-width:100%} .ptab .pbc .bc-noot{font-size:8px}
+    .ptab .pg{border-left:1px solid #bbb}
+    .ptab tr.pgang td{font-weight:800;font-size:12px;border-bottom:1.5px solid #000;padding-top:10px}
     .chk{width:18px !important;height:18px !important;border:1.5px solid #333 !important;border-radius:3px !important;background:#fff !important;color:transparent !important}
     body{background:#fff;font-size:12px}
     main{max-width:none;padding:0}
@@ -209,12 +230,12 @@
 <main id="app"><div class="empty">Laden…</div></main>
 <div id="toast" hidden></div>
 
-<script src="wh/core.js?v=8"></script>
-<script src="wh/logica.js?v=7"></script>
+<script src="wh/core.js?v=9"></script>
+<script src="wh/logica.js?v=8"></script>
 <script src="wh/planning.js?v=7"></script>
 <script src="wh/triage.js?v=2"></script>
-<script src="wh/dag.js?v=2"></script>
+<script src="wh/dag.js?v=3"></script>
 <script src="wh/barcode.js?v=1"></script>
-<script src="wh/views.js?v=8"></script>
+<script src="wh/views.js?v=9"></script>
 </body>
 </html>

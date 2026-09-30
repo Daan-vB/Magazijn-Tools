@@ -209,11 +209,31 @@ function leesSheet(file){
     return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, blankrows:false, defval:null, raw:true });
   });
 }
+/* kolomnamen: Picqer exporteert in de taal van de gebruiker. Nederlands is de norm; Engels, Duits en Frans worden ook herkend
+   (Kate/Salah kunnen Picqer in het Engels hebben). Vergelijken zonder hoofdletters, spaties en leestekens. */
+const normKol = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9#]/g, '');
+const BO_KOL = {
+  nr:['#', 'id'],
+  bestelling:['Bestelling/Retour', 'Bestelling', 'Order/Return', 'Order/Retour', 'Order', 'Bestellung/Retoure', 'Bestellung', 'Commande/Retour', 'Commande'],
+  leverancier:['Leverancier', 'Supplier', 'Lieferant', 'Fournisseur'],
+  productcode:['Productcode', 'Product code', 'Product-code', 'SKU', 'Produktcode', 'Artikelnummer', 'Code produit', 'Référence'],
+  product:['Product', 'Productnaam', 'Product name', 'Name', 'Produkt', 'Produit'],
+  aantal:['Aantal', 'Amount', 'Quantity', 'Qty', 'Anzahl', 'Menge', 'Quantité'],
+  beschikbaar:['Beschikbaar', 'Available', 'Verfügbar', 'Disponible'],
+  verwacht:['Verwacht', 'Expected', 'Erwartet', 'Attendu'],
+  magazijn:['Magazijn', 'Warehouse', 'Lager', 'Entrepôt'],
+  besteld_op:['Besteld op', 'Ordered on', 'Ordered at', 'Order date', 'Created at', 'Created', 'Bestellt am', 'Commandé le']
+};
+function kolIdx(head, namen){
+  const h = head.map(normKol);
+  for(const n of namen){ const i = h.indexOf(normKol(n)); if(i >= 0) return i; }
+  return -1;
+}
 function soortVan(head){
   const h = head.map(x => String(x ?? '').trim());
   const has = n => h.includes(n);
   if(has('Naam') && has('Bulklocatie') && has('Tijdelijke locatie')) return 'locaties';
-  if(has('#') && has('Bestelling/Retour')) return 'backorders';
+  if(kolIdx(h, BO_KOL.nr) >= 0 && kolIdx(h, BO_KOL.bestelling) >= 0 && kolIdx(h, BO_KOL.productcode) >= 0 && kolIdx(h, BO_KOL.aantal) >= 0) return 'backorders';
   if(has('Productcode') && (has('Voorraadlocatie Hoofdmagazijn') || has('Aanvulniveau Hoofdmagazijn'))) return 'producten';
   if(has('Productcode') && has('Voorraadlocatie') && has('Vrije voorraad')) return 'voorraad';
   if(has('Productcode') && has('Aantal')) return 'verkoop';
@@ -297,18 +317,33 @@ async function impLocaties(arr, datumBestand){
 }
 
 /* ---------- import: backorders ---------- */
+// datum uit een Excel-cel: getal (Excel-serienummer), "30-09-2026 14:05", "2026-09-30 14:05" of een Date
+function datumCel(v){
+  if(leeg(v)) return null;
+  if(v instanceof Date) return isNaN(v) ? null : v.toISOString();
+  if(typeof v === 'number' && v > 20000 && v < 80000){ const d = new Date(Math.round((v - 25569) * 864e5)); return isNaN(d) ? null : new Date(d.getTime() + d.getTimezoneOffset() * 6e4).toISOString(); }
+  const s = String(v).trim();
+  let m = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})(?:[ T](\d{1,2}):(\d{2}))?/.exec(s);
+  if(m){ const d = new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 12), +(m[5] || 0)); return isNaN(d) ? null : d.toISOString(); }
+  const d = new Date(s.replace(' ', 'T'));
+  return isNaN(d) ? null : d.toISOString();
+}
 async function impBackorders(arr, st){
   const head = (arr[0] || []).map(h => String(h ?? '').trim());
-  const col = n => head.indexOf(n);
-  ['#', 'Productcode', 'Aantal'].forEach(n => { if(col(n) < 0) throw new Error('kolom "' + n + '" niet gevonden'); });
+  const I = {}; Object.entries(BO_KOL).forEach(([k, namen]) => I[k] = kolIdx(head, namen));
+  const mist = ['nr', 'bestelling', 'productcode', 'aantal'].filter(k => I[k] < 0);
+  if(mist.length) throw new Error('kolommen niet herkend (' + mist.join(', ') + '). Gevonden: ' + head.filter(Boolean).slice(0, 12).join(' | ') + '. Staat Picqer in een andere taal? Zet Picqer op Nederlands of stuur het bestand naar Daan.');
+  if(I.beschikbaar < 0) throw new Error('kolom "Beschikbaar" niet gevonden: zonder die kolom weet de app niet welke orders compleet zijn');
+  const cel = (a, k) => I[k] < 0 ? null : a[I[k]];
   const nu = new Date().toISOString(), rows = [];
   for(let i = 1; i < arr.length; i++){
-    const a = arr[i], id = num(a[col('#')]); if(!id) continue;
-    const bd = a[col('Besteld op')];
-    rows.push({ id, bestelling:txt(a[col('Bestelling/Retour')]), leverancier:txt(a[col('Leverancier')]), productcode:txt(a[col('Productcode')]), product:txt(a[col('Product')]),
-      aantal:num(a[col('Aantal')]), beschikbaar:num(a[col('Beschikbaar')]), verwacht:txt(a[col('Verwacht')]), magazijn:txt(a[col('Magazijn')]),
-      besteld_op:bd && !isNaN(new Date(bd)) ? new Date(bd).toISOString() : null, geimporteerd_op:nu });
+    const a = arr[i], id = num(cel(a, 'nr')); if(!id) continue;
+    const bd = cel(a, 'besteld_op');
+    rows.push({ id, bestelling:txt(cel(a, 'bestelling')), leverancier:txt(cel(a, 'leverancier')), productcode:txt(cel(a, 'productcode')), product:txt(cel(a, 'product')),
+      aantal:num(cel(a, 'aantal')), beschikbaar:num(cel(a, 'beschikbaar')), verwacht:txt(cel(a, 'verwacht')), magazijn:txt(cel(a, 'magazijn')),
+      besteld_op:datumCel(bd), geimporteerd_op:nu });
   }
+  if(!rows.length) throw new Error('geen backorderregels gevonden (lege export?)');
   const levs = [...new Set(rows.map(r => r.leverancier).filter(Boolean))];
   st('Oude regels opruimen…');
   if(levs.length >= 8 || !levs.length){
@@ -489,16 +524,19 @@ async function pdfWoorden(file){
 async function impAdvies(file){
   const pag = await pdfWoorden(file);
   const alle = pag.flat();
-  if(!alle.some(w => /Aanvuladvies/i.test(w.t))) throw new Error('dit lijkt geen Picqer-aanvuladvies');
-  // kolomgrenzen uit de kop van pagina 1
-  const kop = n => { const w = alle.find(x => x.t === n); return w ? w.x : null; };
-  const xNaam = kop('Productnaam') || 120, xVan = kop('Van') || 265, xNaar = kop('Naar') || 385, xAant = kop('Aantal') || 465, xPick = kop('Pickvoorraad') || 500;
+  // Picqer in het Nederlands (norm), Engels, Duits of Frans
+  if(!alle.some(w => /Aanvuladvies|Aanvullen|Replenish|Nachfüll|Auffüll|Réappro/i.test(w.t))) throw new Error('dit lijkt geen Picqer-aanvuladvies (eerste woorden: ' + alle.slice(0, 8).map(w => w.t).join(' ') + ')');
+  // kolomgrenzen uit de kop van pagina 1 (eerste, bovenste woord met die naam)
+  const kopW = (ws, namen) => ws.filter(x => namen.includes(x.t)).sort((a, b) => a.top - b.top)[0] || null;
+  const kop = namen => { const w = kopW(alle, namen); return w ? w.x : null; };
+  const xNaam = kop(['Productnaam', 'Name', 'Naam', 'Bezeichnung', 'Nom']) || 120, xVan = kop(['Van', 'From', 'Von', 'De']) || 265, xNaar = kop(['Naar', 'To', 'Nach', 'Vers']) || 385,
+    xAant = kop(['Aantal', 'Amount', 'Quantity', 'Anzahl', 'Menge', 'Quantité']) || 465, xPick = kop(['Pickvoorraad', 'Pick', 'Picking', 'Pickbestand', 'Kommissionierbestand']) || 500;
   let datum = null;
-  const ai = alle.findIndex(w => w.t === 'Aangemaakt');
+  const ai = alle.findIndex(w => /^(Aangemaakt|Created|Erstellt|Créé)/i.test(w.t));
   if(ai >= 0){ const m = alle.slice(ai, ai + 6).map(w => w.t).join(' ').match(/(\d{2})-(\d{2})-(\d{4})\s+(\d{2}:\d{2})/); if(m) datum = m[3] + '-' + m[2] + '-' + m[1] + 'T' + m[4]; }
   const rows = [];
   pag.forEach(ws => {
-    const kopY = (ws.find(w => w.t === 'Productcode') || {}).top || 0;
+    const kopY = (kopW(ws, ['Productcode', 'Product', 'SKU', 'Produktcode']) || {}).top || 0;
     const voet = ws.filter(w => /^Page$/i.test(w.t)).map(w => w.top);           // "Page 1" onderaan
     const body = ws.filter(w => w.top > kopY + 4 && !voet.some(t => Math.abs(t - w.top) < 3));
     const anc = body.filter(w => w.x >= xPick + 20 && /^-?\d+$/.test(w.t)).sort((a, b) => a.top - b.top);
@@ -511,7 +549,7 @@ async function impAdvies(file){
       const bulk = k(xVan - 2, xNaar - 2).join(' ').split(',').map(s => s.trim()).filter(Boolean);
       const naar = k(xNaar - 2, xAant - 2).join(' ');
       const aant = num(k(xAant - 2, xPick + 20).join(''));
-      const geen = /Geen/i.test(naar);
+      const geen = /Geen|None|Kein|Aucun|^No\b/i.test(naar.trim());
       const pick = geen ? [] : naar.split(',').map(s => s.trim()).filter(Boolean);
       if(code) rows.push({ code, naam, bulk, pick, geenPick:geen, aantal:aant, pickst:num(a.t) });
     });

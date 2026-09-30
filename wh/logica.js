@@ -236,24 +236,35 @@ function blokkade(code){
   return null;
 }
 
+/* Prioriteit (Daan, testdag 30-9):
+   1. Orders wachten (C.mv): order is verder compleet, alleen deze bulkverplaatsing houdt hem tegen. Oudste order eerst.
+      Deelzending afgesproken (wh-taken dz:<order>): het beschikbare deel telt ook als "orders wachten".
+   2. Niet nu (C.deels): wel backorder, maar de order wordt níet compleet door te verplaatsen
+      (product zelf maar deels op voorraad, of de order wacht ook op iets anders). Picqer adviseert ze toch.
+   3. Aanvulronde (C.ronde): picklocatie onder het aanvulniveau, geen order die erop wacht.
+   4. Uit het advies (C.uitzetten): geen picklocatie en (bijna) geen verkoop. */
 function analyseOrders(){
-  const mv = {}, vst = {}, vast = [], vstOrders = [];
+  const mv = {}, vst = {}, vast = [], vstOrders = [], deels = {};
   let nVol = 0;
   // VST-voorraad verdelen over de orders op volgorde (oudste eerst)
   const vstRest = {};
   C.orders.forEach(o => {
     const vol = o.regels.every(r => r.besch >= r.aantal);
     o.vol = vol;
-    if(vol){
-      nVol++;
-      const blok = o.regels.map(r => ({ r, b:blokkade(r.code) })).filter(x => x.b);
+    o.dz = !vol && !!(D.TAKEN || {})['dz:' + o.nr];        // deelzending: beschikbare deel mag nu weg
+    if(vol || o.dz){
+      if(vol) nVol++;
+      const regels = vol ? o.regels : o.regels.filter(r => r.besch > 0).map(r => Object.assign({}, r, { aantal:Math.min(r.aantal, r.besch), besteld:r.aantal }));
+      const blok = regels.map(r => ({ r, b:blokkade(r.code) })).filter(x => x.b);
       o.blok = blok;
-      if(!blok.length){ vast.push({ o, reden:'alles beschikbaar en geen reden gevonden: gepauzeerd, handmatig of wacht op picklijst? (Verwerk backorders)' }); return; }
+      if(!blok.length){ if(vol) vast.push({ o, reden:'alles beschikbaar en geen reden gevonden: gepauzeerd, handmatig of wacht op picklijst? (Verwerk backorders)' }); return; }
       if(blok.every(x => x.b.soort === 'container')){ vast.push({ o, reden:blok[0].b.t, soort:'container' }); return; }
       blok.forEach(({ r, b }) => {
         if(b.soort === 'container') return;
-        const m = mv[r.code] = mv[r.code] || { code:r.code, stuks:0, orders:[], datum:o.datum, soort:b.soort, t:b.t };
-        m.stuks += r.aantal; m.orders.push(o.nr); if(o.datum < m.datum) m.datum = o.datum;
+        const m = mv[r.code] = mv[r.code] || { code:r.code, stuks:0, orders:[], od:[], datum:o.datum, soort:b.soort, t:b.t, dz:false };
+        m.stuks += r.aantal; m.orders.push(o.nr); m.od.push({ nr:o.nr, datum:o.datum, aantal:r.aantal, besteld:r.besteld || r.aantal, dz:o.dz });
+        if(o.dz) m.dz = true;
+        if(o.datum < m.datum) m.datum = o.datum;
       });
       return;
     }
@@ -263,17 +274,27 @@ function analyseOrders(){
       const pr = C.prof[r.code]; const beschikbaarVst = vstRest[r.code] ?? (pr ? pr.vst : num((D.P[r.code] || {}).voorraad_vst) || 0);
       return beschikbaarVst >= r.aantal - r.besch;
     });
-    if(!kan) return;                              // ook met VST niet compleet: niet tonen (wacht op inkoop)
-    o.vst = true; vstOrders.push(o);
-    kort.forEach(r => {
-      const nodig = r.aantal - r.besch;
-      const pr = C.prof[r.code];
-      vstRest[r.code] = (vstRest[r.code] ?? (pr ? pr.vst : 0)) - nodig;
-      const v = vst[r.code] = vst[r.code] || { code:r.code, nodig:0, orders:[], datum:o.datum };
-      v.nodig += nodig; v.orders.push(o.nr); if(o.datum < v.datum) v.datum = o.datum;
+    if(kan){
+      o.vst = true; vstOrders.push(o);
+      kort.forEach(r => {
+        const nodig = r.aantal - r.besch;
+        const pr = C.prof[r.code];
+        vstRest[r.code] = (vstRest[r.code] ?? (pr ? pr.vst : 0)) - nodig;
+        const v = vst[r.code] = vst[r.code] || { code:r.code, nodig:0, orders:[], datum:o.datum };
+        v.nodig += nodig; v.orders.push(o.nr); if(o.datum < v.datum) v.datum = o.datum;
+      });
+    }
+    // "niet nu": er ligt wel iets op bulk, maar verplaatsen maakt deze order niet compleet
+    o.regels.forEach(r => {
+      if(r.besch <= 0) return;
+      const b = blokkade(r.code); if(!b || b.soort === 'container') return;
+      const anderen = o.regels.filter(x => x !== r && x.besch < x.aantal).map(x => ({ code:x.code, besch:x.besch, aantal:x.aantal }));
+      const d = deels[r.code] = deels[r.code] || { code:r.code, orders:[], datum:o.datum };
+      d.orders.push({ nr:o.nr, datum:o.datum, aantal:r.aantal, besch:r.besch, eigen:r.besch < r.aantal, anderen, vst:!!o.vst });
+      if(o.datum < d.datum) d.datum = o.datum;
     });
   });
-  // verplaatslijst verrijken en sorteren (oudste order eerst)
+  // verplaatslijst verrijken
   C.mv = Object.values(mv).map(m => {
     const pr = C.prof[m.code] || {}; const a = C.adv[m.code];
     const van = a && a.bulk && a.bulk.length ? a.bulk : (pr.bulks || []);
@@ -283,10 +304,31 @@ function analyseOrders(){
     m.voorstelPick = !naar.length && pr.final && pr.final.nieuwePick ? pr.final.pick : null;
     m.advAantal = a ? a.aantal : null;
     m.pickst = a ? a.pickst : null;
+    // minimaal verplaatsen voor deze orders = wat ze samen vragen min wat er al op pick ligt
+    m.min = Math.max(0, m.stuks - Math.max(0, num(m.pickst) || 0));
+    // wat je verplaatst: naar pick het Picqer-advies (vult aan tot het niveau), maar nooit minder dan nodig;
+    // naar geen specifieke locatie alleen wat de orders nodig hebben (rest blijft op bulk)
+    m.verpl = m.naar ? Math.max(m.min, num(m.advAantal) || 0) : m.min;
     m.naam = pr.naam || naamVan(m.code);
-    m.gang = (locInfo(m.van[0] || '').gang) || '–';
+    m.gang = (locInfo(m.van[0] || '').gang) || (/^Container/i.test(m.van[0] || '') ? 'Retourkar' : '–');
+    m.spp = pr.spp || null;
+    m.od.sort((a, b) => String(a.datum).localeCompare(String(b.datum)));
     return m;
-  }).sort((a, b) => String(a.datum).localeCompare(String(b.datum)) || sortLoc(a.van[0] || 'ZZ', b.van[0] || 'ZZ'));
+  });
+  C.mv.sort(mvSort('oud'));
+  // niet nu: alleen producten die geen order vrijmaken (staat hij ook in Orders wachten, dan telt dat)
+  C.deels = Object.values(deels).filter(d => !mv[d.code]).map(d => {
+    const pr = C.prof[d.code] || {}; const a = C.adv[d.code];
+    d.naam = pr.naam || naamVan(d.code);
+    d.adv = a || null;
+    d.van = a && a.bulk && a.bulk.length ? a.bulk : (pr.bulks || pr.conts || []);
+    d.naar = a && a.pick && a.pick.length ? a.pick : (pr.picks && pr.picks.length ? pr.picks : null);
+    d.gang = (locInfo(d.van[0] || '').gang) || '–';
+    d.orders.sort((x, y) => String(x.datum).localeCompare(String(y.datum)));
+    d.vst = d.orders.some(x => x.vst);
+    return d;
+  }).sort((a, b) => String(a.datum).localeCompare(String(b.datum)));
+  const deelsMap = {}; C.deels.forEach(d => deelsMap[d.code] = d);
   // VST-lijst
   C.vst = Object.values(vst).map(v => {
     const pr = C.prof[v.code] || {};
@@ -303,15 +345,31 @@ function analyseOrders(){
   C.vast = vast;
   C.vstOrders = vstOrders;
   C.nVol = nVol;
-  // aanvulronde: advies zonder orders die al in de verplaatslijst staan
+  // aanvulronde: advies zonder orders die al in de verplaatslijst staan.
+  // Advies "naar geen picklocatie" bestaat alleen door een backorder: wordt die order niet compleet, dan hoort hij bij "niet nu".
   const inMv = new Set(C.mv.map(m => m.code));
   C.ronde = (D.ADV && D.ADV.rows || []).map(r => {
     const code = D.PLOW[r.code.toLowerCase()] || r.code;
     const pr = C.prof[code] || null;
-    return Object.assign({}, r, { code, pr, gang:(locInfo((r.bulk || [])[0] || '').gang) || '–' });
-  }).filter(r => !inMv.has(r.code)).sort((a, b) => sortLoc((a.bulk || [])[0] || 'ZZ', (b.bulk || [])[0] || 'ZZ'));
+    return Object.assign({}, r, { code, pr, gang:(locInfo((r.bulk || [])[0] || '').gang) || '–', deels:deelsMap[code] || null });
+  }).filter(r => !inMv.has(r.code) && !(r.geenPick && r.deels)).sort((a, b) => sortLoc((a.bulk || [])[0] || 'ZZ', (b.bulk || [])[0] || 'ZZ'));
   // in het advies, zonder picklocatie, weinig verkoop → knopje uit / niveaus leeg
   C.uitzetten = C.ronde.filter(r => r.geenPick && r.pr && r.pr.final.type === 'bulk' && !(C.boPer[r.code] || {}).orders);
+}
+// status van een regel in Nu verplaatsen: open / klaar / nogopen (afgevinkt, maar na "Verwerk backorders" staat hij er nog)
+const boLaatst = () => D.BO.reduce((m, r) => r.geimporteerd_op && (!m || r.geimporteerd_op > m) ? r.geimporteerd_op : m, null);
+function mvStaat(code, vd){
+  const tk = (D.TAKEN || {})['mv:' + vd + ':' + code];
+  if(!tk) return 'open';
+  const vw = (D.TAKEN || {})['dg:' + vd + ':verwerk'], bo = boLaatst();
+  if(vw && vw.op && tk.op && tk.op < vw.op && bo && bo > vw.op) return 'nogopen';
+  return 'klaar';
+}
+// volgorde van Orders wachten: 'oud' = oudste order eerst (dan looproute), 'route' = looproute (gang, sectie)
+function mvSort(hoe){
+  const dag = d => String(d || '').slice(0, 10);
+  if(hoe === 'route') return (a, b) => sortLoc(a.van[0] || 'ZZ', b.van[0] || 'ZZ') || String(a.datum).localeCompare(String(b.datum));
+  return (a, b) => dag(a.datum).localeCompare(dag(b.datum)) || sortLoc(a.van[0] || 'ZZ', b.van[0] || 'ZZ');
 }
 
 /* ---------- Picqer-importbestanden ---------- */
@@ -383,6 +441,6 @@ function locStats(){
   return { gangen:Object.values(per).sort((a, b) => a.gang.localeCompare(b.gang)), aand };
 }
 
-return { reset, bereken, prof, locInfo, regelSoort, soortLoc, sortLoc, TWIJFEL, HAL_NAAM, locsVan, sppVan, vkVan, naamVan,
+return { reset, bereken, prof, mvSort, mvStaat, boLaatst, locInfo, regelSoort, soortLoc, sortLoc, TWIJFEL, HAL_NAAM, locsVan, sppVan, vkVan, naamVan,
   importAanvul, importKoppel, locAfwijkingen, locStats };
 })();

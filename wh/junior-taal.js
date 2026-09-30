@@ -189,3 +189,113 @@ el:{
   opgeslagen:'Αποθηκεύτηκε', misScherm:'Κάτι πήγε στραβά σε αυτή την οθόνη'
 }
 };
+
+/* ---- testdag 30-9: prioriteit, "niet nu", barcode, papieren lijst, Verwerk backorders ---- */
+Object.assign(window.JT.nl, {
+  kar:'Retourkar',
+  pallets:'{n} pallet|{n} pallets',
+  'tegel.niet':'Niet nu', 'tegel.nietSub':'Picqer-advies, maar de order is nog niet compleet',
+  volg:'Volgorde', volgOud:'oudste order eerst', volgRoute:'looproute',
+  van:'van', naar:'naar', verpl:'verplaatsen', oudste:'oudste {x}', voorOrd:'{n} voor orders', dz:'deelzending',
+  nogOpen:'Afgevinkt om {a}, maar na Verwerk backorders ({b}) staat hij er nog. Echt verplaatst in Picqer? Genoeg verplaatst?',
+  verwerkKnop:'Verwerk backorders gedaan', verwerkUit:'Toch niet', verwerkOm:'✓ Verwerk backorders gedaan om {x}',
+  verwerkNa:'Daarna de backorder-export opnieuw inladen (vak bovenaan): wat er dan nog staat, wordt rood.',
+  introNiet:'Picqer zegt verplaatsen, maar de order wordt er niet compleet van: het product is maar deels op voorraad, of de order wacht ook op iets anders. Niet verplaatsen. Spreekt Daan een deelzending af, dan komt het vanzelf bij Nu verplaatsen.',
+  deelsEigen:'{nr}: {b} van {a} op voorraad (wacht op inkoop)', deelsAnder:'{nr}: wacht ook op {x}', deelsVst:'{nr}: de rest komt van VST',
+  deelsKort:'order nog niet compleet', leegNiet:'Niets: geen advies voor orders die nog niet compleet zijn.',
+  printOp:'afgedrukt {x}', kolProduct:'Product', kolVan:'Van (bulk)', kolNaar:'Naar (pick)', kolAantal:'Aantal', kolGedaan:'Gedaan',
+  scanTip:'Picqer-app → Aanvuladvies: scan de barcode op deze lijst, het verplaatsvenster opent. Kies bij NAAR de picklocatie, niet een container (containers 1–6 zijn retourkarren).',
+  diff:'Sinds de vorige lijst: {a} orders opgelost · {b} nog open · {c} nieuw',
+  nietHerkend:'✗ {x}: niet herkend als backorder-export of aanvuladvies.',
+  introNu:'Klantorders wachten op deze producten; verder is de order compleet. Oudste order bovenaan. Groot getal = hoeveel je verplaatst.',
+  uitleg:[
+    '<b>Lijst vernieuwen</b> (elke ochtend en na elke Verwerk backorders), op elke computer: maak in Picqer deze twee exports en sleep ze in het vak <i>Lijst vernieuwen</i>. De lijst wordt voor iedereen bijgewerkt.<br>• Picqer → Backorders → <b>Exporteer backorders</b> (Excel)<br>• Picqer → Aanvuladvies → <b>PDF</b>',
+    '<b>1 · Nu verplaatsen</b> eerst: hier wachten klantorders op, verder zijn ze compleet. Oudste order bovenaan. Print de lijst (knop Print) of werk op de telefoon.',
+    '<b>Scannen</b>: open in de Picqer-app het Aanvuladvies en scan de barcode op de lijst; het verplaatsvenster opent. Kies bij <b>naar</b> de picklocatie (rechts op de lijst), niet een container: containers 1–6 zijn retourkarren. Staat er <b>geen specifieke locatie</b>? Dan daarheen, alleen het aantal voor de orders.',
+    'Klopt de voorraad niet (bulk leeg, meer of minder op de picklocatie)? Pas het meteen aan in de scanner. Tik daarna het vakje hier aan ✓ en schrijf op papier het echte aantal bij <i>Gedaan</i>.',
+    'Lijst klaar? Picqer → Backorders → <b>Verwerk backorders</b>, en tik hier <i>Verwerk backorders gedaan</i> aan. Vernieuw daarna de lijst: wat er dan nog staat, wordt rood.',
+    'Daarna <b>2 · Aanvulronde</b>: per gang de picklocaties aanvullen met het aantal van het advies. Ook in Picqer verwerken en aftikken.',
+    '<b>Niet nu</b>: Picqer adviseert het wel, maar de order wordt er niet compleet van. Niet verplaatsen, tenzij Daan een deelzending afspreekt. Iets raar? Meld het bij Daan.'
+  ]
+});
+Object.assign(window.JT.en, {
+  kar:'Return cart',
+  pallets:'{n} pallet|{n} pallets',
+  'tegel.niet':'Not now', 'tegel.nietSub':'Picqer advice, but the order is not complete yet',
+  volg:'Order', volgOud:'oldest order first', volgRoute:'walking route',
+  van:'from', naar:'to', verpl:'move', oudste:'oldest {x}', voorOrd:'{n} for orders', dz:'partial shipment',
+  nogOpen:'Ticked at {a}, but after Verwerk backorders ({b}) it is still here. Really moved in Picqer? Moved enough?',
+  verwerkKnop:'Verwerk backorders done', verwerkUit:'Undo', verwerkOm:'✓ Verwerk backorders done at {x}',
+  verwerkNa:'Then load the backorder export again (box at the top): anything still left turns red.',
+  introNiet:'Picqer says move it, but moving it does not complete the order: the product is only partly in stock, or the order is also waiting for something else. Do not move. If Daan agrees a partial shipment, it appears in Move now by itself.',
+  deelsEigen:'{nr}: {b} of {a} in stock (waiting for purchase)', deelsAnder:'{nr}: also waiting for {x}', deelsVst:'{nr}: the rest comes from VST',
+  deelsKort:'order not complete yet', leegNiet:'Nothing: no advice for orders that are not complete yet.',
+  printOp:'printed {x}', kolProduct:'Product', kolVan:'From (bulk)', kolNaar:'To (pick)', kolAantal:'Qty', kolGedaan:'Done',
+  scanTip:'Picqer app → Aanvuladvies: scan the barcode on this list, the move screen opens. For TO choose the pick location, not a container (containers 1–6 are return carts).',
+  diff:'Since the previous list: {a} orders solved · {b} still open · {c} new',
+  nietHerkend:'✗ {x}: not recognised as a backorder export or replenishment advice.',
+  introNu:'Customer orders are waiting for these products; otherwise the order is complete. Oldest order at the top. Big number = how many to move.',
+  uitleg:[
+    '<b>Refresh the list</b> (every morning and after every Verwerk backorders), on any computer: make these two exports in Picqer and drop them in the box <i>Refresh list</i>. The list updates for everyone.<br>• Picqer → Backorders → <b>Exporteer backorders</b> (Excel)<br>• Picqer → Aanvuladvies → <b>PDF</b>',
+    '<b>1 · Move now</b> first: customer orders are waiting for these, otherwise they are complete. Oldest order at the top. Print the list (Print button) or work on your phone.',
+    '<b>Scanning</b>: in the Picqer app open Aanvuladvies and scan the barcode on the list; the move screen opens. For <b>to</b> choose the pick location (right on the list), not a container: containers 1–6 are return carts. Does it say <b>no specific location</b>? Move it there, only the quantity for the orders.',
+    'Stock not right (bulk empty, more or less on the pick location)? Correct it straight away in the scanner. Then tick the box here ✓ and write the real quantity under <i>Done</i> on paper.',
+    'List done? Picqer → Backorders → <b>Verwerk backorders</b>, and tick <i>Verwerk backorders done</i> here. Then refresh the list: anything still left turns red.',
+    'Then <b>2 · Replenishment round</b>: per aisle, top up the pick locations with the advised quantity. Also process it in Picqer and tick it off.',
+    '<b>Not now</b>: Picqer advises it, but it does not complete the order. Do not move, unless Daan agrees a partial shipment. Something odd? Tell Daan.'
+  ]
+});
+Object.assign(window.JT.es, {
+  kar:'Carro devoluciones',
+  pallets:'{n} palé|{n} palés',
+  'tegel.niet':'Ahora no', 'tegel.nietSub':'consejo de Picqer, pero el pedido aún no está completo',
+  volg:'Orden', volgOud:'pedido más antiguo primero', volgRoute:'recorrido',
+  van:'de', naar:'a', verpl:'mover', oudste:'más antiguo {x}', voorOrd:'{n} para pedidos', dz:'envío parcial',
+  nogOpen:'Marcado a las {a}, pero después de Verwerk backorders ({b}) sigue aquí. ¿Movido de verdad en Picqer? ¿Suficiente?',
+  verwerkKnop:'Verwerk backorders hecho', verwerkUit:'Deshacer', verwerkOm:'✓ Verwerk backorders hecho a las {x}',
+  verwerkNa:'Después vuelve a cargar la exportación de backorders (casilla de arriba): lo que siga aquí se pone en rojo.',
+  introNiet:'Picqer dice mover, pero moverlo no completa el pedido: el producto solo está en parte en stock, o el pedido también espera otra cosa. No lo muevas. Si Daan acuerda un envío parcial, aparece solo en Mover ahora.',
+  deelsEigen:'{nr}: {b} de {a} en stock (espera compra)', deelsAnder:'{nr}: también espera {x}', deelsVst:'{nr}: el resto viene de VST',
+  deelsKort:'pedido aún no completo', leegNiet:'Nada: no hay consejo para pedidos que aún no están completos.',
+  printOp:'impreso {x}', kolProduct:'Producto', kolVan:'De (bulk)', kolNaar:'A (pick)', kolAantal:'Cant.', kolGedaan:'Hecho',
+  scanTip:'App de Picqer → Aanvuladvies: escanea el código de barras de esta lista y se abre la pantalla de mover. En A elige la ubicación pick, no un contenedor (los contenedores 1–6 son carros de devoluciones).',
+  diff:'Desde la lista anterior: {a} pedidos resueltos · {b} aún abiertos · {c} nuevos',
+  nietHerkend:'✗ {x}: no se reconoce como exportación de backorders ni consejo de reposición.',
+  introNu:'Hay pedidos de clientes esperando estos productos; por lo demás el pedido está completo. El más antiguo arriba. Número grande = cuánto mover.',
+  uitleg:[
+    '<b>Actualizar la lista</b> (cada mañana y después de cada Verwerk backorders), en cualquier ordenador: haz estas dos exportaciones en Picqer y arrástralas a la casilla <i>Actualizar lista</i>. La lista se actualiza para todos.<br>• Picqer → Backorders → <b>Exporteer backorders</b> (Excel)<br>• Picqer → Aanvuladvies → <b>PDF</b>',
+    '<b>1 · Mover ahora</b> primero: aquí esperan pedidos de clientes, por lo demás están completos. El más antiguo arriba. Imprime la lista (botón Imprimir) o trabaja con el móvil.',
+    '<b>Escanear</b>: en la app de Picqer abre Aanvuladvies y escanea el código de barras de la lista; se abre la pantalla de mover. En <b>a</b> elige la ubicación pick (a la derecha en la lista), no un contenedor: los contenedores 1–6 son carros de devoluciones. ¿Pone <b>sin ubicación específica</b>? Muévelo ahí, solo la cantidad para los pedidos.',
+    '¿El stock no cuadra (bulk vacío, más o menos en la ubicación pick)? Corrígelo enseguida en el escáner. Luego marca la casilla aquí ✓ y escribe en el papel la cantidad real en <i>Hecho</i>.',
+    '¿Lista terminada? Picqer → Backorders → <b>Verwerk backorders</b>, y marca aquí <i>Verwerk backorders hecho</i>. Después actualiza la lista: lo que siga ahí se pone en rojo.',
+    'Después la <b>2 · Ronda de reposición</b>: por pasillo, repón las ubicaciones pick con la cantidad del consejo. Regístralo también en Picqer y márcalo.',
+    '<b>Ahora no</b>: Picqer lo aconseja, pero no completa el pedido. No lo muevas, salvo que Daan acuerde un envío parcial. ¿Algo raro? Díselo a Daan.'
+  ]
+});
+Object.assign(window.JT.el, {
+  kar:'Καρότσι επιστροφών',
+  pallets:'{n} παλέτα|{n} παλέτες',
+  'tegel.niet':'Όχι τώρα', 'tegel.nietSub':'πρόταση Picqer, αλλά η παραγγελία δεν είναι ακόμα πλήρης',
+  volg:'Σειρά', volgOud:'παλαιότερη παραγγελία πρώτα', volgRoute:'διαδρομή',
+  van:'από', naar:'προς', verpl:'μετακίνηση', oudste:'παλαιότερη {x}', voorOrd:'{n} για παραγγελίες', dz:'μερική αποστολή',
+  nogOpen:'Σημειώθηκε στις {a}, αλλά μετά το Verwerk backorders ({b}) είναι ακόμα εδώ. Μετακινήθηκε πραγματικά στο Picqer; Αρκετό;',
+  verwerkKnop:'Verwerk backorders έγινε', verwerkUit:'Αναίρεση', verwerkOm:'✓ Verwerk backorders έγινε στις {x}',
+  verwerkNa:'Μετά φόρτωσε ξανά την εξαγωγή backorders (πλαίσιο πάνω): ό,τι μένει γίνεται κόκκινο.',
+  introNiet:'Το Picqer λέει μετακίνηση, αλλά αυτό δεν ολοκληρώνει την παραγγελία: το προϊόν υπάρχει μόνο εν μέρει, ή η παραγγελία περιμένει και κάτι άλλο. Μην το μετακινείς. Αν ο Daan συμφωνήσει μερική αποστολή, εμφανίζεται μόνο του στο «Μετακίνηση τώρα».',
+  deelsEigen:'{nr}: {b} από {a} σε απόθεμα (περιμένει αγορά)', deelsAnder:'{nr}: περιμένει και {x}', deelsVst:'{nr}: το υπόλοιπο έρχεται από VST',
+  deelsKort:'η παραγγελία δεν είναι ακόμα πλήρης', leegNiet:'Τίποτα: καμία πρόταση για παραγγελίες που δεν είναι ακόμα πλήρεις.',
+  printOp:'εκτυπώθηκε {x}', kolProduct:'Προϊόν', kolVan:'Από (bulk)', kolNaar:'Προς (pick)', kolAantal:'Ποσ.', kolGedaan:'Έγινε',
+  scanTip:'Εφαρμογή Picqer → Aanvuladvies: σκάναρε το barcode σε αυτή τη λίστα, ανοίγει η οθόνη μετακίνησης. Στο ΠΡΟΣ διάλεξε τη θέση pick, όχι κοντέινερ (τα κοντέινερ 1–6 είναι καρότσια επιστροφών).',
+  diff:'Από την προηγούμενη λίστα: {a} παραγγελίες λύθηκαν · {b} ακόμα ανοιχτές · {c} νέες',
+  nietHerkend:'✗ {x}: δεν αναγνωρίστηκε ως εξαγωγή backorders ή πρόταση αναπλήρωσης.',
+  introNu:'Παραγγελίες πελατών περιμένουν αυτά τα προϊόντα· κατά τα άλλα η παραγγελία είναι πλήρης. Η παλαιότερη πάνω. Μεγάλος αριθμός = πόσα μετακινείς.',
+  uitleg:[
+    '<b>Ανανέωση λίστας</b> (κάθε πρωί και μετά από κάθε Verwerk backorders), σε οποιονδήποτε υπολογιστή: κάνε αυτές τις δύο εξαγωγές στο Picqer και σύρε τις στο πλαίσιο <i>Ανανέωση λίστας</i>. Η λίστα ενημερώνεται για όλους.<br>• Picqer → Backorders → <b>Exporteer backorders</b> (Excel)<br>• Picqer → Aanvuladvies → <b>PDF</b>',
+    '<b>1 · Μετακίνηση τώρα</b> πρώτα: εδώ περιμένουν παραγγελίες πελατών, κατά τα άλλα πλήρεις. Η παλαιότερη πάνω. Τύπωσε τη λίστα (κουμπί Εκτύπωση) ή δούλεψε στο κινητό.',
+    '<b>Σκανάρισμα</b>: στην εφαρμογή Picqer άνοιξε το Aanvuladvies και σκάναρε το barcode της λίστας· ανοίγει η οθόνη μετακίνησης. Στο <b>προς</b> διάλεξε τη θέση pick (δεξιά στη λίστα), όχι κοντέινερ: τα κοντέινερ 1–6 είναι καρότσια επιστροφών. Γράφει <b>χωρίς συγκεκριμένη θέση</b>; Μετακίνησέ το εκεί, μόνο την ποσότητα για τις παραγγελίες.',
+    'Δεν ταιριάζει το απόθεμα (άδειο bulk, περισσότερα ή λιγότερα στη θέση pick); Διόρθωσέ το αμέσως στο σκάνερ. Μετά πάτησε το κουτάκι εδώ ✓ και γράψε στο χαρτί την πραγματική ποσότητα στο <i>Έγινε</i>.',
+    'Τελείωσε η λίστα; Picqer → Backorders → <b>Verwerk backorders</b>, και πάτησε εδώ <i>Verwerk backorders έγινε</i>. Μετά ανανέωσε τη λίστα: ό,τι μένει γίνεται κόκκινο.',
+    'Μετά ο <b>2 · Γύρος αναπλήρωσης</b>: ανά διάδρομο, συμπλήρωσε τις θέσεις pick με την προτεινόμενη ποσότητα. Κατάγραψέ το και στο Picqer και σημείωσέ το.',
+    '<b>Όχι τώρα</b>: το Picqer το προτείνει, αλλά δεν ολοκληρώνει την παραγγελία. Μην το μετακινείς, εκτός αν ο Daan συμφωνήσει μερική αποστολή. Κάτι περίεργο; Πες το στον Daan.'
+  ]
+});

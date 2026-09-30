@@ -71,7 +71,9 @@ function lijsten(){
   const C = WHL.bereken();
   const uit = new Set(C.uitzetten.map(r => r.code));           // hoort niet in het advies (Daan ruimt op)
   const vstSet = new Set(C.vst.map(v => v.code));
-  return { C, mv:C.mv, ronde:C.ronde.filter(r => !uit.has(r.code)), vstSet };
+  const inRonde = new Set(C.ronde.map(r => r.code));
+  // "niet nu": Picqer-advies dat alleen door een onvolledige order bestaat (heeft het product een picklocatie onder het niveau, dan is het gewoon aanvulronde)
+  return { C, mv:C.mv, ronde:C.ronde.filter(r => !uit.has(r.code)), vstSet, niet:C.deels.filter(d => d.adv && !inRonde.has(d.code)) };
 }
 
 /* ---------- routering ---------- */
@@ -81,7 +83,7 @@ function route(){
   document.querySelectorAll('#nav a[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === naam));
   if(D.fout){ app.innerHTML = `<div class="card"><h2>${esc(t('geenVerb'))}</h2><p class="mt8">${esc(t('geenVerbTekst'))}</p><p class="small muted mt8">${esc(D.fout.message || '')}</p></div>`; return; }
   try{
-    if(naam === 'aanvullen') return viewAanvullen(h[1] === 'ronde' ? 'ronde' : 'nu');
+    if(naam === 'aanvullen') return viewAanvullen(h[1] === 'ronde' ? 'ronde' : h[1] === 'niet' ? 'niet' : 'nu');
     if(naam === 'containers') return viewContainers();
     return viewVandaag();
   }catch(e){
@@ -94,8 +96,8 @@ const rerender = () => { const y = window.scrollY; route(); window.scrollTo(0, y
 /* ---------- Vandaag ---------- */
 function viewVandaag(){
   const vd = vandaag();
-  const { mv, ronde } = lijsten();
-  const mvOpen = mv.filter(m => !tik('mv:' + vd + ':' + m.code)).length;
+  const { mv, ronde, niet } = lijsten();
+  const mvOpen = mv.filter(m => mvStaat(m, vd) !== 'klaar').length;
   const nOrders = new Set(mv.flatMap(m => m.orders)).size;
   const rondeOpen = ronde.filter(r => !tik('rd:' + vd + ':' + r.code)).length;
   const cs = D.CONT.filter(c => c.status !== 'afgerond').sort(contSort);
@@ -106,8 +108,9 @@ function viewVandaag(){
     <div class="small muted">${esc(t('lijstVan', { b:wanneer(boDatum()), a:wanneer(advDatum()) }))}</div>
     ${lijstOud() ? `<div class="reason mt8">${esc(t('oud'))} <a href="#/aanvullen">${esc(t('oudKnop'))}</a></div>` : ''}</div>
   <div class="tiles">
-    <a class="tile ${mvOpen ? 't-bad' : 't-ok'}" href="#/aanvullen/nu"><div class="lbl">${esc(t('tegel.nu'))}</div><div class="big">${nf(mvOpen)}</div><div class="sub">${esc(t('ordersWacht', { n:nf(nOrders) }))}</div></a>
-    <a class="tile ${rondeOpen ? 't-warn' : 't-ok'}" href="#/aanvullen/ronde"><div class="lbl">${esc(t('tegel.ronde'))}</div><div class="big">${nf(rondeOpen)}</div><div class="sub">${esc(t('tegel.rondeSub'))}</div></a>
+    <a class="tile ${mvOpen ? 't-bad' : 't-ok'}" href="#/aanvullen/nu"><div class="lbl">1 · ${esc(t('tegel.nu'))}</div><div class="big">${nf(mvOpen)}</div><div class="sub">${esc(t('ordersWacht', { n:nf(nOrders) }))}</div></a>
+    <a class="tile ${rondeOpen ? 't-warn' : 't-ok'}" href="#/aanvullen/ronde"><div class="lbl">2 · ${esc(t('tegel.ronde'))}</div><div class="big">${nf(rondeOpen)}</div><div class="sub">${esc(t('tegel.rondeSub'))}</div></a>
+    <a class="tile t-grey" href="#/aanvullen/niet"><div class="lbl">${esc(t('tegel.niet'))}</div><div class="big">${nf(niet.length)}</div><div class="sub">${esc(t('tegel.nietSub'))}</div></a>
     <a class="tile t-info" href="#/containers"><div class="lbl">${esc(t('tegel.cont'))}</div><div class="big">${nf(cs.length)}</div><div class="sub">${esc(vc ? t('volgende', { x:contKort(vc) + (vc.losdatum ? ' · ' + dagTekst(vc.losdatum) : '') }) : t('geenGepland'))}</div></a>
     <a class="tile t-vst" href="./" target="_blank" rel="noopener"><div class="lbl">${esc(t('tegel.labels'))} ↗</div><div class="big">▦</div><div class="sub">${esc(t('tegel.labelsSub'))}</div></a>
   </div>`;
@@ -115,52 +118,79 @@ function viewVandaag(){
 
 /* ---------- Aanvullen ---------- */
 function uitlegOpen(){ try{ return localStorage.getItem('junior-uitleg') !== 'dicht'; }catch(e){ return true; } }
+function volgorde(){ try{ return localStorage.getItem('junior-volg') === 'route' ? 'route' : 'oud'; }catch(e){ return 'oud'; } }
+// status van een regel in "Nu verplaatsen": open / klaar / nog open (afgevinkt, maar na Verwerk backorders staat hij er nog)
+const mvStaat = (m, vd) => WHL.mvStaat(m.code, vd);
 function viewAanvullen(tab){
   const vd = vandaag();
   const L = lijsten();
-  const nNu = L.mv.filter(m => !tik('mv:' + vd + ':' + m.code)).length;
+  const nNu = L.mv.filter(m => mvStaat(m, vd) !== 'klaar').length;
   const nRonde = L.ronde.filter(r => !tik('rd:' + vd + ':' + r.code)).length;
   const kopHtml = `
   <div class="card noprint"><div class="row wrap between"><h3>${esc(t('vernieuwTitel'))}</h3><span class="small muted">${esc(t('lijstVan', { b:wanneer(boDatum()), a:wanneer(advDatum()) }))}</span></div>
     ${lijstOud() ? `<div class="reason mt8">${esc(t('oud'))}</div>` : ''}
+    ${diffTekst() ? `<div class="small mt8">${esc(diffTekst())}</div>` : ''}
     <label class="drop mt8" id="drop"><input type="file" id="files" multiple accept=".xlsx,.xls,.csv,.pdf" hidden><b>${esc(t('dropTekst'))}</b></label>
     <div id="impst" class="status"></div></div>
   <details class="card noprint" id="uitleg" ${uitlegOpen() ? 'open' : ''}><summary>${esc(t('uitlegTitel'))}</summary>
     <ol class="uitleg">${t('uitleg').map(s => `<li>${s}</li>`).join('')}</ol></details>
   <div class="tabs noprint">
-    <a class="tab ${tab === 'nu' ? 'on' : ''} ${nNu ? 'hot' : ''}" href="#/aanvullen/nu">${esc(t('tegel.nu'))} <span class="nr">${nf(nNu)}</span></a>
-    <a class="tab ${tab === 'ronde' ? 'on' : ''}" href="#/aanvullen/ronde">${esc(t('tegel.ronde'))} <span class="nr">${nf(nRonde)}</span></a>
+    <a class="tab ${tab === 'nu' ? 'on' : ''} ${nNu ? 'hot' : ''}" href="#/aanvullen/nu">1 · ${esc(t('tegel.nu'))} <span class="nr">${nf(nNu)}</span></a>
+    <a class="tab ${tab === 'ronde' ? 'on' : ''}" href="#/aanvullen/ronde">2 · ${esc(t('tegel.ronde'))} <span class="nr">${nf(nRonde)}</span></a>
+    <a class="tab ${tab === 'niet' ? 'on' : ''}" href="#/aanvullen/niet">${esc(t('tegel.niet'))} <span class="nr">${nf(L.niet.length)}</span></a>
   </div>`;
-  app.innerHTML = kopHtml + (tab === 'ronde' ? tabRonde(L, vd) : tabNu(L, vd));
+  app.innerHTML = kopHtml + (tab === 'ronde' ? tabRonde(L, vd) : tab === 'niet' ? tabNiet(L) : tabNu(L, vd));
   koppelDrop();
   const u = $('uitleg'); if(u) u.addEventListener('toggle', () => { try{ localStorage.setItem('junior-uitleg', u.open ? 'open' : 'dicht'); }catch(e){} });
 }
 function gangFilter(items, sel, w){
   const g = [...new Set(items.map(x => x.gang).filter(Boolean))].sort();
   if(g.length < 2) return '';
-  return `<div class="filters mb8 noprint"><span class="small muted">${esc(t('gang'))}</span> <button class="btn sm ${!sel ? 'pri' : ''}" data-a="gang" data-w="${w}" data-v="">${esc(t('alle'))}</button>${g.map(x => `<button class="btn sm ${sel === x ? 'pri' : ''}" data-a="gang" data-w="${w}" data-v="${esc(x)}">${esc(x)}</button>`).join('')}</div>`;
+  return `<div class="filters mb8 noprint"><span class="small muted">${esc(t('gang'))}</span> <button class="btn sm ${!sel ? 'pri' : ''}" data-a="gang" data-w="${w}" data-v="">${esc(t('alle'))}</button>${g.map(x => `<button class="btn sm ${sel === x ? 'pri' : ''}" data-a="gang" data-w="${w}" data-v="${esc(x)}">${esc(x === 'Retourkar' ? t('kar') : x)}</button>`).join('')}</div>`;
 }
+const kortDatum = d => datum(d, { day:'numeric', month:'short' });
+const bc = code => window.WHB ? WHB.svg(code) : '';
+const naarHtml = m => m.naar ? locs(m.naar) : `<span class="badge b-warn">${esc(t('geenLoc'))}</span>` + (m.voorstelPick ? ` <span class="small muted">${esc(t('ofNieuw'))}</span> ${locBadge(m.voorstelPick)}` : '');
 function tabNu(L, vd){
   if(!L.mv.length) return `<div class="card empty">${esc(t('leegNu'))}</div>`;
-  const lijst = L.mv.filter(m => !UI.gangNu || m.gang === UI.gangNu);
-  const open = lijst.filter(m => !tik('mv:' + vd + ':' + m.code)).length;
-  return `<div class="card"><div class="row wrap between"><div><h2>${esc(t('tegel.nu'))}</h2><div class="small muted">${esc(t('introNu'))}</div></div>
-      <div class="row"><span class="badge b-bad">${esc(t('open', { n:open }))}</span><button class="btn sm noprint" data-a="print">${esc(t('print'))}</button></div></div>
-    <div class="mt12">${gangFilter(L.mv, UI.gangNu, 'nu')}</div>
+  const volg = volgorde();
+  const lijst = L.mv.filter(m => !UI.gangNu || m.gang === UI.gangNu).slice().sort(WHL.mvSort(volg));
+  const open = lijst.filter(m => mvStaat(m, vd) !== 'klaar');
+  const vw = D.TAKEN['dg:' + vd + ':verwerk'];
+  return `<div class="card scherm"><div class="row wrap between"><div><h2>1 · ${esc(t('tegel.nu'))}</h2><div class="small muted">${esc(t('introNu'))}</div></div>
+      <div class="row"><span class="badge b-bad">${esc(t('open', { n:open.length }))}</span><button class="btn sm pri noprint" data-a="print">${esc(t('print'))}</button></div></div>
+    <div class="filters mt12 noprint"><span class="small muted">${esc(t('volg'))}</span>
+      <button class="btn sm ${volg === 'oud' ? 'pri' : ''}" data-a="volg" data-v="oud">${esc(t('volgOud'))}</button>
+      <button class="btn sm ${volg === 'route' ? 'pri' : ''}" data-a="volg" data-v="route">${esc(t('volgRoute'))}</button></div>
+    <div class="mt8">${gangFilter(L.mv, UI.gangNu, 'nu')}</div>
+    <div class="reason mt8">${esc(t('scanTip'))}</div>
     ${lijst.map(m => mvHtml(m, vd)).join('')}
-    <div class="reason mt12">${t('klaarNu')}</div></div>`;
+    <div class="card verwerk mt12 ${vw ? 'klaar' : ''}"><div class="row wrap between"><div>${vw ? esc(t('verwerkOm', { x:tijd(vw.op) })) : t('klaarNu')}<div class="small muted mt4">${esc(t('verwerkNa'))}</div></div>
+      <button class="btn ${vw ? '' : 'pri'}" data-a="verwerk">${esc(vw ? t('verwerkUit') : t('verwerkKnop'))}</button></div></div></div>
+  ${printTabel('1 · ' + t('tegel.nu'), open.map(m => ({ code:m.code, naam:m.naam, van:m.van, naar:m.naar, geen:!m.naar, aantal:m.verpl, extra:mvMeta(m) })))}`;
+}
+function mvMeta(m){
+  const delen = [t('orders', { n:m.orders.length }) + ' · ' + t('oudste', { x:kortDatum(m.datum) })];
+  if(m.pickst !== null && m.pickst !== undefined) delen.push(t('pickvrd', { n:nf(m.pickst) }));
+  delen.push(t('voorOrd', { n:nf(m.stuks) }));
+  if(m.naar && m.spp && m.verpl >= m.spp && m.verpl % m.spp === 0) delen.push('= ' + t('pallets', { n:m.verpl / m.spp }));
+  if(m.soort === 'retour') delen.push(t('retourkar', { x:(m.van || []).join(', ') }));
+  if(m.dz) delen.push(t('dz'));
+  return delen.join(' · ');
 }
 function mvHtml(m, vd){
   const k = 'mv:' + vd + ':' + m.code;
-  const naar = m.naar ? locs(m.naar) : `<span class="badge b-warn">${esc(t('geenLoc'))}</span>` + (m.voorstelPick ? ` <span class="small muted">${esc(t('ofNieuw'))}</span> ${locBadge(m.voorstelPick)}` : '');
-  const retour = m.soort === 'retour' ? ' · ' + esc(t('retourkar', { x:(m.van || []).join(', ') })) : '';
-  return `<div class="mv ${tik(k) ? 'klaar' : ''}">
+  const st = mvStaat(m, vd);
+  const tk = D.TAKEN[k], vw = D.TAKEN['dg:' + vd + ':verwerk'];
+  return `<div class="mv metbc ${st === 'klaar' ? 'klaar' : ''} ${st === 'nogopen' ? 'nogopen' : ''}">
     <div>${tikKnop(k)}</div>
-    <div><div><span class="code">${esc(m.code)}</span> <span class="desc">${esc(m.naam || '')}</span></div>
-      <div class="route">${locs(m.van) || `<span class="badge b-grey">${esc(t('bulkOnb'))}</span>`}<span class="pijl">→</span>${naar}</div>
-      <div class="meta">${esc(t('orders', { n:m.orders.length }))} ${esc(t('sinds', { x:datum(m.datum, { day:'numeric', month:'short' }) }))}${m.pickst !== null && m.pickst !== undefined ? ' · ' + esc(t('pickvrd', { n:nf(m.pickst) })) : ''}${m.advAantal ? ' · ' + esc(t('pqAdv', { n:nf(m.advAantal) })) : ''}${retour}</div>
+    <div><div><span class="code">${esc(m.code)}</span> <span class="desc">${esc(m.naam || '')}</span>${m.dz ? ` <span class="badge b-info">${esc(t('dz'))}</span>` : ''}</div>
+      <div class="route"><span class="rl">${esc(t('van'))}</span>${locs(m.van) || `<span class="badge b-grey">${esc(t('bulkOnb'))}</span>`}<span class="pijl">→</span><span class="rl">${esc(t('naar'))}</span>${naarHtml(m)}</div>
+      <div class="meta">${esc(mvMeta(m))}</div>
+      ${st === 'nogopen' ? `<div class="meta rood">${esc(t('nogOpen', { a:tijd(tk.op), b:tijd(vw.op) }))}</div>` : ''}
     </div>
-    <div class="aant">${nf(m.stuks)}<small>${esc(t('voorOrders'))}</small></div>
+    <div class="bc">${bc(m.code)}</div>
+    <div class="aant">${nf(m.verpl)}<small>${esc(t('verpl'))}</small></div>
   </div>`;
 }
 function tabRonde(L, vd){
@@ -174,19 +204,64 @@ function tabRonde(L, vd){
       vorige = r.gang;
     }
     const k = 'rd:' + vd + ':' + r.code;
-    html += `<div class="mv ${tik(k) ? 'klaar' : ''}">
+    html += `<div class="mv metbc ${tik(k) ? 'klaar' : ''}">
       <div>${tikKnop(k)}</div>
       <div><div><span class="code">${esc(r.code)}</span> <span class="desc">${esc(r.naam || (r.pr && r.pr.naam) || '')}</span></div>
-        <div class="route">${locs(r.bulk)}<span class="pijl">→</span>${r.geenPick ? `<span class="badge b-warn">${esc(t('geenPick'))}</span>` : locs(r.pick)}</div>
-        <div class="meta">${esc(t('pickvrd', { n:nf(r.pickst) }))}</div>
+        <div class="route"><span class="rl">${esc(t('van'))}</span>${locs(r.bulk)}<span class="pijl">→</span><span class="rl">${esc(t('naar'))}</span>${r.geenPick ? `<span class="badge b-warn">${esc(t('geenPick'))}</span>` : locs(r.pick)}</div>
+        <div class="meta">${esc(rondeMeta(r))}</div>
         ${L.vstSet.has(r.code) ? `<div class="meta"><span class="badge b-vst">VST</span> ${esc(t('wachtVst'))}</div>` : ''}
       </div>
+      <div class="bc">${bc(r.code)}</div>
       <div class="aant">${nf(r.aantal)}<small>${esc(t('advies'))}</small></div></div>`;
   });
-  const open = lijst.filter(r => !tik('rd:' + vd + ':' + r.code)).length;
-  return `<div class="card"><div class="row wrap between"><div><h2>${esc(t('tegel.ronde'))}</h2><div class="small muted">${esc(t('introRonde'))}</div></div>
-      <div class="row"><span class="badge b-warn">${esc(t('open', { n:open }))}</span><button class="btn sm noprint" data-a="print">${esc(t('print'))}</button></div></div>
-    <div class="mt12">${gangFilter(L.ronde, UI.gangRonde, 'ronde')}</div>${html}</div>`;
+  const open = lijst.filter(r => !tik('rd:' + vd + ':' + r.code));
+  return `<div class="card scherm"><div class="row wrap between"><div><h2>2 · ${esc(t('tegel.ronde'))}</h2><div class="small muted">${esc(t('introRonde'))}</div></div>
+      <div class="row"><span class="badge b-warn">${esc(t('open', { n:open.length }))}</span><button class="btn sm pri noprint" data-a="print">${esc(t('print'))}</button></div></div>
+    <div class="mt12">${gangFilter(L.ronde, UI.gangRonde, 'ronde')}</div>
+    <div class="reason mt8">${esc(t('scanTip'))}</div>${html}</div>
+  ${printTabel('2 · ' + t('tegel.ronde') + (UI.gangRonde ? ' · ' + t('gang') + ' ' + UI.gangRonde : ''), open.map(r => ({ code:r.code, naam:r.naam || (r.pr && r.pr.naam) || '', van:r.bulk, naar:r.geenPick ? null : r.pick, geen:r.geenPick, aantal:r.aantal, extra:rondeMeta(r), gang:r.gang })), true)}`;
+}
+function rondeMeta(r){
+  const d = [t('pickvrd', { n:nf(r.pickst) })];
+  if(r.deels) d.push(t('deelsKort'));
+  return d.join(' · ');
+}
+function tabNiet(L){
+  if(!L.niet.length) return `<div class="card empty">${esc(t('leegNiet'))}</div>`;
+  const regel = x => x.anderen && x.anderen.length && !x.eigen ? t('deelsAnder', { nr:x.nr, x:x.anderen.map(a => a.code).join(', ') })
+    : x.vst ? t('deelsVst', { nr:x.nr }) : t('deelsEigen', { nr:x.nr, b:nf(x.besch), a:nf(x.aantal) });
+  return `<div class="card"><h2>${esc(t('tegel.niet'))}</h2><div class="reason mt8">${esc(t('introNiet'))}</div>
+    ${L.niet.map(d => `<div class="mv" style="grid-template-columns:1fr auto">
+      <div><div><span class="code">${esc(d.code)}</span> <span class="desc">${esc(d.naam || '')}</span></div>
+        <div class="route"><span class="rl">${esc(t('van'))}</span>${locs(d.van)}<span class="pijl">→</span><span class="rl">${esc(t('naar'))}</span>${d.naar ? locs(d.naar) : `<span class="badge b-warn">${esc(t('geenLoc'))}</span>`}</div>
+        <div class="meta">${d.orders.slice(0, 4).map(x => esc(regel(x))).join('<br>')}${d.orders.length > 4 ? '<br>+' + (d.orders.length - 4) : ''}</div></div>
+      <div class="aant muted">${d.adv ? nf(d.adv.aantal) : ''}<small>${esc(t('advies'))}</small></div></div>`).join('')}</div>`;
+}
+// papieren lijst: één regel per product, barcode om te scannen, vakje en ruimte voor het echte aantal
+function printTabel(titel, rijen, perGang){
+  let vorige = null;
+  const tr = rijen.map(r => {
+    let kop = '';
+    if(perGang && r.gang !== vorige){ kop = `<tr class="pgang"><td colspan="7">${esc(t('gang'))} ${esc(r.gang)}</td></tr>`; vorige = r.gang; }
+    return kop + `<tr><td class="pv"><span class="pvak"></span></td>
+      <td><b class="code">${esc(r.code)}</b><div class="pn">${esc(r.naam || '')}</div><div class="pm">${esc(r.extra || '')}</div></td>
+      <td class="loc">${(r.van || []).map(esc).join('<br>')}</td>
+      <td class="loc naar">${r.geen ? `<span class="pgeen">${esc(t('geenLoc'))}</span>` : (r.naar || []).map(esc).join('<br>')}</td>
+      <td class="pa">${nf(r.aantal)}</td>
+      <td class="pbc">${bc(r.code)}</td>
+      <td class="pg"></td></tr>`;
+  }).join('');
+  return `<div class="printonly"><div class="pkop"><b>IVOL · ${esc(titel)}</b><span>${esc(t('printOp', { x:datum(new Date(), { weekday:'short', day:'numeric', month:'short' }) + ' ' + tijd(new Date()) }))} · ${esc(t('lijstVan', { b:wanneer(boDatum()), a:wanneer(advDatum()) }))}</span></div>
+    <div class="ptip">${esc(t('scanTip'))}</div>
+    <table class="ptab"><colgroup><col style="width:5%"><col style="width:29%"><col style="width:13%"><col style="width:14%"><col style="width:8%"><col style="width:23%"><col style="width:8%"></colgroup><thead><tr><th></th><th>${esc(t('kolProduct'))}</th><th>${esc(t('kolVan'))}</th><th>${esc(t('kolNaar'))}</th><th>${esc(t('kolAantal'))}</th><th></th><th>${esc(t('kolGedaan'))}</th></tr></thead><tbody>${tr}</tbody></table>
+    <div class="ptip mt8">${t('klaarNu')}</div></div>`;
+}
+// wat is er veranderd sinds de vorige backorder-export
+function diffTekst(){
+  if(!D.BOVORIG || !D.BOVORIG.orders) return '';
+  const oud = D.BOVORIG.orders, nu = new Set(D.BO.map(r => r.bestelling));
+  const o = Object.keys(oud);
+  return t('diff', { a:nf(o.filter(x => !nu.has(x)).length), b:nf(o.filter(x => nu.has(x)).length), c:nf([...nu].filter(x => !oud[x]).length) });
 }
 
 /* ---------- lijst vernieuwen: alleen backorders + aanvuladvies ---------- */
@@ -221,7 +296,7 @@ async function inlezen(files){
         const msg = await WH.impAdvies(x.f);
         log.push(esc(t('okAdv', { n:(msg.match(/^\d+/) || [''])[0] })));
         iets = true;
-      } else log.push(esc(t('nietNodig', { x:x.f.name })));
+      } else log.push(esc(t(x.s ? 'nietNodig' : 'nietHerkend', { x:x.f.name })));
     }catch(e){ log.push('✗ ' + esc(x.f.name) + ': ' + esc(e.message)); }
   }
   if(iets){ zet(t('sync.laden')); await laden(); }
@@ -293,6 +368,15 @@ document.addEventListener('click', async ev => {
   }
   if(a === 'gang'){ if(b.dataset.w === 'ronde') UI.gangRonde = b.dataset.v; else UI.gangNu = b.dataset.v; rerender(); return; }
   if(a === 'print'){ window.print(); return; }
+  if(a === 'volg'){ try{ localStorage.setItem('junior-volg', b.dataset.v); }catch(e){} rerender(); return; }
+  if(a === 'verwerk'){
+    const k = 'dg:' + vandaag() + ':verwerk';
+    const v = D.TAKEN[k] ? null : { op:new Date().toISOString(), via:'junior' };
+    if(v) D.TAKEN[k] = v; else delete D.TAKEN[k];
+    rerender();
+    try{ await WH.catPatch('wh-taken', { [k]:v }); }catch(e){ /* melding al getoond */ }
+    return;
+  }
   if(a === 'bestand'){ openBestand(b.dataset.pad); return; }
   if(a === 'vernieuw'){ await laden(); rerender(); return; }
 });

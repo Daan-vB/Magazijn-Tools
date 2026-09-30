@@ -529,7 +529,7 @@ const BRONNEN = {
 function invulLijst(bron){
   const C = WHL.bereken();
   const vd = vandaag();
-  if(bron === 'nu') return C.mv.map(m => ({ code:m.code, taak:'mv:' + vd + ':' + m.code, van:m.van, naar:m.naar || (m.voorstelPick ? [m.voorstelPick] : []), aantal:m.stuks, info:plural(m.orders.length, 'order', 'orders') + ' wachten' }));
+  if(bron === 'nu') return C.mv.map(m => ({ code:m.code, taak:'mv:' + vd + ':' + m.code, van:m.van, naar:m.naar || (m.voorstelPick ? [m.voorstelPick] : []), aantal:m.verpl, info:plural(m.orders.length, 'order', 'orders') + ' wachten (' + nf(m.stuks) + ' voor orders)' }));
   if(bron === 'ronde') return C.ronde.map(r => ({ code:r.code, taak:'rd:' + vd + ':' + r.code, van:r.bulk || [], naar:r.pick || [], aantal:r.aantal, info:'advies ' + nf(r.aantal) + ' · pickvoorraad ' + nf(r.pickst) }));
   if(bron === 'cont'){ const P = dagPlan(kiesDag()); return [...new Set([].concat(P.up, P.pick, P.bo).map(x => x.code))].map(code => ({ code, info:'container' })); }
   if(bron === 'geen') return Object.entries(D.VR).filter(([c, v]) => v.geen > 0 && D.P[c]).map(([c, v]) => ({ code:c, info:nf(v.geen) + ' op geen specifieke locatie', vk:WHL.vkVan(c) || 0 })).sort((a, b) => b.vk - a.vk);
@@ -634,7 +634,7 @@ function viewVandaag(){
   const mis = B.nietKlaar();
   const dagNaam = new Date().toLocaleDateString('nl-NL', { weekday:'long', day:'numeric', month:'long' });
   const nOrders = new Set(C.mv.flatMap(m => m.orders)).size;
-  const mvOpen = C.mv.filter(m => !tik('mv:' + vd + ':' + m.code)).length;
+  const mvOpen = C.mv.filter(m => WHL.mvStaat(m.code, vd) !== 'klaar').length;
   const rondeOpen = C.ronde.filter(r => !tik('rd:' + vd + ':' + r.code)).length;
   B.kpiVastleggen(vd, { mv:C.mv.length, orders:nOrders, vst:C.vst.length, vstOrders:C.vstOrders.length, ronde:C.ronde.length, vast:C.vast.length, bo:new Set(D.BO.map(r => r.bestelling)).size, bev:Object.values(C.prof).filter(p => p.status === 'bevestigd').length });
   const leeft = Object.assign({}, dt, { 'voorraad/locatie':D.VRDATUM });

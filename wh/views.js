@@ -183,15 +183,16 @@ function viewAanvullen(tab){
   if(!D.BO.length) mis.push('backorders');
   if(!D.ADV) mis.push('aanvuladvies-PDF');
   if(!Object.keys(D.LOC).length) mis.push('locatie-export');
-  const tabs = [['nu', 'Nu verplaatsen', C.mv.filter(m => !tik('mv:' + vd + ':' + m.code)).length, 'hot'], ['vst', 'Van VST', C.vst.length, 'vst'],
-    ['ronde', 'Aanvulronde', C.ronde.filter(r => !tik('rd:' + vd + ':' + r.code)).length, ''], ['vast', 'Vastzittend', C.vast.length, '']];
+  const tabs = [['nu', '1 · Nu verplaatsen', C.mv.filter(m => WHL.mvStaat(m.code, vd) !== 'klaar').length, 'hot'], ['vst', 'Van VST', C.vst.length, 'vst'],
+    ['ronde', '2 · Aanvulronde', C.ronde.filter(r => !tik('rd:' + vd + ':' + r.code)).length, ''], ['niet', 'Niet nu', C.deels.length, ''], ['vast', 'Vastzittend', C.vast.length, '']];
   const kop = `<div class="tabs">${tabs.map(([k, t, n, cls]) => `<a class="tab ${k === tab ? 'on' : ''} ${n ? cls : ''}" href="#/aanvullen/${k}">${esc(t)} <span class="nr">${nf(n)}</span></a>`).join('')}</div>
     ${mis.length ? `<div class="card reason">Ontbreekt: <b>${esc(mis.join(', '))}</b>. <a href="#/gegevens">Inladen →</a></div>` : ''}
-    ${D.ADV ? `<div class="small muted mb8">Advies van ${esc(fdt(D.ADV.datum))} · backorders van ${esc(fdt(dataDatums().backorders))}</div>` : ''}`;
+    ${D.ADV ? `<div class="small muted mb8 noprint">Advies van ${esc(fdt(D.ADV.datum))} · backorders van ${esc(fdt(dataDatums().backorders))}</div>` : ''}`;
   let body = '';
   if(tab === 'vst') body = tabVst(C, vd);
   else if(tab === 'ronde') body = tabRonde(C, vd);
   else if(tab === 'vast') body = tabVast(C);
+  else if(tab === 'niet') body = tabNiet(C);
   else body = tabNu(C, vd);
   app.innerHTML = kop + body;
 }
@@ -200,31 +201,90 @@ function gangFilter(items, sel, veld){
   if(g.length < 2) return '';
   return `<div class="filters mb8"><span class="small muted">Gang</span> <button class="btn sm ${!sel ? 'pri' : ''}" data-a="gang" data-v="" data-w="${veld}">alle</button>${g.map(x => `<button class="btn sm ${sel === x ? 'pri' : ''}" data-a="gang" data-v="${esc(x)}" data-w="${veld}">${esc(x)}</button>`).join('')}</div>`;
 }
+function volgorde(){ try{ return localStorage.getItem('wh-volg') === 'route' ? 'route' : 'oud'; }catch(e){ return 'oud'; } }
 function tabNu(C, vd){
   if(!C.mv.length) return `<div class="card empty">Geen orders die wachten op een verplaatsing van bulk.${C.vast.length ? ` <a href="#/aanvullen/vast">${C.vast.length} vastzittend →</a>` : ''}</div>`;
-  const lijst = C.mv.filter(m => !UI.mvGang || m.gang === UI.mvGang);
-  const open = lijst.filter(m => !tik('mv:' + vd + ':' + m.code));
+  const volg = volgorde();
+  const lijst = C.mv.filter(m => !UI.mvGang || m.gang === UI.mvGang).slice().sort(WHL.mvSort(volg));
+  const open = lijst.filter(m => WHL.mvStaat(m.code, vd) !== 'klaar');
   const nOrders = new Set(C.mv.flatMap(m => m.orders)).size;
-  return `<div class="card"><div class="row wrap between"><div><h2>Nu verplaatsen</h2>
-      <div class="small muted">${plural(C.mv.length, 'product', 'producten')} blokkeren ${plural(nOrders, 'order', 'orders')} die verder compleet zijn. Oudste order eerst. Na verplaatsen: Picqer → Backorders → <b>Verwerk backorders</b>.</div></div>
-      <div class="row"><span class="badge b-bad">${open.length} open</span><button class="btn sm" data-a="print">Print lijst</button></div></div>
-    <div class="mt12">${gangFilter(C.mv, UI.mvGang, 'gang')}</div>
-    ${lijst.map(m => mvHtml(m, vd)).join('')}</div>`;
+  const vw = D.TAKEN['dg:' + vd + ':verwerk'];
+  return `<div class="card scherm"><div class="row wrap between"><div><h2>1 · Nu verplaatsen</h2>
+      <div class="small muted">${plural(C.mv.length, 'product', 'producten')} houden ${plural(nOrders, 'order', 'orders')} tegen die verder compleet zijn. Groot getal = verplaatsen (Picqer-advies, nooit minder dan de orders nodig hebben; naar geen specifieke locatie alleen wat de orders nodig hebben).</div></div>
+      <div class="row"><span class="badge b-bad">${open.length} open</span><button class="btn sm pri" data-a="print">Print lijst</button></div></div>
+    <div class="filters mt12"><span class="small muted">Volgorde</span>
+      <button class="btn sm ${volg === 'oud' ? 'pri' : ''}" data-a="volg" data-v="oud">oudste order eerst</button>
+      <button class="btn sm ${volg === 'route' ? 'pri' : ''}" data-a="volg" data-v="route">looproute</button></div>
+    <div class="mt8">${gangFilter(C.mv, UI.mvGang, 'gang')}</div>
+    ${lijst.map(m => mvHtml(m, vd)).join('')}
+    <div class="verwerk mt12 ${vw ? 'klaar' : ''}"><div class="row wrap between"><div>${vw ? '✓ Verwerk backorders gedaan om ' + esc(new Date(vw.op).toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' })) : 'Alles verplaatst en in Picqer verwerkt? Picqer → Backorders → <b>Verwerk backorders</b>.'}
+      <div class="small muted mt4">Daarna de backorder-export opnieuw inladen: wat er dan nog staat, wordt rood.</div></div>
+      <button class="btn ${vw ? '' : 'pri'}" data-a="verwerk">${vw ? 'Toch niet' : 'Verwerk backorders gedaan'}</button></div></div></div>
+  ${printTabel('1 · Nu verplaatsen', open.map(m => ({ code:m.code, naam:m.naam, van:m.van, naar:m.naar, geen:!m.naar, aantal:m.verpl, extra:mvMeta(m) })))}`;
+}
+function mvMeta(m){
+  const d = [plural(m.orders.length, 'order', 'orders') + ' · oudste ' + kort(m.datum)];
+  if(m.pickst !== null && m.pickst !== undefined) d.push('op pick ' + nf(m.pickst));
+  d.push(nf(m.stuks) + ' voor orders');
+  if(m.naar && m.spp && m.verpl >= m.spp && m.verpl % m.spp === 0) d.push('= ' + plural(m.verpl / m.spp, 'pallet', 'pallets'));
+  if(m.soort === 'retour') d.push('van retourkar ' + (m.van || []).join(', '));
+  if(m.dz) d.push('deelzending');
+  return d.join(' · ');
 }
 function mvHtml(m, vd){
   const k = 'mv:' + vd + ':' + m.code;
+  const st = WHL.mvStaat(m.code, vd);
+  const tk = D.TAKEN[k], vw = D.TAKEN['dg:' + vd + ':verwerk'];
   const pr = WHL.prof(m.code);
+  const tijd = iso => new Date(iso).toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' });
   const naar = m.naar ? locs(m.naar) : m.voorstelPick ? `<span class="badge b-warn">geen specifieke locatie</span> <span class="small muted">of nieuw:</span> ${locBadge(m.voorstelPick)}` : '<span class="badge b-warn">geen specifieke locatie</span>';
-  return `<div class="mv metbc ${tik(k) ? 'klaar' : ''}">
+  return `<div class="mv metbc ${st === 'klaar' ? 'klaar' : ''} ${st === 'nogopen' ? 'nogopen' : ''}">
     <div class="task" style="border:0;padding:0">${tikKnop(k, 'verplaatst')}</div>
-    <div><div><a class="code" href="#/p/${encodeURIComponent(m.code)}">${esc(m.code)}</a> <span class="desc">${esc(m.naam)}</span></div>
-      <div class="route">${locs(m.van) || '<span class="badge b-grey">bulk onbekend</span>'}<span class="pijl">→</span>${naar}</div>
-      <div class="meta">${plural(m.orders.length, 'order', 'orders')} sinds ${esc(kort(m.datum))}${m.pickst !== null && m.pickst !== undefined ? ' · pickvoorraad ' + nf(m.pickst) : ''}${m.advAantal ? ' · Picqer-advies ' + nf(m.advAantal) : ''} · ${esc(m.t)}</div>
+    <div><div><a class="code" href="#/p/${encodeURIComponent(m.code)}">${esc(m.code)}</a> <span class="desc">${esc(m.naam)}</span>${m.dz ? ' ' + badge('deelzending', 'b-info') : ''}</div>
+      <div class="route"><span class="rl">van</span>${locs(m.van) || '<span class="badge b-grey">bulk onbekend</span>'}<span class="pijl">→</span><span class="rl">naar</span>${naar}</div>
+      <div class="meta">${esc(mvMeta(m))}${m.advAantal && m.advAantal !== m.verpl ? ' · Picqer-advies ' + nf(m.advAantal) : ''}${m.soort === 'bulk' ? ' · ' + esc(m.t) : ''}</div>
+      <div class="meta">${m.od.map(o => esc(o.nr) + ' ×' + nf(o.aantal) + (o.dz ? ' (van ' + nf(o.besteld) + ')' : '') + ' <span class="muted">' + esc(kort(o.datum)) + '</span>').join(' · ')}</div>
+      ${st === 'nogopen' ? `<div class="meta rood">Afgevinkt om ${esc(tijd(tk.op))}, maar na Verwerk backorders (${esc(tijd(vw.op))}) staat hij er nog. In Picqer echt verplaatst? Genoeg?</div>` : ''}
       ${pr && pr.final.type === 'bulk' && pr.bulks.length ? '<div class="meta">Alleen bulk: na verplaatsen blijft er geen picklocatie. Loopt het vaker? Geef een picklocatie in <a href="#/p/' + encodeURIComponent(m.code) + '">Aanvulbase</a>.</div>' : ''}
     </div>
     <div class="bc">${bc(m.code)}</div>
-    <div class="aant">${nf(m.stuks)}<small>voor orders</small></div>
+    <div class="aant">${nf(m.verpl)}<small>verplaatsen</small></div>
   </div>`;
+}
+// papieren lijst (zelfde als Junior): één regel per product, barcode om in Picqer te scannen, vakje en ruimte voor het echte aantal
+function printTabel(titel, rijen, perGang){
+  let vorige = null;
+  const tijd = new Date().toLocaleString('nl-NL', { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+  const tr = rijen.map(r => {
+    let kop = '';
+    if(perGang && r.gang !== vorige){ kop = `<tr class="pgang"><td colspan="7">Gang ${esc(r.gang)}</td></tr>`; vorige = r.gang; }
+    return kop + `<tr><td class="pv"><span class="pvak"></span></td>
+      <td><b class="code">${esc(r.code)}</b><div class="pn">${esc(r.naam || '')}</div><div class="pm">${esc(r.extra || '')}</div></td>
+      <td class="loc">${(r.van || []).map(esc).join('<br>')}</td>
+      <td class="loc naar">${r.geen ? '<span class="pgeen">geen specifieke locatie</span>' : (r.naar || []).map(esc).join('<br>')}</td>
+      <td class="pa">${nf(r.aantal)}</td><td class="pbc">${bc(r.code)}</td><td class="pg"></td></tr>`;
+  }).join('');
+  return `<div class="printonly"><div class="pkop"><b>IVOL · ${esc(titel)}</b><span>afgedrukt ${esc(tijd)} · backorders ${esc(fdt(dataDatums().backorders))} · advies ${esc(fdt(dataDatums().advies))}</span></div>
+    <div class="ptip">Picqer-app → Aanvuladvies: scan de barcode, het verplaatsvenster opent. Kies bij NAAR de picklocatie, niet een container (containers 1–6 zijn retourkarren).</div>
+    <table class="ptab"><colgroup><col style="width:5%"><col style="width:29%"><col style="width:13%"><col style="width:14%"><col style="width:8%"><col style="width:23%"><col style="width:8%"></colgroup>
+    <thead><tr><th></th><th>Product</th><th>Van (bulk)</th><th>Naar (pick)</th><th>Aantal</th><th></th><th>Gedaan</th></tr></thead><tbody>${tr}</tbody></table>
+    <div class="ptip mt8">Klaar? Picqer → Backorders → <b>Verwerk backorders</b>.</div></div>`;
+}
+function tabNiet(C){
+  if(!C.deels.length) return '<div class="card empty">Geen backorders waarbij verplaatsen een order niet compleet maakt.</div>';
+  const regel = x => {
+    const r = x.anderen && x.anderen.length && !x.eigen ? 'wacht ook op ' + x.anderen.map(a => a.code + ' (' + nf(a.besch) + '/' + nf(a.aantal) + ')').join(', ')
+      : x.vst ? 'rest komt van VST (zie Van VST)' : nf(x.besch) + ' van ' + nf(x.aantal) + ' op voorraad';
+    const dz = tik('dz:' + x.nr);
+    return `<div class="row wrap mt4"><span class="code">${esc(x.nr)}</span> <span class="small muted">${esc(kort(x.datum))}</span> <span class="small">${esc(r)}</span>
+      <button class="btn sm ${dz ? 'ok' : ''}" data-a="dz" data-nr="${esc(x.nr)}">${dz ? '✓ deelzending: staat bij Nu verplaatsen' : 'Deelzending afgesproken'}</button></div>`;
+  };
+  return `<div class="card"><h2>Niet nu</h2><div class="small muted">Wel backorder en voorraad op bulk, maar verplaatsen maakt de order niet compleet: het product is maar deels op voorraad, of de order wacht ook op iets anders. Picqer adviseert ze toch (vooral "naar geen specifieke locatie"). Niet verplaatsen. Spreek je met de klantenservice een deelzending af, tik dan <b>Deelzending afgesproken</b>: het beschikbare deel komt bij Nu verplaatsen. Maak de deelzending zelf in Picqer.</div>
+    ${C.deels.map(d => `<div class="mv" style="grid-template-columns:1fr auto">
+      <div><div><a class="code" href="#/p/${encodeURIComponent(d.code)}">${esc(d.code)}</a> <span class="desc">${esc(d.naam || '')}</span> ${d.adv ? badge('in Picqer-advies: ' + nf(d.adv.aantal), 'b-warn') : badge('niet in het advies', 'b-grey')}</div>
+        <div class="route"><span class="rl">van</span>${locs(d.van)}<span class="pijl">→</span><span class="rl">naar</span>${d.naar ? locs(d.naar) : '<span class="badge b-warn">geen specifieke locatie</span>'}</div>
+        ${d.orders.map(regel).join('')}</div>
+      <div></div></div>`).join('')}</div>`;
 }
 // palletnummers bij VST: laagste (= oudste) eerst, zoveel als nodig
 function vstPallets(v){
@@ -262,11 +322,13 @@ function tabRonde(C, vd){
     html += rondeHtml(r, vd);
   });
   const uit = C.uitzetten;
-  return `<div class="card"><div class="row wrap between"><div><h2>Aanvulronde</h2>
+  const openR = lijst.filter(r => !tik('rd:' + vd + ':' + r.code));
+  return `<div class="card scherm"><div class="row wrap between"><div><h2>2 · Aanvulronde</h2>
       <div class="small muted">Rest van het Picqer-advies (zonder wachtende orders), per gang in looprichting van de bulk. Tik af wat je hebt verplaatst; pas meteen de instellingen aan waar het advies niet klopt.</div></div>
-      <button class="btn sm" data-a="print">Print lijst</button></div>
+      <button class="btn sm pri" data-a="print">Print lijst</button></div>
     <div class="mt12">${gangFilter(C.ronde, UI.rondeGang, 'gang')}</div>${html || '<div class="empty">Leeg.</div>'}</div>
-    ${uit.length ? `<div class="card"><h3>Uit het advies halen (${uit.length})</h3>
+    ${printTabel('2 · Aanvulronde' + (UI.rondeGang ? ' · gang ' + UI.rondeGang : ''), openR.map(r => ({ code:r.code, naam:r.naam || (r.pr && r.pr.naam) || '', van:r.bulk, naar:r.geenPick ? null : r.pick, geen:r.geenPick, aantal:r.aantal, extra:'op pick ' + nf(r.pickst) + (r.deels ? ' · order nog niet compleet' : ''), gang:r.gang })), true)}
+    ${uit.length ? `<div class="card noprint"><h3>Uit het advies halen (${uit.length})</h3>
       <div class="small muted">Geen picklocatie, (bijna) geen verkoop, geen orders: horen niet in het advies. <b>1.</b> Neem ze mee in de Picqer-import (aanvulniveau en vul aan tot leeg). <b>2.</b> Blijven ze staan, zet dan in Picqer bij het product het knopje "Vul pickvoorraad aan van bulk locaties" uit.</div>
       <div class="mt8">${uit.map(r => `<span class="code">${esc(r.code)}</span>`).join(', ')}</div>
       <div class="row wrap mt8"><button class="btn" data-a="exp-uit">Picqer-import: niveaus leeg (${uit.length})</button></div></div>` : ''}`;
@@ -279,7 +341,8 @@ function rondeHtml(r, vd){
   return `<div class="mv metbc ${tik(k) ? 'klaar' : ''}">
     <div class="task" style="border:0;padding:0">${tikKnop(k, 'aangevuld')}</div>
     <div><div><a class="code" href="#/p/${encodeURIComponent(r.code)}">${esc(r.code)}</a> <span class="desc">${esc(r.naam || (pr && pr.naam) || '')}</span></div>
-      <div class="route">${locs(r.bulk)}<span class="pijl">→</span>${r.geenPick ? '<span class="badge b-warn">geen picklocatie</span>' : locs(r.pick)}</div>
+      <div class="route"><span class="rl">van</span>${locs(r.bulk)}<span class="pijl">→</span><span class="rl">naar</span>${r.geenPick ? '<span class="badge b-warn">geen picklocatie</span>' : locs(r.pick)}</div>
+      ${r.deels ? `<div class="meta">${badge('backorder, order nog niet compleet', 'b-grey')} ${esc(r.deels.orders.map(o => o.nr).join(', '))}: gewoon aanvullen, maakt de order niet compleet</div>` : ''}
       ${WHL.bereken().vst.some(v => v.code === r.code) ? '<div class="meta"><span class="badge b-vst">wacht op VST</span> verplaatsen maakt geen order compleet, zie Van VST</div>' : ''}
       <div class="meta">pickvoorraad ${nf(r.pickst)}${pr ? ' · Picqer ' + (pr.pq.lvl ?? '–') + '/' + (pr.pq.tot ?? '–') + ' → voorstel ' + (f.lvl ?? '–') + '/' + (f.tot ?? '–') + ' ' + badge(typeNaam[f.type] || f.type || '', typeCls[f.type]) : ''} <button class="btn ghost sm" data-a="open" data-k="r:${esc(r.code)}">${open ? 'sluit' : 'instellen'}</button></div>
       ${open && pr ? `<div class="edit">${editVelden(pr)}</div>` : ''}
@@ -645,6 +708,15 @@ document.addEventListener('click', async ev => {
     return;
   }
   if(a === 'open'){ UI.open[b.dataset.k] = !UI.open[b.dataset.k]; rerender(); return; }
+  if(a === 'volg'){ try{ localStorage.setItem('wh-volg', b.dataset.v); }catch(e){} rerender(); return; }
+  if(a === 'verwerk' || a === 'dz'){
+    const k = a === 'verwerk' ? 'dg:' + vandaag() + ':verwerk' : 'dz:' + b.dataset.nr;
+    const v = D.TAKEN[k] ? null : { op:new Date().toISOString() };
+    if(v) D.TAKEN[k] = v; else delete D.TAKEN[k];
+    WHL.reset(); rerender();
+    try{ await WH.catPatch('wh-taken', { [k]:v }); }catch(e){ /* melding al getoond */ }
+    return;
+  }
   if(a === 'gang'){ if(b.dataset.w === 'gang'){ if(location.hash.includes('ronde')) UI.rondeGang = b.dataset.v; else UI.mvGang = b.dataset.v; } rerender(); return; }
   if(a === 'bev'){ const c = b.dataset.code; const v = leesVelden(c); await bevestig([c], v ? { [c]:v } : null); return; }
   if(a === 'herstel'){ await WH.catPatch('wh-aanvul', { [b.dataset.code]:null }); WHL.reset(); toast('Terug naar het voorstel'); rerender(); return; }
