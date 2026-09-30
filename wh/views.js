@@ -615,6 +615,7 @@ async function inlezen(files, opts){
       else if(x.s === 'locaties') msg = await WH.impLocaties(x.arr, WH.datumUitNaam(naam));
       else if(x.s === 'voorraad'){ msg = await WH.impVoorraad(x.arr, WH.datumUitNaam(naam)); if(WH.datumUitNaam(naam) && dagenOud(WH.datumUitNaam(naam)) > 1) msg += ' · LET OP: export van ' + fdt(WH.datumUitNaam(naam)); }
       else if(x.s === 'backorders') msg = await WH.impBackorders(x.arr, s);
+      else if(x.s === 'verkoop' && maanden.length){ log.push('– ' + esc(naam) + ': overgeslagen (geen maand in de naam; de maandbestanden zijn leidend)'); continue; }
       else if(x.s === 'verkoop'){ if(!$('vkvan')) throw new Error('Magazijnverkopen zonder maand in de naam: laad hem in bij Gegevens (periode invullen) of zet de maand in de naam, bv. "Magazijnverkopen 2026-10.xlsx"'); msg = await WH.impVerkoop(x.arr, $('vkvan').value, $('vktot').value, $('vkvol').checked, s); }
       else if(x.s === 'advies') msg = await WH.impAdvies(x.f);
       log.push('✓ ' + esc(naam) + ': ' + esc(msg));
