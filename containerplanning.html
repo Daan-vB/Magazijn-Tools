@@ -3705,7 +3705,7 @@ function tabUitvoer(c, g){
   const alleDest = {};
   pools(c).order.forEach(code => { const v = c.data.verdeling[code]; (v && v.porties || []).forEach(x => { if(x.soort === 'pallet' && DEST[x.dest].label) alleDest[x.dest] = (alleDest[x.dest] || 0) + (num(x.n) || 0); }); });
   return `${open ? `<div class="card" style="border-left:4px solid var(--bad)"><b>Let op:</b> er staan nog ${open} open punten. Je kunt alles al maken, maar controleer die eerst.</div>` : ''}
-  <div class="card out"><div class="row between wrap"><div><h3>PDF voor de losdag</h3><p class="small muted mt8">Eerst de pakbon${c.data.pakbon_bestand ? '' : ' (nog niet bewaard bij deze container)'}, dan de samenvatting, de werkbon voor het magazijn (taal van de werkbon hieronder) en de Stockmove-lijst: welke pallet, welk product, hoeveel.</p></div>
+  <div class="card out"><div class="row between wrap"><div><h3>PDF voor de losdag</h3><p class="small muted mt8">Eerst de pakbon${c.data.pakbon_bestand ? '' : ' (nog niet bewaard bij deze container)'}, dan de samenvatting, de werkbon voor het magazijn (taal van de werkbon hieronder) en de Stockmove-lijst: welke pallet, welk product, hoeveel. Maak hem als alles is ingevuld: dan staat hij ook in IVOL Junior (Sala, Kate).${c.data.magazijn_pdf ? ' <b>In Junior sinds ' + esc(fdt(c.data.magazijn_pdf.op)) + '</b>; opnieuw maken vervangt hem.' : ''}</p></div>
     <button class="btn pri" data-act="pdfall">PDF maken</button></div></div>
   ${voorboekKaart(c)}
   <div class="card out"><div class="row between wrap"><div><h3>Overzicht voor mij (PDF)</h3><p class="small muted mt8">Per product: hoeveel pallets bulk, pick, backorders, klant en VST, en per backorder-order het aantal. Bevat alle open containers met dezelfde vastgezette losdatum${c.losdatum ? ' (' + esc(fdate(c.losdatum, { weekday:'short', day:'numeric', month:'short' })) + ')' : ''}. Backorders zoals nu ingeladen${BO.length ? ' (' + esc(fdt(BO.map(b => b.geimporteerd_op).filter(Boolean).sort().pop())) + ')' : ': nog geen'}.</p></div>
@@ -3858,7 +3858,18 @@ async function maakPdf(c){
       bytes = await out.save(); metPakbon = 'pakbon, ';
     }catch(e){ toast('Pakbon kon niet vooraan in de PDF: ' + e.message, 6000); }
   }
-  bestandKlaar(new Blob([bytes], { type:'application/pdf' }), naam, 'losplanning', 'PDF voor de losdag klaar (' + metPakbon + 'samenvatting, werkbon, Stockmove)');
+  // ook bewaren voor IVOL Junior (Sala, Kate): Containers → Losplanning (PDF)
+  let inJunior = '';
+  if(OPSLAG !== false){
+    try{
+      const pad = 'c' + c.id + '/losplanning.pdf';
+      await opslagZet(pad, new Blob([bytes], { type:'application/pdf' }));
+      c.data.magazijn_pdf = { pad, op:new Date().toISOString(), naam };
+      if(cur === c) save(); else bewaarContainer(c).catch(() => {});
+      inJunior = ' · staat ook in Junior';
+    }catch(e){ toast('Losplanning niet bewaard voor Junior: ' + e.message, 6000); }
+  }
+  bestandKlaar(new Blob([bytes], { type:'application/pdf' }), naam, 'losplanning', 'PDF voor de losdag klaar (' + metPakbon + 'samenvatting, werkbon, Stockmove)' + inJunior);
 }
 /* ---------- Overzicht voor Daan: per product hier / pick / backorders / klant / VST + backorders per order ---------- */
 function overzichtData(cs){
