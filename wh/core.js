@@ -13,7 +13,7 @@ window.WH = (function(){
 const URL_ = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
 const KEY  = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
 const H    = { apikey:KEY, Authorization:'Bearer ' + KEY };
-const CAT_KEYS = ['wh-locaties', 'wh-vst-locaties', 'wh-pq', 'wh-advies', 'wh-aanvul', 'wh-taken', 'wh-triage'];
+const CAT_KEYS = ['wh-locaties', 'wh-vst-locaties', 'wh-vst-locaties-vorige', 'wh-pq', 'wh-advies', 'wh-aanvul', 'wh-taken', 'wh-triage', 'wh-voorraad', 'wh-vst-voorraad', 'wh-verkoop-mnd', 'wh-bo-vorige'];
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 /* ---------- hulpjes ---------- */
@@ -104,7 +104,8 @@ function catPatch(key, patch){
     const d = (r && r.data) || {};
     Object.entries(patch).forEach(([k, v]) => { if(v === null) delete d[k]; else d[k] = v; });
     await catZet(key, d);
-    D[{ 'wh-aanvul':'AANVUL', 'wh-taken':'TAKEN', 'wh-triage':'TRIAGE' }[key]] = d;
+    const veld = { 'wh-aanvul':'AANVUL', 'wh-taken':'TAKEN', 'wh-triage':'TRIAGE' }[key];
+    if(veld) D[veld] = d;
     setSaved('Opgeslagen ' + new Date().toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' }));
     return d;
   });
@@ -115,10 +116,11 @@ function catPatch(key, patch){
 /* ---------- gegevens in het geheugen ---------- */
 const D = {
   P:{}, PLOW:{}, VK:{}, BO:[], GEH:{}, CONT:[],
-  LOC:{}, LOCDATUM:null, VSTLOC:{}, VSTDATUM:null, PQ:{}, PQDATUM:null, ADV:null, AANVUL:{}, TAKEN:{}, TRIAGE:{},
+  LOC:{}, LOCDATUM:null, VSTLOC:{}, VSTDATUM:null, VSTLOCVORIG:{}, PQ:{}, PQDATUM:null, ADV:null, AANVUL:{}, TAKEN:{}, TRIAGE:{},
+  VR:{}, VRDATUM:null, VSTVR:{}, VSTVRDATUM:null, VKM:null, BOVORIG:null, PAL:{},
   catTijd:{}, missend:[], geladen:0, fout:null
 };
-const PROD_SEL = 'productcode,naam,leverancier,leverancier_code,ean,locaties_hm,voorraad_hm,gereserveerd_hm,vrij_hm,voorraad_vst,abc,actief,tags,eenheid,palletmaat,picqer_datum';
+const PROD_SEL = 'productcode,naam,leverancier,leverancier_code,ean,locaties_hm,voorraad_hm,gereserveerd_hm,vrij_hm,voorraad_vst,abc,actief,tags,eenheid,palletmaat,picqer_datum,plaatsen,max_per_ligger,gewicht_kg,hoogte_cm,opmerking';
 async function load(){
   setSync('laden…');
   D.missend = [];
@@ -130,7 +132,7 @@ async function load(){
       api('GET', 'catalog?key=in.(' + encodeURIComponent(keys) + ')&select=key,data,updated_at'),
       safe('verkoop', getAll('verkoop', 'select=*')),
       safe('backorders', getAll('backorders', 'select=*')),
-      safe('containers', getAll('containers', 'select=id,leverancier,pakbon_ref,containernummer,losdatum,lostijd,status,updated_at,verwacht:data->verwacht,regels:data->regels,voorboekingen:data->voorboekingen,geleverd:data->geleverd&order=losdatum'))
+      safe('containers', getAll('containers', 'select=id,leverancier,pakbon_ref,containernummer,losdatum,lostijd,status,updated_at,verwacht:data->verwacht,regels:data->regels,voorboekingen:data->voorboekingen,geleverd:data->geleverd,verdeling:data->verdeling&order=losdatum'))
     ]);
     D.P = {}; D.PLOW = {};
     prod.forEach(r => { if(!r.productcode) return; D.P[r.productcode] = r; D.PLOW[r.productcode.toLowerCase()] = r.productcode; });
@@ -148,6 +150,12 @@ async function load(){
     zetPQ(C['wh-pq']);
     D.VSTLOC = {}; D.VSTDATUM = C['wh-vst-locaties'] ? C['wh-vst-locaties'].datum : null;
     ((C['wh-vst-locaties'] || {}).rows || []).forEach(([pal, codes]) => String(codes).split('|').forEach(c => (D.VSTLOC[c] = D.VSTLOC[c] || []).push(pal)));
+    D.VSTLOCVORIG = {};
+    ((C['wh-vst-locaties-vorige'] || {}).rows || []).forEach(([pal, codes]) => String(codes).split('|').forEach(c => (D.VSTLOCVORIG[c] = D.VSTLOCVORIG[c] || []).push(pal)));
+    zetVoorraad(C['wh-voorraad']);
+    zetVstVoorraad(C['wh-vst-voorraad']);
+    D.VKM = C['wh-verkoop-mnd'] || null;
+    D.BOVORIG = C['wh-bo-vorige'] || null;
     D.ADV = C['wh-advies'] || null;
     D.AANVUL = C['wh-aanvul'] || {};
     D.TAKEN = C['wh-taken'] || {};
@@ -174,6 +182,24 @@ function zetPQ(d){
   D.PQ = {}; D.PQDATUM = d ? d.datum : null;
   if(d && d.m) D.PQ = d.m;
 }
+// voorraad per locatie (Picqer "stock"-export): per product { locs:{loc:aantal}, geen:aantal op geen specifieke locatie, cont:{kar:aantal} }
+function zetVoorraad(d){
+  D.VR = {}; D.VRDATUM = d ? d.datum : null;
+  ((d && d.rows) || []).forEach(([code, loc, n, cont]) => {
+    const c = D.PLOW[String(code).toLowerCase()] || code;
+    const v = D.VR[c] = D.VR[c] || { locs:{}, geen:0, cont:{} };
+    if(!loc) v.geen += n || 0;
+    else if(cont) v.cont['Container ' + loc] = (v.cont['Container ' + loc] || 0) + (n || 0);
+    else v.locs[loc] = (v.locs[loc] || 0) + (n || 0);
+  });
+}
+function zetVstVoorraad(d){
+  D.VSTVR = {}; D.VSTVRDATUM = d ? d.datum : null;
+  ((d && d.rows) || []).forEach(([code, pal, n]) => {
+    const c = D.PLOW[String(code).toLowerCase()] || code;
+    (D.VSTVR[c] = D.VSTVR[c] || []).push([pal, n]);
+  });
+}
 
 /* ---------- bestanden lezen ---------- */
 function leesSheet(file){
@@ -188,6 +214,7 @@ function soortVan(head){
   if(has('Naam') && has('Bulklocatie') && has('Tijdelijke locatie')) return 'locaties';
   if(has('#') && has('Bestelling/Retour')) return 'backorders';
   if(has('Productcode') && (has('Voorraadlocatie Hoofdmagazijn') || has('Aanvulniveau Hoofdmagazijn'))) return 'producten';
+  if(has('Productcode') && has('Voorraadlocatie') && has('Vrije voorraad')) return 'voorraad';
   if(has('Productcode') && has('Aantal')) return 'verkoop';
   return null;
 }
@@ -235,7 +262,8 @@ async function impProducten(arr, st){
 }
 
 /* ---------- import: Picqer-locatie-export ---------- */
-async function impLocaties(arr){
+async function impLocaties(arr, datumBestand){
+  const datum = datumBestand || new Date().toISOString();
   const head = (arr[0] || []).map(h => String(h ?? '').trim());
   const c = n => head.indexOf(n);
   const iN = c('Naam'), iP = c('Bovenliggende locatie'), iT = c('Tijdelijke locatie'), iB = c('Bulklocatie'), iC = c('Productcodes'), iE = c('Exclusieve locatie');
@@ -249,10 +277,13 @@ async function impLocaties(arr){
   // Picqer exporteert per magazijn. VST ("Bulk van Spreuwel") = palletnummers (cijfers): apart bewaren, anders overschrijft hij het Hoofdmagazijn
   const numeriek = rows.filter(r => /^\d/.test(r[0])).length;
   if(numeriek > rows.length * 0.6){
-    await catZet('wh-vst-locaties', { datum:new Date().toISOString(), rows:rows.filter(r => r[5]).map(r => [r[0], r[5]]) });
+    // vorige VST-stand bewaren: zo ziet de app welke palletnummers nieuw zijn (Stockmove van vandaag)
+    const oud = await catHaal('wh-vst-locaties');
+    if(oud && oud.data && oud.data.rows) await catZet('wh-vst-locaties-vorige', oud.data);
+    await catZet('wh-vst-locaties', { datum, rows:rows.filter(r => r[5]).map(r => [r[0], r[5]]) });
     return rows.length + ' VST-palletlocaties ingelezen (Bulk van Spreuwel), ' + rows.filter(r => r[5]).length + ' met product';
   }
-  await catZet('wh-locaties', { datum:new Date().toISOString(), rows });
+  await catZet('wh-locaties', { datum, rows });
   return rows.length + ' locaties Hoofdmagazijn ingelezen';
 }
 
@@ -272,6 +303,13 @@ async function impBackorders(arr, st){
   const levs = [...new Set(rows.map(r => r.leverancier).filter(Boolean))];
   st('Oude regels opruimen…');
   if(levs.length >= 8 || !levs.length){
+    // vorige stand bewaren: dan laat de app zien wat er is opgelost, wat nog open staat en wat nieuw is
+    if(D.BO.length){
+      const orders = {};
+      D.BO.forEach(r => (orders[r.bestelling] = orders[r.bestelling] || []).push([r.productcode, num(r.aantal), num(r.beschikbaar)]));
+      const datum = D.BO.reduce((m, r) => r.geimporteerd_op && (!m || r.geimporteerd_op > m) ? r.geimporteerd_op : m, null);
+      await catZet('wh-bo-vorige', { datum, orders });
+    }
     // volledige export (Backorders → Exporteer backorders): alles vervangen
     await api('DELETE', 'backorders?id=gt.0', undefined, { Prefer:'return=minimal' });
   }else{
@@ -306,6 +344,116 @@ async function impVerkoop(arr, van, tot, volledig, st){
   });
   await upsert('verkoop', rows, 'productcode', (i, n) => st('Verkoop opslaan… ' + nf(i) + ' / ' + nf(n)));
   return Object.keys(som).length + ' producten met verkoop (' + nf(maanden, 1) + ' maanden)';
+}
+
+/* ---------- import: Magazijnverkopen per maand ----------
+   Bestandsnaam met de maand erin ("Magazijnverkopen 2026-09.xlsx"). Alle maanden samen in catalog wh-verkoop-mnd
+   { maanden:['2025-09', …], v:{ code:[aantal per maand] } }. Daarna rekent de app verkoop/maand opnieuw uit
+   (gemiddelde van de laatste 6 maanden) en zet die in tabel verkoop (die Containers ook gebruikt). */
+function maandUitNaam(naam){
+  const m = /(20\d{2})[-_ ](0[1-9]|1[0-2])(?![-_]?\d)/.exec(String(naam || ''));
+  return m ? m[1] + '-' + m[2] : null;
+}
+async function impVerkoopMaand(arr, ym, st){
+  const head = (arr[0] || []).map(h => String(h ?? '').trim());
+  const ic = head.indexOf('Productcode'), ia = head.indexOf('Aantal'), im = head.indexOf('Magazijn');
+  if(ic < 0 || ia < 0) throw new Error('kolommen Productcode/Aantal niet gevonden');
+  const som = {};
+  for(let i = 1; i < arr.length; i++){
+    const code = txt(arr[i][ic]); if(!code) continue;
+    if(im >= 0 && arr[i][im] && !/hoofdmagazijn/i.test(String(arr[i][im]))) continue;
+    const c2 = D.PLOW[code.toLowerCase()] || code;
+    som[c2] = (som[c2] || 0) + (num(arr[i][ia]) || 0);
+  }
+  return verkoopMaandenOpslaan({ [ym]:som }, st);
+}
+async function verkoopMaandenOpslaan(perMaand, st){
+  st = st || (() => {});
+  const oud = await catHaal('wh-verkoop-mnd');
+  const o = (oud && oud.data) || { maanden:[], v:{} };
+  // uitpakken naar maand → code → aantal, nieuwe maanden erin, weer inpakken
+  const M = {};
+  o.maanden.forEach((ym, i) => { M[ym] = {}; Object.entries(o.v).forEach(([c, a]) => { if(a[i]) M[ym][c] = a[i]; }); });
+  Object.entries(perMaand).forEach(([ym, som]) => { M[ym] = som; });
+  const maanden = Object.keys(M).sort();
+  const codes = new Set(); maanden.forEach(ym => Object.keys(M[ym]).forEach(c => codes.add(c)));
+  const v = {};
+  codes.forEach(c => { v[c] = maanden.map(ym => Math.round((M[ym][c] || 0) * 100) / 100); });
+  const data = { maanden, v, datum:new Date().toISOString() };
+  st('Maanden opslaan…');
+  await catZet('wh-verkoop-mnd', data);
+  D.VKM = data;
+  // verkoop per maand = gemiddelde van de laatste 6 maanden (lopende maand telt mee als hij bijna vol is)
+  const laatste = maanden.slice(-6);
+  const idx = laatste.map(ym => maanden.indexOf(ym));
+  const van = laatste[0] + '-01';
+  const [ly, lm] = laatste[laatste.length - 1].split('-').map(Number);
+  const eind = new Date(ly, lm, 0); const tot = eind.getFullYear() + '-' + dd(eind.getMonth() + 1) + '-' + dd(eind.getDate());
+  const nu = new Date().toISOString();
+  const rows = [];
+  const alle = new Set(Object.keys(D.P).concat([...codes]));
+  alle.forEach(c => {
+    const a = v[c] ? idx.reduce((s, i) => s + (v[c][i] || 0), 0) : 0;
+    rows.push({ productcode:c, leverancier:(D.P[c] && D.P[c].leverancier) || null, aantal:a, periode_van:van, periode_tot:tot, maanden:laatste.length, per_maand:+(a / laatste.length).toFixed(2), geimporteerd_op:nu });
+  });
+  await upsert('verkoop', rows, 'productcode', (i, n) => st('Verkoop per maand opslaan… ' + nf(i) + ' / ' + nf(n)));
+  return maanden.length + ' maanden (' + maanden[0] + ' t/m ' + maanden[maanden.length - 1] + '); verkoop/maand = gemiddelde ' + laatste[0] + ' t/m ' + laatste[laatste.length - 1];
+}
+// verkoop per maand van één product: [[maand, aantal], …]
+function maandVerkoop(code){
+  if(!D.VKM || !D.VKM.v) return [];
+  const a = D.VKM.v[code]; if(!a) return D.VKM.maanden.map(ym => [ym, 0]);
+  return D.VKM.maanden.map((ym, i) => [ym, a[i] || 0]);
+}
+
+/* ---------- import: voorraad per locatie (Picqer stock-export) ----------
+   Eén regel per product per locatie; lege locatie = geen specifieke locatie; Container = retourkar.
+   Export van magazijn Bulk van Spreuwel (palletnummers) wordt apart bewaard. */
+// exporttijd uit de Picqer-bestandsnaam (stock-20260930061500.xlsx), anders nu
+function datumUitNaam(naam){
+  const m = /(20\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(String(naam || ''));
+  if(!m) return null;
+  const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+  return isNaN(d) ? null : d.toISOString();
+}
+async function impVoorraad(arr, datumBestand){
+  const head = (arr[0] || []).map(h => String(h ?? '').trim());
+  const c = n => head.indexOf(n);
+  const iC = c('Productcode'), iL = c('Voorraadlocatie'), iV = c('Voorraad'), iK = c('Container');
+  const rows = [];
+  for(let i = 1; i < arr.length; i++){
+    const a = arr[i], code = txt(a[iC]); if(!code) continue;
+    const loc = txt(a[iL]) || '', n = num(a[iV]) || 0, kar = iK >= 0 && bool(a[iK]);
+    if(!loc && !n) continue;
+    rows.push([code, loc, n, kar ? 1 : 0]);
+  }
+  if(!rows.length) throw new Error('geen regels gevonden');
+  const metLoc = rows.filter(r => r[1] && !r[3]);
+  const numeriek = metLoc.filter(r => /^\d+$/.test(r[1])).length;
+  const datum = datumBestand || new Date().toISOString();
+  if(metLoc.length && numeriek > metLoc.length * 0.6){
+    await catZet('wh-vst-voorraad', { datum, rows:rows.filter(r => r[1]).map(r => [r[0], r[1], r[2]]) });
+    return nf(numeriek) + ' VST-pallets met voorraad (Bulk van Spreuwel)';
+  }
+  await catZet('wh-voorraad', { datum, rows });
+  const geen = rows.filter(r => !r[1] && r[2] > 0).length;
+  return nf(rows.length) + ' regels voorraad per locatie · ' + nf(geen) + ' producten met voorraad op geen specifieke locatie';
+}
+
+/* ---------- stuks per pallet (productgeheugen catalog-ean, zelfde als Palletlabels en Containers) ---------- */
+async function zetStuksPerPallet(code, stuks){
+  const r = await api('GET', 'catalog?key=eq.catalog-ean&select=data');
+  const cat = (r && r.length ? r[0].data : {}) || {};
+  const k = String(code).toLowerCase();
+  const hits = Object.keys(cat).filter(x => cat[x] && String(cat[x].sub || '').trim().toLowerCase() === k);
+  if(hits.length) hits.forEach(x => { cat[x].qty = String(stuks); cat[x].used = Date.now(); });
+  else {
+    const p = D.P[code] || {};
+    const naam = (p.naam || code).toUpperCase();
+    cat[naam] = { name:p.naam || code, ean:String(p.ean || code), qty:String(stuks), sub:code, used:Date.now() };
+  }
+  await api('POST', 'catalog?on_conflict=key', [{ key:'catalog-ean', mode:'ean', data:cat, updated_at:new Date().toISOString() }], { Prefer:'resolution=merge-duplicates,return=minimal' });
+  D.GEH[k] = Object.values(cat).filter(x => x && String(x.sub || '').trim().toLowerCase() === k);
 }
 
 /* ---------- import: Picqer-aanvuladvies (PDF) ---------- */
@@ -378,5 +526,6 @@ function excel(kop, rijen, bestandsnaam){
 
 return { URL_, KEY, $, esc, leeg, num, txt, bool, nf, plural, dd, isoDag, vandaag, fdate, fdt, dagenOud, toast, setSync, setSaved,
   api, getAll, upsert, catZet, catHaal, catPatch, D, load, leesSheet, soortVan,
-  impProducten, impLocaties, impBackorders, impVerkoop, impAdvies, excel };
+  impProducten, impLocaties, impBackorders, impVerkoop, impAdvies, excel,
+  impVerkoopMaand, verkoopMaandenOpslaan, maandUitNaam, maandVerkoop, impVoorraad, zetStuksPerPallet, datumUitNaam };
 })();

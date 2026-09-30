@@ -52,9 +52,16 @@ function parseHash(){
 function route(){
   const { delen, q } = parseHash();
   const naam = delen[0] || 'vandaag';
-  document.querySelectorAll('#nav a[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === (naam === 'p' ? 'base' : naam)));
+  const navNaam = { p:'base', containerdag:'vandaag', controle:'vandaag', backorders:'aanvullen', ruimte:'vandaag' }[naam] || naam;
+  document.querySelectorAll('#nav a[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === navNaam));
   if(D.fout){ app.innerHTML = geenVerbinding(); return; }
   try{
+    if(naam === 'containerdag') return WHD.viewContainerdag(delen[1]);
+    if(naam === 'controle') return WHD.viewControle(delen[1]);
+    if(naam === 'invul') return WHD.viewInvul(delen[1]);
+    if(naam === 'backorders') return WHD.viewBackorders();
+    if(naam === 'ruimte') return WHD.viewRuimte();
+    if(naam === 'overzicht') return viewVandaag();
     if(naam === 'aanvullen') return viewAanvullen(delen[1] || 'nu');
     if(naam === 'base') return viewBase(q);
     if(naam === 'locaties') return viewLocaties(delen[1] || '', q);
@@ -62,7 +69,7 @@ function route(){
     if(naam === 'planning') return viewPlanning();
     if(naam === 'gegevens') return viewGegevens();
     if(naam === 'p') return viewProduct(delen.slice(1).join('/'));
-    return viewVandaag();
+    return WHD.viewVandaag();
   }catch(e){
     console.error(e);
     app.innerHTML = `<div class="card"><h2>Er ging iets mis op dit scherm</h2><pre class="mono mt8">${esc(e.stack || e.message)}</pre></div>`;
@@ -533,7 +540,7 @@ function viewGegevens(){
   app.innerHTML = `<div class="card"><h2>Gegevens inladen</h2>
     <div class="small muted">Sleep alle Picqer-bestanden tegelijk hierin (of tik om te kiezen). De app herkent zelf wat het is.</div>
     <label class="drop mt12" id="drop"><input type="file" id="files" multiple accept=".xlsx,.xls,.csv,.pdf" hidden>
-      <b>Bestanden kiezen of hierheen slepen</b><div class="small muted mt4">productexport · locatie-export · backorders · Magazijnverkopen · aanvuladvies (PDF)</div></label>
+      <b>Bestanden kiezen of hierheen slepen</b><div class="small muted mt4">productexport · locatie-export (Hoofdmagazijn en VST) · voorraad per locatie · backorders · Magazijnverkopen (per maand: maand in de bestandsnaam, bv. "Magazijnverkopen 2026-10.xlsx") · aanvuladvies (PDF)</div></label>
     <div class="fields mt12"><div class="fld"><label>Magazijnverkopen van</label><input type="date" id="vkvan" value="${esc(UI.vk.van)}"></div>
       <div class="fld"><label>tot en met</label><input type="date" id="vktot" value="${esc(UI.vk.tot)}"></div>
       <div class="fld"><label>Verkoop-export</label><label class="small" style="text-transform:none;font-weight:600;color:var(--ink)"><input type="checkbox" id="vkvol" ${UI.vk.vol ? 'checked' : ''}> alle leveranciers</label></div></div>
@@ -542,8 +549,11 @@ function viewGegevens(){
     ${rij('Productexport', 'producten', nf(Object.keys(D.P).length), 'Picqer → Producten → Exporteren (alle producten). Neemt ook aanvulniveaus mee.')}
     ${rij('Locatie-export', 'locaties', nf(Object.keys(D.LOC).length), 'Picqer → Instellingen → Locaties → Import/Export → Exporteren.')}
     <tr><td><b>VST-palletlocaties</b><div class="desc">Zelfde locatie-export, maar dan van magazijn Bulk van Spreuwel: palletnummers per product.</div></td><td>${exportLeeftijd(D.VSTDATUM)}</td><td class="n">${nf(Object.keys(D.VSTLOC).length)} producten</td></tr>
-    ${rij('Backorders', 'backorders', nf(D.BO.length) + ' regels', 'Picqer → Backorders → Exporteer backorders.')}
-    ${rij('Magazijnverkopen', 'verkoop', nf(Object.keys(D.VK).length), 'Picqer → Rapporten → Magazijnverkopen, periode hierboven invullen.')}
+    <tr><td><b>Voorraad per locatie</b><div class="desc">Aantal per product per locatie, incl. geen specifieke locatie en retourkarren (export "stock-….xlsx"). Nodig voor de controle na het lossen.</div></td><td>${exportLeeftijd(D.VRDATUM)}</td><td class="n">${nf(Object.keys(D.VR).length)} producten</td></tr>
+    <tr><td><b>VST: voorraad per pallet</b><div class="desc">Zelfde export, magazijn Bulk van Spreuwel.</div></td><td>${exportLeeftijd(D.VSTVRDATUM)}</td><td class="n">${nf(Object.keys(D.VSTVR).length)} producten</td></tr>
+    ${rij('Backorders', 'backorders', nf(D.BO.length) + ' regels', 'Picqer → Backorders → Exporteer backorders. De vorige stand wordt bewaard (opgelost / open / nieuw).')}
+    ${rij('Magazijnverkopen', 'verkoop', nf(Object.keys(D.VK).length), 'Picqer → Rapporten → Magazijnverkopen. Per maand: maand in de bestandsnaam. Anders periode hierboven invullen.')}
+    <tr><td><b>Verkoop per maand</b><div class="desc">Verkoop/maand = gemiddelde van de laatste 6 maanden.</div></td><td>${exportLeeftijd(D.VKM && D.VKM.datum)}</td><td class="n">${D.VKM ? esc(D.VKM.maanden[0] + ' t/m ' + D.VKM.maanden[D.VKM.maanden.length - 1]) : '–'}</td></tr>
     ${rij('Aanvuladvies', 'advies', D.ADV ? nf(D.ADV.rows.length) + ' regels' : '–', 'Picqer → Aanvuladvies → PDF (picklijst bulklocaties).')}
   </table></div>
   <div class="small muted mt8">Zelfde database als Containers en Palletlabels. Back-up: Containers → Gegevens → Back-up downloaden.</div></div>`;
@@ -555,30 +565,57 @@ function viewGegevens(){
   ['vkvan', 'vktot'].forEach(id => $(id).onchange = () => { UI.vk.van = $('vkvan').value; UI.vk.tot = $('vktot').value; });
   $('vkvol').onchange = () => UI.vk.vol = $('vkvol').checked;
 }
-async function inlezen(files){
-  const st = $('impst');
+async function inlezen(files, opts){
+  opts = opts || {};
+  const stId = opts.statusId || 'impst';
+  const st = $(stId);
   const log = [];
-  const zet = (m, cls) => { st.innerHTML = log.concat(m ? [esc(m)] : []).join('<br>'); st.className = 'status ' + (cls || ''); };
-  // volgorde: producten eerst (codes), dan locaties, verkoop, backorders, advies
+  const zet = (m, cls) => { const s = $(stId) || st; if(!s) return; s.innerHTML = log.concat(m ? [esc(m)] : []).join('<br>'); s.className = 'status ' + (cls || ''); };
+  // volgorde: producten eerst (codes), dan locaties, voorraad, verkoop, backorders, advies
   const soorten = [];
   for(const f of files){
     if(/\.pdf$/i.test(f.name)){ soorten.push({ f, s:'advies' }); continue; }
     try{ const arr = await WH.leesSheet(f); soorten.push({ f, s:WH.soortVan(arr[0] || []), arr }); }
     catch(e){ soorten.push({ f, s:null, fout:e.message }); }
   }
-  const ORDE = { producten:1, locaties:2, verkoop:3, backorders:4, advies:5 };
+  // Magazijnverkopen met een maand in de naam ("… 2026-09.xlsx") = verkoop per maand
+  soorten.forEach(x => { if(x.s === 'verkoop'){ const ym = WH.maandUitNaam(x.f.name); if(ym){ x.s = 'verkoopmaand'; x.ym = ym; } } });
+  const ORDE = { producten:1, locaties:2, voorraad:3, verkoop:4, verkoopmaand:4, backorders:5, advies:6 };
   soorten.sort((a, b) => (ORDE[a.s] || 9) - (ORDE[b.s] || 9));
+  // meerdere maanden verkoop: eerst allemaal lezen, dan één keer opslaan en herberekenen
+  const maanden = soorten.filter(x => x.s === 'verkoopmaand');
+  let maandenKlaar = false;
   for(const x of soorten){
     const naam = x.f.name;
     try{
       if(!x.s){ log.push('✗ ' + esc(naam) + ': niet herkend' + (x.fout ? ' (' + esc(x.fout) + ')' : '')); continue; }
+      if(x.s === 'verkoopmaand'){
+        if(maandenKlaar) continue;
+        maandenKlaar = true;
+        const per = {};
+        maanden.forEach(m => {
+          const head = (m.arr[0] || []).map(h => String(h ?? '').trim());
+          const ic = head.indexOf('Productcode'), ia = head.indexOf('Aantal'), im = head.indexOf('Magazijn');
+          const som = per[m.ym] = {};
+          for(let i = 1; i < m.arr.length; i++){
+            const code = WH.txt(m.arr[i][ic]); if(!code) continue;
+            if(im >= 0 && m.arr[i][im] && !/hoofdmagazijn/i.test(String(m.arr[i][im]))) continue;
+            const c2 = D.PLOW[code.toLowerCase()] || code;
+            som[c2] = (som[c2] || 0) + (num(m.arr[i][ia]) || 0);
+          }
+        });
+        const msg = await WH.verkoopMaandenOpslaan(per, m => zet('Verkoop per maand: ' + m));
+        log.push('✓ Magazijnverkopen per maand (' + maanden.map(m => m.ym).sort().join(', ') + '): ' + esc(msg));
+        continue;
+      }
       zet(naam + ': bezig…');
       let msg = '';
       const s = m => zet(naam + ': ' + m);
       if(x.s === 'producten') msg = await WH.impProducten(x.arr, s);
-      else if(x.s === 'locaties') msg = await WH.impLocaties(x.arr);
+      else if(x.s === 'locaties') msg = await WH.impLocaties(x.arr, WH.datumUitNaam(naam));
+      else if(x.s === 'voorraad'){ msg = await WH.impVoorraad(x.arr, WH.datumUitNaam(naam)); if(WH.datumUitNaam(naam) && dagenOud(WH.datumUitNaam(naam)) > 1) msg += ' · LET OP: export van ' + fdt(WH.datumUitNaam(naam)); }
       else if(x.s === 'backorders') msg = await WH.impBackorders(x.arr, s);
-      else if(x.s === 'verkoop') msg = await WH.impVerkoop(x.arr, $('vkvan').value, $('vktot').value, $('vkvol').checked, s);
+      else if(x.s === 'verkoop'){ if(!$('vkvan')) throw new Error('Magazijnverkopen zonder maand in de naam: laad hem in bij Gegevens (periode invullen) of zet de maand in de naam, bv. "Magazijnverkopen 2026-10.xlsx"'); msg = await WH.impVerkoop(x.arr, $('vkvan').value, $('vktot').value, $('vkvol').checked, s); }
       else if(x.s === 'advies') msg = await WH.impAdvies(x.f);
       log.push('✓ ' + esc(naam) + ': ' + esc(msg));
       if(x.s === 'producten') await WH.load();          // codes nodig voor de volgende bestanden
@@ -586,8 +623,8 @@ async function inlezen(files){
   }
   zet('Alles opnieuw laden…');
   await WH.load();
-  viewGegevens();
-  const st2 = $('impst'); st2.innerHTML = log.join('<br>') + '<br><a href="#/">Naar Vandaag →</a>'; st2.className = 'status ' + (log.some(l => l.startsWith('✗')) ? 'err' : 'ok');
+  if(opts.na) opts.na(); else viewGegevens();
+  const st2 = $(stId); if(st2){ st2.innerHTML = log.join('<br>') + (opts.na ? '' : '<br><a href="#/">Naar Vandaag →</a>'); st2.className = 'status ' + (log.some(l => l.startsWith('✗')) ? 'err' : 'ok'); }
 }
 
 /* =====================================================================
@@ -664,6 +701,8 @@ document.addEventListener('keydown', ev => {
   if(box){ ev.preventDefault(); const c = box.dataset.pr; const v = leesVelden(c); bevestig([c], v ? { [c]:v } : null); }
 });
 window.addEventListener('hashchange', route);
+// hulpjes voor wh/dag.js
+window.WHV = { badge, locBadge, locs, tikKnop, exportLeeftijd, dataDatums, nietKlaar, kpiVastleggen, taakHtml, typeNaam, typeCls, inlezen, rerender, editVelden };
 // terug in de app na > 2 minuten: vers laden (niet tijdens typen)
 document.addEventListener('visibilitychange', async () => {
   if(document.visibilityState !== 'visible' || Date.now() - D.geladen < 120000) return;

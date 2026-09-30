@@ -11,7 +11,7 @@ const L = { aanvullen:'#/aanvullen', vst:'#/aanvullen/vst', ronde:'#/aanvullen/r
 const TAKEN = [
   // ---- week 40 ----
   { id:'o-0930-wallace', datum:'2026-09-30', prio:1, wie:'Daan · Sala · Valerii', titel:'Wallace NL-297 + NL-298 lossen', uitleg:'Containers → container → Uitvoer: losdag-PDF, palletlabels, Stockmove-lijst. Jim heeft ISM80X120 en ISM100X100 van NL-297 al opgeboekt.', link:L.cont },
-  { id:'o-0930-export', datum:'2026-09-30', prio:1, wie:'Daan', titel:'Exports inladen in IVOL Warehouse', uitleg:'Gegevens: productexport (alle producten), locatie-export, backorders, aanvuladvies-PDF en Magazijnverkopen (laatste 6 maanden, alle leveranciers). Daarna vult de app alles zelf in.', link:L.geg },
+  { id:'o-0930-export', datum:'2026-09-30', prio:1, wie:'Daan', titel:'Voorraad per locatie exporteren (Hoofdmagazijn + Bulk van Spreuwel)', uitleg:'Zelfde export als stock-…xlsx van 2-9, één keer per magazijn. Inladen bij Gegevens. Productexport, locaties, backorders, advies en verkoop per maand zijn al ingeladen (30-9 nacht).', link:L.geg },
   { id:'o-0930-nuverpl', datum:'2026-09-30', prio:1, wie:'Daan · reachtruck', titel:'Aanvullen → Nu verplaatsen afwerken', uitleg:'Alleen wat orders vrijmaakt, oudste order eerst. Daarna in Picqer: Backorders → Verwerk backorders.', link:L.aanvullen },
   { id:'o-0930-stockmove', datum:'2026-09-30', prio:2, wie:'Karin · Daan', titel:'Stockmove NL-297/298 en ontvangst inlezen', uitleg:'Na het lossen: Stockmove (Karin), daarna in Containers de Picqer-inruimlijst per container inlezen (restant NL-297 + NL-298).', link:L.cont },
   { id:'o-0930-vst', datum:'2026-09-30', prio:2, wie:'Daan', titel:'Van VST halen: terughaallijst naar Edwin', uitleg:'Aanvullen → Van VST: orders die compleet worden met VST-voorraad. Mailtekst staat klaar.', link:L.vst },
@@ -58,8 +58,8 @@ const DAGRITME = [
 
 // wat de app nog van Daan nodig heeft (niet gevraagd, hier verzameld)
 const VRAGEN = [
-  { id:'v-verkoop', titel:'Magazijnverkopen-export, alle leveranciers, laatste 6 maanden', waarom:'Dan rekent de app de aanvulniveaus op echte verkoop i.p.v. voorlopige waarden.', waar:'Picqer → Rapporten → Magazijnverkopen, geen leveranciersfilter → inladen bij Gegevens.' },
-  { id:'v-perlocatie', titel:'Voorraad per locatie (hoeveel op pick, hoeveel op bulk)', waarom:'Geen standaard export in Picqer; wel via de API. Daarmee weet de app precies wat er op pick ligt.', waar:'Via Maxime (alleen lezen).' },
+  { id:'v-verkoop', titel:'Magazijnverkopen elke maand (1e werkdag): vorige maand, alle leveranciers', waarom:'Verkoop per maand staat erin t/m september 2026. Elke maand één bestand erbij, maand in de naam: "Magazijnverkopen 2026-10.xlsx".', waar:'Picqer → Rapporten → Magazijnverkopen → inladen bij Gegevens.' },
+  { id:'v-2025', titel:'Klopt de volgorde van de verkoop 2025-09 t/m 2025-12?', waarom:'Die vier bestanden hadden geen datum; op volgorde van export als sep–dec 2025 genoemd. 2026-01 t/m 09 is gecontroleerd (totaal gelijk aan de export 1-1 t/m 30-9).', waar:'' },
   { id:'v-mutaties', titel:'Voorraadgeschiedenis / verplaatsingen', waarom:'Per product zichtbaar in Picqer, niet als export; wel via de API (met locatie, reden en wie). Dan leert de app hoeveel er per keer wordt aangevuld.', waar:'Via Maxime (alleen lezen).' },
   { id:'v-legbord', titel:'Hoeveel past er op een legbordlocatie (midden, whiteboards)?', waarom:'Bepaalt "vul aan tot" voor klein spul. Per product invullen in Aanvulbase of een vuistregel per gang.', waar:'Aanvulbase → filter legbord.' },
   { id:'v-avloer', titel:'Hal A vloer (00): altijd een pallet, of ook bakken/dozen?', waarom:'Vloerpick = aanvullen met een hele pallet. Klopt dat ook in hal A?', waar:'' },

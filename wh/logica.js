@@ -146,6 +146,9 @@ function maakProfiel(code, bezet){
       pr.redenen.push({ lvl:'info', t:'doos/bak: controleer of ' + v.tot + ' op de picklocatie past' });
     }
     if(vk === null) pr.redenen.push({ lvl:'info', t:'geen verkoopcijfers: voorlopige waarden' });
+    // wat er maximaal op de picklocatie past (ingevuld op de telefoon): daar nooit boven
+    const max = D.AANVUL[code] ? num(D.AANVUL[code].max) : null;
+    if(max && v.tot !== null && v.tot > max){ v.tot = max; if(v.lvl !== null && v.lvl >= max) v.lvl = Math.max(1, max - 1); pr.redenen.push({ lvl:'info', t:'max ' + max + ' op de picklocatie' }); }
   }
   pr.voorstel = v;
 
