@@ -2125,6 +2125,7 @@ async function impProducten(file){
     }
     if(!rows.length) throw new Error('geen producten gevonden.');
     st('Opslaan… ' + rows.length + ' producten');
+    { const g = new Set(); for(let i = rows.length - 1; i >= 0; i--){ if(g.has(rows[i].productcode)) rows.splice(i, 1); else g.add(rows[i].productcode); } }   // dubbele code (spatie/tab) maar één keer
     await upsert('producten', rows, 'productcode');
     await load();
     const nk = await herkoppelOpen();

@@ -232,11 +232,18 @@ async function impProducten(arr, st){
   const iPQ = ['Aanvulniveau Hoofdmagazijn', 'Vul pickvoorraad aan tot Hoofdmagazijn'].map(h => head.indexOf(h));
   const iType = head.indexOf('Type');
   if(idx.productcode < 0) throw new Error('kolom "Productcode" niet gevonden');
-  const nu = new Date().toISOString(), rows = [], pq = {};
+  const nu = new Date().toISOString(), rows = [], pq = {}, gezien = new Set(), dubbel = [];
   for(let i = 1; i < arr.length; i++){
     const a = arr[i], code = txt(a[idx.productcode]);
     if(!code) continue;
     const rauw = String(a[idx.productcode]);
+    // twee Picqer-codes die alleen in een spatie/tab verschillen (bv. "Outlet-trapleuning8" en "Outlet-trapleuning8<tab>"): één keer opslaan
+    if(gezien.has(code)){
+      if(rauw !== code){ dubbel.push(JSON.stringify(rauw)); continue; }       // de variant met spatie/tab overslaan
+      const j = rows.findIndex(x => x.productcode === code);                  // de schone code wint van een eerdere variant
+      if(j >= 0){ dubbel.push(JSON.stringify(rows[j].__rauw)); rows.splice(j, 1); delete pq[code]; }
+    }
+    gezien.add(code);
     const r = { productcode:code, picqer_datum:nu };
     Object.keys(PROD_MAP).forEach(k => {
       if(k === 'productcode' || idx[k] < 0) return;
@@ -245,6 +252,7 @@ async function impProducten(arr, st){
       else if(k === 'actief') r[k] = leeg(v) ? null : bool(v);
       else r[k] = txt(v);
     });
+    Object.defineProperty(r, '__rauw', { value:rauw, enumerable:false });
     rows.push(r);
     const lvl = iPQ[0] < 0 ? null : num(a[iPQ[0]]), tot = iPQ[1] < 0 ? null : num(a[iPQ[1]]);
     const virt = iType >= 0 && /virtu|oneindig/i.test(String(a[iType] || ''));
@@ -258,7 +266,7 @@ async function impProducten(arr, st){
   const m = Object.assign({}, (oud && oud.data && oud.data.m) || {});
   rows.forEach(r => { if(pq[r.productcode]) m[r.productcode] = pq[r.productcode]; else delete m[r.productcode]; });
   await catZet('wh-pq', { datum:nu, m });
-  return rows.length + ' producten bijgewerkt (met aanvulniveaus uit Picqer)';
+  return rows.length + ' producten bijgewerkt (met aanvulniveaus uit Picqer)' + (dubbel.length ? ' · dubbele code overgeslagen: ' + dubbel.join(', ') + ' (in Picqer opruimen)' : '');
 }
 
 /* ---------- import: Picqer-locatie-export ---------- */
