@@ -71,7 +71,7 @@ function velden(pref, waarde, niveaus, bulk){
   const veld = (n, label) => `<div class="fld"><label>${label}</label><input inputmode="numeric" data-sf="${pref}h${n}" value="${esc((v.niveaus || {})[p2(n)] ?? '')}"></div>`;
   const topB = Math.max(...bulk);
   return `${bulk.length ? `<div class="s-groep">Bulk (pallets)</div><div class="s-velden">
-    ${bulk.slice().reverse().map(n => veld(n, `Bulk ${p2(n)} · vrije hoogte cm${n === topB ? ' (tot bovenkant)' : ''}`)).join('')}
+    ${bulk.slice().reverse().map(n => veld(n, n === topB ? `Bulk ${p2(n)} · max pallethoogte cm (tot plafond/dakbalk)` : `Bulk ${p2(n)} · vrije hoogte cm`)).join('')}
     <div class="fld"><label>Palletplaatsen op een ligger</label><input inputmode="numeric" data-sf="${pref}palletplaatsen" value="${esc(v.palletplaatsen ?? '')}"></div></div>` : ''}
   ${niveaus.length ? `<div class="s-groep">Pick</div><div class="s-velden">
     ${niveaus.slice().reverse().map(n => veld(n, `Niveau ${p2(n)}${n === 0 ? ' (vloer)' : ''} · vrije hoogte cm`)).join('')}
@@ -99,7 +99,7 @@ function viewGang(gang){
     <div class="small muted mt4">${g ? `${g.secs.size} secties (${[...g.secs].sort((a, b) => a - b).map(p2).join(', ')}) · pick ${niveaus.map(p2).join(', ') || '–'} · bulk ${bulk.map(p2).join(', ') || '–'} · locatie-export: ${pl} pickplaatsen${bpl ? ', ' + bpl + ' bulkplaatsen' : ''} per ligger` : 'Gang niet in de locatie-export: standaard pick 00–08 en bulk 10, 20.'}${s.op ? ' · laatst opgeslagen ' + esc(fdate(s.op)) : ''}</div>
     <details class="mt8"><summary class="small">Hoe meten?</summary><ul class="small mt4">
       <li><b>Vrije hoogte</b>: van de vloer of de bovenkant van de ligger tot de onderkant van de ligger erboven. Bovenste pickniveau: tot de onderkant van de eerste bulkligger.</li>
-      <li><b>Bulk</b>: van de bovenkant van de ligger tot de onderkant van de ligger erboven. Bovenste bulkniveau: tot de bovenkant van de stelling (of sprinkler/plafond als dat lager is). <b>Palletplaatsen</b> = hoeveel pallets er naast elkaar op één ligger passen.</li>
+      <li><b>Bulk</b>: van de bovenkant van de ligger tot de onderkant van de ligger erboven. Bovenste bulkniveau: <b>niet</b> tot het eind van de staander, maar tot het eerste obstakel erboven (plafond, dakbalk, sprinkler, lamp). Dat kan hoger zijn dan de stelling. Zit er alleen boven sommige secties een dakbalk? Zet die secties bij Afwijkende secties. <b>Palletplaatsen</b> = hoeveel pallets er naast elkaar op één ligger passen.</li>
       <li><b>Liggerbreedte</b>: binnenmaat tussen de staanders.</li>
       <li><b>Diepte</b>: voorkant tot achterkant van het legbord.</li>
       <li><b>Pickplaatsen</b>: hoeveel picklocaties (A–D) er op één ligger zitten. Leeg = wat de locatie-export zegt (${pl}).</li></ul></details>
@@ -192,10 +192,10 @@ function maatVan(naam){
 
 /* ---------- meetformulier op papier ---------- */
 const UITLEG = [
-  ['NL', 'Meet in cm. <b>Vrije hoogte</b> = van de vloer of de bovenkant van de ligger tot de onderkant van de ligger erboven. <b>Breedte</b> = binnenmaat tussen de staanders. <b>Diepte</b> = voorkant tot achterkant. Bovenste bulkniveau: tot de bovenkant van de stelling. <b>Palletplaatsen</b> = hoeveel pallets naast elkaar op één ligger. Is een sectie anders? Schrijf hem onderaan.'],
-  ['EN', 'Measure in cm. <b>Free height</b> = from the floor or the top of the beam to the underside of the beam above. <b>Width</b> = inside measurement between the uprights. <b>Depth</b> = front to back. Top bulk level: to the top of the rack. <b>Pallets per beam</b> = how many pallets side by side on one beam. Is a section different? Write it at the bottom.'],
-  ['ES', 'Mide en cm. <b>Altura libre</b> = desde el suelo o la parte de arriba del larguero hasta la parte de abajo del larguero de encima. <b>Ancho</b> = medida interior entre los bastidores. <b>Fondo</b> = de delante a atrás. Nivel bulk de arriba: hasta la parte superior de la estantería. <b>Palés por larguero</b> = cuántos palés caben uno al lado del otro en un larguero. ¿Una sección es diferente? Escríbela abajo.'],
-  ['EL', 'Μέτρα σε cm. <b>Ελεύθερο ύψος</b> = από το πάτωμα ή το πάνω μέρος της δοκού μέχρι το κάτω μέρος της δοκού από πάνω. <b>Πλάτος</b> = εσωτερική απόσταση ανάμεσα στις κολόνες. <b>Βάθος</b> = από μπροστά μέχρι πίσω. Πάνω επίπεδο bulk: μέχρι την κορυφή του ραφιού. <b>Παλέτες ανά δοκό</b> = πόσες παλέτες χωράνε δίπλα-δίπλα σε μία δοκό. Διαφέρει ένα τμήμα; Γράψ’ το κάτω.']
+  ['NL', 'Meet in cm. <b>Vrije hoogte</b> = van de vloer of de bovenkant van de ligger tot de onderkant van de ligger erboven. <b>Breedte</b> = binnenmaat tussen de staanders. <b>Diepte</b> = voorkant tot achterkant. Bovenste bulkniveau: tot het eerste obstakel erboven (plafond, dakbalk, sprinkler), niet tot het eind van de staander. <b>Palletplaatsen</b> = hoeveel pallets naast elkaar op één ligger. Is een sectie anders? Schrijf hem onderaan.'],
+  ['EN', 'Measure in cm. <b>Free height</b> = from the floor or the top of the beam to the underside of the beam above. <b>Width</b> = inside measurement between the uprights. <b>Depth</b> = front to back. Top bulk level: up to the first obstacle above (ceiling, roof beam, sprinkler), not to the end of the upright. <b>Pallets per beam</b> = how many pallets side by side on one beam. Is a section different? Write it at the bottom.'],
+  ['ES', 'Mide en cm. <b>Altura libre</b> = desde el suelo o la parte de arriba del larguero hasta la parte de abajo del larguero de encima. <b>Ancho</b> = medida interior entre los bastidores. <b>Fondo</b> = de delante a atrás. Nivel bulk de arriba: hasta el primer obstáculo de encima (techo, viga del tejado, sprinkler), no hasta el final del bastidor. <b>Palés por larguero</b> = cuántos palés caben uno al lado del otro en un larguero. ¿Una sección es diferente? Escríbela abajo.'],
+  ['EL', 'Μέτρα σε cm. <b>Ελεύθερο ύψος</b> = από το πάτωμα ή το πάνω μέρος της δοκού μέχρι το κάτω μέρος της δοκού από πάνω. <b>Πλάτος</b> = εσωτερική απόσταση ανάμεσα στις κολόνες. <b>Βάθος</b> = από μπροστά μέχρι πίσω. Πάνω επίπεδο bulk: μέχρι το πρώτο εμπόδιο από πάνω (ταβάνι, δοκός στέγης, sprinkler), όχι μέχρι το τέλος της κολόνας. <b>Παλέτες ανά δοκό</b> = πόσες παλέτες χωράνε δίπλα-δίπλα σε μία δοκό. Διαφέρει ένα τμήμα; Γράψ’ το κάτω.']
 ];
 function tekening(niveaus, bulk){
   // vooraanzicht: staanders, liggers per niveau (oranje = pick, blauw = bulk), pijl per vrije hoogte
@@ -207,7 +207,9 @@ function tekening(niveaus, bulk){
   const isBulk = lv => bulk.includes(lv);
   let g = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:380px" font-family="Arial" font-size="11">`;
   g += `<line x1="20" y1="${vloer}" x2="${x1 + 30}" y2="${vloer}" stroke="#000" stroke-width="2"/>`;
-  g += `<rect x="${x0 - 8}" y="${top}" width="8" height="${vloer - top}" fill="#555"/><rect x="${x1}" y="${top}" width="8" height="${vloer - top}" fill="#555"/>`;
+  const eindStaander = bulk.length ? yL(n - 1) - stap * 0.45 : top;
+  g += `<rect x="${x0 - 8}" y="${eindStaander}" width="8" height="${vloer - eindStaander}" fill="#555"/><rect x="${x1}" y="${eindStaander}" width="8" height="${vloer - eindStaander}" fill="#555"/>`;
+  if(bulk.length) g += `<line x1="20" y1="${top}" x2="${x1 + 30}" y2="${top}" stroke="#000" stroke-width="2" stroke-dasharray="6 4"/>`;
   lagen.forEach((lv, i) => {
     const onder = yL(i), boven = i + 1 < n ? yL(i + 1) + 6 : top;
     const kl = isBulk(lv) ? '#06c' : '#c00';
@@ -217,7 +219,7 @@ function tekening(niveaus, bulk){
     g += `<line x1="${xm}" y1="${onder - 2}" x2="${xm}" y2="${boven + 2}" stroke="${kl}" stroke-width="1.5" marker-start="url(#p${isBulk(lv) ? 'b' : 'k'})" marker-end="url(#p${isBulk(lv) ? 'b' : 'k'})"/>`;
     g += `<text x="${xm + 6}" y="${(onder + boven) / 2 + 4}" fill="${kl}" font-weight="bold">${p2(lv)}</text>`;
   });
-  g += `<text x="22" y="${vloer - 4}">00</text><text x="${x1 + 14}" y="${top + 8}">top</text>`;
+  g += `<text x="22" y="${vloer - 4}">00</text>${bulk.length ? `<text x="${x1 + 14}" y="${top + 12}">plafond / dakbalk</text>` : ''}`;
   g += `<line x1="${x0 + 2}" y1="${vloer + 14}" x2="${x1 - 2}" y2="${vloer + 14}" stroke="#333" stroke-width="1.5" marker-start="url(#pz)" marker-end="url(#pz)"/><text x="${(x0 + x1) / 2 - 30}" y="${vloer + 25}" font-weight="bold">breedte / width</text>`;
   g += `<defs>${[['k', '#c00'], ['b', '#06c'], ['z', '#333']].map(([k, c]) => `<marker id="p${k}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('')}</defs></svg>`;
   return g;
@@ -235,7 +237,7 @@ function formulierGang(gang){
       <div class="s-puitleg">${UITLEG.map(([t, x]) => `<p><b>${t}</b> ${x}</p>`).join('')}</div>
     </div>
     <table class="s-ptab"><tr><th>Niveau / Level</th><th>Vrije hoogte / Free height (cm)</th></tr>
-      ${bulk.slice().reverse().map(n => `<tr><td><b>${p2(n)}</b> bulk${n === topB ? ' (tot bovenkant / to top)' : ''}</td>${vak((s.niveaus || {})[p2(n)])}</tr>`).join('')}
+      ${bulk.slice().reverse().map(n => `<tr><td><b>${p2(n)}</b> bulk${n === topB ? ' · max pallethoogte tot plafond/dakbalk / max pallet height to ceiling/roof beam' : ''}</td>${vak((s.niveaus || {})[p2(n)])}</tr>`).join('')}
       ${niveaus.slice().reverse().map(n => `<tr><td><b>${p2(n)}</b>${n === 0 ? ' vloer / floor' : ''}${n === topP && bulk.length ? ' (tot ligger ' + p2(bulk[0]) + ')' : ''}</td>${vak((s.niveaus || {})[p2(n)])}</tr>`).join('')}
       <tr><td><b>Liggerbreedte</b> / width</td>${vak(s.breedte)}</tr>
       <tr><td><b>Diepte</b> / depth</td>${vak(s.diepte)}</tr>
