@@ -886,7 +886,7 @@ document.addEventListener('click', async ev => {
     try{ await WH.catPatch('wh-taken', patch); }catch(e){}
     V().rerender(); return;
   }
-  if(a === 'print-vrij'){ document.body.classList.add('printvrij'); window.print(); setTimeout(() => document.body.classList.remove('printvrij'), 500); return; }
+  if(a === 'print-vrij'){ document.body.classList.add('printvrij'); if(window.Bestanden){ const dm = (location.hash.match(/\d{4}-\d{2}-\d{2}/) || [])[0]; Bestanden.printAls('Vrijmaaklijst containerdag' + (dm ? ' ' + dm : '') + ' - afgedrukt ' + vandaag()); } window.print(); setTimeout(() => document.body.classList.remove('printvrij'), 500); return; }
   if(a === 'iv-op'){ await invulOpslaan(); return; }
   if(a === 'iv-over'){ UI.invul.i++; V().rerender(); window.scrollTo(0, 0); return; }
   if(a === 'iv-terug'){ UI.invul.i = Math.max(0, UI.invul.i - 1); V().rerender(); window.scrollTo(0, 0); return; }

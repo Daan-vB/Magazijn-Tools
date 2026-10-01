@@ -158,5 +158,36 @@
 
   window.addEventListener('hashchange', () => { const o = document.getElementById('bst-ov'); if(o) o.remove(); });
 
-  window.Bestanden = { MAPPEN, naam, id, samen, datum, vandaag, mapPad, mapTekst, download, aanbieden, schoon };
+
+  /* ---------- afdrukken / "Bewaar als PDF": de browser neemt document.title als bestandsnaam ----------
+     Volgorde: Bestanden.printAls(naam) vlak voor window.print() → element met data-printnaam →
+     printkop (.pkop b) → paginatitel + actief menu-onderdeel. Datum (en tijd) gaan erachter. */
+  let printEigen = null, printT0 = null;
+  function printAls(n){ printEigen = n; }
+  function printTitel(){
+    if(printEigen) return printEigen;
+    const el = document.querySelector('[data-printnaam]');
+    if(el && el.dataset.printnaam) return el.dataset.printnaam;
+    const kop = document.querySelector('.pkop b');
+    if(kop && kop.textContent.trim()) return kop.textContent.replace(/^\s*IVOL\s*·\s*/, '');
+    const sub = ['#subnav a.on', '#nav a.on', 'nav a.on', '.tabs a.on', '.tab.on'].map(q => document.querySelector(q)).find(Boolean);
+    const basis = (printT0 || document.title).replace(/\s*[·—–|]\s*/g, ' - ');
+    const st = sub ? sub.textContent.trim() : '';
+    return basis + (st && !basis.toLowerCase().endsWith(st.toLowerCase()) ? ' - ' + st : '');
+  }
+  function printNaam(){
+    let t = schoon(printTitel().replace(/\s*·\s*/g, ' - '));
+    if(!/\d{4}-\d{2}-\d{2}/.test(t)) t += ' ' + vandaag() + ' ' + tijdNu();
+    return t.slice(0, 140);
+  }
+  window.addEventListener('beforeprint', () => {
+    if(printT0 === null) printT0 = document.title;
+    document.title = printNaam();
+  });
+  window.addEventListener('afterprint', () => {
+    if(printT0 !== null) document.title = printT0;
+    printT0 = null; printEigen = null;
+  });
+
+  window.Bestanden = { MAPPEN, naam, id, samen, datum, vandaag, mapPad, mapTekst, download, aanbieden, schoon, printAls, printNaam };
 })();

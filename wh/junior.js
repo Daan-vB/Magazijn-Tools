@@ -182,7 +182,7 @@ function tabNu(L, vd){
     ${lijst.map(m => mvHtml(m, vd)).join('')}
     <div class="card verwerk mt12 ${vw ? 'klaar' : ''}"><div class="row wrap between"><div>${vw ? esc(t('verwerkOm', { x:tijd(vw.op) })) : t('klaarNu')}<div class="small muted mt4">${esc(t('verwerkNa'))}</div></div>
       <button class="btn ${vw ? '' : 'pri'}" data-a="verwerk">${esc(vw ? t('verwerkUit') : t('verwerkKnop'))}</button></div></div></div>
-  ${printTabel('1 · ' + t('tegel.nu'), open.map(m => ({ code:m.code, naam:m.naam, van:m.van, naar:m.naar, geen:!m.naar, aantal:m.verpl, extra:mvMeta(m) })))}`;
+  ${printTabel('1 · ' + t('tegel.nu'), open.map(m => ({ code:m.code, naam:m.naam, van:m.van, naar:m.naar, geen:!m.naar, aantal:m.verpl, extra:mvMeta(m) })), false, 'Junior - Nu verplaatsen')}`;
 }
 function mvMeta(m){
   const delen = [t('orders', { n:m.orders.length }) + ' · ' + t('oudste', { x:kortDatum(m.datum) })];
@@ -236,7 +236,7 @@ function tabRonde(L, vd){
       <div class="row"><span class="badge b-warn">${esc(t('open', { n:open.length }))}</span><button class="btn sm pri noprint" data-a="print">${esc(t('print'))}</button></div></div>
     <div class="mt12">${gangFilter(L.ronde, UI.gangRonde, 'ronde')}</div>
     <div class="reason mt8">${esc(t('scanTip'))}</div>${html}</div>
-  ${printTabel('2 · ' + t('tegel.ronde') + (UI.gangRonde ? ' · ' + t('gang') + ' ' + UI.gangRonde : ''), open.map(r => ({ code:r.code, naam:r.naam || (r.pr && r.pr.naam) || '', van:r.bulk, naar:r.geenPick ? null : r.pick, geen:r.geenPick, aantal:r.aantal, extra:rondeMeta(r), gang:r.gang })), true)}`;
+  ${printTabel('2 · ' + t('tegel.ronde') + (UI.gangRonde ? ' · ' + t('gang') + ' ' + UI.gangRonde : ''), open.map(r => ({ code:r.code, naam:r.naam || (r.pr && r.pr.naam) || '', van:r.bulk, naar:r.geenPick ? null : r.pick, geen:r.geenPick, aantal:r.aantal, extra:rondeMeta(r), gang:r.gang })), true, 'Junior - Aanvulronde' + (UI.gangRonde ? ' gang ' + UI.gangRonde : ''))}`;
 }
 function rondeMeta(r){
   const d = [t('pickvrd', { n:nf(r.pickst) })];
@@ -255,7 +255,7 @@ function tabNiet(L){
       <div class="aant muted">${d.adv ? nf(d.adv.aantal) : ''}<small>${esc(t('advies'))}</small></div></div>`).join('')}</div>`;
 }
 // papieren lijst: één regel per product, barcode om te scannen, vakje en ruimte voor het echte aantal
-function printTabel(titel, rijen, perGang){
+function printTabel(titel, rijen, perGang, pnaam){
   let vorige = null;
   const tr = rijen.map(r => {
     let kop = '';
@@ -268,7 +268,7 @@ function printTabel(titel, rijen, perGang){
       <td class="pbc">${bc(r.code)}</td>
       <td class="pg"></td></tr>`;
   }).join('');
-  return `<div class="printonly"><div class="pkop"><b>IVOL · ${esc(titel)}</b><span>${esc(t('printOp', { x:datum(new Date(), { weekday:'short', day:'numeric', month:'short' }) + ' ' + tijd(new Date()) }))} · ${esc(t('lijstVan', { b:wanneer(boDatum()), a:wanneer(advDatum()) }))}</span></div>
+  return `<div class="printonly" data-printnaam="${esc(pnaam || titel)}"><div class="pkop"><b>IVOL · ${esc(titel)}</b><span>${esc(t('printOp', { x:datum(new Date(), { weekday:'short', day:'numeric', month:'short' }) + ' ' + tijd(new Date()) }))} · ${esc(t('lijstVan', { b:wanneer(boDatum()), a:wanneer(advDatum()) }))}</span></div>
     <div class="ptip">${esc(t('scanTip'))}</div>
     <table class="ptab"><colgroup><col style="width:5%"><col style="width:29%"><col style="width:13%"><col style="width:14%"><col style="width:8%"><col style="width:23%"><col style="width:8%"></colgroup><thead><tr><th></th><th>${esc(t('kolProduct'))}</th><th>${esc(t('kolVan'))}</th><th>${esc(t('kolNaar'))}</th><th>${esc(t('kolAantal'))}</th><th></th><th>${esc(t('kolGedaan'))}</th></tr></thead><tbody>${tr}</tbody></table>
     <div class="ptip mt8">${t('klaarNu')}</div></div>`;
@@ -327,7 +327,7 @@ async function inlezen(files){
 function viewHandleiding(){
   const h = (window.JH && (JH[taal] || JH.nl)) || '';
   app.innerHTML = `<div class="card noprint"><div class="row wrap between"><span class="small muted">${esc(t('handTaal'))}</span><button class="btn sm pri" data-a="print">${esc(t('print'))}</button></div></div>
-    <div class="card handleiding">${h}</div>`;
+    <div class="card handleiding" data-printnaam="IVOL Junior - Handleiding ${esc(taal.toUpperCase())}">${h}</div>`;
 }
 
 /* ---------- Containers ---------- */

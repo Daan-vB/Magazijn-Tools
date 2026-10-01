@@ -265,7 +265,8 @@ function printTabel(titel, rijen, perGang){
       <td class="loc naar">${r.geen ? '<span class="pgeen">geen specifieke locatie</span>' : (r.naar || []).map(esc).join('<br>')}</td>
       <td class="pa">${nf(r.aantal)}</td><td class="pbc">${bc(r.code)}</td><td class="pg"></td></tr>`;
   }).join('');
-  return `<div class="printonly"><div class="pkop"><b>IVOL · ${esc(titel)}</b><span>afgedrukt ${esc(tijd)} · backorders ${esc(fdt(dataDatums().backorders))} · advies ${esc(fdt(dataDatums().advies))}</span></div>
+  const pnaam = 'Aanvullen - ' + titel.replace(/^\d\s*·\s*/, '').replace(/\s*·\s*/g, ' ');
+  return `<div class="printonly" data-printnaam="${esc(pnaam)}"><div class="pkop"><b>IVOL · ${esc(titel)}</b><span>afgedrukt ${esc(tijd)} · backorders ${esc(fdt(dataDatums().backorders))} · advies ${esc(fdt(dataDatums().advies))}</span></div>
     <div class="ptip">Picqer-app → Aanvuladvies: scan de barcode, het verplaatsvenster opent. Kies bij NAAR de picklocatie, niet een container (containers 1–6 zijn retourkarren).</div>
     <table class="ptab"><colgroup><col style="width:5%"><col style="width:29%"><col style="width:13%"><col style="width:14%"><col style="width:8%"><col style="width:23%"><col style="width:8%"></colgroup>
     <thead><tr><th></th><th>Product</th><th>Van (bulk)</th><th>Naar (pick)</th><th>Aantal</th><th></th><th>Gedaan</th></tr></thead><tbody>${tr}</tbody></table>
