@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Picqer API test (alleen lezen)</title>
+<style>
+  body{font:15px/1.45 -apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:16px;background:#eef1f5;color:#14202b}
+  .card{background:#fff;border-radius:10px;padding:14px 16px;margin:0 auto 12px;max-width:760px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  h1{font-size:19px;margin:0 0 4px} h2{font-size:15px;margin:0 0 8px}
+  label{display:block;font-size:12px;font-weight:700;color:#5b6673;text-transform:uppercase;margin:10px 0 3px}
+  input{width:100%;box-sizing:border-box;font-size:16px;padding:8px 10px;border:1px solid #cfd6de;border-radius:6px}
+  button{font-size:15px;font-weight:600;padding:9px 14px;border-radius:8px;border:1px solid #cfd6de;background:#f3f5f8;cursor:pointer;margin:8px 8px 0 0}
+  button.p{background:#1d4ea0;border-color:#1d4ea0;color:#fff}
+  .ok{color:#1a7a45;font-weight:700} .bad{color:#b3261e;font-weight:700} .muted{color:#5b6673;font-size:13px}
+  pre{background:#0f1720;color:#d6e2f0;padding:10px;border-radius:8px;overflow:auto;font-size:12px;max-height:340px;white-space:pre-wrap}
+  .safe{background:#e9f6ee;border-left:4px solid #1a7a45;padding:8px 10px;border-radius:6px;font-size:13px}
+</style></head><body>
+<div class="card"><h1>Picqer API test · alleen lezen</h1>
+  <div class="safe mt">Deze pagina doet <b>alleen GET-verzoeken</b> (opvragen). Er staat geen code in om iets te wijzigen. De sleutel blijft alleen in dit tabblad, wordt nergens opgeslagen en verdwijnt bij het sluiten of verversen.</div>
+  <label>Picqer-adres (het deel voor .picqer.com)</label><input id="sub" placeholder="bv. ivol" autocapitalize="off" autocomplete="off">
+  <label>API-sleutel</label><input id="key" type="password" placeholder="plak hier de sleutel" autocomplete="off">
+  <div class="muted" style="margin-top:6px">Maak de sleutel aan in Picqer: Instellingen → API-sleutels → Nieuwe API-sleutel. Verwijder hem daar na de test.</div>
+</div>
+<div class="card"><h2>Testen</h2>
+  <button class="p" data-t="wh">1 · Verbinding (magazijnen)</button>
+  <button data-t="bo">2 · Backorders ophalen</button>
+  <button data-t="loc">3 · Locaties ophalen</button>
+  <div style="margin-top:10px"><label>Productcode</label><input id="pc" placeholder="exacte Picqer-productcode" autocomplete="off"></div>
+  <button data-t="prod">4 · Product + voorraad opzoeken</button>
+</div>
+<div class="card"><h2>Resultaat</h2><div id="uit" class="muted">Nog niets uitgevoerd.</div><pre id="raw" hidden></pre></div>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+// ENIGE netwerkfunctie in deze pagina: altijd GET.
+async function lees(pad){
+  const sub = $('sub').value.trim().toLowerCase().replace(/\.picqer\.com.*$/, '').replace(/^https?:\/\//, '');
+  const key = $('key').value.trim();
+  if(!sub || !key) throw new Error('Vul het Picqer-adres en de API-sleutel in.');
+  let r;
+  try{
+    r = await fetch('https://' + sub + '.picqer.com/api/v1/' + pad, { method:'GET', headers:{ 'Authorization':'Basic ' + btoa(key + ':'), 'Accept':'application/json' } });
+  }catch(e){
+    const err = new Error('Geen antwoord van Picqer. Meestal blokkeert Picqer verzoeken rechtstreeks vanuit een webpagina (CORS), of het adres klopt niet.');
+    err.cors = true; throw err;
+  }
+  const txt = await r.text(); let j = null; try{ j = JSON.parse(txt); }catch(e){}
+  if(!r.ok) throw new Error('Picqer antwoordde ' + r.status + (j && j.error_message ? ': ' + j.error_message : ''));
+  return j;
+}
+async function alles(pad, max){            // pagineert met offset (100 per keer)
+  let all = [], off = 0;
+  while(all.length < max){
+    const r = await lees(pad + (pad.includes('?') ? '&' : '?') + 'offset=' + off);
+    if(!Array.isArray(r) || !r.length) break;
+    all = all.concat(r); off += r.length; if(r.length < 100) break;
+  }
+  return all;
+}
+function toon(kop, regels, data){
+  $('uit').innerHTML = '<div class="ok">✓ ' + kop + '</div>' + regels.map(x => '<div>' + x + '</div>').join('');
+  const p = $('raw'); p.hidden = false; p.textContent = JSON.stringify(data, null, 2).slice(0, 6000);
+}
+const esc = s => String(s ?? '').replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+const taken = {
+  async wh(){ const w = await lees('warehouses'); toon('Verbinding werkt: ' + w.length + ' magazijn(en)', w.map(x => esc(x.name) + ' (id ' + x.idwarehouse + ')'), w); },
+  async bo(){ const b = await alles('backorders', 2000); toon(b.length + ' backorders opgehaald', ['Eerste: ' + esc(b[0] && JSON.stringify(Object.keys(b[0])))], b.slice(0, 3)); },
+  async loc(){ const l = await alles('locations', 5000); toon(l.length + ' locaties opgehaald', l.slice(0, 5).map(x => esc(x.name) + ' · id ' + x.idlocation), l.slice(0, 5)); },
+  async prod(){
+    const c = $('pc').value.trim(); if(!c) throw new Error('Vul een productcode in.');
+    const p = await lees('products?search=' + encodeURIComponent(c));
+    const m = p.find(x => x.productcode === c);
+    if(!m) return toon('Geen exact product met code "' + esc(c) + '" (zoekresultaat: ' + p.length + ')', p.slice(0, 5).map(x => esc(x.productcode)), p.slice(0, 5));
+    toon('Product gevonden: ' + esc(m.productcode) + ' · ' + esc(m.name), ['Voorraad per magazijn: ' + esc(JSON.stringify(m.stock))], m);
+  }
+};
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-t]'); if(!b) return;
+  $('uit').textContent = 'Bezig…'; $('raw').hidden = true;
+  try{ await taken[b.dataset.t](); }
+  catch(err){ $('uit').innerHTML = '<div class="bad">✗ ' + esc(err.message) + '</div>'; }
+});
+</script></body></html>
