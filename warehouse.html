@@ -221,6 +221,19 @@
   .s-velden{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
   .s-velden input{font-size:16px} .s-breed{grid-column:1/-1}
   .s-afw{border-top:1px solid var(--line);padding-top:10px}
+  @media print{
+    body.s-pr #app > :not(#s-print){display:none !important}
+    .s-blad{break-after:page;font-size:11px}
+    .s-blad:last-child{break-after:auto}
+    .s-prij{display:flex;gap:12px;margin:8px 0}
+    .s-pteken{flex:0 0 52%} .s-puitleg{flex:1;font-size:9.5px;line-height:1.35} .s-puitleg p{margin:0 0 5px}
+    .s-ptab{width:100%;border-collapse:collapse}
+    .s-ptab th{font-size:9.5px;text-transform:uppercase;text-align:left;border-bottom:1.5px solid #000;padding:3px 4px}
+    .s-ptab td{border:1px solid #888;padding:4px 6px;height:30px}
+    .s-ptab td.s-vak{width:45%}
+    .s-oud{color:#999;font-size:10px}
+    .s-pvoet{margin-top:12px;font-size:10.5px}
+  }
 </style>
 </head>
 <body>
@@ -239,7 +252,7 @@
 <script src="wh/triage.js?v=2"></script>
 <script src="wh/dag.js?v=4"></script>
 <script src="wh/barcode.js?v=1"></script>
-<script src="wh/stelling.js?v=1"></script>
+<script src="wh/stelling.js?v=2"></script>
 <script src="wh/views.js?v=11"></script>
 </body>
 </html>

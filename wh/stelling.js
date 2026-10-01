@@ -58,7 +58,9 @@ function view(gang){
     <div class="ab-voortgang mt8"><b>${nf(gemeten)}</b> / ${nf(gangen.length)} gangen gemeten<div class="balk"><i style="width:${gangen.length ? Math.round(gemeten / gangen.length * 100) : 0}%"></i></div></div>
     ${!Object.keys(D.LOC).length ? '<div class="reason mt8">Nog geen locatie-export ingeladen: de app weet niet welke gangen en niveaus er zijn. Je kunt wel een gang typen.</div>' : ''}
     <div class="row wrap mt12"><input class="loc" id="s-nieuw" placeholder="gang, bv. AD" maxlength="2" style="width:110px"><button class="btn sm" data-s="ga">Open gang</button>
-      <button class="btn sm pri" data-s="exp" ${Object.keys(S).length ? '' : 'disabled'}>Exporteer (Excel)</button></div></div>
+      <button class="btn sm pri" data-s="exp" ${Object.keys(S).length ? '' : 'disabled'}>Exporteer (Excel)</button></div>
+    <div class="row wrap mt8"><input id="s-print-g" placeholder="gangen, bv. AD AE (leeg = alle nog niet gemeten)" style="flex:1;min-width:200px"><button class="btn sm" data-s="print">Print meetformulier</button></div>
+    <div class="small muted mt4">Eén A4 per gang met tekening, vakjes om in te vullen en uitleg in NL/EN/ES/EL. Daarna typ je de getallen hier over.</div></div>
   ${Object.entries(perHal).map(([h, gs]) => `<div class="card"><h3>${esc(WHL.HAL_NAAM[h] || 'Hal ' + h)}</h3>
     <div class="s-gangen mt8">${gs.map(g => { const st = status(g); const gi = G[g]; return `<a class="s-gang" href="#/stelling/${g}"><b>${g}</b><span class="badge ${st[1]}">${st[0]}</span>${gi ? `<small>${gi.secs.size} secties · niv ${niveausVan(gi).map(p2).join(' ')}</small>` : ''}</a>`; }).join('')}</div></div>`).join('')}`;
 }
@@ -95,7 +97,7 @@ function viewGang(gang){
       <li><b>Plaatsen</b>: hoeveel picklocaties (A–D) er op één ligger zitten. Leeg = wat de locatie-export zegt (${pl}).</li></ul></details>
     <div class="mt12" data-sg="${esc(gang)}">${velden('', s, niveaus)}</div>
     <div class="small muted mt4" id="s-pp">${esc(perPlaats(s, pl))}</div>
-    <div class="row wrap mt12"><button class="btn ok" data-s="opslaan" data-g="${esc(gang)}">Opslaan</button></div></div>
+    <div class="row wrap mt12"><button class="btn ok" data-s="opslaan" data-g="${esc(gang)}">Opslaan</button><button class="btn" data-s="print" data-g="${esc(gang)}">Print meetformulier</button></div></div>
   <div class="card"><h3>Afwijkende secties</h3><div class="small muted mt4">Alleen als een sectie anders is dan de rest van de gang (andere liggerhoogte, smaller, extra legbord).</div>
     ${Object.entries(afw).map(([k, v]) => `<div class="s-afw mt12"><div class="row between"><b>Sectie ${esc(secLijst(k).map(p2).join(', '))}</b><button class="btn ghost sm" data-s="afw-weg" data-g="${esc(gang)}" data-k="${esc(k)}">verwijder</button></div>
       <div data-sa="${esc(k)}">${velden('a', v, niveaus)}</div>
@@ -126,6 +128,12 @@ async function klik(e){
   const niveaus = gang ? niveausVan(gangInfo()[gang]) : NIV_STD;
   if(a === 'ga'){ const g = (document.getElementById('s-nieuw').value || '').trim().toUpperCase(); if(/^[A-Z]{2}$/.test(g)) location.hash = '#/stelling/' + g; else toast('Typ een gang van 2 letters, bv. AD'); return; }
   if(a === 'exp') return exporteer();
+  if(a === 'print'){
+    let lijst = gang ? [gang] : String((document.getElementById('s-print-g') || {}).value || '').toUpperCase().split(/[^A-Z]+/).filter(x => /^[A-Z]{2}$/.test(x));
+    if(!lijst.length){ const G = gangInfo(); lijst = Object.keys(G).sort().filter(g => status(g)[0] !== 'gemeten'); }
+    if(!lijst.length){ toast('Alle gangen zijn al gemeten'); return; }
+    return printFormulier(lijst);
+  }
   if(a === 'opslaan'){
     const box = document.querySelector(`[data-sg="${CSS.escape(gang)}"]`);
     const oud = data()[gang] || {};
@@ -173,6 +181,71 @@ function maatVan(naam){
     diepte:bron.diepte || s.diepte || null, bron:waar, notitie:bron.notitie || s.notitie || '' };
 }
 
+/* ---------- meetformulier op papier ---------- */
+const UITLEG = [
+  ['NL', 'Meet in cm. <b>Vrije hoogte</b> = van de vloer of de bovenkant van de ligger tot de onderkant van de ligger erboven. <b>Breedte</b> = binnenmaat tussen de staanders. <b>Diepte</b> = voorkant tot achterkant. Is een sectie anders? Schrijf hem onderaan.'],
+  ['EN', 'Measure in cm. <b>Free height</b> = from the floor or the top of the beam to the underside of the beam above. <b>Width</b> = inside measurement between the uprights. <b>Depth</b> = front to back. Is a section different? Write it at the bottom.'],
+  ['ES', 'Mide en cm. <b>Altura libre</b> = desde el suelo o la parte de arriba del larguero hasta la parte de abajo del larguero de encima. <b>Ancho</b> = medida interior entre los bastidores. <b>Fondo</b> = de delante a atrás. ¿Una sección es diferente? Escríbela abajo.'],
+  ['EL', 'Μέτρα σε cm. <b>Ελεύθερο ύψος</b> = από το πάτωμα ή το πάνω μέρος της δοκού μέχρι το κάτω μέρος της δοκού από πάνω. <b>Πλάτος</b> = εσωτερική απόσταση ανάμεσα στις κολόνες. <b>Βάθος</b> = από μπροστά μέχρι πίσω. Διαφέρει ένα τμήμα; Γράψ’ το κάτω.']
+];
+function tekening(niveaus){
+  // vooraanzicht: staanders, liggers per niveau, pijl per vrije hoogte; plus bovenaanzicht voor de diepte
+  const W = 360, H = 250, x0 = 70, x1 = 250, vloer = 225, top = 20;
+  const lagen = niveaus.slice().sort((a, b) => a - b);
+  const n = lagen.length, stap = (vloer - top) / (n + 0.4);
+  const yL = i => vloer - i * stap;                 // onderkant van ligger i (i=0 = vloer)
+  let g = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:380px" font-family="Arial" font-size="11">`;
+  g += `<line x1="20" y1="${vloer}" x2="${x1 + 30}" y2="${vloer}" stroke="#000" stroke-width="2"/>`;
+  g += `<rect x="${x0 - 8}" y="${top - 6}" width="8" height="${vloer - top + 6}" fill="#555"/><rect x="${x1}" y="${top - 6}" width="8" height="${vloer - top + 6}" fill="#555"/>`;
+  lagen.forEach((lv, i) => {
+    const onder = yL(i), boven = yL(i + 1);
+    if(i > 0) g += `<rect x="${x0}" y="${onder}" width="${x1 - x0}" height="6" fill="#e07b00"/><text x="${x1 + 14}" y="${onder + 6}">${p2(lv)}</text>`;
+    const a = i > 0 ? onder : onder, b = boven + 6;
+    const xm = x0 + 30 + (i % 2) * 40;
+    g += `<line x1="${xm}" y1="${a - 2}" x2="${xm}" y2="${b + 2}" stroke="#c00" stroke-width="1.5" marker-start="url(#pk)" marker-end="url(#pk)"/>`;
+    g += `<text x="${xm + 6}" y="${(a + b) / 2 + 4}" fill="#c00" font-weight="bold">${p2(lv)}</text>`;
+  });
+  const yTop = yL(n);
+  g += `<rect x="${x0}" y="${yTop}" width="${x1 - x0}" height="6" fill="#1a56c4"/><text x="${x1 + 14}" y="${yTop + 6}">10 bulk</text>`;
+  g += `<text x="22" y="${vloer - 4}">00</text>`;
+  g += `<line x1="${x0 + 2}" y1="${top}" x2="${x1 - 2}" y2="${top}" stroke="#06c" stroke-width="1.5" marker-start="url(#pb)" marker-end="url(#pb)"/><text x="${(x0 + x1) / 2 - 30}" y="${top - 4}" fill="#06c" font-weight="bold">breedte / width</text>`;
+  g += `<defs><marker id="pk" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#c00"/></marker>
+    <marker id="pb" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#06c"/></marker></defs></svg>`;
+  return g;
+}
+function formulierGang(gang){
+  const g = gangInfo()[gang], s = data()[gang] || {};
+  const niveaus = niveausVan(g);
+  const oud = v => v !== null && v !== undefined && v !== '' ? `<span class="s-oud">${esc(v)}</span>` : '';
+  const vak = v => `<td class="s-vak">${oud(v)}</td>`;
+  return `<section class="s-blad">
+    <div class="pkop"><b>IVOL · Stelling meten · Gang ${esc(gang)}</b><span>${g ? 'secties ' + [...g.secs].sort((a, b) => a - b).map(p2).join(', ') + ' · ' : ''}pickniveaus ${niveaus.map(p2).join(', ')}</span></div>
+    <div class="s-prij">
+      <div class="s-pteken">${tekening(niveaus)}</div>
+      <div class="s-puitleg">${UITLEG.map(([t, x]) => `<p><b>${t}</b> ${x}</p>`).join('')}</div>
+    </div>
+    <table class="s-ptab"><tr><th>Niveau / Level</th><th>Vrije hoogte / Free height (cm)</th></tr>
+      ${niveaus.slice().reverse().map(n => `<tr><td><b>${p2(n)}</b>${n === 0 ? ' vloer / floor' : ''}${n === Math.max(...niveaus) ? ' (tot ligger 10)' : ''}</td>${vak((s.niveaus || {})[p2(n)])}</tr>`).join('')}
+      <tr><td><b>Liggerbreedte</b> / width</td>${vak(s.breedte)}</tr>
+      <tr><td><b>Diepte</b> / depth</td>${vak(s.diepte)}</tr>
+      <tr><td><b>Plaatsen op een ligger</b> / places per beam (A–D)</td>${vak(s.plaatsen ?? (g ? g.plaatsen : ''))}</tr></table>
+    <table class="s-ptab mt8"><tr><th style="width:18%">Afwijkende sectie / different section</th><th>Wat is anders + maten (cm) / what is different + sizes</th></tr>
+      ${Object.entries(s.afwijk || {}).map(([k, v]) => `<tr><td><b>${esc(k)}</b></td><td><span class="s-oud">${esc(Object.entries(v.niveaus || {}).filter(x => x[1]).map(x => x[0] + ': ' + x[1]).join(' · ') + (v.breedte ? ' · breedte ' + v.breedte : '') + (v.diepte ? ' · diepte ' + v.diepte : '') + (v.notitie ? ' · ' + v.notitie : ''))}</span></td></tr>`).join('')}
+      ${'<tr><td class="s-vak"></td><td class="s-vak"></td></tr>'.repeat(4)}</table>
+    <div class="s-pvoet">Gemeten door / measured by: ______________________ &nbsp; Datum / date: ____________</div>
+    ${Object.keys(s).length ? '<div class="s-pvoet">Grijs = staat al in de app: klopt het? Streep door en schrijf het juiste getal erbij.</div>' : ''}
+  </section>`;
+}
+function printFormulier(gangen){
+  let box = document.getElementById('s-print');
+  if(!box){ box = document.createElement('div'); box.id = 's-print'; box.className = 'printonly'; document.getElementById('app').appendChild(box); }
+  box.innerHTML = gangen.map(formulierGang).join('');
+  document.body.classList.add('s-pr');
+  const weg = () => { document.body.classList.remove('s-pr'); window.removeEventListener('afterprint', weg); };
+  window.addEventListener('afterprint', weg);
+  setTimeout(() => window.print(), 50);
+}
+
 function exporteer(){
   const S = data(); const G = gangInfo();
   const wb = XLSX.utils.book_new();
@@ -202,5 +275,5 @@ function exporteer(){
 
 document.addEventListener('click', klik);
 document.addEventListener('input', invoer);
-return { view, maatVan, gangInfo };
+return { view, maatVan, gangInfo, printFormulier };
 })();
