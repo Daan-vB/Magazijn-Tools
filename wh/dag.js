@@ -85,6 +85,24 @@ function dagPlan(dag, vastzetten){
   const all = { cs, bo:[], vst:[], up:[], pick:[], geen:[] };
   cs.forEach(c => { const p = plan(c); ['bo', 'vst', 'up', 'pick'].forEach(k => all[k].push(...p[k])); p.geen.forEach(code => all.geen.push({ c, code })); });
   all.zones = zonesVan(cs);
+  // producten zonder zone: de app kiest hele liggers (zo min mogelijk om te ruimen) en legt die vast
+  const lv = ligVoorstel(all.up, all.zones), zp = {};
+  Object.entries(lv).forEach(([k, v]) => {
+    if(!v.ligs.length) return;
+    const [cid, ...r] = k.split('|'), code = r.join('|');
+    const tekst = v.ligs.map(ligToken).join(', ');
+    all.zones[k] = { tekst, delen:parseZone(tekst).delen, vrij:false, bev:bevVan(cid), auto:true };
+    zp['cz:' + cid + ':' + code] = { zone:tekst, auto:true, op:new Date().toISOString() };
+  });
+  // oude voorstellen van vóór de liggers (verspreide losse plekken) vervallen, ook voor de palletlabels
+  if(vastzetten) all.up.forEach(p => {
+    const vs = tv('cvs:' + p.key), t = tv(p.key);
+    if(vs && vs.loc && !(t && t.loc) && all.zones[p.cid + '|' + p.code] && !/^(zone|ligger)/.test(vs.reden || '')) zp['cvs:' + p.key] = null;
+  });
+  if(vastzetten && Object.keys(zp).length){
+    Object.entries(zp).forEach(([k, v]) => { if(v === null) delete D.TAKEN[k]; else D.TAKEN[k] = v; });
+    WH.catPatch('wh-taken', zp).catch(() => {});
+  }
   all.voorstel = bulkVoorstellen(all.up, all.zones);
   all.zoneInfo = zoneOverzicht(all.up, all.zones, all.voorstel);
   // voorstellen vastzetten (cvs:<pallet>): anders schuiven ze op zodra de nieuwe voorraad-export de plekken bezet meldt
@@ -144,6 +162,8 @@ function palletInfo(code, note){
 function parseZone(txt){
   const delen = [], fout = [];
   String(txt || '').toUpperCase().split(/[,;+]/).map(x => x.replace(/\s+/g, '').replace(/T\/M|TOT/g, '-')).filter(Boolean).forEach(d => {
+    const lg = /^([A-Z]{2})(\d{1,2})\/(\d{1,2})$/.exec(d);                 // één ligger: CC07/10 = CC07A10 t/m D10
+    if(lg){ delen.push({ gang:lg[1], van:+lg[2], tot:+lg[2], h:+lg[3], tekst:d }); return; }
     const m = /^([A-Z]{2})(\d{1,2})?(?:-(?:[A-Z]{2})?(\d{1,2}))?$/.exec(d);
     if(!m){ fout.push(d); return; }
     const a = m[2] ? +m[2] : null, b = m[3] ? +m[3] : a;
@@ -151,27 +171,110 @@ function parseZone(txt){
   });
   return { delen, fout };
 }
+// liggers die bevestigd leeg zijn (czl:<cid>:<ligger>)
+function bevVan(cid){ const s = new Set(), pre = 'czl:' + cid + ':'; Object.keys(D.TAKEN).forEach(k => { if(k.startsWith(pre) && D.TAKEN[k]) s.add(k.slice(pre.length)); }); return s; }
 function zonesVan(cs){
   const z = {};
-  cs.forEach(c => Object.keys(D.TAKEN).forEach(k => {
-    if(!k.startsWith('cz:' + c.id + ':')) return;
-    const code = k.slice(('cz:' + c.id + ':').length), v = D.TAKEN[k];
-    if(!v || !v.zone) return;
-    const pz = parseZone(v.zone);
-    if(pz.delen.length) z[c.id + '|' + code] = { tekst:v.zone, delen:pz.delen, vrij:!!D.TAKEN['czv:' + c.id + ':' + code] };
-  }));
+  cs.forEach(c => {
+    const bev = bevVan(c.id);
+    Object.keys(D.TAKEN).forEach(k => {
+      if(!k.startsWith('cz:' + c.id + ':')) return;
+      const code = k.slice(('cz:' + c.id + ':').length), v = D.TAKEN[k];
+      if(!v || !v.zone) return;
+      const pz = parseZone(v.zone);
+      if(pz.delen.length) z[c.id + '|' + code] = { tekst:v.zone, delen:pz.delen, vrij:!!D.TAKEN['czv:' + c.id + ':' + code], bev, auto:!!v.auto };
+    });
+  });
   return z;
 }
+const ligBev = (z, g) => !!(z && (z.vrij || (z.bev && z.bev.has(g.k))));
+const ligToken = g => g.gang + dd(g.sec) + '/' + dd(g.h);
+const ligBereik = g => { const l = Object.keys(g.pos).sort(); return g.gang + dd(g.sec) + l[0] + dd(g.h) + (l.length > 1 ? ' t/m ' + l[l.length - 1] + dd(g.h) : ''); };
 // liggers van een zone in volgorde: secties in de opgegeven richting, dan hoogte laag → hoog
 function zoneLiggers(L, zone){
   const out = [];
   zone.delen.forEach(d => {
     const lo = Math.min(d.van, d.tot), hi = Math.max(d.van, d.tot), af = d.van > d.tot;
-    Object.values(L).filter(g => g.gang === d.gang && g.sec >= lo && g.sec <= hi)
+    Object.values(L).filter(g => g.gang === d.gang && g.sec >= lo && g.sec <= hi && (d.h === undefined || g.h === d.h))
       .sort((a, b) => (af ? b.sec - a.sec : a.sec - b.sec) || a.h - b.h)
       .forEach(g => { if(!out.includes(g)) out.push(g); });
   });
   return out;
+}
+/* ---------- liggers kiezen ----------
+   Basis: pallets naar bulk → plaatsen → hele liggers. Per product (in lossvolgorde) kiest de app liggers waar zo min mogelijk staat
+   (elke bezette plaats = iets om te verplaatsen), dichtbij de picklocatie, aaneengesloten, zware pallets laag. Eerst de overgebleven
+   plaatsen van liggers die al voor deze container gekozen zijn. Daan kan het zelf aanpassen (zone typen, bv. CC07/10) of "Andere liggers". */
+// hoeveel pallets van dit soort passen in een lege ligger (aaneengesloten plaatsen, max per ligger, zijkant)
+function capLigger(g, pi){
+  const letters = Object.keys(g.pos).sort(); let c = 0, s0 = 0;
+  while(s0 + pi.k <= letters.length){
+    const run = letters.slice(s0, s0 + pi.k);
+    if(run.some((l, j) => j && l.charCodeAt(0) !== run[j - 1].charCodeAt(0) + 1)){ s0++; continue; }
+    c++; s0 += pi.k;
+  }
+  return Math.min(c, pi.maxLig, pi.zij && pi.k === 1 ? 2 : 99);
+}
+function ligVoorstel(up, zones){
+  const uit = {};
+  const L = ligBouw();
+  if(!Object.keys(L).length) return uit;
+  const claimed = new Set();
+  up.forEach(p => { const t = tv(p.key); if(t && t.loc){ const i = WHL.locInfo(t.loc); if(i.std) claimed.add(i.gang + dd(i.sec) + '|' + i.h); } });
+  Object.values(zones).forEach(z => zoneLiggers(L, z).forEach(g => claimed.add(g.k)));
+  const groepen = [];
+  up.forEach(p => {
+    const k = p.cid + '|' + p.code;
+    if(zones[k]) return;
+    const t = tv(p.key); if(t && t.loc) return;
+    let gr = groepen.find(x => x.k === k);
+    if(!gr){ gr = { k, cid:p.cid, code:p.code, pi:palletInfo(p.code, p.note), grond:!!p.grond, n:0 }; groepen.push(gr); }
+    gr.n++;
+  });
+  LEVREF = null;
+  const gekozen = [];            // { g, vrijPl, kgMax }
+  groepen.forEach(gr => {
+    const pi = gr.pi, ex = new Set((tv('czx:' + gr.cid + ':' + gr.code) || {}).ex || []);
+    const res = uit[gr.k] = { ligs:[], occ:0 };
+    let n = gr.n;
+    const capVan = g => capLigger(g, pi);
+    // 1. overgebleven plaatsen in liggers die al voor deze planning gekozen zijn (niet bij zware pallets)
+    if(pi.kg < 600) gekozen.forEach(e => {
+      if(n <= 0 || e.kgMax >= 600 || e.g.h === 0 !== gr.grond || e.vrijPl < pi.k) return;
+      const take = Math.min(n, Math.floor(e.vrijPl / pi.k), pi.maxLig);
+      if(take <= 0) return;
+      e.vrijPl -= take * pi.k; n -= take; e.kgMax = Math.max(e.kgMax, pi.kg);
+      if(!res.ligs.includes(e.g)) res.ligs.push(e.g);
+    });
+    // 2. nieuwe liggers
+    const refs = WHL.locsVan(gr.code).map(WHL.locInfo).filter(i => i.std);
+    const ref = refs.find(i => i.h < 10) || refs[0] || levRef((D.P[gr.code] || {}).leverancier);
+    while(n > 0){
+      const anker = res.ligs[0] || null;
+      let best = null;
+      Object.values(L).forEach(g => {
+        if(claimed.has(g.k) || ex.has(g.k) || gekozen.some(e => e.g === g)) return;
+        if((g.h === 0) !== gr.grond) return;
+        const cap = capVan(g); if(cap <= 0) return;
+        const letters = Object.keys(g.pos);
+        const occ = letters.filter(l => g.pos[l].bezet).length;
+        let sc = occ * 12;
+        if(ref && ref.gang){
+          if(g.gang === ref.gang) sc += Math.abs(g.sec - ref.sec) * 2;
+          else if(g.hal === ref.hal) sc += 60 + gangAfst(g.gang, ref.gang) * 15 + Math.abs(g.sec - ref.sec);
+          else sc += 400 + Math.abs(g.sec - (ref.sec || 0));
+        } else sc += 200;
+        sc += Math.max(0, (g.h - 10) / 10) * (pi.kg >= 500 ? 8 : 2);
+        if(anker) sc += g.gang === anker.gang ? Math.abs(g.sec - anker.sec) * 3 + Math.abs(g.h - anker.h) / 10 : 50;
+        if(!best || sc < best.sc) best = { sc, g, cap, occ };
+      });
+      if(!best) break;
+      const take = Math.min(n, best.cap);
+      gekozen.push({ g:best.g, vrijPl:Object.keys(best.g.pos).length - take * pi.k, kgMax:pi.kg });
+      res.ligs.push(best.g); res.occ += best.occ; n -= take;
+    }
+  });
+  return uit;
 }
 function bulkVoorstellen(pallets, zones){
   zones = zones || {};
@@ -188,7 +291,7 @@ function bulkVoorstellen(pallets, zones){
   pallets.forEach(p => {
     const t = tv(p.key), vs = tv('cvs:' + p.key);
     if(t && t.loc){ reserveer(t.loc, p.code); res[p.key] = { loc:t.loc, extra:[], geplaatst:true }; }
-    else if(vs && vs.loc){ [vs.loc].concat(vs.extra || []).forEach(n => reserveer(n, p.code)); res[p.key] = { loc:vs.loc, extra:vs.extra || [], reden:vs.reden || '', vast:true }; }
+    else if(vs && vs.loc && /^(zone|ligger)/.test(vs.reden || '')){ [vs.loc].concat(vs.extra || []).forEach(n => reserveer(n, p.code)); res[p.key] = { loc:vs.loc, extra:vs.extra || [], reden:vs.reden || '', vast:true }; }
   });
   // eerst de producten met een zone (in lossvolgorde), dan de rest
   pallets.forEach(p => {
@@ -196,6 +299,7 @@ function bulkVoorstellen(pallets, zones){
     if(res[p.key] || !z) return;
     const pi = palletInfo(p.code, p.note);
     for(const g of zoneLiggers(L, z)){
+      if(!ligBev(z, g)) continue;                 // pas na "leeg bevestigd": Picqer ziet niet wat er los ligt
       const letters = Object.keys(g.pos).sort();
       const t = telLig[g.k] || {};
       if((t[p.code] || 0) >= pi.maxLig) continue;
@@ -204,16 +308,16 @@ function bulkVoorstellen(pallets, zones){
       for(let s0 = 0; s0 + pi.k <= letters.length; s0++){
         const run = letters.slice(s0, s0 + pi.k);
         if(run.some((l, j) => j && l.charCodeAt(0) !== run[j - 1].charCodeAt(0) + 1)) continue;
-        if(run.some(l => g.pos[l].res || (g.pos[l].bezet && !z.vrij))) continue;
+        if(run.some(l => g.pos[l].res || (g.pos[l].bezet && !ligBev(z, g)))) continue;
         gevonden = run; break;
       }
       if(!gevonden) continue;
       const namen = gevonden.map(l => g.pos[l].naam);
       namen.forEach(n => reserveer(n, p.code));
-      res[p.key] = { loc:namen[0], extra:namen.slice(1), reden:'zone ' + z.tekst + (pi.k > 1 ? ' · ' + pi.k + ' plaatsen' : '') };
+      res[p.key] = { loc:namen[0], extra:namen.slice(1), reden:(z.auto ? 'ligger ' : 'zone ') + ligToken(g) + (pi.k > 1 ? ' · ' + pi.k + ' plaatsen' : '') };
       break;
     }
-    if(!res[p.key]) res[p.key] = { loc:null, extra:[], reden:'zone ' + z.tekst + ' is vol: eerst vrijmaken (Ruimte plannen)', zoneVol:true };
+    if(!res[p.key]) res[p.key] = { loc:null, extra:[], reden:(z.auto ? 'liggers ' : 'zone ') + z.tekst + ': eerst vrijmaken en leeg bevestigen (Ruimte plannen)', zoneVol:true };
   });
   pallets.forEach(p => {
     if(res[p.key]) return;
@@ -285,45 +389,117 @@ function zoneOverzicht(up, zones, voorstel){
   Object.values(per).forEach(o => {
     o.tekort = o.pallets - o.toegewezen;
     if(!o.zone) return;
-    o.plek = 0; o.vrijN = 0; o.bezet = [];
-    zoneLiggers(L, o.zone).forEach(g => Object.keys(g.pos).sort().forEach(l => { const q = g.pos[l]; o.plek++; if(q.bezet) o.bezet.push(q.naam); else o.vrijN++; }));
+    o.plek = 0; o.vrijN = 0; o.bezet = []; o.liggers = zoneLiggers(L, o.zone); o.ligBev = 0;
+    const pi0 = palletInfo(o.code); o.cap = o.liggers.reduce((n, g) => n + capLigger(g, pi0), 0); o.teKlein = o.pallets > o.cap;
+    o.liggers.forEach(g => { const bv = ligBev(o.zone, g); if(bv) o.ligBev++; Object.keys(g.pos).sort().forEach(l => { const q = g.pos[l]; o.plek++; if(q.bezet && !bv) o.bezet.push(q.naam); else o.vrijN++; }); });
   });
   return per;
 }
-// wat moet er weg uit de zones die vol zijn, en waarheen (vrije bulkplek buiten de zones, dichtbij de picklocatie van wat erop staat)
+/* ---------- vrijmaken: wat staat er in de gekozen liggers en waar moet het heen ----------
+   Per ligger die nog niet leeg bevestigd is: elke bezette plaats (Picqer-locatie of voorraad) is een verplaatsing, met een advies voor de nieuwe plek:
+   een vrije plek buiten alle gekozen liggers, dichtbij de picklocatie van wat er staat, liefst bij hetzelfde product, brede pallets aaneengesloten. */
 function vrijmaakLijst(P){
   const L = ligBouw();
-  const inZone = new Set(), gereserveerd = new Set();
-  Object.values(P.zoneInfo).forEach(o => { if(o.zone) zoneLiggers(L, o.zone).forEach(g => Object.values(g.pos).forEach(q => inZone.add(q.naam))); });
-  Object.values(P.voorstel).forEach(v => { if(v.loc) [v.loc].concat(v.extra || []).forEach(n => gereserveerd.add(n)); });
-  const vrij = [];
-  Object.values(L).forEach(g => { if(g.h === 0) return; Object.keys(g.pos).forEach(l => { const q = g.pos[l]; if(!q.bezet && !inZone.has(q.naam) && !gereserveerd.has(q.naam)) vrij.push({ naam:q.naam, g }); }); });
-  const out = [];
+  const per = new Map();
   Object.values(P.zoneInfo).forEach(o => {
-    if(!o.zone || o.zone.vrij || o.tekort <= 0) return;
-    const pi = palletInfo(o.code);
-    let nodig = o.tekort * pi.k;
-    for(const naam of o.bezet){
-      if(nodig <= 0) break;
-      nodig--;
-      const codes = ((D.LOC[naam] || {}).codes || []).map(c => D.PLOW[String(c).toLowerCase()] || c);
-      const code0 = codes[0] || null;
-      const refs = code0 ? WHL.locsVan(code0).map(WHL.locInfo).filter(i => i.std) : [];
-      const ref = refs.find(i => i.h < 10) || refs.find(i => i.naam !== naam) || null;
-      let best = null, bi = -1;
-      vrij.forEach((v, i) => {
-        let sc = 0;
-        if(ref){ if(v.g.gang === ref.gang) sc = Math.abs(v.g.sec - ref.sec) * 2; else if(v.g.hal === ref.hal) sc = 60 + gangAfst(v.g.gang, ref.gang) * 15 + Math.abs(v.g.sec - ref.sec); else sc = 400; }
-        else sc = 200;
-        sc += Math.max(0, (v.g.h - 10) / 10) * 2;
-        if(!best || sc < best.sc){ best = { sc, naam:v.naam }; bi = i; }
-      });
-      if(bi >= 0) vrij.splice(bi, 1);
-      const vr = codes.map(c => { const q = D.VR[c] && D.VR[c].locs[naam]; return c + ' ' + WHL.naamVan(c).slice(0, 30) + (q ? ' (' + nf(q) + ')' : ''); });
-      out.push({ voor:o, van:naam, codes, tekst:vr.join(', ') || 'niets gekoppeld: kijk wat er staat', naar:best ? best.naam : null });
+    if(!o.zone) return;
+    o.liggers.forEach(g => {
+      const e = per.get(g.k) || { g, voor:[], cids:[], bev:true, units:[] };
+      if(!e.voor.includes(o)) e.voor.push(o);
+      if(!e.cids.includes(o.cid)) e.cids.push(o.cid);
+      if(!ligBev(o.zone, g)) e.bev = false;
+      per.set(g.k, e);
+    });
+  });
+  const liggers = [...per.values()].sort((x, y) => x.g.gang.localeCompare(y.g.gang) || x.g.sec - y.g.sec || x.g.h - y.g.h);
+  const zoneK = new Set(liggers.map(e => e.g.k));
+  // wat staat waar: locatie-export (gekoppeld) + voorraad per locatie
+  const vrLoc = {};
+  Object.entries(D.VR).forEach(([code, v]) => Object.entries(v.locs).forEach(([l, q]) => { if(q > 0) (vrLoc[l] = vrLoc[l] || []).push([code, q]); }));
+  const inh = naam => {
+    const m = new Map();
+    (((D.LOC[naam] || {}).codes) || []).forEach(c => { const cc = D.PLOW[String(c).toLowerCase()] || c; m.set(cc, 0); });
+    (vrLoc[naam] || []).forEach(([c, q]) => m.set(c, q));
+    return [...m.entries()].map(([code, qty]) => ({ code, qty }));
+  };
+  const zelfde = (a, b) => a.length === 1 && b.length === 1 && a[0].code === b[0].code;
+  // 1. eenheden om te verplaatsen (brede pallets = meerdere plaatsen naast elkaar)
+  const units = [];
+  liggers.forEach(e => {
+    if(e.bev) return;
+    const letters = Object.keys(e.g.pos).sort();
+    for(let i = 0; i < letters.length; ){
+      const q = e.g.pos[letters[i]];
+      if(!q.bezet){ i++; continue; }
+      const codes = inh(q.naam);
+      const k0 = codes.length === 1 ? palletInfo(codes[0].code).k : 1;
+      const namen = [q.naam]; let j = i + 1;
+      while(namen.length < k0 && j < letters.length && e.g.pos[letters[j]].bezet && letters[j].charCodeAt(0) === letters[j - 1].charCodeAt(0) + 1 && zelfde(codes, inh(e.g.pos[letters[j]].naam))){ namen.push(e.g.pos[letters[j]].naam); j++; }
+      const u = { e, g:e.g, namen, codes, k:namen.length, naar:null, reden:'' };
+      units.push(u); e.units.push(u); i = j;
     }
   });
-  return out;
+  // 2. vrije plekken en wie er al zit
+  const gereserveerd = new Set();
+  Object.values(P.voorstel).forEach(v => { if(v.loc) [v.loc].concat(v.extra || []).forEach(n => gereserveerd.add(n)); });
+  P.up.forEach(p => { const t = tv(p.key); if(t && t.loc) gereserveerd.add(t.loc); });
+  const ligCodes = {};
+  Object.values(L).forEach(g => { const set = ligCodes[g.k] = new Set(); Object.values(g.pos).forEach(q => { if(q.bezet) inh(q.naam).forEach(x => set.add(x.code)); }); });
+  const gekozenDoel = new Set();
+  units.slice().sort((x, y) => y.k - x.k).forEach(u => {
+    const c0 = u.codes[0] ? u.codes[0].code : null;
+    const refs = c0 ? WHL.locsVan(c0).map(WHL.locInfo).filter(i => i.std) : [];
+    const ref = refs.find(i => i.h < 10) || refs.find(i => !u.namen.includes(i.naam)) || null;
+    let best = null;
+    Object.values(L).forEach(g => {
+      if(zoneK.has(g.k) || (g.h === 0) !== (u.g.h === 0) || g.gang === 'AH') return;
+      const letters = Object.keys(g.pos).sort();
+      for(let s0 = 0; s0 + u.k <= letters.length; s0++){
+        const run = letters.slice(s0, s0 + u.k);
+        if(run.some((l, j) => (j && l.charCodeAt(0) !== run[j - 1].charCodeAt(0) + 1) || g.pos[l].bezet || gereserveerd.has(g.pos[l].naam))) continue;
+        let sc = 0;
+        if(ref){ if(g.gang === ref.gang) sc = Math.abs(g.sec - ref.sec) * 2; else if(g.hal === ref.hal) sc = 60 + gangAfst(g.gang, ref.gang) * 15 + Math.abs(g.sec - ref.sec); else sc = 400; }
+        else sc = 200;
+        sc += Math.max(0, (g.h - 10) / 10) * 2;
+        const bijZelfde = c0 && ligCodes[g.k].has(c0);
+        if(bijZelfde) sc -= 8;
+        if(gekozenDoel.has(g.k)) sc -= 5;
+        if(!best || sc < best.sc) best = { sc, g, run, bijZelfde, ref };
+        break;
+      }
+    });
+    if(!best){ u.reden = 'geen vrije plek gevonden: kies zelf'; return; }
+    u.naar = best.run.map(l => best.g.pos[l].naam);
+    u.naar.forEach(n => gereserveerd.add(n)); gekozenDoel.add(best.g.k);
+    const r = [];
+    if(best.ref && best.ref.gang === best.g.gang) r.push('zelfde gang als picklocatie ' + best.ref.naam);
+    else if(best.ref) r.push('dichtbij picklocatie ' + best.ref.naam + ' (gang ' + best.ref.gang + ' vol)');
+    if(best.bijZelfde) r.push('bij hetzelfde product');
+    if(u.k > 1) r.push(u.k + ' plaatsen naast elkaar');
+    u.reden = r.join(' · ');
+  });
+  return { liggers, units, n:units.length, open:liggers.filter(e => !e.bev) };
+}
+// Picqer-koppelimport: product → bulkplekken van liggers die leeg bevestigd zijn (ook als de voorraad nog niet is opgeboekt)
+function koppelRijen(P){
+  const per = {};
+  P.up.forEach(p => {
+    const v = P.voorstel[p.key]; if(!v || !v.loc || v.geplaatst) return;
+    const z = P.zones[p.cid + '|' + p.code]; if(!z) return;
+    const i = WHL.locInfo(v.loc); if(!i.std) return;
+    if(!ligBev(z, { k:i.gang + dd(i.sec) + '|' + i.h })) return;
+    const set = per[p.code] = per[p.code] || new Set();
+    [v.loc].concat(v.extra || []).forEach(n => set.add(n));
+  });
+  const rijen = [];
+  Object.entries(per).forEach(([code, set]) => {
+    const bestaand = WHL.locsVan(code).filter(l => WHL.soortLoc(l) !== 'container');
+    const nieuw = [...set].filter(n => !bestaand.includes(n)).sort(WHL.sortLoc);
+    if(!nieuw.length) return;
+    const q = D.PQ[code];
+    rijen.push({ code, nieuw, rij:[q && q[3] ? q[3] : code, bestaand.concat(nieuw).join(', ')] });
+  });
+  return rijen.sort((a, b) => a.code.localeCompare(b.code));
 }
 function boVan(code){
   const r = D.BO.filter(x => (D.PLOW[String(x.productcode || '').toLowerCase()] || x.productcode) === code);
@@ -391,7 +567,7 @@ function viewContainerdag(dagArg){
     return kopje + `<div class="mv ${t && t.loc ? 'klaar' : ''}" data-plek="${esc(p.key)}">
       <div class="aant" style="text-align:left;min-width:40px">${t && t.loc ? '✓' : ''}</div>
       <div><div><a class="code" href="#/p/${encodeURIComponent(p.code)}">${esc(p.code)}</a> <span class="desc">${esc(WHL.naamVan(p.code))}</span></div>
-        <div class="route">${t && t.loc ? V().locBadge(t.loc) + ' <span class="small muted">geplaatst</span>' : v.loc ? V().locBadge(v.loc) + (v.extra.length ? ' <span class="small muted">+ ' + esc(v.extra.join(', ')) + '</span>' : '') : '<span class="badge b-bad">kies zelf</span>'}</div>
+        <div class="route">${t && t.loc ? V().locBadge(t.loc) + ' <span class="small muted">geplaatst</span>' : v.loc ? V().locBadge(v.loc) + (v.extra.length ? ' <span class="small muted">+ ' + esc(v.extra.join(', ')) + '</span>' : '') : v.zoneVol ? '<span class="badge b-warn">wacht: ligger nog niet leeg bevestigd</span>' : '<span class="badge b-bad">kies zelf</span>'}</div>
         <div class="meta">pallet ${p.i + 1}/${p.van} · ${nf(p.stuks)} st.${pi.maat ? ' · ' + esc(pi.maat) : ''}${pi.kg ? ' · ' + nf(pi.kg) + ' kg' : ''} · ${esc(cNaam(p.c))}${v.reden ? ' · ' + esc(v.reden) : ''}${p.note ? ' · <i>' + esc(p.note) + '</i>' : ''}</div>
         <div class="row wrap mt4 noprint"><input class="loc" data-loc="${esc(p.key)}" value="${esc(loc || '')}" placeholder="locatie">
           <button class="btn sm ${t && t.loc ? '' : 'ok'}" data-d="plaats" data-k="${esc(p.key)}">${t && t.loc ? 'Wijzig' : 'Geplaatst'}</button>
@@ -416,35 +592,79 @@ function viewContainerdag(dagArg){
       <div class="td">${esc(WHL.naamVan(x.code))} · ${esc(cNaam(x.c))}${nieuw.length ? ' · palletnummers: <b>' + esc(nieuw.join(', ')) + '</b>' : ' · palletnummers: na de VST-export zichtbaar'}</div></div></div>`;
   }).join('') + `<div class="small muted mt8">Stockmove-lijst en VST-mail: <a href="./containerplanning.html">Containers → Uitvoer</a>.</div>` : '<div class="small muted">Niets naar VST.</div>';
 
-  // 0. ruimte plannen (dagen vooraf): zone per product
+  // 1. ruimte maken: hele liggers vrijmaken (dagen vooraf)
   const zi = Object.values(P.zoneInfo);
   const vl = vrijmaakLijst(P);
+  const koppel = koppelRijen(P);
+  const tijd = op => op ? new Date(op).toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' }) : '';
   const zoneRij = o => {
-    const gang = Object.entries(o.gangen).sort((a, b) => b[1] - a[1]).map(([g, n]) => g + ' ' + n).join(', ');
     const zk = o.cid + '|' + o.code;
+    const wacht = o.zone && o.tekort > 0 && !o.teKlein && o.ligBev < o.liggers.length;
     return `<div class="mv" style="grid-template-columns:1fr auto">
-      <div><div><a class="code" href="#/p/${encodeURIComponent(o.code)}">${esc(o.code)}</a> <span class="desc">${esc(WHL.naamVan(o.code))} · ${esc(cNaam(o.c))}</span></div>
-        <div class="meta">${plural(o.pallets, 'pallet', 'pallets')}${o.plaatsen !== o.pallets ? ' · ' + nf(o.plaatsen) + ' plaatsen' : ''}${gang ? ' · nu naar ' + esc(gang) : ''}${o.tekort > 0 ? ' · <b style="color:var(--bad)">' + plural(o.tekort, 'pallet', 'pallets') + ' zonder plek</b>' : ''}</div>
-        <div class="row wrap mt4 noprint"><input class="loc" data-zone="${esc(zk)}" value="${esc(o.zone ? o.zone.tekst : '')}" placeholder="zone, bv. CC 07-22" style="width:170px">
+      <div><div><a class="code" href="#/p/${encodeURIComponent(o.code)}">${esc(o.code)}</a> <span class="desc">${esc(WHL.naamVan(o.code))}</span></div>
+        <div class="meta">${plural(o.pallets, 'pallet', 'pallets')}${o.plaatsen !== o.pallets ? ' · ' + nf(o.plaatsen) + ' plaatsen' : ''}${o.zone ? ' · liggers <b>' + esc(o.zone.tekst) + '</b>' + (o.zone.auto ? ' <i>(voorstel van de app)</i>' : '') : ''}</div>
+        <div class="row wrap mt4 noprint"><input class="loc" data-zone="${esc(zk)}" value="${esc(o.zone ? o.zone.tekst : '')}" placeholder="liggers, bv. CC07/10, CC07/20" style="width:230px">
           <button class="btn sm" data-d="zone-op" data-k="${esc(zk)}">Opslaan</button>
-          ${o.zone ? `<span class="small muted">zone: ${nf(o.plek)} plekken · ${nf(o.vrijN)} vrij · ${nf(o.bezet.length)} bezet</span>` : '<span class="small muted">geen zone: app kiest dichtbij de picklocatie</span>'}
-          ${o.zone && (o.tekort > 0 || o.zone.vrij) ? `<button class="btn sm ${o.zone.vrij ? 'ok' : ''}" data-d="zone-vrij" data-k="${esc(zk)}">${o.zone.vrij ? '✓ Zone vrijgemaakt' : 'Zone is vrijgemaakt'}</button>` : ''}</div>
-        ${o.zone && o.tekort > 0 && !o.zone.vrij ? '<div class="meta rood">Past niet in de vrije plekken van de zone. Laat eerst vrijmaken (lijst hieronder) en tik dan Zone is vrijgemaakt.</div>' : ''}
-        ${o.zone && o.tekort > 0 && o.zone.vrij ? `<div class="meta rood">Zone is te klein: nog ${plural(o.tekort, 'pallet', 'pallets')} zonder plek${palletInfo(o.code).kg >= 500 ? ' (zwaar: max ' + palletInfo(o.code).maxLig + ' per ligger)' : ''}. Maak de zone groter, bv. ${esc(o.zone.tekst)} + een sectie erbij.</div>` : ''}</div>
+          ${o.zone && o.zone.auto && !o.ligBev ? `<button class="btn sm ghost" data-d="lig-ander" data-k="${esc(zk)}">Andere liggers</button>` : ''}</div>
+        ${!o.zone ? '<div class="meta rood">Nog geen liggers gekozen' + (Object.keys(D.LOC).length ? ': geen geschikte ligger gevonden, typ er een.' : ': locatie-export ontbreekt.') + '</div>' : ''}
+        ${wacht ? '<div class="meta">Wacht tot de liggers leeg zijn bevestigd.</div>' : ''}
+        ${o.zone && o.tekort > 0 && !wacht ? `<div class="meta rood">Past niet: de liggers bieden plek voor ${plural(o.cap, 'pallet', 'pallets')}, nodig ${nf(o.pallets)}${palletInfo(o.code).kg >= 500 ? ' (zwaar: max ' + palletInfo(o.code).maxLig + ' per ligger)' : ''}. ${o.zone.auto ? 'Tik Andere liggers of typ er een bij.' : 'Voeg een ligger toe, bv. ' + esc(o.zone.tekst) + ', CC08/10.'}</div>` : ''}</div>
       <div class="aant">${nf(o.toegewezen)}/${nf(o.pallets)}<small>ingedeeld</small></div></div>`;
   };
-  const s0 = zi.length ? `<div class="small muted mb8">Geef per product de richting: gang en secties, bv. <b>CC 07-22</b>, <b>CD 23-21</b> (achteraan beginnen) of <b>BE</b>; meerdere met een komma. De app deelt de pallets daar in, op volgorde van lossen: per sectie, van laag naar hoog, brede en zware pallets volgens Containers. Zonder zone kiest de app zelf een vrije plek dichtbij de picklocatie. De plek komt op het palletlabel.</div>
-    <div class="row wrap mb8 noprint"><input class="loc" id="zone-alle" placeholder="zone voor alle producten" style="width:190px"><button class="btn sm" data-d="zone-alle">Voor alle producten</button></div>
-    ${zi.map(zoneRij).join('')}` : '<div class="small muted">Geen pallets naar bulk.</div>';
-  const vrijKaart = vl.length ? `<div class="card vrijlijst" style="border-left:5px solid var(--bad)"><div class="row wrap between"><div><h3>Vrijmaken vóór het lossen (${vl.length})</h3>
-      <div class="small muted">Deze pallets staan in een zone die nodig is. Verplaats ze naar de voorgestelde vrije plek (ook in Picqer) en tik daarna bij het product <b>Zone is vrijgemaakt</b>. Vrij = geen product gekoppeld${D.VRDATUM ? ' en geen voorraad' : ''} volgens de laatste export: kijk ter plekke.</div></div>
+  const cBlok = c => {
+    const os = zi.filter(o => o.cid === c.id);
+    if(!os.length) return '';
+    const pal = os.reduce((n, o) => n + o.pallets, 0), pl = os.reduce((n, o) => n + o.plaatsen, 0);
+    const ligK = [];
+    os.forEach(o => (o.liggers || []).forEach(g => { if(!ligK.some(x => x.k === g.k)) ligK.push(g); }));
+    ligK.sort((x, y) => x.gang.localeCompare(y.gang) || x.sec - y.sec || x.h - y.h);
+    const bevC = g => os.some(o => o.zone && (o.liggers || []).some(x => x.k === g.k) && ligBev(o.zone, g));
+    const nBev = ligK.filter(bevC).length;
+    const rij = g => {
+      const voor = os.filter(o => o.zone && o.liggers.some(x => x.k === g.k));
+      const tot = Object.keys(g.pos).length, bezetN = Object.values(g.pos).filter(q => q.bezet).length;
+      const bv = bevC(g), op = (tv('czl:' + c.id + ':' + g.k) || {}).op;
+      return `<tr><td><b class="loc">${esc(ligToken(g))}</b><div class="small muted">${esc(ligBereik(g))}</div></td>
+        <td class="small">${voor.map(o => esc(o.code)).join('<br>')}</td>
+        <td class="small">${bv ? '' : bezetN ? '<b style="color:var(--bad)">' + bezetN + ' van ' + tot + ' plaatsen bezet</b>' : 'Picqer: vrij, controleer ter plekke'}</td>
+        <td class="noprint">${bv ? `<span class="badge b-ok">✓ leeg${op ? ' ' + esc(tijd(op)) : ''}</span> <button class="btn sm ghost" data-d="lig-leeg" data-cid="${c.id}" data-lk="${esc(g.k)}">ongedaan</button>` : `<button class="btn sm ok" data-d="lig-leeg" data-cid="${c.id}" data-lk="${esc(g.k)}">Leeg bevestigen</button>`}</td></tr>`;
+    };
+    return `<div class="mt8"><div class="row wrap between"><div><b>${esc(cNaam(c))}</b> <span class="small muted">${esc(c.containernummer || '')}</span></div>
+        <span class="small">${esc(nBev + '/' + ligK.length)} liggers leeg</span></div>
+      <div class="reason mt4"><b>${plural(pal, 'pallet', 'pallets')}</b> naar bulk = <b>${nf(pl, 1)} plaatsen</b> → ${ligK.length ? '<b>' + plural(ligK.length, 'ligger', 'liggers') + '</b> vrijmaken' : '<b>nog geen liggers gekozen</b>'}</div>
+      ${os.map(zoneRij).join('')}
+      ${ligK.length ? `<div class="scroll mt8"><table><tr><th>Ligger</th><th>Voor</th><th>Nu</th><th class="noprint"></th></tr>${ligK.map(rij).join('')}</table></div>
+        ${nBev < ligK.length ? `<div class="mt8 noprint"><button class="btn sm" data-d="lig-alle" data-cid="${c.id}">Alle liggers leeg bevestigen</button></div>` : ''}` : ''}</div>`;
+  };
+  const bulkC = P.cs.filter(c => zi.some(o => o.cid === c.id));
+  const ligTot = bulkC.reduce((n, c) => n + new Set(zi.filter(o => o.cid === c.id).flatMap(o => (o.liggers || []).map(g => g.k))).size, 0);
+  const ligBevTot = bulkC.reduce((n, c) => { const os = zi.filter(o => o.cid === c.id); const ks = new Set(os.flatMap(o => (o.liggers || []).map(g => g.k))); return n + [...ks].filter(k => os.some(o => o.zone && o.liggers.some(g => g.k === k && ligBev(o.zone, g)))).length; }, 0);
+  const s0 = zi.length ? `<div class="small muted mb8">1. De app kiest hele liggers voor de pallets naar bulk, met zo min mogelijk om te ruimen. Pas aan door liggers te typen (<b>CC07/10</b> = CC07A10 t/m D10, of <b>CC 07-09</b> voor een gang met secties) of tik <b>Andere liggers</b>.<br>
+      2. Print de vrijmaaklijst hieronder voor de chauffeur: wat er nu staat en waar het heen gaat.<br>
+      3. Is een ligger leeg (ook wat los ligt), tik <b>Leeg bevestigen</b>. Pas dan krijgen de pallets hun plek op het label.<br>
+      4. Koppel de producten alvast aan die plekken in Picqer (onderaan), ook als de voorraad nog niet is opgeboekt.</div>
+    ${bulkC.map(cBlok).join('')}` : '<div class="small muted">Geen pallets naar bulk.</div>';
+  const prodTekst = c => esc(c.code + ' ' + WHL.naamVan(c.code).slice(0, 34)) + (c.qty ? ' · ' + nf(c.qty) + ' st.' + (WHL.sppVan(c.code) ? ' (≈ ' + nf(c.qty / WHL.sppVan(c.code), 1) + ' pallet)' : '') : '');
+  const ligBlok = e => `<div class="lg"><b>Ligger ${esc(ligToken(e.g))}</b> <span class="small">${esc(ligBereik(e.g))} · voor ${esc(e.voor.map(o => o.code).join(', '))}</span></div>
+    <table class="vtab"><tr><th></th><th>Van</th><th>Wat staat er</th><th>Naar</th></tr>
+      ${e.units.map(u => `<tr><td class="vk"><span class="pvak"></span></td><td class="loc">${esc(u.namen.join(' + '))}</td>
+        <td>${u.codes.length ? u.codes.map(prodTekst).join('<br>') : 'niets gekoppeld: kijk wat er staat'}</td>
+        <td class="loc">${u.naar ? esc(u.naar.join(' + ')) : '<b>zelf kiezen</b>'}${u.reden ? '<div class="small">' + esc(u.reden) + '</div>' : ''}</td></tr>`).join('')}
+      <tr><td class="vk"><span class="pvak"></span></td><td colspan="3"><b>Ligger leeg?</b> <span class="small">${e.units.length ? 'Kijk ook of er niets los ligt of ernaast.' : 'Picqer toont deze ligger vrij. Controleer ter plekke: niets los, past de pallet?'}</span></td></tr></table>`;
+  const vrijKaart = vl.open.length ? `<div class="card vrijlijst"><div class="row wrap between"><div><h3>Vrijmaaklijst voor de chauffeur · ${plural(vl.open.length, 'ligger', 'liggers')} · ${plural(vl.n, 'verplaatsing', 'verplaatsingen')}</h3>
+      <div class="small"><b>Containerdag ${esc(fdate(dag, { weekday:'long', day:'numeric', month:'long' }))}</b> · ${P.cs.map(c => esc(cNaam(c) + ' ' + (c.containernummer || ''))).join(' · ')}</div>
+      <div class="small muted">Verplaats ook in Picqer (van → naar). Vrij = geen product gekoppeld${D.VRDATUM ? ' en geen voorraad' : ''} volgens de laatste export: kijk ter plekke. Daarna tikt Daan per ligger <b>Leeg bevestigen</b>.</div></div>
       <button class="btn sm pri noprint" data-d="print-vrij">Print lijst</button></div>
-    <div class="scroll mt8"><table><tr><th>Van (zone)</th><th>Wat staat er (Picqer)</th><th>Naar (vrij)</th><th>Voor</th></tr>
-      ${vl.map(x => `<tr><td class="loc">${esc(x.van)}</td><td class="small">${esc(x.tekst)}</td><td class="loc">${x.naar ? esc(x.naar) : '<span class="badge b-bad">zelf kiezen</span>'}</td><td class="small">${esc(x.voor.code)} · ${esc(cNaam(x.voor.c))}</td></tr>`).join('')}</table></div></div>` : '';
+    ${vl.open.map(ligBlok).join('')}</div>`
+    : vl.liggers.length ? '<div class="card" style="border-left:5px solid var(--ok)"><b>Alle liggers zijn leeg bevestigd.</b> <span class="small muted">Er is niets meer te verplaatsen.</span></div>' : '';
+  const koppelKaart = vl.liggers.length ? `<div class="card"><h3>Producten alvast koppelen in Picqer</h3>
+      <div class="small muted">Voor liggers die leeg bevestigd zijn. De producten worden aan de bulkplekken gekoppeld, ook als de voorraad nog niet is opgeboekt. Picqer: Producten → Importeren → alleen bestaande bijwerken. Eerst testen met 2 producten.</div>
+      ${koppel.length ? `<div class="mt8">${koppel.map(x => `<div class="small"><span class="code">${esc(x.code)}</span> → ${esc(x.nieuw.join(', '))}</div>`).join('')}</div>
+        <div class="mt8"><button class="btn sm pri" data-d="lig-koppel">Download Picqer-import (${koppel.length})</button></div>` : '<div class="small muted mt8">Nog geen ligger leeg bevestigd.</div>'}</div>` : '';
 
   const stap = (nr, titel, sub, body, open) => `<div class="card"><div class="row between"><h3>${nr}. ${esc(titel)}</h3><span class="small muted">${sub || ''}</span></div><div class="mt8">${body}</div></div>`;
   app.innerHTML = kop
-    + stap(1, 'Ruimte plannen (dagen vooraf)', zi.filter(o => o.zone).length + '/' + zi.length + ' met zone', s0) + vrijKaart
+    + stap(1, 'Ruimte maken: liggers vrijmaken (dagen vooraf)', ligBevTot + '/' + ligTot + ' liggers leeg', s0) + vrijKaart + koppelKaart
     + stap(2, 'Voor het lossen', '', s1)
     + stap(3, 'Apart zetten voor orders', P.bo.filter(x => tik(x.key)).length + '/' + P.bo.length, s2)
     + stap(4, 'Naar bulk (up)', nGepl + '/' + P.up.length + ' geplaatst', (P.up.length ? `<div class="small muted mb8">Plek per pallet (zone of voorstel van de app). Staat er toch iets? Typ de plek waar hij echt staat en tik Geplaatst.</div>` : '') + (s3 || '<div class="small muted">Geen pallets naar bulk.</div>'))
@@ -866,9 +1086,11 @@ document.addEventListener('click', async ev => {
       if(!o) continue;
       const z = tekst.trim().toUpperCase();
       const pz = parseZone(z);
-      if(z && (!pz.delen.length || pz.fout.length)){ toast('Zone niet begrepen: ' + (pz.fout.join(', ') || z) + '. Voorbeeld: CC 07-22'); return; }
-      patch['cz:' + o.cid + ':' + o.code] = z ? { zone:z, op:new Date().toISOString() } : null;
+      if(z && pz.delen.length && !pz.fout.length && Object.keys(D.LOC).length && !zoneLiggers(ligBouw(), { delen:pz.delen }).length){ toast('Geen liggers gevonden voor ' + z + ' (staan ze in de locatie-export?)'); return; }
+      if(z && (!pz.delen.length || pz.fout.length)){ toast('Niet begrepen: ' + (pz.fout.join(', ') || z) + '. Voorbeeld: CC07/10, CC07/20 of CC 07-09'); return; }
+      patch['cz:' + o.cid + ':' + o.code] = z ? { zone:z, op:new Date().toISOString() } : null;   // leeg = de app kiest opnieuw
       patch['czv:' + o.cid + ':' + o.code] = null;
+      if(!z) patch['czx:' + o.cid + ':' + o.code] = null;
       o.keys.forEach(k => { const t = tv(k); if(!(t && t.loc)) patch['cvs:' + k] = null; });   // niet-geplaatste voorstellen opnieuw laten indelen
     }
     Object.entries(patch).forEach(([k, v]) => { if(v === null) delete D.TAKEN[k]; else D.TAKEN[k] = v; });
@@ -885,6 +1107,46 @@ document.addEventListener('click', async ev => {
     Object.entries(patch).forEach(([x, v]) => { if(v === null) delete D.TAKEN[x]; else D.TAKEN[x] = v; });
     try{ await WH.catPatch('wh-taken', patch); }catch(e){}
     V().rerender(); return;
+  }
+  if(a === 'lig-leeg' || a === 'lig-alle'){
+    const cid = b.dataset.cid, P = dagPlan(kiesDag());
+    const patch = {};
+    const wis = (lk) => P.up.forEach(p => {            // pallets die nog niet geplaatst zijn in deze ligger: voorstel laten vervallen
+      if(String(p.cid) !== String(cid)) return;
+      const t = tv(p.key); if(t && t.loc) return;
+      const vs = tv('cvs:' + p.key); if(!(vs && vs.loc)) return;
+      const i = WHL.locInfo(vs.loc);
+      if(i.gang + dd(i.sec) + '|' + i.h === lk) patch['cvs:' + p.key] = null;
+    });
+    if(a === 'lig-alle'){
+      const ks = new Set();
+      Object.values(P.zoneInfo).forEach(o => { if(String(o.cid) === String(cid) && o.zone) o.liggers.forEach(g => ks.add(g.k)); });
+      ks.forEach(k => { if(!D.TAKEN['czl:' + cid + ':' + k]) patch['czl:' + cid + ':' + k] = { op:new Date().toISOString() }; });
+    } else {
+      const key = 'czl:' + cid + ':' + b.dataset.lk;
+      if(D.TAKEN[key]){ patch[key] = null; wis(b.dataset.lk); }
+      else patch[key] = { op:new Date().toISOString() };
+    }
+    Object.entries(patch).forEach(([k, v]) => { if(v === null) delete D.TAKEN[k]; else D.TAKEN[k] = v; });
+    try{ await WH.catPatch('wh-taken', patch); }catch(e){ /* melding al getoond */ }
+    V().rerender(); return;
+  }
+  if(a === 'lig-ander'){
+    const [cid, ...r] = b.dataset.k.split('|'), code = r.join('|');
+    const P = dagPlan(kiesDag()); const o = P.zoneInfo[b.dataset.k]; if(!o || !o.zone) return;
+    const eerder = (tv('czx:' + cid + ':' + code) || {}).ex || [];
+    const ex = o.teKlein ? [] : eerder.concat(o.liggers.map(g => g.k));   // te klein? dan opnieuw zonder uitsluitingen
+    const patch = { ['czx:' + cid + ':' + code]:ex.length ? { ex } : null, ['cz:' + cid + ':' + code]:null, ['czv:' + cid + ':' + code]:null };
+    o.keys.forEach(k => { const t = tv(k); if(!(t && t.loc)) patch['cvs:' + k] = null; });
+    Object.entries(patch).forEach(([k, v]) => { if(v === null) delete D.TAKEN[k]; else D.TAKEN[k] = v; });
+    try{ await WH.catPatch('wh-taken', patch); }catch(e){ /* melding al getoond */ }
+    V().rerender(); return;
+  }
+  if(a === 'lig-koppel'){
+    const r = koppelRijen(dagPlan(kiesDag()));
+    if(!r.length){ toast('Nog niets te koppelen: bevestig eerst dat een ligger leeg is'); return; }
+    WH.excel(['Productcode', 'Voorraadlocatie Hoofdmagazijn'], r.map(x => x.rij), 'Picqer import bulkplekken koppelen ' + kiesDag() + ' (' + r.length + ').xlsx');
+    return;
   }
   if(a === 'print-vrij'){ document.body.classList.add('printvrij'); if(window.Bestanden){ const dm = (location.hash.match(/\d{4}-\d{2}-\d{2}/) || [])[0]; Bestanden.printAls('Vrijmaaklijst containerdag' + (dm ? ' ' + dm : '') + ' - afgedrukt ' + vandaag()); } window.print(); setTimeout(() => document.body.classList.remove('printvrij'), 500); return; }
   if(a === 'iv-op'){ await invulOpslaan(); return; }
@@ -904,5 +1166,5 @@ document.addEventListener('keydown', ev => {
   if(inp){ ev.preventDefault(); const k = inp.dataset.loc; const btn = document.querySelector(`[data-d="plaats"][data-k="${CSS.escape(k)}"]`); if(btn) btn.click(); }
 });
 
-return { viewVandaag, viewContainerdag, viewControle, viewBackorders, viewRuimte, viewInvul, dagPlan, plan, bulkVoorstellen, ruimte, boDiff, kiesDag, invulLijst, parseZone, vrijmaakLijst };
+return { viewVandaag, viewContainerdag, viewControle, viewBackorders, viewRuimte, viewInvul, dagPlan, plan, bulkVoorstellen, ruimte, boDiff, kiesDag, invulLijst, parseZone, vrijmaakLijst, koppelRijen, ligVoorstel };
 })();

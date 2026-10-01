@@ -4008,7 +4008,7 @@ async function maakLabels(c, eigenLijst){
   const lijst = eigenLijst || labelLijst(c);
   if(!lijst.length) return;
   const metPlek = await labelBestemming(lijst);
-  if(!eigenLijst && lijst.some(r => r.key) && !metPlek) toast('Nog geen bulkplekken gepland: labels zonder plek. Plan ze in IVOL Warehouse → Containerdag.', 5000);
+  if(!eigenLijst && lijst.some(r => r.key) && !metPlek) toast('Nog geen bulkplekken: labels zonder plek. In IVOL Warehouse → Containerdag eerst de liggers vrijmaken en leeg bevestigen.', 5000);
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
   const W = 297;

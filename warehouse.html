@@ -170,6 +170,15 @@
   details summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--muted)}
   #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:13.5px;z-index:60;box-shadow:0 4px 16px rgba(0,0,0,.25);max-width:90vw}
 
+  .vtab{width:100%;border-collapse:collapse;margin:2px 0 6px}
+  .vtab th{font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;text-align:left;border-bottom:1.5px solid #000;padding:3px 4px}
+  .vtab td{border-bottom:1px solid #bbb;padding:6px 4px;vertical-align:top;font-size:12px}
+  .vtab tr{break-inside:avoid}
+  .vtab .vk{width:26px} .vtab .pvak{display:inline-block;width:16px;height:16px;border:1.5px solid #000;border-radius:2px}
+  .vtab .loc{font-size:13px;font-weight:800;white-space:normal;word-break:break-word}
+  .vtab .small{font-weight:400}
+  .vrijlijst .lg{font-size:14px;margin:14px 0 2px;padding:4px 0;border-bottom:2px solid #000;break-after:avoid}
+
   @media print{
     @page{size:A4 portrait;margin:10mm}
     .top,.tabs,.filters,.btn,#toast,.noprint,.scherm{display:none !important}
@@ -251,7 +260,7 @@
 <script src="wh/logica.js?v=8"></script>
 <script src="wh/planning.js?v=8"></script>
 <script src="wh/triage.js?v=2"></script>
-<script src="wh/dag.js?v=5"></script>
+<script src="wh/dag.js?v=12"></script>
 <script src="wh/barcode.js?v=1"></script>
 <script src="wh/stelling.js?v=3"></script>
 <script src="wh/views.js?v=12"></script>
