@@ -215,6 +215,12 @@
     .mv .edit{grid-column:1/-1}
     .mv .bc{grid-column:2;justify-self:start}
   }
+  .s-gangen{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+  .s-gang{display:flex;flex-direction:column;gap:4px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;text-decoration:none;color:var(--ink)}
+  .s-gang b{font-size:18px} .s-gang small{color:var(--muted);font-size:11px}
+  .s-velden{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .s-velden input{font-size:16px} .s-breed{grid-column:1/-1}
+  .s-afw{border-top:1px solid var(--line);padding-top:10px}
 </style>
 </head>
 <body>
@@ -226,13 +232,14 @@
 <main id="app"><div class="empty">Laden…</div></main>
 <div id="toast" hidden></div>
 
-<script src="wh/menu.js?v=1"></script>
-<script src="wh/core.js?v=9"></script>
+<script src="wh/menu.js?v=2"></script>
+<script src="wh/core.js?v=10"></script>
 <script src="wh/logica.js?v=8"></script>
 <script src="wh/planning.js?v=8"></script>
 <script src="wh/triage.js?v=2"></script>
 <script src="wh/dag.js?v=4"></script>
 <script src="wh/barcode.js?v=1"></script>
-<script src="wh/views.js?v=10"></script>
+<script src="wh/stelling.js?v=1"></script>
+<script src="wh/views.js?v=11"></script>
 </body>
 </html>

@@ -66,6 +66,7 @@ function route(){
     if(naam === 'base') return viewBase(q);
     if(naam === 'abcheck') return viewAB();
     if(naam === 'locaties') return viewLocaties(delen[1] || '', q);
+    if(naam === 'stelling') return WHS.view(delen[1] || '');
     if(naam === 'triage') return WHT.view();
     if(naam === 'planning') return viewPlanning();
     if(naam === 'gegevens') return viewGegevens();

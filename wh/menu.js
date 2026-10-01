@@ -11,7 +11,7 @@ const GROEPEN = [
     ['vandaag', 'Vandaag', W + '#/'], ['planning', 'Planning', W + '#/planning']] },
   { k:'aanvul', t:'Aanvuladvies', href:W + '#/aanvullen', sub:[
     ['aanvullen', 'Aanvullen', W + '#/aanvullen'], ['base', 'Niveaus', W + '#/base'], ['abcheck', 'A/B-check', W + '#/abcheck'],
-    ['invul', 'Invullen', W + '#/invul'], ['locaties', 'Locaties', W + '#/locaties'], ['triage', 'Triage', W + '#/triage'], ['backorders', 'Backorders', W + '#/backorders']] },
+    ['invul', 'Invullen', W + '#/invul'], ['locaties', 'Locaties', W + '#/locaties'], ['stelling', 'Stellingen', W + '#/stelling'], ['triage', 'Triage', W + '#/triage'], ['backorders', 'Backorders', W + '#/backorders']] },
   { k:'cont', t:'Containers', href:CP + '#/', sub:[
     ['cp:home', 'Containers', CP + '#/'], ['cp:vooruit', 'Vooruit', CP + '#/vooruit'], ['containerdag', 'Containerdag', W + '#/containerdag'], ['controle', 'Controle', W + '#/controle'],
     ['ruimte', 'Ruimte', W + '#/ruimte'], ['cp:producten', 'Producten', CP + '#/producten'], ['cp:vloernamen', 'Vloernamen', CP + '#/vloernamen'],
