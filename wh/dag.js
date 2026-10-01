@@ -86,12 +86,26 @@ function dagPlan(dag, vastzetten){
   cs.forEach(c => { const p = plan(c); ['bo', 'vst', 'up', 'pick'].forEach(k => all[k].push(...p[k])); p.geen.forEach(code => all.geen.push({ c, code })); });
   all.zones = zonesVan(cs);
   // producten zonder zone: de app kiest hele liggers (zo min mogelijk om te ruimen) en legt die vast
-  const lv = ligVoorstel(all.up, all.zones), zp = {};
+  const zp = {};
+  // liggers die inmiddels "past niet" zijn uit een voorstel van de app halen
+  { const L0 = ligBouw();
+    Object.entries(all.zones).forEach(([k, z]) => {
+      if(!z.auto || !z.blok) return;
+      const [cid, ...r] = k.split('|'), code = r.join('|');
+      const eff = zoneLiggers(L0, z).map(ligToken);
+      if(eff.length === parseZone(z.tekst).delen.length) return;
+      if(!eff.length){ delete all.zones[k]; zp['cz:' + cid + ':' + code] = null; return; }
+      z.tekst = eff.join(', '); z.delen = parseZone(z.tekst).delen;
+      zp['cz:' + cid + ':' + code] = { zone:z.tekst, auto:true, op:new Date().toISOString() };
+    });
+  }
+  // producten zonder zone (of met een te kleine voorstel-zone): de app kiest hele liggers (zo min mogelijk om te ruimen) en legt die vast
+  const lv = ligVoorstel(all.up, all.zones);
   Object.entries(lv).forEach(([k, v]) => {
     if(!v.ligs.length) return;
     const [cid, ...r] = k.split('|'), code = r.join('|');
-    const tekst = v.ligs.map(ligToken).join(', ');
-    all.zones[k] = { tekst, delen:parseZone(tekst).delen, vrij:false, bev:bevVan(cid), auto:true };
+    const eerder = all.zones[k], tekst = (eerder ? eerder.tekst + ', ' : '') + v.ligs.map(ligToken).join(', ');
+    all.zones[k] = { tekst, delen:parseZone(tekst).delen, vrij:eerder ? eerder.vrij : false, bev:bevVan(cid), auto:true, blok:blokVan(cid) };
     zp['cz:' + cid + ':' + code] = { zone:tekst, auto:true, op:new Date().toISOString() };
   });
   // oude voorstellen van vóór de liggers (verspreide losse plekken) vervallen, ook voor de palletlabels
@@ -171,6 +185,32 @@ function parseZone(txt){
   });
   return { delen, fout };
 }
+/* selectie van liggers voor "past niet" / "liever": AE/20 (hele gang, niveau 20), AE12/14/16/10 (secties 12, 14, 16 op niveau 10), AE12-16 (secties 12 t/m 16),
+   AE08/10 (één ligger), AE (hele gang). Het laatste getal is een niveau als het een tiental is (10, 20, ..); anders zijn het secties. Ook "niv 10" achteraan werkt. */
+function parseSel(txt){
+  const sel = [], fout = [];
+  String(txt || '').toUpperCase().split(/[;+\n]|,(?=\s*[A-Z]{2}(?![A-Z]))/).map(x => x.trim()).filter(Boolean).forEach(e => {
+    const m = /^([A-Z]{2})\s*(.*)$/.exec(e);
+    if(!m){ fout.push(e); return; }
+    let rest = m[2].replace(/T\/M|TOT/g, '-'), h = null;
+    const nv = /(?:NIVEAU|NIV\.?|N)\s*(\d{1,2})\s*$/.exec(rest);
+    if(nv){ h = +nv[1]; rest = rest.slice(0, nv.index); }
+    if(/[^\d\s,\/\-]/.test(rest)){ fout.push(e); return; }
+    let nums = rest.match(/\d+(?:\s*-\s*\d+)?/g) || [];
+    if(h === null && /^\s*\//.test(rest) && nums.length === 1 && !/-/.test(nums[0])){ h = +nums[0]; nums = []; }
+    else if(h === null && nums.length >= 2 && !/-/.test(nums[nums.length - 1]) && +nums[nums.length - 1] >= 10 && +nums[nums.length - 1] % 10 === 0){ h = +nums.pop(); }
+    const secs = new Set();
+    nums.forEach(n => { const r = n.split('-').map(x => +x.trim()); const lo = Math.min(...r), hi = Math.max(...r); for(let i = lo; i <= hi && i < 100; i++) secs.add(i); });
+    sel.push({ gang:m[1], secs:secs.size ? secs : null, h, tekst:e.replace(/\s+/g, ' ') });
+  });
+  return { sel, fout };
+}
+const selMatch = (sel, g) => sel.some(e => e.gang === g.gang && (!e.secs || e.secs.has(g.sec)) && (e.h === null || e.h === g.h));
+// liggers die voor deze container niet bruikbaar zijn (czb:<cid> = {items})
+function blokVan(cid){
+  const v = D.TAKEN['czb:' + cid]; if(!v || !(v.items || []).length) return null;
+  const sel = parseSel(v.items.join(';')).sel; return sel.length ? (g => selMatch(sel, g)) : null;
+}
 // liggers die bevestigd leeg zijn (czl:<cid>:<ligger>)
 function bevVan(cid){ const s = new Set(), pre = 'czl:' + cid + ':'; Object.keys(D.TAKEN).forEach(k => { if(k.startsWith(pre) && D.TAKEN[k]) s.add(k.slice(pre.length)); }); return s; }
 function zonesVan(cs){
@@ -182,7 +222,7 @@ function zonesVan(cs){
       const code = k.slice(('cz:' + c.id + ':').length), v = D.TAKEN[k];
       if(!v || !v.zone) return;
       const pz = parseZone(v.zone);
-      if(pz.delen.length) z[c.id + '|' + code] = { tekst:v.zone, delen:pz.delen, vrij:!!D.TAKEN['czv:' + c.id + ':' + code], bev, auto:!!v.auto };
+      if(pz.delen.length) z[c.id + '|' + code] = { tekst:v.zone, delen:pz.delen, vrij:!!D.TAKEN['czv:' + c.id + ':' + code], bev, auto:!!v.auto, blok:blokVan(c.id) };
     });
   });
   return z;
@@ -195,7 +235,7 @@ function zoneLiggers(L, zone){
   const out = [];
   zone.delen.forEach(d => {
     const lo = Math.min(d.van, d.tot), hi = Math.max(d.van, d.tot), af = d.van > d.tot;
-    Object.values(L).filter(g => g.gang === d.gang && g.sec >= lo && g.sec <= hi && (d.h === undefined || g.h === d.h))
+    Object.values(L).filter(g => g.gang === d.gang && g.sec >= lo && g.sec <= hi && (d.h === undefined || g.h === d.h) && !(zone.blok && zone.blok(g)))
       .sort((a, b) => (af ? b.sec - a.sec : a.sec - b.sec) || a.h - b.h)
       .forEach(g => { if(!out.includes(g)) out.push(g); });
   });
@@ -225,16 +265,27 @@ function ligVoorstel(up, zones){
   const groepen = [];
   up.forEach(p => {
     const k = p.cid + '|' + p.code;
-    if(zones[k]) return;
-    const t = tv(p.key); if(t && t.loc) return;
+    if(zones[k] && !zones[k].auto) return;                     // zelf getypte liggers laat de app staan
     let gr = groepen.find(x => x.k === k);
-    if(!gr){ gr = { k, cid:p.cid, code:p.code, pi:palletInfo(p.code, p.note), grond:!!p.grond, n:0 }; groepen.push(gr); }
+    if(!gr){ gr = { k, cid:p.cid, code:p.code, pi:palletInfo(p.code, p.note), grond:!!p.grond, n:0, totaal:0, bestaand:zones[k] || null }; groepen.push(gr); }
+    gr.totaal++;
+    const t = tv(p.key); if(t && t.loc) return;
     gr.n++;
   });
+  // voorstel van de app dat te klein is geworden (ligger "past niet"): alleen het tekort aanvullen
+  for(let i = groepen.length - 1; i >= 0; i--){
+    const gr = groepen[i];
+    if(gr.bestaand){
+      const cap0 = zoneLiggers(L, gr.bestaand).reduce((n, g) => n + capLigger(g, gr.pi), 0);
+      gr.n = Math.min(gr.n, gr.totaal - cap0);
+    }
+    if(gr.n <= 0) groepen.splice(i, 1);
+  }
   LEVREF = null;
   const gekozen = [];            // { g, vrijPl, kgMax }
   groepen.forEach(gr => {
     const pi = gr.pi, ex = new Set((tv('czx:' + gr.cid + ':' + gr.code) || {}).ex || []);
+    const blok = blokVan(gr.cid), prefT = (tv('czk:' + gr.cid) || {}).tekst, pref = prefT ? parseSel(prefT).sel : null;
     const res = uit[gr.k] = { ligs:[], occ:0 };
     let n = gr.n;
     const capVan = g => capLigger(g, pi);
@@ -250,10 +301,10 @@ function ligVoorstel(up, zones){
     const refs = WHL.locsVan(gr.code).map(WHL.locInfo).filter(i => i.std);
     const ref = refs.find(i => i.h < 10) || refs[0] || levRef((D.P[gr.code] || {}).leverancier);
     while(n > 0){
-      const anker = res.ligs[0] || null;
-      let best = null;
+      const anker = res.ligs[0] || (gr.bestaand ? zoneLiggers(L, gr.bestaand)[0] : null) || null;
+      const kand = [];
       Object.values(L).forEach(g => {
-        if(claimed.has(g.k) || ex.has(g.k) || gekozen.some(e => e.g === g)) return;
+        if(claimed.has(g.k) || ex.has(g.k) || (blok && blok(g)) || gekozen.some(e => e.g === g)) return;
         if((g.h === 0) !== gr.grond) return;
         const cap = capVan(g); if(cap <= 0) return;
         const letters = Object.keys(g.pos);
@@ -266,8 +317,11 @@ function ligVoorstel(up, zones){
         } else sc += 200;
         sc += Math.max(0, (g.h - 10) / 10) * (pi.kg >= 500 ? 8 : 2);
         if(anker) sc += g.gang === anker.gang ? Math.abs(g.sec - anker.sec) * 3 + Math.abs(g.h - anker.h) / 10 : 50;
-        if(!best || sc < best.sc) best = { sc, g, cap, occ };
+        kand.push({ sc, g, cap, occ });
       });
+      // "liever deze liggers": die eerst, zolang er nog een geschikte is
+      const pool = pref && kand.some(x => selMatch(pref, x.g)) ? kand.filter(x => selMatch(pref, x.g)) : kand;
+      const best = pool.reduce((b, x) => !b || x.sc < b.sc ? x : b, null);
       if(!best) break;
       const take = Math.min(n, best.cap);
       gekozen.push({ g:best.g, vrijPl:Object.keys(best.g.pos).length - take * pi.k, kgMax:pi.kg });
@@ -611,6 +665,7 @@ function viewContainerdag(dagArg){
         ${o.zone && o.tekort > 0 && !wacht ? `<div class="meta rood">Past niet: de liggers bieden plek voor ${plural(o.cap, 'pallet', 'pallets')}, nodig ${nf(o.pallets)}${palletInfo(o.code).kg >= 500 ? ' (zwaar: max ' + palletInfo(o.code).maxLig + ' per ligger)' : ''}. ${o.zone.auto ? 'Tik Andere liggers of typ er een bij.' : 'Voeg een ligger toe, bv. ' + esc(o.zone.tekst) + ', CC08/10.'}</div>` : ''}</div>
       <div class="aant">${nf(o.toegewezen)}/${nf(o.pallets)}<small>ingedeeld</small></div></div>`;
   };
+  const blokItems = cid => (tv('czb:' + cid) || {}).items || [];
   const cBlok = c => {
     const os = zi.filter(o => o.cid === c.id);
     if(!os.length) return '';
@@ -624,7 +679,7 @@ function viewContainerdag(dagArg){
       const voor = os.filter(o => o.zone && o.liggers.some(x => x.k === g.k));
       const tot = Object.keys(g.pos).length, bezetN = Object.values(g.pos).filter(q => q.bezet).length;
       const bv = bevC(g), op = (tv('czl:' + c.id + ':' + g.k) || {}).op;
-      return `<tr><td><b class="loc">${esc(ligToken(g))}</b><div class="small muted">${esc(ligBereik(g))}</div></td>
+      return `<tr><td class="noprint"><input type="checkbox" data-lsel="${c.id}" data-lk="${esc(g.k)}"></td><td><b class="loc">${esc(ligToken(g))}</b><div class="small muted">${esc(ligBereik(g))}</div></td>
         <td class="small">${voor.map(o => esc(o.code)).join('<br>')}</td>
         <td class="small">${bv ? '' : bezetN ? '<b style="color:var(--bad)">' + bezetN + ' van ' + tot + ' plaatsen bezet</b>' : 'Picqer: vrij, controleer ter plekke'}</td>
         <td class="noprint">${bv ? `<span class="badge b-ok">✓ leeg${op ? ' ' + esc(tijd(op)) : ''}</span> <button class="btn sm ghost" data-d="lig-leeg" data-cid="${c.id}" data-lk="${esc(g.k)}">ongedaan</button>` : `<button class="btn sm ok" data-d="lig-leeg" data-cid="${c.id}" data-lk="${esc(g.k)}">Leeg bevestigen</button>`}</td></tr>`;
@@ -633,13 +688,19 @@ function viewContainerdag(dagArg){
         <span class="small">${esc(nBev + '/' + ligK.length)} liggers leeg</span></div>
       <div class="reason mt4"><b>${plural(pal, 'pallet', 'pallets')}</b> naar bulk = <b>${nf(pl, 1)} plaatsen</b> → ${ligK.length ? '<b>' + plural(ligK.length, 'ligger', 'liggers') + '</b> vrijmaken' : '<b>nog geen liggers gekozen</b>'}</div>
       ${os.map(zoneRij).join('')}
-      ${ligK.length ? `<div class="scroll mt8"><table><tr><th>Ligger</th><th>Voor</th><th>Nu</th><th class="noprint"></th></tr>${ligK.map(rij).join('')}</table></div>
+      <div class="mt8 noprint"><div class="row wrap"><span class="small" style="min-width:74px">Past niet:</span><input class="loc" data-blok="${c.id}" placeholder="bv. AE/20 of AE08/10" style="width:200px"><button class="btn sm" data-d="blok-op" data-cid="${c.id}">Toevoegen</button>
+          ${blokItems(c.id).map((t, i) => `<span class="badge b-warn">${esc(t)} <a href="#" data-d="blok-weg" data-cid="${c.id}" data-i="${i}" title="weer toestaan">✕</a></span>`).join(' ')}</div>
+        <div class="row wrap mt4"><span class="small" style="min-width:74px">Liever:</span><input class="loc" data-pref="${c.id}" value="${esc((tv('czk:' + c.id) || {}).tekst || '')}" placeholder="bv. AE12/14/16/10" style="width:200px"><button class="btn sm" data-d="pref-op" data-cid="${c.id}">Toepassen</button></div></div>
+      ${ligK.length ? `<div class="scroll mt8"><table><tr><th class="noprint"></th><th>Ligger</th><th>Voor</th><th>Nu</th><th class="noprint"></th></tr>${ligK.map(rij).join('')}</table></div>
+        <div class="row wrap mt8 noprint"><button class="btn sm ghost" data-d="lig-sel" data-cid="${c.id}">Alles selecteren</button>
+          <button class="btn sm acc" data-d="lig-blok-sel" data-cid="${c.id}">Geselecteerde past niet</button>
+          ${[...new Set(ligK.map(g => g.gang + '/' + dd(g.h)))].map(t => `<button class="btn sm ghost" data-d="lig-blok-niv" data-cid="${c.id}" data-t="${esc(t)}">${esc(t.split('/')[0])} niveau ${esc(String(+t.split('/')[1]))} past niet</button>`).join('')}</div>
         ${nBev < ligK.length ? `<div class="mt8 noprint"><button class="btn sm" data-d="lig-alle" data-cid="${c.id}">Alle liggers leeg bevestigen</button></div>` : ''}` : ''}</div>`;
   };
   const bulkC = P.cs.filter(c => zi.some(o => o.cid === c.id));
   const ligTot = bulkC.reduce((n, c) => n + new Set(zi.filter(o => o.cid === c.id).flatMap(o => (o.liggers || []).map(g => g.k))).size, 0);
   const ligBevTot = bulkC.reduce((n, c) => { const os = zi.filter(o => o.cid === c.id); const ks = new Set(os.flatMap(o => (o.liggers || []).map(g => g.k))); return n + [...ks].filter(k => os.some(o => o.zone && o.liggers.some(g => g.k === k && ligBev(o.zone, g)))).length; }, 0);
-  const s0 = zi.length ? `<div class="small muted mb8">1. De app kiest hele liggers voor de pallets naar bulk, met zo min mogelijk om te ruimen. Pas aan door liggers te typen (<b>CC07/10</b> = CC07A10 t/m D10, of <b>CC 07-09</b> voor een gang met secties) of tik <b>Andere liggers</b>.<br>
+  const s0 = zi.length ? `<div class="small muted mb8">1. De app kiest hele liggers voor de pallets naar bulk, met zo min mogelijk om te ruimen. Past een ligger niet (te laag, te vol)? Vink hem aan en tik <b>Geselecteerde past niet</b>, of tik <b>AE niveau 20 past niet</b>. De app kiest dan zelf nieuwe. Liever bepaalde liggers? Typ ze bij <b>Liever</b>, bv. <b>AE12/14/16/10</b> (secties 12, 14, 16 op niveau 10). Per product kan ook: typ de liggers (<b>CC07/10</b>) of tik <b>Andere liggers</b>.<br>
       2. Print de vrijmaaklijst hieronder voor de chauffeur: wat er nu staat en waar het heen gaat.<br>
       3. Is een ligger leeg (ook wat los ligt), tik <b>Leeg bevestigen</b>. Pas dan krijgen de pallets hun plek op het label.<br>
       4. Koppel de producten alvast aan die plekken in Picqer (onderaan), ook als de voorraad nog niet is opgeboekt.</div>
@@ -1142,6 +1203,62 @@ document.addEventListener('click', async ev => {
     try{ await WH.catPatch('wh-taken', patch); }catch(e){ /* melding al getoond */ }
     V().rerender(); return;
   }
+  if(a === 'lig-sel'){
+    const bx = [...document.querySelectorAll(`[data-lsel="${CSS.escape(b.dataset.cid)}"]`)], alle = bx.every(x => x.checked);
+    bx.forEach(x => x.checked = !alle); b.textContent = alle ? 'Alles selecteren' : 'Niets selecteren'; return;
+  }
+  if(a === 'lig-blok-sel' || a === 'lig-blok-niv' || a === 'blok-op'){
+    const cid = b.dataset.cid;
+    let items = [];
+    if(a === 'lig-blok-sel'){ items = [...document.querySelectorAll(`[data-lsel="${CSS.escape(cid)}"]:checked`)].map(x => x.dataset.lk.replace('|', '/')); if(!items.length){ toast('Selecteer eerst de liggers die niet passen'); return; } }
+    else if(a === 'lig-blok-niv') items = [b.dataset.t];
+    else {
+      const txt = ((document.querySelector(`[data-blok="${CSS.escape(cid)}"]`) || {}).value || '').trim(); if(!txt) return;
+      const pz = parseSel(txt);
+      if(!pz.sel.length || pz.fout.length){ toast('Niet begrepen: ' + (pz.fout.join(', ') || txt) + '. Voorbeeld: AE/20 (hele gang, niveau 20) of AE08/10 (één ligger)'); return; }
+      items = pz.sel.map(x => x.tekst);
+    }
+    const eerder = (tv('czb:' + cid) || {}).items || [];
+    const nieuw = eerder.concat(items.filter(t => !eerder.includes(t)));
+    const sel = parseSel(nieuw.join(';')).sel, L = ligBouw(), P = dagPlan(kiesDag());
+    const patch = { ['czb:' + cid]:{ items:nieuw } };
+    Object.values(L).forEach(g => { if(selMatch(sel, g) && D.TAKEN['czl:' + cid + ':' + g.k]) patch['czl:' + cid + ':' + g.k] = null; });   // bevestiging van een ligger die niet meer telt vervalt
+    P.up.forEach(p => {                                                     // voorstellen voor pallets in een geblokkeerde ligger vervallen
+      if(String(p.cid) !== String(cid)) return;
+      const t = tv(p.key); if(t && t.loc) return;
+      const vs = tv('cvs:' + p.key); if(!(vs && vs.loc)) return;
+      const i = WHL.locInfo(vs.loc), g = L[i.gang + dd(i.sec) + '|' + i.h];
+      if(g && selMatch(sel, g)) patch['cvs:' + p.key] = null;
+    });
+    Object.entries(patch).forEach(([k, v]) => { if(v === null) delete D.TAKEN[k]; else D.TAKEN[k] = v; });
+    try{ await WH.catPatch('wh-taken', patch); }catch(e){ /* melding al getoond */ }
+    V().rerender(); return;
+  }
+  if(a === 'blok-weg'){
+    ev.preventDefault();
+    const cid = b.dataset.cid, items = ((tv('czb:' + cid) || {}).items || []).filter((t, i) => i !== +b.dataset.i);
+    const patch = { ['czb:' + cid]:items.length ? { items } : null };
+    Object.entries(patch).forEach(([k, v]) => { if(v === null) delete D.TAKEN[k]; else D.TAKEN[k] = v; });
+    try{ await WH.catPatch('wh-taken', patch); }catch(e){}
+    V().rerender(); return;
+  }
+  if(a === 'pref-op'){
+    const cid = b.dataset.cid, txt = ((document.querySelector(`[data-pref="${CSS.escape(cid)}"]`) || {}).value || '').trim();
+    const pz = parseSel(txt);
+    if(txt && (!pz.sel.length || pz.fout.length)){ toast('Niet begrepen: ' + (pz.fout.join(', ') || txt) + '. Voorbeeld: AE12/14/16/10 (secties 12, 14, 16 op niveau 10)'); return; }
+    const L = ligBouw();
+    if(txt && Object.keys(L).length && !Object.values(L).some(g => selMatch(pz.sel, g))){ toast('Geen liggers gevonden voor ' + txt + ' (staan ze in de locatie-export?)'); return; }
+    const P = dagPlan(kiesDag());
+    const patch = { ['czk:' + cid]:txt ? { tekst:txt, op:new Date().toISOString() } : null };
+    Object.values(P.zoneInfo).forEach(o => {                                   // voorstellen van de app waar nog niets van leeg is: opnieuw laten kiezen
+      if(String(o.cid) !== String(cid) || !o.zone || !o.zone.auto || o.ligBev) return;
+      patch['cz:' + cid + ':' + o.code] = null;
+      o.keys.forEach(k => { const t = tv(k); if(!(t && t.loc)) patch['cvs:' + k] = null; });
+    });
+    Object.entries(patch).forEach(([k, v]) => { if(v === null) delete D.TAKEN[k]; else D.TAKEN[k] = v; });
+    try{ await WH.catPatch('wh-taken', patch); }catch(e){ /* melding al getoond */ }
+    V().rerender(); return;
+  }
   if(a === 'lig-koppel'){
     const r = koppelRijen(dagPlan(kiesDag()));
     if(!r.length){ toast('Nog niets te koppelen: bevestig eerst dat een ligger leeg is'); return; }
@@ -1166,5 +1283,5 @@ document.addEventListener('keydown', ev => {
   if(inp){ ev.preventDefault(); const k = inp.dataset.loc; const btn = document.querySelector(`[data-d="plaats"][data-k="${CSS.escape(k)}"]`); if(btn) btn.click(); }
 });
 
-return { viewVandaag, viewContainerdag, viewControle, viewBackorders, viewRuimte, viewInvul, dagPlan, plan, bulkVoorstellen, ruimte, boDiff, kiesDag, invulLijst, parseZone, vrijmaakLijst, koppelRijen, ligVoorstel };
+return { viewVandaag, viewContainerdag, viewControle, viewBackorders, viewRuimte, viewInvul, dagPlan, plan, bulkVoorstellen, ruimte, boDiff, kiesDag, invulLijst, parseZone, parseSel, vrijmaakLijst, koppelRijen, ligVoorstel };
 })();
