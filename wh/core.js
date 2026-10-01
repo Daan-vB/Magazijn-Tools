@@ -456,7 +456,10 @@ function maandVerkoop(code){
    Export van magazijn Bulk van Spreuwel (palletnummers) wordt apart bewaard. */
 // exporttijd uit de Picqer-bestandsnaam (stock-20260930061500.xlsx), anders nu
 function datumUitNaam(naam){
-  const m = /(20\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(String(naam || ''));
+  const t = String(naam || '');
+  let m = /(20\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(t);                    // Picqer: stock-20260930061500
+  if(!m){ const n = /(20\d{2})-(\d{2})-(\d{2})[ _T-](\d{2})[:.]?(\d{2})(?!\d)/.exec(t) || null; if(n) m = [n[0], n[1], n[2], n[3], n[4], n[5], 0]; }   // hernoemd: Voorraad 2026-10-01 0058
+  if(!m){ const n = /(\d{2})-(\d{2})-(20\d{2})[ _T-](\d{2})[:.]?(\d{2})(?!\d)/.exec(t); if(n) m = [n[0], n[3], n[2], n[1], n[4], n[5], 0]; }   // 01-10-2026 0058
   if(!m) return null;
   const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
   return isNaN(d) ? null : d.toISOString();
