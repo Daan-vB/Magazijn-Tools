@@ -9,6 +9,9 @@ window.WHS = (function(){
 const { D, esc, nf, num, toast, fdate } = WH;
 const KEY = 'wh-stellingen';
 const NIV_STD = [0, 2, 4, 6, 8];
+// maatstaf Daan (1-10): max pallethoogte op de bovenste bulkligger (20) — hal A 140 cm, hal B en C gemiddeld 220 cm
+const MAX20 = { A:140, B:220, C:220, D:220 };
+const std20 = (gang, n, bulk) => n === 20 && Math.max(...bulk) === 20 ? MAX20[String(gang)[0]] || null : null;
 const p2 = n => String(n).padStart(2, '0');
 const app = () => document.getElementById('app');
 let open = {};          // gang → welke afwijking-formulier open
@@ -66,9 +69,10 @@ function view(gang){
 }
 
 /* ---------- één gang ---------- */
-function velden(pref, waarde, niveaus, bulk){
+function velden(pref, waarde, niveaus, bulk, gang){
   const v = waarde || {};
-  const veld = (n, label) => `<div class="fld"><label>${label}</label><input inputmode="numeric" data-sf="${pref}h${n}" value="${esc((v.niveaus || {})[p2(n)] ?? '')}"></div>`;
+  const veld = (n, label) => { const st = pref ? null : std20(gang, n, bulk);
+    return `<div class="fld"><label>${label}</label><input inputmode="numeric" data-sf="${pref}h${n}" value="${esc((v.niveaus || {})[p2(n)] ?? '')}"${st ? ` placeholder="${st} (standaard hal ${esc(String(gang)[0])})"` : ''}></div>`; };
   const topB = Math.max(...bulk);
   return `${bulk.length ? `<div class="s-groep">Bulk (pallets)</div><div class="s-velden">
     ${bulk.slice().reverse().map(n => veld(n, n === topB ? `Bulk ${p2(n)} · max pallethoogte cm (tot plafond/dakbalk)` : `Bulk ${p2(n)} · vrije hoogte cm`)).join('')}
@@ -103,7 +107,7 @@ function viewGang(gang){
       <li><b>Liggerbreedte</b>: binnenmaat tussen de staanders.</li>
       <li><b>Diepte</b>: voorkant tot achterkant van het legbord.</li>
       <li><b>Pickplaatsen</b>: hoeveel picklocaties (A–D) er op één ligger zitten. Leeg = wat de locatie-export zegt (${pl}).</li></ul></details>
-    <div class="mt12" data-sg="${esc(gang)}">${velden('', s, niveaus, bulk)}</div>
+    <div class="mt12" data-sg="${esc(gang)}">${velden('', s, niveaus, bulk, gang)}</div>
     <div class="small muted mt4" id="s-pp">${esc(perPlaats(s, pl, bpl))}</div>
     <div class="row wrap mt12"><button class="btn ok" data-s="opslaan" data-g="${esc(gang)}">Opslaan</button><button class="btn" data-s="print" data-g="${esc(gang)}">Print meetformulier</button></div></div>
   <div class="card"><h3>Afwijkende secties</h3><div class="small muted mt4">Alleen als een sectie anders is dan de rest van de gang (andere liggerhoogte, smaller, extra legbord).</div>
@@ -179,14 +183,17 @@ function invoer(e){
 /* ---------- maat van één locatie (ook voor later: max op pick) ---------- */
 function maatVan(naam){
   const i = WHL.locInfo(naam); if(!i.std) return null;
-  const s = data()[i.gang]; if(!s) return null;
+  const s = data()[i.gang] || { niveaus:{} };
   let bron = s, waar = 'gang';
   Object.entries(s.afwijk || {}).forEach(([k, v]) => { if(secLijst(k).includes(i.sec)){ bron = v; waar = 'sectie ' + k; } });
   const g = gangInfo()[i.gang];
   const bulkLoc = !(i.h < 10 || i.gang === 'AH');
   const n = bulkLoc ? (num(bron.palletplaatsen) || num(s.palletplaatsen) || (g && g.bplaatsen) || null) : (num(bron.plaatsen) || num(s.plaatsen) || (g && g.plaatsen) || null);
   const breedte = bron.breedte || s.breedte;
-  return { hoogte:(bron.niveaus || {})[p2(i.h)] ?? (s.niveaus || {})[p2(i.h)] ?? null, breedte:breedte && n ? Math.floor(breedte / n) : null,
+  const gemeten = (bron.niveaus || {})[p2(i.h)] ?? (s.niveaus || {})[p2(i.h)] ?? null;
+  const st = gemeten === null && g ? std20(i.gang, i.h, bulkVan(g)) : null;
+  if(st) waar = 'standaard hal ' + i.gang[0];
+  return { hoogte:gemeten ?? st, breedte:breedte && n ? Math.floor(breedte / n) : null,
     diepte:bron.diepte || s.diepte || null, bron:waar, notitie:bron.notitie || s.notitie || '', soort:bulkLoc ? 'bulk' : 'pick' };
 }
 
@@ -237,7 +244,7 @@ function formulierGang(gang){
       <div class="s-puitleg">${UITLEG.map(([t, x]) => `<p><b>${t}</b> ${x}</p>`).join('')}</div>
     </div>
     <table class="s-ptab"><tr><th>Niveau / Level</th><th>Vrije hoogte / Free height (cm)</th></tr>
-      ${bulk.slice().reverse().map(n => `<tr><td><b>${p2(n)}</b> bulk${n === topB ? ' · max pallethoogte tot plafond/dakbalk / max pallet height to ceiling/roof beam' : ''}</td>${vak((s.niveaus || {})[p2(n)])}</tr>`).join('')}
+      ${bulk.slice().reverse().map(n => `<tr><td><b>${p2(n)}</b> bulk${n === topB ? ' · max pallethoogte tot plafond/dakbalk / max pallet height to ceiling/roof beam' : ''}</td>${vak((s.niveaus || {})[p2(n)] ?? (std20(gang, n, bulk) ? 'standaard ' + std20(gang, n, bulk) : null))}</tr>`).join('')}
       ${niveaus.slice().reverse().map(n => `<tr><td><b>${p2(n)}</b>${n === 0 ? ' vloer / floor' : ''}${n === topP && bulk.length ? ' (tot ligger ' + p2(bulk[0]) + ')' : ''}</td>${vak((s.niveaus || {})[p2(n)])}</tr>`).join('')}
       <tr><td><b>Liggerbreedte</b> / width</td>${vak(s.breedte)}</tr>
       <tr><td><b>Diepte</b> / depth</td>${vak(s.diepte)}</tr>
@@ -247,7 +254,7 @@ function formulierGang(gang){
       ${Object.entries(s.afwijk || {}).map(([k, v]) => `<tr><td><b>${esc(k)}</b></td><td><span class="s-oud">${esc(Object.entries(v.niveaus || {}).filter(x => x[1]).map(x => x[0] + ': ' + x[1]).join(' · ') + (v.breedte ? ' · breedte ' + v.breedte : '') + (v.palletplaatsen ? ' · palletplaatsen ' + v.palletplaatsen : '') + (v.diepte ? ' · diepte ' + v.diepte : '') + (v.notitie ? ' · ' + v.notitie : ''))}</span></td></tr>`).join('')}
       ${'<tr><td class="s-vak"></td><td class="s-vak"></td></tr>'.repeat(4)}</table>
     <div class="s-pvoet">Gemeten door / measured by: ______________________ &nbsp; Datum / date: ____________</div>
-    ${Object.keys(s).length ? '<div class="s-pvoet">Grijs = staat al in de app: klopt het? Streep door en schrijf het juiste getal erbij.</div>' : ''}
+    <div class="s-pvoet">Grijs = staat al in de app of is de standaard van de hal: klopt het? Streep door en schrijf het juiste getal erbij. / Grey = already known: check it, cross out and write the right number.</div>
   </section>`;
 }
 function printFormulier(gangen){
