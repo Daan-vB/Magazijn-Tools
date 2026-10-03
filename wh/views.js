@@ -678,6 +678,7 @@ function viewPlanning(){
    GEGEVENS
    ===================================================================== */
 function viewGegevens(){
+  if(!D.VP) WH.laadVerplaatsingen().then(() => { if(/^#\/gegevens/.test(location.hash)) viewGegevens(); });
   const dt = dataDatums();
   if(!UI.vk.van){ UI.vk.tot = isoDag(Date.now() - 864e5); UI.vk.van = isoDag(Date.now() - 182 * 864e5); }
   const rij = (naam, k, n, hoe) => `<tr><td><b>${esc(naam)}</b><div class="desc">${hoe}</div></td><td>${exportLeeftijd(dt[k])}</td><td class="n">${n}</td></tr>`;
@@ -697,6 +698,7 @@ function viewGegevens(){
     <tr><td><b>VST: voorraad per pallet</b><div class="desc">Zelfde export, magazijn Bulk van Spreuwel.</div></td><td>${exportLeeftijd(D.VSTVRDATUM)}</td><td class="n">${nf(Object.keys(D.VSTVR).length)} producten</td></tr>
     ${rij('Backorders', 'backorders', nf(D.BO.length) + ' regels', 'Picqer → Backorders → Exporteer backorders. De vorige stand wordt bewaard (opgelost / open / nieuw).')}
     ${rij('Magazijnverkopen', 'verkoop', nf(Object.keys(D.VK).length), 'Picqer → Rapporten → Magazijnverkopen. Per maand: maand in de bestandsnaam. Anders periode hierboven invullen.')}
+    <tr><td><b>Verplaatsingen uit Picqer</b><div class="desc">Mac-script "Verplaatsingen ophalen" → bestand in 00_Inbox (.json). Laatste 60 dagen blijven bewaard.</div></td><td>${D.VP && D.VP !== 'laden' && D.VP.datum ? exportLeeftijd(D.VP.datum) : '–'}</td><td class="n">${D.VP && D.VP !== 'laden' && D.VP.rows ? nf(D.VP.rows.length) + ' verplaatsingen' + (D.VP.rows.length ? ' · ' + esc(String(D.VP.rows.reduce((m, r) => r[1] < m ? r[1] : m, '9')).slice(0, 10)) + ' t/m ' + esc(String(D.VP.rows.reduce((m, r) => r[1] > m ? r[1] : m, '')).slice(0, 10)) : '') : '–'}</td></tr>
     <tr><td><b>Verkoop per maand</b><div class="desc">Verkoop/maand = gemiddelde van de laatste 6 maanden.</div></td><td>${exportLeeftijd(D.VKM && D.VKM.datum)}</td><td class="n">${D.VKM ? esc(D.VKM.maanden[0] + ' t/m ' + D.VKM.maanden[D.VKM.maanden.length - 1]) : '–'}</td></tr>
     ${rij('Aanvuladvies', 'advies', D.ADV ? nf(D.ADV.rows.length) + ' regels' : '–', 'Picqer → Aanvuladvies → PDF (picklijst bulklocaties).')}
   </table></div>

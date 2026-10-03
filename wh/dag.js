@@ -579,7 +579,10 @@ function viewContainerdag(dagArg){
       <div class="row wrap">${dagen.slice(0, 6).map(d => `<a class="btn sm ${d === dag ? 'pri' : ''}" href="#/containerdag/${d}">${esc(kort(d))}</a>`).join('')}<button class="btn sm" data-a="print">Print</button></div></div>
     ${!Object.keys(D.LOC).length ? '<div class="reason mt8">Locatie-export ontbreekt: zonder die kan de app geen bulklocaties voorstellen. <a href="#/gegevens">Inladen →</a></div>' : ''}
     ${P.geen.length ? `<div class="reason mt8">Nog geen verdeling voor: ${P.geen.map(x => `<span class="code">${esc(x.code)}</span>`).join(', ')}. <a href="./containerplanning.html">Containers → Verdeling</a></div>` : ''}</div>`;
-  if(!P.cs.length){ app.innerHTML = kop; return; }
+  if(!D.VP) WH.laadVerplaatsingen().then(() => { if(/^#\/containerdag/.test(location.hash)) B.rerender(); });
+  const vpN = (D.VP && D.VP !== 'laden' && D.VP.rows) ? D.VP.rows.filter(r => String(r[1]).slice(0, 10) >= dag).length : 0;
+  const vpKop = `<div class="card small"><b>Verplaatsingen uit Picqer</b>: ${D.VP && D.VP !== 'laden' && D.VP.datum ? nf(vpN) + ' sinds ' + esc(kort(dag)) + ' · opgehaald ' + esc(fdt(D.VP.datum)) + ' · <a href="#/controle/' + dag + '">bekijk in Controle →</a>' : 'nog niet opgehaald (Mac-script, daarna inladen bij <a href="#/gegevens">Gegevens</a>)'}</div>`;
+  if(!P.cs.length){ app.innerHTML = kop + vpKop; return; }
 
   // 1. voorbereiden
   const s1 = P.cs.map(c => {
@@ -724,7 +727,7 @@ function viewContainerdag(dagArg){
         <div class="mt8"><button class="btn sm pri" data-d="lig-koppel">Download Picqer-import (${koppel.length})</button></div>` : '<div class="small muted mt8">Nog geen ligger leeg bevestigd.</div>'}</div>` : '';
 
   const stap = (nr, titel, sub, body, open) => `<div class="card"><div class="row between"><h3>${nr}. ${esc(titel)}</h3><span class="small muted">${sub || ''}</span></div><div class="mt8">${body}</div></div>`;
-  app.innerHTML = kop
+  app.innerHTML = kop + vpKop
     + stap(1, 'Ruimte maken: liggers vrijmaken (dagen vooraf)', ligBevTot + '/' + ligTot + ' liggers leeg', s0) + vrijKaart + koppelKaart
     + stap(2, 'Voor het lossen', '', s1)
     + stap(3, 'Apart zetten voor orders', P.bo.filter(x => tik(x.key)).length + '/' + P.bo.length, s2)
