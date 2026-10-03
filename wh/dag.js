@@ -773,6 +773,9 @@ function viewControle(dagArg){
   // per product: gepland vs gevonden
   const codes = [...new Set([].concat(P.up, P.pick, P.bo, P.vst).map(x => x.code))];
   let nGoed = 0, nFout = 0, nLet = 0;
+  if(!D.VP) WH.laadVerplaatsingen().then(() => { if(/^#\/controle/.test(location.hash)) B.rerender(); });
+  const vpr = ((D.VP && D.VP !== 'laden' && D.VP.rows) || []).filter(r => String(r[1]).slice(0, 10) >= dag);
+  const vpTijd = r => String(r[1]).slice(5, 16).replace('T', ' ');
   const rijen = codes.map(code => {
     const vr = D.VR[code] || { locs:{}, geen:0, cont:{} };
     const up = P.up.filter(p => p.code === code);
@@ -787,7 +790,11 @@ function viewControle(dagArg){
       const q = vr.locs[l] || 0;
       if(q >= n) regels.push(['ok', l + ': ' + nf(q) + (q > n ? ' (moest ' + nf(n) + ', stond er al wat?)' : '')]);
       else if(q > 0) regels.push(['let', l + ': ' + nf(q) + ' van ' + nf(n)]);
-      else regels.push(['fout', l + ': niets in Picqer (moest ' + nf(n) + ')']);
+      else {
+        const weg = vpr.filter(r => r[3] === code && r[5] === l && r[6] !== l);
+        if(weg.length) regels.push(['ok', l + ': ' + nf(n) + ' erop gezet, later verplaatst naar ' + (weg[weg.length - 1][6] || 'geen specifieke locatie') + ' (' + weg[weg.length - 1][2] + ' ' + vpTijd(weg[weg.length - 1]) + ')']);
+        else regels.push(['fout', l + ': niets in Picqer (moest ' + nf(n) + ')']);
+      }
     });
     // pick
     const pd = pickDoel(code);
@@ -800,7 +807,9 @@ function viewControle(dagArg){
       } else {
         const op = pd.locs.map(l => [l, vr.locs[l] || 0]);
         const q = op.reduce((s, x) => s + x[1], 0);
-        regels.push([q >= n ? 'ok' : q > 0 ? 'let' : 'fout', 'pick ' + op.map(x => x[0] + ' ' + nf(x[1])).join(', ') + ' (moest minstens ' + nf(n) + ')' + (pd.nieuw ? ' · nieuwe picklocatie: koppelen in Picqer' : '')]);
+        const netto = vpr.filter(r => r[3] === code).reduce((s, r) => s + (pd.locs.includes(r[6]) && r[6] !== r[5] ? r[4] : 0) - (pd.locs.includes(r[5]) && r[6] !== r[5] ? r[4] : 0), 0);
+        const viaPicqer = q < n && netto >= n;
+        regels.push([q >= n || viaPicqer ? 'ok' : q > 0 ? 'let' : 'fout', 'pick ' + op.map(x => x[0] + ' ' + nf(x[1])).join(', ') + ' (moest minstens ' + nf(n) + ')' + (viaPicqer ? ' · er is ' + nf(netto) + ' naartoe verplaatst volgens Picqer, de rest is inmiddels gepickt' : '') + (pd.nieuw ? ' · nieuwe picklocatie: koppelen in Picqer' : '')]);
       }
     }
     // andere bulk waar het product ook staat
@@ -818,7 +827,12 @@ function viewControle(dagArg){
       const n = vst.reduce((s, x) => s + (x.pal ? x.n : 0), 0);
       const nieuw = vstNieuw(code);
       const metAantal = (D.VSTVR[code] || []).filter(([p]) => nieuw.includes(p));
-      if(!vstVers) regels.push(['let', 'VST: export van ná de Stockmove ontbreekt']);
+      const vstMv = vpr.filter(r => r[3] === code && r[7] === 'Bulk van Spreuwel');
+      if(vstMv.length && !(vstVers && nieuw.length)){
+        const nn = new Set(vstMv.map(r => r[6])).size;
+        regels.push([nn >= n ? 'ok' : 'let', 'VST ' + nn + ' van ' + n + ' pallets volgens Picqer-verplaatsingen (' + [...new Set(vstMv.map(r => r[2]))].join(', ') + ' ' + vpTijd(vstMv[0]) + ')']);
+      }
+      else if(!vstVers) regels.push(['let', 'VST: export van ná de Stockmove ontbreekt']);
       else regels.push([nieuw.length >= n ? 'ok' : nieuw.length ? 'let' : 'fout', 'VST ' + nieuw.length + ' van ' + n + ' pallets' + (nieuw.length ? ': ' + (metAantal.length ? metAantal.map(([p, q]) => p + ' (' + nf(q) + ')').join(', ') : nieuw.join(', ')) : '')]);
     }
     const erg = regels.some(r => r[0] === 'fout') ? 'fout' : regels.some(r => r[0] === 'let') ? 'let' : 'ok';
@@ -833,7 +847,8 @@ function viewControle(dagArg){
   const geen = Object.entries(D.VR).filter(([c, v]) => v.geen > 0 && !codes.includes(c)).map(([c, v]) => ({ c, n:v.geen, bo:boVan(c).orders, vk:WHL.vkVan(c) || 0 }))
     .sort((a, b) => b.vk - a.vk || b.n - a.n);
   // VST-palletnummers van vandaag
-  const vstRijen = P.vst.map(x => ({ code:x.code, nieuw:vstNieuw(x.code) })).filter(x => x.nieuw.length);
+  const vstRijen = P.vst.map(x => { let nieuw = vstNieuw(x.code); if(!nieuw.length) nieuw = [...new Set(vpr.filter(r => r[3] === x.code && r[7] === 'Bulk van Spreuwel').map(r => String(r[6])))].sort((u, v) => (parseInt(u, 10) || 0) - (parseInt(v, 10) || 0)); return { code:x.code, nieuw }; }).filter(x => x.nieuw.length)
+    .filter((x, i, arr) => arr.findIndex(y => y.code === x.code) === i);
   app.innerHTML = exp + vpKaart(P, dag) + `<div class="card"><div class="row wrap between"><h3>Container-producten</h3><span>${B.badge(nGoed + ' goed', 'b-ok')} ${B.badge(nLet + ' let op', 'b-warn')} ${B.badge(nFout + ' mis', 'b-bad')}</span></div>
       <div class="small muted mt4">Voorraad per locatie van ${esc(fdt(D.VRDATUM))}. "Mis" = pallet niet gevonden op de plek waar hij hoort: plek vergeten in Picqer, of op een andere plek gezet.</div>
       <div class="mt8">${tabel}</div>
