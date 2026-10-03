@@ -752,11 +752,12 @@ function viewControle(dagArg){
     <div class="mt8"><b>Exports van ná het verplaatsen</b> (sleep ze tegelijk hierin):</div>
     <div class="small mt4">1. Voorraad per locatie, Hoofdmagazijn (zelfde export als stock-…xlsx van 2-9) ${B.exportLeeftijd(D.VRDATUM)}<br>
       2. VST: voorraad per locatie of locatie-export van magazijn Bulk van Spreuwel ${B.exportLeeftijd(D.VSTVRDATUM || D.VSTDATUM)}<br>
-      3. Backorders (Backorders → Exporteer backorders) ${B.exportLeeftijd(B.dataDatums().backorders)}</div>
-    <label class="drop mt8" id="cdrop" style="display:block"><input type="file" id="cfiles" multiple accept=".xlsx,.xls,.csv,.pdf" hidden><b>Bestanden kiezen of hierheen slepen</b></label>
+      3. Backorders (Backorders → Exporteer backorders) ${B.exportLeeftijd(B.dataDatums().backorders)}<br>
+      4. Verplaatsingen: op de Mac dubbelklik <b>Verplaatsingen ophalen</b> (02_Werk_IVOL › 07_Tools_en_app_bronnen), het bestand komt in 00_Inbox ${B.exportLeeftijd(D.VP && D.VP !== 'laden' ? D.VP.datum : null)}</div>
+    <label class="drop mt8" id="cdrop" style="display:block"><input type="file" id="cfiles" multiple accept=".xlsx,.xls,.csv,.pdf,.json" hidden><b>Bestanden kiezen of hierheen slepen</b></label>
     <div id="cst" class="status"></div></div>`;
   if(!vrVers){
-    app.innerHTML = exp + `<div class="card empty">Nog geen voorraad-per-locatie van ${esc(kort(dag))} of later. Laad die eerst in; dan loopt de app alles na.</div>`;
+    app.innerHTML = exp + vpKaart(P, dag) + `<div class="card empty">Nog geen voorraad-per-locatie van ${esc(kort(dag))} of later. Laad die in, dan loopt de app ook de aantallen per locatie na.</div>`;
     koppelDrop('cdrop', 'cfiles', 'cst', () => viewControle());
     return;
   }
@@ -824,7 +825,7 @@ function viewControle(dagArg){
     .sort((a, b) => b.vk - a.vk || b.n - a.n);
   // VST-palletnummers van vandaag
   const vstRijen = P.vst.map(x => ({ code:x.code, nieuw:vstNieuw(x.code) })).filter(x => x.nieuw.length);
-  app.innerHTML = exp + `<div class="card"><div class="row wrap between"><h3>Container-producten</h3><span>${B.badge(nGoed + ' goed', 'b-ok')} ${B.badge(nLet + ' let op', 'b-warn')} ${B.badge(nFout + ' mis', 'b-bad')}</span></div>
+  app.innerHTML = exp + vpKaart(P, dag) + `<div class="card"><div class="row wrap between"><h3>Container-producten</h3><span>${B.badge(nGoed + ' goed', 'b-ok')} ${B.badge(nLet + ' let op', 'b-warn')} ${B.badge(nFout + ' mis', 'b-bad')}</span></div>
       <div class="small muted mt4">Voorraad per locatie van ${esc(fdt(D.VRDATUM))}. "Mis" = pallet niet gevonden op de plek waar hij hoort: plek vergeten in Picqer, of op een andere plek gezet.</div>
       <div class="mt8">${tabel}</div>
       <div class="row wrap mt8"><button class="btn ok" data-a="tik" data-k="cc:dag:${dag}:controle">${tik('cc:dag:' + dag + ':controle') ? '✓ Controle afgerond' : 'Controle afgerond'}</button></div></div>
@@ -833,6 +834,52 @@ function viewControle(dagArg){
     <div class="card"><h3>Overig op geen specifieke locatie (${nf(geen.length)})</h3><div class="small muted mt4">Hele Hoofdmagazijn, lopers eerst. Geef ze een plek: <a href="#/invul/geen">Invullen → geen locatie</a>.</div>
       <div class="scroll mt8"><table><tr><th>Product</th><th class="n">Op geen locatie</th><th class="n">Verkoop/mnd</th><th>Heeft</th></tr>${geen.slice(0, 40).map(x => `<tr><td><a class="code" href="#/p/${encodeURIComponent(x.c)}">${esc(x.c)}</a><div class="desc">${esc(WHL.naamVan(x.c))}</div></td><td class="n">${nf(x.n)}</td><td class="n">${nf(x.vk, 1)}</td><td>${V().locs(WHL.locsVan(x.c).slice(0, 3))}</td></tr>`).join('')}</table></div>${geen.length > 40 ? `<div class="small muted mt4">+ ${nf(geen.length - 40)} meer</div>` : ''}</div>`;
   koppelDrop('cdrop', 'cfiles', 'cst', () => viewControle());
+}
+/* ---------- verplaatsingen uit Picqer naast de planning ---------- */
+function vpGepland(P){
+  const per = {};
+  P.up.forEach(p => { const l = (tv(p.key) || {}).loc || (P.voorstel[p.key] || {}).loc; const x = per[p.code] = per[p.code] || { bulk:{}, pick:[] }; if(l) x.bulk[l] = (x.bulk[l] || 0) + p.stuks; });
+  P.pick.forEach(p => { const x = per[p.code] = per[p.code] || { bulk:{}, pick:[] }; pickDoel(p.code).locs.forEach(l => { if(!x.pick.includes(l)) x.pick.push(l); }); });
+  return per;
+}
+function vpKaart(P, dag){
+  const B = V();
+  if(!D.VP || D.VP === 'laden'){
+    if(!D.VP) WH.laadVerplaatsingen().then(() => { if(/^#\/controle/.test(location.hash)) B.rerender(); });
+    return '<div class="card small muted">Verplaatsingen laden…</div>';
+  }
+  const alle = (D.VP.rows || []).filter(r => String(r[1]).slice(0, 10) >= dag);
+  const uitleg = `<div class="small muted mt4">Haal ze op na het verplaatsen: op de Mac <b>Verplaatsingen ophalen</b> dubbelklikken (map 02_Werk_IVOL › 07_Tools_en_app_bronnen), Enter = vandaag. Sleep het bestand uit 00_Inbox hierboven in.</div>`;
+  if(!alle.length) return `<div class="card"><h3>Verplaatsingen in Picqer</h3><div class="small mt4">Nog geen verplaatsingen sinds ${esc(kort(dag))}.</div>${uitleg}</div>`;
+  const plan = vpGepland(P);
+  const codes = Object.keys(plan).concat(P.bo.map(x => x.code), P.vst.map(x => x.code)).filter((c, i, a) => a.indexOf(c) === i);
+  const tijd = t => (String(t).slice(0, 10) === dag ? '' : kort(String(t).slice(0, 10)) + ' ') + String(t).slice(11, 16);
+  const plek = l => l ? V().locBadge(l) : '<span class="badge b-grey">geen specifieke locatie</span>';
+  let nPal = 0, nPalOk = 0;
+  const blokken = codes.map(code => {
+    const rr = alle.filter(r => r[3] === code);
+    const pl = plan[code] || { bulk:{}, pick:[] };
+    const naar = {}; rr.forEach(r => { if(r[6]) naar[r[6]] = (naar[r[6]] || 0) + r[4]; });
+    const checks = Object.entries(pl.bulk).map(([l, n]) => { nPal++; const q = naar[l] || 0; if(q >= n) nPalOk++; return B.badge(l + ': ' + (q >= n ? '✓ ' + nf(q) : q ? nf(q) + ' van ' + nf(n) : 'niet verplaatst'), q >= n ? 'b-ok' : q ? 'b-warn' : 'b-bad'); });
+    if(!rr.length && !checks.length) return '';
+    const regels = rr.map(r => {
+      const soort = r[6] && pl.bulk[r[6]] ? B.badge('gepland', 'b-ok') : r[6] && pl.pick.includes(r[6]) ? B.badge('pick', 'b-pick') : !r[6] ? '' : B.badge('niet gepland', 'b-warn');
+      return `<tr><td class="small">${esc(tijd(r[1]))}</td><td class="small">${esc(r[2])}</td><td class="n"><b>${nf(r[4])}</b></td><td>${plek(r[5])} <span class="pijl">→</span> ${plek(r[6])} ${soort}</td></tr>`;
+    }).join('');
+    return `<div class="mt12"><a class="code" href="#/p/${encodeURIComponent(code)}">${esc(code)}</a> <span class="desc">${esc(WHL.naamVan(code))}</span>
+      ${checks.length ? `<div class="small mt4">${checks.join(' ')}</div>` : ''}
+      ${rr.length ? `<div class="scroll mt4"><table>${regels}</table></div>` : '<div class="small muted mt4">Geen verplaatsingen van dit product.</div>'}</div>`;
+  }).join('');
+  const wie = {}; alle.forEach(r => wie[r[2]] = (wie[r[2]] || 0) + 1);
+  return `<div class="card"><div class="row wrap between"><h3>Verplaatsingen in Picqer sinds ${esc(kort(dag))}</h3>
+      <span>${nPal ? B.badge(nPalOk + ' van ' + nPal + ' geplande bulkplekken gevuld', nPalOk === nPal ? 'b-ok' : 'b-warn') : ''}</span></div>
+    <div class="small muted mt4">Opgehaald ${esc(fdt(D.VP.datum))} · ${nf(alle.length)} verplaatsingen · ${Object.entries(wie).map(([w, n]) => esc(w) + ' ' + n).join(' · ')}</div>
+    ${blokken || '<div class="small muted mt8">Geen verplaatsingen van de container-producten.</div>'}
+    <details class="mt12"><summary>Alle verplaatsingen sinds ${esc(kort(dag))} (${nf(alle.length)})</summary>
+      <div class="scroll mt8"><table><tr><th>Tijd</th><th>Wie</th><th>Product</th><th class="n">Aantal</th><th>Van → naar</th></tr>
+      ${alle.slice().reverse().slice(0, 400).map(r => `<tr><td class="small">${esc(tijd(r[1]))}</td><td class="small">${esc(r[2])}</td><td><a class="code" href="#/p/${encodeURIComponent(r[3])}">${esc(r[3])}</a></td><td class="n">${nf(r[4])}</td><td>${plek(r[5])} <span class="pijl">→</span> ${plek(r[6])}</td></tr>`).join('')}</table></div>
+      ${alle.length > 400 ? `<div class="small muted mt4">Nieuwste 400 getoond; alles in de download.</div>` : ''}</details>
+    <div class="row wrap mt8"><button class="btn sm" data-d="vp-xlsx" data-dag="${dag}">Download verplaatsingen (Excel)</button></div>${uitleg}</div>`;
 }
 function koppelDrop(dropId, inpId, stId, na){
   const inp = $(inpId), drop = $(dropId); if(!inp || !drop) return;
@@ -1269,6 +1316,12 @@ document.addEventListener('click', async ev => {
   if(a === 'iv-op'){ await invulOpslaan(); return; }
   if(a === 'iv-over'){ UI.invul.i++; V().rerender(); window.scrollTo(0, 0); return; }
   if(a === 'iv-terug'){ UI.invul.i = Math.max(0, UI.invul.i - 1); V().rerender(); window.scrollTo(0, 0); return; }
+  if(a === 'vp-xlsx'){
+    const dag = b.dataset.dag;
+    const rijen = ((D.VP && D.VP.rows) || []).filter(r => String(r[1]).slice(0, 10) >= dag).map(r => [String(r[1]).replace('T', ' '), r[2], r[3], WHL.naamVan(r[3]), r[4], r[5] || 'Geen specifieke locatie', r[6] || 'Geen specifieke locatie', r[7]]);
+    WH.excel(['Tijd', 'Gebruiker', 'Productcode', 'Naam', 'Aantal', 'Van locatie', 'Naar locatie', 'Magazijn'], rijen, 'Verplaatsingen Picqer vanaf ' + dag + '.xlsx');
+    return;
+  }
   if(a === 'vst-xlsx'){
     const P = dagPlan(b.dataset.dag);
     const rijen = [];

@@ -683,7 +683,7 @@ function viewGegevens(){
   const rij = (naam, k, n, hoe) => `<tr><td><b>${esc(naam)}</b><div class="desc">${hoe}</div></td><td>${exportLeeftijd(dt[k])}</td><td class="n">${n}</td></tr>`;
   app.innerHTML = `<div class="card"><h2>Gegevens inladen</h2>
     <div class="small muted">Sleep alle Picqer-bestanden tegelijk hierin (of tik om te kiezen). De app herkent zelf wat het is.</div>
-    <label class="drop mt12" id="drop"><input type="file" id="files" multiple accept=".xlsx,.xls,.csv,.pdf" hidden>
+    <label class="drop mt12" id="drop"><input type="file" id="files" multiple accept=".xlsx,.xls,.csv,.pdf,.json" hidden>
       <b>Bestanden kiezen of hierheen slepen</b><div class="small muted mt4">productexport · locatie-export (Hoofdmagazijn en VST) · voorraad per locatie · backorders · Magazijnverkopen (per maand: maand in de bestandsnaam, bv. "Magazijnverkopen 2026-10.xlsx") · aanvuladvies (PDF)</div></label>
     <div class="fields mt12"><div class="fld"><label>Magazijnverkopen van</label><input type="date" id="vkvan" value="${esc(UI.vk.van)}"></div>
       <div class="fld"><label>tot en met</label><input type="date" id="vktot" value="${esc(UI.vk.tot)}"></div>
@@ -719,12 +719,17 @@ async function inlezen(files, opts){
   const soorten = [];
   for(const f of files){
     if(/\.pdf$/i.test(f.name)){ soorten.push({ f, s:'advies' }); continue; }
+    if(/\.json$/i.test(f.name)){
+      try{ const o = JSON.parse(await f.text()); soorten.push({ f, s:o && o.bron === 'picqer-location-stock-history' ? 'verplaatsingen' : null, obj:o, fout:'onbekend JSON-bestand' }); }
+      catch(e){ soorten.push({ f, s:null, fout:e.message }); }
+      continue;
+    }
     try{ const arr = await WH.leesSheet(f); soorten.push({ f, s:WH.soortVan(arr[0] || []), arr }); }
     catch(e){ soorten.push({ f, s:null, fout:e.message }); }
   }
   // Magazijnverkopen met een maand in de naam ("… 2026-09.xlsx") = verkoop per maand
   soorten.forEach(x => { if(x.s === 'verkoop'){ const ym = WH.maandUitNaam(x.f.name); if(ym){ x.s = 'verkoopmaand'; x.ym = ym; } } });
-  const ORDE = { producten:1, locaties:2, voorraad:3, verkoop:4, verkoopmaand:4, backorders:5, advies:6 };
+  const ORDE = { producten:1, locaties:2, voorraad:3, verkoop:4, verkoopmaand:4, backorders:5, advies:6, verplaatsingen:7 };
   soorten.sort((a, b) => (ORDE[a.s] || 9) - (ORDE[b.s] || 9));
   // meerdere maanden verkoop: eerst allemaal lezen, dan één keer opslaan en herberekenen
   const maanden = soorten.filter(x => x.s === 'verkoopmaand');
@@ -762,6 +767,7 @@ async function inlezen(files, opts){
       else if(x.s === 'verkoop' && maanden.length){ log.push('– ' + esc(naam) + ': overgeslagen (geen maand in de naam; de maandbestanden zijn leidend)'); continue; }
       else if(x.s === 'verkoop'){ if(!$('vkvan')) throw new Error('Magazijnverkopen zonder maand in de naam: laad hem in bij Gegevens (periode invullen) of zet de maand in de naam, bv. "Magazijnverkopen 2026-10.xlsx"'); msg = await WH.impVerkoop(x.arr, $('vkvan').value, $('vktot').value, $('vkvol').checked, s); }
       else if(x.s === 'advies') msg = await WH.impAdvies(x.f);
+      else if(x.s === 'verplaatsingen') msg = await WH.impVerplaatsingen(x.obj);
       log.push('✓ ' + esc(naam) + ': ' + esc(msg));
       if(x.s === 'producten') await WH.load();          // codes nodig voor de volgende bestanden
     }catch(e){ log.push('✗ ' + esc(naam) + ': ' + esc(e.message)); }

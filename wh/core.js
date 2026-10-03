@@ -488,6 +488,58 @@ async function impVoorraad(arr, datumBestand){
   return nf(rows.length) + ' regels voorraad per locatie · ' + nf(geen) + ' producten met voorraad op geen specifieke locatie';
 }
 
+/* ---------- verplaatsingen uit Picqer (Mac: "Verplaatsingen ophalen.command") ----------
+   Bestand: { bron:'picqer-location-stock-history', sinds, opgehaald, magazijnen, historie, locaties, producten, gebruikers }.
+   Picqer geeft per verplaatsing twee regels (af en bij, contra_idlocation = de andere kant) of één regel
+   als de andere kant "geen specifieke locatie" is. De app maakt er één regel per verplaatsing van:
+   [id, tijd, gebruiker, productcode, aantal, van, naar, magazijn]   (van/naar '' = geen specifieke locatie)
+   Bewaard in catalog wh-verplaatsingen (laatste 60 dagen), alleen geladen als een scherm het nodig heeft. */
+const VP_DAGEN = 60;
+function verplaatsingenUit(obj){
+  const L = {}, P = {}, U = {}, W = {};
+  (obj.magazijnen || []).forEach(w => { if(w && w.idwarehouse) W[w.idwarehouse] = w.name || ''; });
+  (obj.locaties || []).forEach(l => { if(l && l.idlocation) L[l.idlocation] = { naam:l.name || ('#' + l.idlocation), wh:W[l.idwarehouse] || '' }; });
+  (obj.producten || []).forEach(p => { if(p && p.idproduct) P[p.idproduct] = p.productcode || ('#' + p.idproduct); });
+  (obj.gebruikers || []).forEach(u => { if(u && u.iduser) U[u.iduser] = [u.firstname || u.first_name, u.lastname || u.last_name].filter(Boolean).join(' ') || u.username || ('#' + u.iduser); });
+  const ln = id => id ? (L[id] ? L[id].naam : '#' + id) : '';
+  const seen = new Set(), rows = [];
+  (obj.historie || []).forEach(h => {
+    if(!h || h.change_type !== 'movement') return;
+    const n = num(h.stock_change); if(!n) return;
+    const hier = ln(h.idlocation), ander = ln(h.contra_idlocation);
+    const van = n > 0 ? ander : hier, naar = n > 0 ? hier : ander;
+    const code0 = P[h.idproduct] || ('#' + h.idproduct);
+    const code = D.PLOW[String(code0).toLowerCase()] || code0;
+    const k = [h.idproduct, h.changed_at, van, naar, Math.abs(n)].join('|');
+    if(seen.has(k)) return;                       // tweede regel van dezelfde verplaatsing
+    seen.add(k);
+    const wh = (L[h.idlocation] || L[h.contra_idlocation] || {}).wh || '';
+    rows.push([h.idproduct_location_stock_history, String(h.changed_at || '').replace(' ', 'T'), U[h.iduser] || (h.iduser ? '#' + h.iduser : ''), code, Math.abs(n), van, naar, wh]);
+  });
+  return rows;
+}
+async function impVerplaatsingen(obj){
+  const nieuw = verplaatsingenUit(obj);
+  const oud = await catHaal('wh-verplaatsingen');
+  const m = new Map();
+  ((oud && oud.data && oud.data.rows) || []).forEach(r => m.set(r[0], r));
+  nieuw.forEach(r => m.set(r[0], r));
+  const grens = isoDag(Date.now() - VP_DAGEN * 864e5);
+  const rows = [...m.values()].filter(r => String(r[1]).slice(0, 10) >= grens).sort((a, b) => String(a[1]).localeCompare(String(b[1])));
+  const data = { datum:new Date().toISOString(), opgehaald:obj.opgehaald || null, sinds:obj.sinds || null, rows };
+  await catZet('wh-verplaatsingen', data);
+  D.VP = data;
+  const wie = [...new Set(nieuw.map(r => r[2]).filter(Boolean))];
+  return nf(nieuw.length) + ' verplaatsingen sinds ' + String(obj.sinds || '').slice(0, 16) + (wie.length ? ' (' + wie.slice(0, 4).join(', ') + (wie.length > 4 ? '…' : '') + ')' : '') + ' · totaal bewaard ' + nf(rows.length);
+}
+async function laadVerplaatsingen(){
+  if(D.VP && D.VP !== 'laden') return D.VP;
+  D.VP = 'laden';
+  try{ const r = await catHaal('wh-verplaatsingen'); D.VP = (r && r.data) || { rows:[] }; }
+  catch(e){ D.VP = { rows:[], fout:e.message }; }
+  return D.VP;
+}
+
 /* ---------- stuks per pallet (productgeheugen catalog-ean, zelfde als Palletlabels en Containers) ---------- */
 async function zetStuksPerPallet(code, stuks){
   const r = await api('GET', 'catalog?key=eq.catalog-ean&select=data');
@@ -578,5 +630,6 @@ function excel(kop, rijen, bestandsnaam){
 return { URL_, KEY, $, esc, leeg, num, txt, bool, nf, plural, dd, isoDag, vandaag, fdate, fdt, dagenOud, toast, setSync, setSaved,
   api, getAll, upsert, catZet, catHaal, catPatch, D, load, leesSheet, soortVan,
   impProducten, impLocaties, impBackorders, impVerkoop, impAdvies, excel,
-  impVerkoopMaand, verkoopMaandenOpslaan, maandUitNaam, maandVerkoop, impVoorraad, zetStuksPerPallet, datumUitNaam };
+  impVerkoopMaand, verkoopMaandenOpslaan, maandUitNaam, maandVerkoop, impVoorraad, zetStuksPerPallet, datumUitNaam,
+  impVerplaatsingen, verplaatsingenUit, laadVerplaatsingen };
 })();
