@@ -882,7 +882,108 @@ function vpKaart(P, dag){
       <div class="scroll mt8"><table><tr><th>Tijd</th><th>Wie</th><th>Product</th><th class="n">Aantal</th><th>Van → naar</th></tr>
       ${alle.slice().reverse().slice(0, 400).map(r => `<tr><td class="small">${esc(tijd(r[1]))}</td><td class="small">${esc(r[2])}</td><td><a class="code" href="#/p/${encodeURIComponent(r[3])}">${esc(r[3])}</a></td><td class="n">${nf(r[4])}</td><td>${plek(r[5])} <span class="pijl">→</span> ${plek(r[6])}</td></tr>`).join('')}</table></div>
       ${alle.length > 400 ? `<div class="small muted mt4">Nieuwste 400 getoond; alles in de download.</div>` : ''}</details>
-    <div class="row wrap mt8"><button class="btn sm" data-d="vp-xlsx" data-dag="${dag}">Download verplaatsingen (Excel)</button></div>${uitleg}</div>`;
+    <div class="row wrap mt8"><button class="btn sm" data-d="vp-xlsx" data-dag="${dag}">Download verplaatsingen (Excel)</button><button class="btn sm" data-d="vp-af">Afvinken in Containerdag</button><a class="btn sm" href="#/wie">Wie deed wat</a></div>${uitleg}</div>`;
+}
+
+/* ---------- uit de verplaatsingen afleiden wat al gebeurd is ---------- */
+// Alleen afvinken, nooit terugdraaien. Bulk/pick: product van "geen specifieke locatie" naar een locatie. VST: Stockmove (magazijn Bulk van Spreuwel).
+// Ligger vrij: van elke bezette plek op de ligger is een verplaatsing weggegaan.
+async function vpAfleiden(){
+  if(!D.VP || D.VP === 'laden') await WH.laadVerplaatsingen();
+  const rows = ((D.VP && D.VP.rows) || []).slice().sort((a, b) => String(a[1]).localeCompare(String(b[1])));
+  const res = { dagen:0, cp:0, ck:0, cv:0, czl:0, patch:{} };
+  if(!rows.length) return res;
+  const vandaagIso = isoDag(Date.now()), ondergrens = isoDag(Date.now() - 12 * 864e5);
+  const dagen = [...new Set(D.CONT.filter(c => c.status !== 'afgerond' && c.losdatum && c.losdatum <= vandaagIso && c.losdatum >= ondergrens).map(c => c.losdatum))].sort();
+  const isVst = r => r[7] === 'Bulk van Spreuwel';
+  const isBulk = n => !!(D.LOC[n] && D.LOC[n].bulk);
+  const gebruikt = new Set();
+  const patch = res.patch;
+  dagen.forEach(dag => {
+    const P = dagPlan(dag, true); res.dagen++;
+    const vanaf = r => String(r[1]).slice(0, 10) >= dag;
+    const vrij = (code, f) => rows.filter(r => !gebruikt.has(r[0]) && vanaf(r) && r[3] === code && f(r));
+    const nu = new Date().toISOString();
+    // bulkpallets
+    P.up.forEach(p => {
+      if(tik(p.key) || patch[p.key]) return;
+      const gepl = ((tv('cvs:' + p.key) || {}).loc) || ((P.voorstel[p.key] || {}).loc) || '';
+      const kand = vrij(p.code, r => r[5] === '' && r[6] && !isVst(r) && (isBulk(r[6]) || !D.LOC[r[6]]) && r[4] >= p.stuks);
+      const r = kand.find(x => x[6] === gepl && x[4] === p.stuks) || kand.find(x => x[4] === p.stuks) || kand.find(x => x[6] === gepl) || kand[0];
+      if(!r) return;
+      gebruikt.add(r[0]); patch[p.key] = { loc:r[6], op:String(r[1]), door:r[2], auto:true }; res.cp++;
+    });
+    // naar picklocatie
+    P.pick.forEach(p => {
+      if(tik(p.key) || patch[p.key]) return;
+      const kand = vrij(p.code, r => r[5] === '' && r[6] && !isVst(r) && D.LOC[r[6]] && !D.LOC[r[6]].bulk);
+      let som = 0; const gek = [];
+      for(const r of kand){ gek.push(r); som += r[4]; if(som >= p.stuks) break; }
+      if(som < p.stuks || !gek.length) return;
+      gek.forEach(r => gebruikt.add(r[0])); patch[p.key] = { loc:gek[0][6], op:String(gek[gek.length - 1][1]), door:gek[0][2], auto:true }; res.ck++;
+    });
+    // VST (Stockmove)
+    P.vst.forEach(p => {
+      if(tik(p.key) || patch[p.key]) return;
+      const kand = vrij(p.code, isVst);
+      let som = 0; const gek = [];
+      for(const r of kand){ gek.push(r); som += r[4]; if(som >= p.stuks) break; }
+      if(som < p.stuks || !gek.length) return;
+      gek.forEach(r => gebruikt.add(r[0])); patch[p.key] = { op:String(gek[gek.length - 1][1]), door:gek[0][2], auto:true }; res.cv++;
+    });
+    // liggers vrijgemaakt
+    const grens = isoDag(new Date(dag + 'T12:00:00').getTime() - 7 * 864e5);
+    const uit = new Set(); rows.forEach(r => { if(String(r[1]).slice(0, 10) >= grens && r[5] && r[6] !== r[5]) uit.add(r[5]); });
+    vrijmaakLijst(P).liggers.forEach(e => {
+      if(e.bev || !e.units.length) return;
+      if(!e.units.every(u => u.namen.every(n => uit.has(n)))) return;
+      e.cids.forEach(cid => { const k = 'czl:' + cid + ':' + e.g.k; if(!tik(k) && !patch[k]){ patch[k] = { op:new Date().toISOString(), auto:true }; res.czl++; } });
+    });
+  });
+  if(Object.keys(patch).length){
+    Object.assign(D.TAKEN, patch);
+    try{ await WH.catPatch('wh-taken', patch); }catch(e){ /* melding al getoond */ }
+  }
+  return res;
+}
+const vpAfTekst = r => r.dagen ? (r.cp + r.ck + r.cv + r.czl ? 'afgevinkt in Containerdag: ' + [r.czl && plural(r.czl, 'ligger', 'liggers') + ' vrij', r.cp && r.cp + ' naar bulk', r.ck && r.ck + ' naar pick', r.cv && r.cv + ' naar VST'].filter(Boolean).join(', ') : 'niets nieuws af te vinken in Containerdag') : 'geen containers van de afgelopen 12 dagen';
+
+/* ---------- wie deed welke verplaatsing ---------- */
+const WIE = { periode:'7', wie:'' };
+function vpSoort(r){
+  if(r[7] === 'Bulk van Spreuwel') return 'VST (Stockmove)';
+  if(!r[6]) return 'Naar geen locatie';
+  if(D.LOC[r[6]] && D.LOC[r[6]].bulk) return 'Naar bulk';
+  return 'Naar pick';
+}
+function viewWie(){
+  const B = V();
+  if(!D.VP){ WH.laadVerplaatsingen().then(() => { if(/^#\/wie/.test(location.hash)) B.rerender(); }); }
+  if(!D.VP || D.VP === 'laden'){ app.innerHTML = '<div class="card small muted">Verplaatsingen laden…</div>'; return; }
+  const alle = D.VP.rows || [];
+  const grens = WIE.periode === 'alles' ? '0' : isoDag(Date.now() - (+WIE.periode - 1) * 864e5);
+  const rows = alle.filter(r => String(r[1]).slice(0, 10) >= grens);
+  const SOORTEN = ['Naar bulk', 'Naar pick', 'Naar geen locatie', 'VST (Stockmove)'];
+  const per = {};
+  rows.forEach(r => { const w = per[r[2]] = per[r[2]] || { n:0, stuks:0, prod:new Set(), soort:{}, eerst:r[1], laatst:r[1] }; w.n++; w.stuks += r[4] || 0; w.prod.add(r[3]); const s = vpSoort(r); w.soort[s] = (w.soort[s] || 0) + 1; if(r[1] < w.eerst) w.eerst = r[1]; if(r[1] > w.laatst) w.laatst = r[1]; });
+  const namen = Object.keys(per).sort((a, b) => per[b].n - per[a].n);
+  const dagenL = [...new Set(rows.map(r => String(r[1]).slice(0, 10)))].sort().reverse();
+  const knop = (k, v, t, aan) => `<button class="btn sm ${aan ? 'pri' : ''}" data-d="wie-set" data-k="${k}" data-v="${esc(v)}">${esc(t)}</button>`;
+  const lijst = WIE.wie ? rows.filter(r => r[2] === WIE.wie).slice().reverse() : [];
+  const plek = l => l ? B.locBadge(l) : '<span class="badge b-grey">geen specifieke locatie</span>';
+  app.innerHTML = `<div class="card"><h2>Wie deed wat</h2>
+    <div class="small muted">Verplaatsingen volgens Picqer (geschiedenis die je met het Mac-script ophaalt). Picks, ontvangsten en correcties zitten er niet in.</div>
+    <div class="row wrap mt8">${[['1', 'Vandaag'], ['2', 'Gisteren + vandaag'], ['7', '7 dagen'], ['30', '30 dagen'], ['alles', 'Alles']].map(([v, t]) => knop('periode', v, t, WIE.periode === v)).join('')}</div>
+    <div class="small muted mt8">${nf(rows.length)} verplaatsingen · bewaard ${alle.length ? esc(String(alle[0][1]).slice(0, 10)) + ' t/m ' + esc(String(alle[alle.length - 1][1]).slice(0, 10)) : '–'} · ${D.VP.datum ? 'laatst ingelezen ' + esc(fdt(D.VP.datum)) : ''}</div></div>
+  ${namen.length ? `<div class="card"><div class="scroll"><table><tr><th>Wie</th><th class="n">Totaal</th>${SOORTEN.map(s => `<th class="n">${esc(s)}</th>`).join('')}<th class="n">Producten</th><th class="n">Stuks</th><th>Van – tot</th></tr>
+    ${namen.map(w => { const x = per[w]; return `<tr><td><a href="#" data-d="wie-set" data-k="wie" data-v="${esc(WIE.wie === w ? '' : w)}"><b>${esc(w)}</b></a></td><td class="n"><b>${nf(x.n)}</b></td>${SOORTEN.map(s => `<td class="n">${x.soort[s] ? nf(x.soort[s]) : ''}</td>`).join('')}<td class="n">${nf(x.prod.size)}</td><td class="n">${nf(x.stuks)}</td><td class="small">${esc(String(x.eerst).slice(5, 16).replace('T', ' '))} – ${esc(String(x.laatst).slice(5, 16).replace('T', ' '))}</td></tr>`; }).join('')}</table></div>
+    <div class="small muted mt4">Tik op een naam voor alle verplaatsingen van die persoon.</div></div>
+  <div class="card"><h3>Per dag</h3><div class="scroll mt8"><table><tr><th>Dag</th>${namen.map(w => `<th class="n">${esc(w.split(' ')[0])}</th>`).join('')}</tr>
+    ${dagenL.map(d => `<tr><td>${esc(fdate(d, { weekday:'short', day:'numeric', month:'short' }))}</td>${namen.map(w => { const n = rows.filter(r => r[2] === w && String(r[1]).slice(0, 10) === d).length; return `<td class="n">${n || ''}</td>`; }).join('')}</tr>`).join('')}</table></div></div>` : '<div class="card small">Geen verplaatsingen in deze periode. Haal ze op met het Mac-script en laad het bestand in bij Gegevens.</div>'}
+  ${WIE.wie ? `<div class="card"><div class="row wrap between"><h3>${esc(WIE.wie)} · ${nf(lijst.length)} verplaatsingen</h3><button class="btn sm" data-d="wie-xlsx">Download (Excel)</button></div>
+    <div class="scroll mt8"><table><tr><th>Tijd</th><th>Product</th><th class="n">Aantal</th><th>Van → naar</th><th>Soort</th></tr>
+    ${lijst.slice(0, 400).map(r => `<tr><td class="small">${esc(String(r[1]).slice(5, 16).replace('T', ' '))}</td><td><a class="code" href="#/p/${encodeURIComponent(r[3])}">${esc(r[3])}</a></td><td class="n">${nf(r[4])}</td><td>${plek(r[5])} <span class="pijl">→</span> ${plek(r[6])}</td><td class="small">${esc(vpSoort(r))}</td></tr>`).join('')}</table></div>
+    ${lijst.length > 400 ? '<div class="small muted mt4">Nieuwste 400 getoond; alles in de download.</div>' : ''}</div>` : ''}`;
 }
 function koppelDrop(dropId, inpId, stId, na){
   const inp = $(inpId), drop = $(dropId); if(!inp || !drop) return;
@@ -1319,6 +1420,14 @@ document.addEventListener('click', async ev => {
   if(a === 'iv-op'){ await invulOpslaan(); return; }
   if(a === 'iv-over'){ UI.invul.i++; V().rerender(); window.scrollTo(0, 0); return; }
   if(a === 'iv-terug'){ UI.invul.i = Math.max(0, UI.invul.i - 1); V().rerender(); window.scrollTo(0, 0); return; }
+  if(a === 'wie-set'){ ev.preventDefault(); WIE[b.dataset.k] = b.dataset.v; V().rerender(); return; }
+  if(a === 'wie-xlsx'){
+    const grens = WIE.periode === 'alles' ? '0' : isoDag(Date.now() - (+WIE.periode - 1) * 864e5);
+    const rijen = ((D.VP && D.VP.rows) || []).filter(r => String(r[1]).slice(0, 10) >= grens && (!WIE.wie || r[2] === WIE.wie)).map(r => [String(r[1]).replace('T', ' '), r[2], r[3], WHL.naamVan(r[3]), r[4], r[5] || 'Geen specifieke locatie', r[6] || 'Geen specifieke locatie', vpSoort(r), r[7]]);
+    WH.excel(['Tijd', 'Gebruiker', 'Productcode', 'Naam', 'Aantal', 'Van locatie', 'Naar locatie', 'Soort', 'Magazijn'], rijen, 'Wie deed wat' + (WIE.wie ? ' - ' + WIE.wie : '') + '.xlsx');
+    return;
+  }
+  if(a === 'vp-af'){ const r = await vpAfleiden(); WH.toast ? WH.toast(vpAfTekst(r)) : alert(vpAfTekst(r)); V().rerender(); return; }
   if(a === 'vp-xlsx'){
     const dag = b.dataset.dag;
     const rijen = ((D.VP && D.VP.rows) || []).filter(r => String(r[1]).slice(0, 10) >= dag).map(r => [String(r[1]).replace('T', ' '), r[2], r[3], WHL.naamVan(r[3]), r[4], r[5] || 'Geen specifieke locatie', r[6] || 'Geen specifieke locatie', r[7]]);
@@ -1339,5 +1448,5 @@ document.addEventListener('keydown', ev => {
   if(inp){ ev.preventDefault(); const k = inp.dataset.loc; const btn = document.querySelector(`[data-d="plaats"][data-k="${CSS.escape(k)}"]`); if(btn) btn.click(); }
 });
 
-return { viewVandaag, viewContainerdag, viewControle, viewBackorders, viewRuimte, viewInvul, dagPlan, plan, bulkVoorstellen, ruimte, boDiff, kiesDag, invulLijst, parseZone, parseSel, vrijmaakLijst, koppelRijen, ligVoorstel };
+return { vpAfleiden, vpAfTekst, viewWie, viewVandaag, viewContainerdag, viewControle, viewBackorders, viewRuimte, viewInvul, dagPlan, plan, bulkVoorstellen, ruimte, boDiff, kiesDag, invulLijst, parseZone, parseSel, vrijmaakLijst, koppelRijen, ligVoorstel };
 })();

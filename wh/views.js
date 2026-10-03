@@ -58,6 +58,7 @@ function route(){
   try{
     if(naam === 'containerdag') return WHD.viewContainerdag(delen[1]);
     if(naam === 'controle') return WHD.viewControle(delen[1]);
+    if(naam === 'wie') return WHD.viewWie();
     if(naam === 'invul') return WHD.viewInvul(delen[1]);
     if(naam === 'backorders') return WHD.viewBackorders();
     if(naam === 'ruimte') return WHD.viewRuimte();
@@ -769,7 +770,7 @@ async function inlezen(files, opts){
       else if(x.s === 'verkoop' && maanden.length){ log.push('– ' + esc(naam) + ': overgeslagen (geen maand in de naam; de maandbestanden zijn leidend)'); continue; }
       else if(x.s === 'verkoop'){ if(!$('vkvan')) throw new Error('Magazijnverkopen zonder maand in de naam: laad hem in bij Gegevens (periode invullen) of zet de maand in de naam, bv. "Magazijnverkopen 2026-10.xlsx"'); msg = await WH.impVerkoop(x.arr, $('vkvan').value, $('vktot').value, $('vkvol').checked, s); }
       else if(x.s === 'advies') msg = await WH.impAdvies(x.f);
-      else if(x.s === 'verplaatsingen') msg = await WH.impVerplaatsingen(x.obj);
+      else if(x.s === 'verplaatsingen'){ msg = await WH.impVerplaatsingen(x.obj); try{ msg += ' · ' + WHD.vpAfTekst(await WHD.vpAfleiden()); }catch(e){ msg += ' · afvinken mislukt: ' + e.message; } }
       log.push('✓ ' + esc(naam) + ': ' + esc(msg));
       if(x.s === 'producten') await WH.load();          // codes nodig voor de volgende bestanden
     }catch(e){ log.push('✗ ' + esc(naam) + ': ' + esc(e.message)); }
