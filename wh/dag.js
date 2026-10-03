@@ -678,6 +678,10 @@ function viewContainerdag(dagArg){
     ligK.sort((x, y) => x.gang.localeCompare(y.gang) || x.sec - y.sec || x.h - y.h);
     const bevC = g => os.some(o => o.zone && (o.liggers || []).some(x => x.k === g.k) && ligBev(o.zone, g));
     const nBev = ligK.filter(bevC).length;
+    const upC = P.up.filter(p => p.cid === c.id), geplC = upC.filter(p => (tv(p.key) || {}).loc);
+    const alleGepl = upC.length > 0 && geplC.length === upC.length;
+    const geplBanner = !alleGepl ? '' : `<div class="reason mt4" style="border-left:5px solid var(--ok)"><b>✓ Al gedaan: ${plural(upC.length, 'pallet', 'pallets')} staan in Picqer op</b> ${[...new Set(geplC.map(p => tv(p.key).loc))].sort(WHL.sortLoc).map(l => '<b class="loc">' + esc(l) + '</b>').join(' ')}
+      <div class="small muted">${[...new Set(geplC.map(p => tv(p.key).door).filter(Boolean))].map(esc).join(', ')}${geplC.some(p => (tv(p.key) || {}).auto) ? ' · automatisch afgeleid uit de Picqer-verplaatsingen' : ''}. Liggers vrijmaken is hiervoor niet meer nodig.</div></div>`;
     const rij = g => {
       const voor = os.filter(o => o.zone && o.liggers.some(x => x.k === g.k));
       const tot = Object.keys(g.pos).length, bezetN = Object.values(g.pos).filter(q => q.bezet).length;
@@ -690,6 +694,7 @@ function viewContainerdag(dagArg){
     return `<div class="mt8"><div class="row wrap between"><div><b>${esc(cNaam(c))}</b> <span class="small muted">${esc(c.containernummer || '')}</span></div>
         <span class="small">${esc(nBev + '/' + ligK.length)} liggers leeg</span></div>
       <div class="reason mt4"><b>${plural(pal, 'pallet', 'pallets')}</b> naar bulk = <b>${nf(pl, 1)} plaatsen</b> → ${ligK.length ? '<b>' + plural(ligK.length, 'ligger', 'liggers') + '</b> vrijmaken' : '<b>nog geen liggers gekozen</b>'}</div>
+      ${geplBanner}${alleGepl ? '<details class="mt8"><summary class="small">Plan van de app tonen (liggers vrijmaken)</summary>' : ''}
       ${os.map(zoneRij).join('')}
       <div class="mt8 noprint"><div class="row wrap"><span class="small" style="min-width:74px">Past niet:</span><input class="loc" data-blok="${c.id}" placeholder="bv. AE/20 of AE08/10" style="width:200px"><button class="btn sm" data-d="blok-op" data-cid="${c.id}">Toevoegen</button>
           ${blokItems(c.id).map((t, i) => `<span class="badge b-warn">${esc(t)} <a href="#" data-d="blok-weg" data-cid="${c.id}" data-i="${i}" title="weer toestaan">✕</a></span>`).join(' ')}</div>
@@ -698,7 +703,7 @@ function viewContainerdag(dagArg){
         <div class="row wrap mt8 noprint"><button class="btn sm ghost" data-d="lig-sel" data-cid="${c.id}">Alles selecteren</button>
           <button class="btn sm acc" data-d="lig-blok-sel" data-cid="${c.id}">Geselecteerde past niet</button>
           ${[...new Set(ligK.map(g => g.gang + '/' + dd(g.h)))].map(t => `<button class="btn sm ghost" data-d="lig-blok-niv" data-cid="${c.id}" data-t="${esc(t)}">${esc(t.split('/')[0])} niveau ${esc(String(+t.split('/')[1]))} past niet</button>`).join('')}</div>
-        ${nBev < ligK.length ? `<div class="mt8 noprint"><button class="btn sm" data-d="lig-alle" data-cid="${c.id}">Alle liggers leeg bevestigen</button></div>` : ''}` : ''}</div>`;
+        ${nBev < ligK.length ? `<div class="mt8 noprint"><button class="btn sm" data-d="lig-alle" data-cid="${c.id}">Alle liggers leeg bevestigen</button></div>` : ''}` : ''}${alleGepl ? '</details>' : ''}</div>`;
   };
   const bulkC = P.cs.filter(c => zi.some(o => o.cid === c.id));
   const ligTot = bulkC.reduce((n, c) => n + new Set(zi.filter(o => o.cid === c.id).flatMap(o => (o.liggers || []).map(g => g.k))).size, 0);
@@ -715,7 +720,8 @@ function viewContainerdag(dagArg){
         <td>${u.codes.length ? u.codes.map(prodTekst).join('<br>') : 'niets gekoppeld: kijk wat er staat'}</td>
         <td class="loc">${u.naar ? esc(u.naar.join(' + ')) : '<b>zelf kiezen</b>'}${u.reden ? '<div class="small">' + esc(u.reden) + '</div>' : ''}</td></tr>`).join('')}
       <tr><td class="vk"><span class="pvak"></span></td><td colspan="3"><b>Ligger leeg?</b> <span class="small">${e.units.length ? 'Kijk ook of er niets los ligt of ernaast.' : 'Picqer toont deze ligger vrij. Controleer ter plekke: niets los, past de pallet?'}</span></td></tr></table>`;
-  const vrijKaart = vl.open.length ? `<div class="card vrijlijst"><div class="row wrap between"><div><h3>Vrijmaaklijst voor de chauffeur · ${plural(vl.open.length, 'ligger', 'liggers')} · ${plural(vl.n, 'verplaatsing', 'verplaatsingen')}</h3>
+  const alleGeplaatst = bulkC.length > 0 && bulkC.every(c => { const u = P.up.filter(p => p.cid === c.id); return u.length && u.every(p => (tv(p.key) || {}).loc); });
+  const vrijKaart = alleGeplaatst ? '' : vl.open.length ? `<div class="card vrijlijst"><div class="row wrap between"><div><h3>Vrijmaaklijst voor de chauffeur · ${plural(vl.open.length, 'ligger', 'liggers')} · ${plural(vl.n, 'verplaatsing', 'verplaatsingen')}</h3>
       <div class="small"><b>Containerdag ${esc(fdate(dag, { weekday:'long', day:'numeric', month:'long' }))}</b> · ${P.cs.map(c => esc(cNaam(c) + ' ' + (c.containernummer || ''))).join(' · ')}</div>
       <div class="small muted">Verplaats ook in Picqer (van → naar). Vrij = geen product gekoppeld${D.VRDATUM ? ' en geen voorraad' : ''} volgens de laatste export: kijk ter plekke. Daarna tikt Daan per ligger <b>Leeg bevestigen</b>.</div></div>
       <button class="btn sm pri noprint" data-d="print-vrij">Print lijst</button></div>
@@ -908,7 +914,8 @@ async function vpAfleiden(){
     P.up.forEach(p => {
       if(tik(p.key) || patch[p.key]) return;
       const gepl = ((tv('cvs:' + p.key) || {}).loc) || ((P.voorstel[p.key] || {}).loc) || '';
-      const kand = vrij(p.code, r => r[5] === '' && r[6] && !isVst(r) && (isBulk(r[6]) || !D.LOC[r[6]]) && r[4] >= p.stuks);
+      let kand = vrij(p.code, r => r[5] === '' && r[6] && !isVst(r) && (isBulk(r[6]) || !D.LOC[r[6]]) && r[4] >= p.stuks);
+      if(!kand.length) kand = vrij(p.code, r => r[5] === '' && r[6] && !isVst(r) && r[4] >= p.stuks);   // locatie niet als bulk gemarkeerd in de export
       const r = kand.find(x => x[6] === gepl && x[4] === p.stuks) || kand.find(x => x[4] === p.stuks) || kand.find(x => x[6] === gepl) || kand[0];
       if(!r) return;
       gebruikt.add(r[0]); patch[p.key] = { loc:r[6], op:String(r[1]), door:r[2], auto:true }; res.cp++;
