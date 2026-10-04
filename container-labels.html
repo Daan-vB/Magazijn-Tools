@@ -363,6 +363,7 @@ RH90x150HD	5"></textarea>
     try{
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+  try{ doc.viewerPreferences({ 'PrintScaling':'None', 'FitWindow':true }); }catch(e){}
       let n = 0;
       rows.forEach(r => {
         for(let k = 0; k < labelsFor(r); k++){ drawLabel(doc, r, n === 0); n++; }

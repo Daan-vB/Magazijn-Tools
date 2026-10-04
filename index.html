@@ -919,6 +919,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     try{
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+  try{ doc.viewerPreferences({ 'PrintScaling':'None', 'FitWindow':true }); }catch(e){}
       lastRows.forEach((r, idx) => {
         if(lastMode === 'ean') drawEanLabel(doc, r, idx);
         else drawGeenLabel(doc, r, idx);
