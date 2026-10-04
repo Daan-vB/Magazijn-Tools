@@ -1314,16 +1314,20 @@ function koppel(r, lev){
   if(fz) return Object.assign(uit(fz.code, 'voorstel'), { fuzzy:true });
   return { productcode:'', match:'onbekend', factor:1, factor_bron:'vast', bevestigd:false };
 }
-function koppelAlles(c){
-  c.data.regels.forEach(r => { if(r.match === 'handmatig' && r.productcode) return; delete r.fuzzy; Object.assign(r, koppel(r, c.leverancier)); });
-  // twee verschillende pakboncodes mogen nooit stilletjes één product worden: een gokje (bijna gelijk) dat al door een andere regel vast staat, wordt "onbekend"
-  const vast = {};
-  c.data.regels.forEach(r => { if(r.productcode && (r.match === 'exact' || r.match === 'alias' || r.match === 'handmatig')) vast[r.productcode] = norm(r.pakbon_code); });
-  c.data.regels.forEach(r => {
-    if(r.fuzzy && r.productcode && vast[r.productcode] && vast[r.productcode] !== norm(r.pakbon_code)){
-      Object.assign(r, { productcode:'', match:'onbekend', factor:1, factor_bron:'vast', bevestigd:false });
+// twee verschillende pakboncodes mogen nooit stilletjes één product worden: een voorstel (nog niet bevestigd) op een product dat al door een andere regel vaststaat, wordt "onbekend"
+function ontdubbel(regels){
+  const vast = {}; let n = 0;
+  regels.forEach(r => { if(r.productcode && (r.match === 'exact' || r.match === 'alias' || r.match === 'handmatig')) vast[r.productcode] = norm(r.pakbon_code); });
+  regels.forEach(r => {
+    if(r.productcode && r.match === 'voorstel' && !r.bevestigd && vast[r.productcode] && vast[r.productcode] !== norm(r.pakbon_code)){
+      Object.assign(r, { productcode:'', match:'onbekend', factor:1, factor_bron:'vast', bevestigd:false }); n++;
     }
   });
+  return n;
+}
+function koppelAlles(c){
+  c.data.regels.forEach(r => { if(r.match === 'handmatig' && r.productcode) return; delete r.fuzzy; Object.assign(r, koppel(r, c.leverancier)); });
+  ontdubbel(c.data.regels);
 }
 async function leer(r, lev){
   const key = norm(r.pakbon_code);
@@ -2174,6 +2178,12 @@ async function herkoppelOpen(){
     const prof = PAKBON_LEV.concat([WALLACE]).find(pf => pf.zoek.test(c.leverancier || ''));
     let wijz = false;
     if(prof){ const ln = levNaam(prof); if(ln !== c.leverancier){ c.leverancier = ln; wijz = true; } }
+    c.data.regels.forEach(r => {                                    // voorstellen die nog niet bevestigd zijn opnieuw bekijken (eerdere fout: SF276H op SF276hS)
+      if(!(r.productcode && r.match === 'voorstel' && !r.bevestigd)) return;
+      const k = koppel(r, c.leverancier);
+      if(k.productcode !== r.productcode){ Object.assign(r, k); n++; wijz = true; }
+    });
+    if(ontdubbel(c.data.regels)){ n++; wijz = true; }
     c.data.regels.forEach(r => {
       if(r.productcode) return;
       const k = koppel(r, c.leverancier);
