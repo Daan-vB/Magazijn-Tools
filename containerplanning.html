@@ -1318,18 +1318,15 @@ function koppel(r, lev){
 // twee verschillende pakboncodes mogen nooit stilletjes één product worden: een voorstel (nog niet bevestigd) op een product dat al door een andere regel vaststaat, wordt "onbekend"
 function ontdubbel(regels, lev){
   let n = 0;
-  const geleerd = r => ALIAS.some(a => a.pakbon_code === norm(r.pakbon_code) && (!lev || a.leverancier === lev));   // bewust bevestigd = geleerde koppeling
-  const sterk = r => r.productcode && (r.match === 'alias' || r.match === 'handmatig' || (r.match === 'exact' && norm(r.productcode) === norm(r.pakbon_code)));
-  const zwak = r => r.productcode && !geleerd(r) && (r.match === 'voorstel' || (r.match === 'exact' && norm(r.productcode) !== norm(r.pakbon_code)));   // gok, of alleen via de leverancierscode
-  const vast = {};
-  regels.forEach(r => { if(sterk(r)) vast[r.productcode] = norm(r.pakbon_code); });
+  // het product is van de pakboncode die er letterlijk mee overeenkomt; een andere pakboncode op hetzelfde product (gok, leverancierscode of een eerder bevestigde koppeling) is dan verdacht
+  const eigen = {};
+  regels.forEach(r => { if(r.productcode && norm(r.productcode) === norm(r.pakbon_code)) eigen[r.productcode] = norm(r.pakbon_code); });
   regels.forEach(r => {
-    if(zwak(r) && vast[r.productcode] && vast[r.productcode] !== norm(r.pakbon_code)){
-      const vs = lev ? voorstelVoor(r, lev) : null, pc = vs ? PLOW[vs.code.toLowerCase()] : '';
-      if(pc && pc !== r.productcode) Object.assign(r, { productcode:pc, match:'voorstel', factor:vs.factor, factor_bron:'voorstel', bevestigd:false, vs:{ toel:vs.toel, zeker:vs.zeker } });   // is er een ingebouwd voorstel voor deze pakboncode? dat is het juiste product
-      else Object.assign(r, { productcode:'', match:'onbekend', factor:1, factor_bron:'vast', bevestigd:false });
-      n++;
-    }
+    if(!r.productcode || r.match === 'handmatig' || !eigen[r.productcode] || eigen[r.productcode] === norm(r.pakbon_code)) return;
+    const vs = lev ? voorstelVoor(r, lev) : null, pc = vs ? PLOW[vs.code.toLowerCase()] : '';
+    if(pc && pc !== r.productcode) Object.assign(r, { productcode:pc, match:'voorstel', factor:vs.factor, factor_bron:'voorstel', bevestigd:false, vs:{ toel:vs.toel, zeker:vs.zeker } });   // ingebouwd voorstel voor deze pakboncode
+    else Object.assign(r, { productcode:'', match:'onbekend', factor:1, factor_bron:'vast', bevestigd:false });
+    n++;
   });
   return n;
 }
