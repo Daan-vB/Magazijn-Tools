@@ -1315,11 +1315,12 @@ function koppel(r, lev){
   return { productcode:'', match:'onbekend', factor:1, factor_bron:'vast', bevestigd:false };
 }
 // twee verschillende pakboncodes mogen nooit stilletjes één product worden: een voorstel (nog niet bevestigd) op een product dat al door een andere regel vaststaat, wordt "onbekend"
-function ontdubbel(regels){
+function ontdubbel(regels, lev){
   const vast = {}; let n = 0;
+  const geleerd = r => ALIAS.some(a => a.pakbon_code === norm(r.pakbon_code) && (!lev || a.leverancier === lev));   // bewust bevestigd = geleerde koppeling
   regels.forEach(r => { if(r.productcode && (r.match === 'exact' || r.match === 'alias' || r.match === 'handmatig')) vast[r.productcode] = norm(r.pakbon_code); });
   regels.forEach(r => {
-    if(r.productcode && r.match === 'voorstel' && !r.bevestigd && vast[r.productcode] && vast[r.productcode] !== norm(r.pakbon_code)){
+    if(r.productcode && r.match === 'voorstel' && !geleerd(r) && vast[r.productcode] && vast[r.productcode] !== norm(r.pakbon_code)){
       Object.assign(r, { productcode:'', match:'onbekend', factor:1, factor_bron:'vast', bevestigd:false }); n++;
     }
   });
@@ -1327,7 +1328,7 @@ function ontdubbel(regels){
 }
 function koppelAlles(c){
   c.data.regels.forEach(r => { if(r.match === 'handmatig' && r.productcode) return; delete r.fuzzy; Object.assign(r, koppel(r, c.leverancier)); });
-  ontdubbel(c.data.regels);
+  ontdubbel(c.data.regels, c.leverancier);
 }
 async function leer(r, lev){
   const key = norm(r.pakbon_code);
@@ -2179,11 +2180,11 @@ async function herkoppelOpen(){
     let wijz = false;
     if(prof){ const ln = levNaam(prof); if(ln !== c.leverancier){ c.leverancier = ln; wijz = true; } }
     c.data.regels.forEach(r => {                                    // voorstellen die nog niet bevestigd zijn opnieuw bekijken (eerdere fout: SF276H op SF276hS)
-      if(!(r.productcode && r.match === 'voorstel' && !r.bevestigd)) return;
+      if(!(r.productcode && r.match === 'voorstel') || ALIAS.some(a => a.pakbon_code === norm(r.pakbon_code) && a.leverancier === c.leverancier)) return;
       const k = koppel(r, c.leverancier);
       if(k.productcode !== r.productcode){ Object.assign(r, k); n++; wijz = true; }
     });
-    if(ontdubbel(c.data.regels)){ n++; wijz = true; }
+    if(ontdubbel(c.data.regels, c.leverancier)){ n++; wijz = true; }
     c.data.regels.forEach(r => {
       if(r.productcode) return;
       const k = koppel(r, c.leverancier);
