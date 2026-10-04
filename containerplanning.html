@@ -1272,7 +1272,7 @@ const VOORSTEL = [
 // ruw = ook als het Picqer-product nog niet in de import staat (om dat te kunnen melden)
 function voorstelVoor(r, lev, ruw){
   const lk = levKort(lev || ''), key = norm(r.pakbon_code), tok = norm(eersteCode(r.pakbon_code || r.omschrijving));
-  const txt = norm((r.pakbon_code || '') + ' ' + (r.omschrijving || '') + ' ' + (r.context || ''));
+  const txt = [r.pakbon_code, r.omschrijving, r.context].map(x => norm(x || '')).join('|');   // los genormaliseerd: een code mag niet over de grens van twee velden heen 'gevonden' worden (SF276H + SF276H… = sf276hs)
   const lijst = VOORSTEL.filter(x => (!lev || x.lk === lk) && (ruw || PLOW[x.code.toLowerCase()]));
   let v = lijst.find(x => x.k === key) || lijst.find(x => x.k === tok);
   if(!v) lijst.forEach(x => { if(x.k.length >= 6 && txt.includes(x.k) && (!v || x.k.length > v.k.length)) v = x; });
@@ -1281,7 +1281,7 @@ function voorstelVoor(r, lev, ruw){
 function koppel(r, lev){
   const tok = norm(eersteCode(r.pakbon_code || r.omschrijving));
   const key = norm(r.pakbon_code);
-  const txt = norm((r.pakbon_code || '') + ' ' + (r.omschrijving || '') + ' ' + (r.context || ''));
+  const txt = [r.pakbon_code, r.omschrijving, r.context].map(x => norm(x || '')).join('|');   // los genormaliseerd: een code mag niet over de grens van twee velden heen 'gevonden' worden (SF276H + SF276H… = sf276hs)
   const pool = (lev && BYLEV[lev] && BYLEV[lev].length) ? BYLEV[lev] : Object.keys(P);
   const als = ALIAS.filter(a => !lev || a.leverancier === lev);
   const uit = (code, match, factor, fbron) => {
@@ -1306,14 +1306,24 @@ function koppel(r, lev){
   // 4. bijna gelijk (typefout / OCR)
   let fz = null;
   if(tok.length >= 4) pool.forEach(c => {
-    const d = lev1(norm(c), tok), lim = tok.length >= 8 ? 2 : 1;
+    const nc = norm(c);
+    if(nc !== tok && (nc.startsWith(tok) || tok.startsWith(nc))) return;   // SF276H en SF276HS zijn twee producten: een extra letter is geen typefout
+    const d = lev1(nc, tok), lim = tok.length >= 8 ? 2 : 1;
     if(d <= lim && (!fz || d < fz.d)) fz = { d, code:c };
   });
-  if(fz) return uit(fz.code, 'voorstel');
+  if(fz) return Object.assign(uit(fz.code, 'voorstel'), { fuzzy:true });
   return { productcode:'', match:'onbekend', factor:1, factor_bron:'vast', bevestigd:false };
 }
 function koppelAlles(c){
-  c.data.regels.forEach(r => { if(r.match === 'handmatig' && r.productcode) return; Object.assign(r, koppel(r, c.leverancier)); });
+  c.data.regels.forEach(r => { if(r.match === 'handmatig' && r.productcode) return; delete r.fuzzy; Object.assign(r, koppel(r, c.leverancier)); });
+  // twee verschillende pakboncodes mogen nooit stilletjes één product worden: een gokje (bijna gelijk) dat al door een andere regel vast staat, wordt "onbekend"
+  const vast = {};
+  c.data.regels.forEach(r => { if(r.productcode && (r.match === 'exact' || r.match === 'alias' || r.match === 'handmatig')) vast[r.productcode] = norm(r.pakbon_code); });
+  c.data.regels.forEach(r => {
+    if(r.fuzzy && r.productcode && vast[r.productcode] && vast[r.productcode] !== norm(r.pakbon_code)){
+      Object.assign(r, { productcode:'', match:'onbekend', factor:1, factor_bron:'vast', bevestigd:false });
+    }
+  });
 }
 async function leer(r, lev){
   const key = norm(r.pakbon_code);
