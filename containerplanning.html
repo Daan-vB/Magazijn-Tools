@@ -1316,11 +1316,14 @@ function koppel(r, lev){
 }
 // twee verschillende pakboncodes mogen nooit stilletjes één product worden: een voorstel (nog niet bevestigd) op een product dat al door een andere regel vaststaat, wordt "onbekend"
 function ontdubbel(regels, lev){
-  const vast = {}; let n = 0;
+  let n = 0;
   const geleerd = r => ALIAS.some(a => a.pakbon_code === norm(r.pakbon_code) && (!lev || a.leverancier === lev));   // bewust bevestigd = geleerde koppeling
-  regels.forEach(r => { if(r.productcode && (r.match === 'exact' || r.match === 'alias' || r.match === 'handmatig')) vast[r.productcode] = norm(r.pakbon_code); });
+  const sterk = r => r.productcode && (r.match === 'alias' || r.match === 'handmatig' || (r.match === 'exact' && norm(r.productcode) === norm(r.pakbon_code)));
+  const zwak = r => r.productcode && !geleerd(r) && (r.match === 'voorstel' || (r.match === 'exact' && norm(r.productcode) !== norm(r.pakbon_code)));   // gok, of alleen via de leverancierscode
+  const vast = {};
+  regels.forEach(r => { if(sterk(r)) vast[r.productcode] = norm(r.pakbon_code); });
   regels.forEach(r => {
-    if(r.productcode && r.match === 'voorstel' && !geleerd(r) && vast[r.productcode] && vast[r.productcode] !== norm(r.pakbon_code)){
+    if(zwak(r) && vast[r.productcode] && vast[r.productcode] !== norm(r.pakbon_code)){
       Object.assign(r, { productcode:'', match:'onbekend', factor:1, factor_bron:'vast', bevestigd:false }); n++;
     }
   });
