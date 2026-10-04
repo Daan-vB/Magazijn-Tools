@@ -1250,6 +1250,7 @@ const VOORSTEL = [
   ['Todo', 'PVC S Mat 90cm width 15m per roll, 5mm thickness Encrypted grid, 2.7 kg/m2, Blue', 'SMAT-90-BLUE', 15, 1, 'rastermat 90 cm per meter, rol = 15 m'],
   ['Todo', 'PVC S Mat 90cm width 15m per roll, 5mm thickness Encrypted grid, 2.7 kg/m2, Grey', 'SMAT-90-GREY', 15, 1, 'rastermat 90 cm per meter, rol = 15 m'],
   ['Selected', 'SE112M', 'SE112M-BLK', 1, 0, 'office chair black mesh = vergaderstoel Monaco zwart'],
+  ['Selected', 'SF276H', 'SF276H-BLK', 1, 0, 'office chair black mesh = Bureaustoel Ancona (zonder NEN; SF276HS = SF276hS is de NEN-versie)'],
   ['Ningbo', 'snowboardbag', 'Snowbag', 1, 0, 'snowboardtas (er is ook Snowbag-White)'],
   ['Great Wall', 'Black SBR rubber Sheet 1mm x1.4m x 10m', 'RP0100', 1, 1, 'Alfaflex SBR 1 mm 140 cm, volle rol van 10 m'],
   ['Great Wall', 'Black SBR rubber Sheet 2mm x1.4m x 10m', 'RP0200', 1, 1, 'Alfaflex SBR 2 mm 140 cm, volle rol van 10 m'],
@@ -1324,7 +1325,10 @@ function ontdubbel(regels, lev){
   regels.forEach(r => { if(sterk(r)) vast[r.productcode] = norm(r.pakbon_code); });
   regels.forEach(r => {
     if(zwak(r) && vast[r.productcode] && vast[r.productcode] !== norm(r.pakbon_code)){
-      Object.assign(r, { productcode:'', match:'onbekend', factor:1, factor_bron:'vast', bevestigd:false }); n++;
+      const vs = lev ? voorstelVoor(r, lev) : null, pc = vs ? PLOW[vs.code.toLowerCase()] : '';
+      if(pc && pc !== r.productcode) Object.assign(r, { productcode:pc, match:'voorstel', factor:vs.factor, factor_bron:'voorstel', bevestigd:false, vs:{ toel:vs.toel, zeker:vs.zeker } });   // is er een ingebouwd voorstel voor deze pakboncode? dat is het juiste product
+      else Object.assign(r, { productcode:'', match:'onbekend', factor:1, factor_bron:'vast', bevestigd:false });
+      n++;
     }
   });
   return n;
