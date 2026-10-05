@@ -123,7 +123,7 @@ RH90x150HD	5"></textarea>
       </p>
     </div>
 
-    <label class="filebtn">Stockmove-PDF of Excel/CSV kiezen…<input type="file" id="file" accept=".pdf,.xlsx,.xls,.csv,.txt"></label>
+    <label class="filebtn">Stockmove- of Picqer-PDF (inruimlijst) of Excel/CSV kiezen…<input type="file" id="file" multiple accept=".pdf,.xlsx,.xls,.csv,.txt"></label>
 
     <button class="act btn-run" id="read" disabled>Lijst inlezen</button>
     <button class="act btn-print" id="pdf" disabled>Labels maken (PDF)</button>
@@ -381,10 +381,15 @@ RH90x150HD	5"></textarea>
   }
 
   /* ---------- Stockmove-PDF: palletnummer | SKU | aantal, één regel per pallet ---------- */
-  async function leesStockmovePdf(f){
+  async function leesPdf(f){
+    const t = await pdfTekst(f);
+    return /Inruimlijst/i.test(t.tekst) ? leesInruimlijst(t) : leesStockmoveTekst(t);
+  }
+
+  async function pdfTekst(f){
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     const pdf = await pdfjsLib.getDocument({ data:await f.arrayBuffer() }).promise;
-    const lines = [];
+    const lines = [], pages = [];
     for(let p = 1; p <= pdf.numPages; p++){
       const items = (await (await pdf.getPage(p)).getTextContent()).items.filter(t => t.str.trim());
       const rowsY = [];
@@ -395,8 +400,15 @@ RH90x150HD	5"></textarea>
         row.parts.push({ x:t.transform[4], s:t.str.trim() });
       });
       rowsY.sort((a, b) => b.y - a.y).forEach(r => lines.push(r.parts.sort((a, b) => a.x - b.x).map(x => x.s).join(' ')));
+      pages.push(rowsY.map(r => ({ y:r.y, parts:r.parts })));
     }
+    return { lines, pages, tekst:lines.join('\n') };
+  }
+
+  function leesStockmoveTekst(t){
+    const lines = t.lines;
     const nummer = ((lines.join('\n').match(/Movement\s+(\S+)/i)) || [])[1] || '';
+    const nm = nummer ? 'Stockmove ' + nummer : '';
     const groep = {}, volgorde = [];
     let pallets = 0;
     lines.forEach(l => {
@@ -406,21 +418,68 @@ RH90x150HD	5"></textarea>
       if(!groep[k]){ groep[k] = 0; volgorde.push(k); }
       groep[k]++; pallets++;
     });
-    return { nummer, pallets, regels:volgorde.map(k => { const [c, q] = k.split('\t'); return c + '\t' + groep[k] + '\t' + q; }) };
+    return { nummer:nm, pallets, zonder:[], regels:volgorde.map(k => { const [c, q] = k.split('\t'); return c + '\t' + groep[k] + '\t' + q; }) };
+  }
+
+  /* Picqer-inruimlijst: één regel per product met totaal aantal -> pallets via standaard stuks per pallet */
+  function leesInruimlijst(t){
+    const nummer = ((t.tekst.match(/Inruimlijst\s+((?:RC|PO)\S+)/)) || [])[1] || '';
+    const regels = [], zonder = [];
+    let pallets = 0;
+    const totaal = {}, volgorde = [], lijst = [];
+    t.pages.forEach(rows => {
+      const head = rows.find(r => r.parts.some(x => x.s === 'Productcode'));
+      if(!head) return;
+      const hx = n => { const x = head.parts.find(q => q.s === n || q.s.startsWith(n)); return x ? x.x : null; };
+      const cx = hx('Productcode'), nx = hx('Naam');
+      const lx = hx('Ontvangen') ?? hx('Voorraadlocatie');
+      const ax = hx('Andere');
+      let cur = null;
+      rows.filter(r => r.y < head.y - 1).sort((a, b) => b.y - a.y).forEach(r => {
+        const c = r.parts.find(x => Math.abs(x.x - cx) < 3);
+        if(!c || /^Totaal$/i.test(c.s)) return;
+        const q = r.parts.filter(x => /^\d+$/.test(x.s) && x.x >= lx - 2 && (ax === null || x.x < ax - 2)).pop();
+        if(q){ cur = { code:c.s, aantal:parseInt(q.s, 10) }; lijst.push(cur); }
+        else if(cur) cur.code += c.s;   // afgebroken productcode op de volgende regel
+      });
+    });
+    lijst.forEach(it => {
+      if(!totaal[it.code]){ totaal[it.code] = 0; volgorde.push(it.code); }
+      totaal[it.code] += it.aantal;
+    });
+    volgorde.forEach(code => {
+      const aantal = totaal[code];
+      const std = (lookup(code).matches[0] || {}).qty;
+      const per = toInt(std);
+      if(!per){ zonder.push(code + ' (' + aantal + ' st.)'); regels.push(code + '\t1\t'); pallets += 1; return; }
+      const vol = Math.floor(aantal / per), rest = aantal % per;
+      if(vol){ regels.push(code + '\t' + vol + '\t' + per); pallets += vol; }
+      if(rest){ regels.push(code + '\t1\t' + rest); pallets += 1; }
+    });
+    return { nummer, pallets, zonder, regels };
   }
 
   /* ---------- Bestand inlezen ---------- */
   $('file').addEventListener('change', async e => {
-    const f = e.target.files[0];
-    if(!f) return;
+    const files = [...e.target.files];
+    if(!files.length) return;
+    const f = files[0];
     try{
       if(/\.pdf$/i.test(f.name)){
-        const r = await leesStockmovePdf(f);
-        if(!r.regels.length) throw new Error('geen pallets gevonden in deze PDF');
-        $('data').value = r.regels.join('\n');
-        if(r.nummer) $('cname').value = 'Stockmove ' + r.nummer;
+        const regels = [], namen = [], zonder = [];
+        let pallets = 0;
+        for(const fl of files){
+          const r = await leesPdf(fl);
+          if(!r.regels.length) throw new Error('geen regels gevonden in ' + fl.name);
+          regels.push(...r.regels); pallets += r.pallets; zonder.push(...r.zonder);
+          if(r.nummer) namen.push(r.nummer);
+        }
+        $('data').value = regels.join('\n');
+        if(namen.length) $('cname').value = namen.join(' + ');
         readList();
-        setStatus(r.pallets + ' pallets uit ' + f.name + ' → ' + rows.length + ' regels. ' + $('status').textContent, $('status').className.replace('status','').trim());
+        let msg = pallets + ' pallets uit ' + files.length + ' PDF(\'s) → ' + rows.length + ' regels.';
+        if(zonder.length) msg += ' Geen standaard stuks per pallet bekend: ' + zonder.join(', ') + ' (vul het aantal zelf in).';
+        setStatus(msg + ' ' + $('status').textContent, zonder.length ? 'err' : 'ok');
         e.target.value = '';
         return;
       }
