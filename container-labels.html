@@ -9,6 +9,7 @@
 <title>Container-palletlabels</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="bestanden.js?v=2"></script>
 <style>
@@ -122,7 +123,7 @@ RH90x150HD	5"></textarea>
       </p>
     </div>
 
-    <label class="filebtn">Of Excel/CSV kiezen…<input type="file" id="file" accept=".xlsx,.xls,.csv,.txt"></label>
+    <label class="filebtn">Stockmove-PDF of Excel/CSV kiezen…<input type="file" id="file" accept=".pdf,.xlsx,.xls,.csv,.txt"></label>
 
     <button class="act btn-run" id="read" disabled>Lijst inlezen</button>
     <button class="act btn-print" id="pdf" disabled>Labels maken (PDF)</button>
@@ -379,11 +380,50 @@ RH90x150HD	5"></textarea>
     }
   }
 
+  /* ---------- Stockmove-PDF: palletnummer | SKU | aantal, één regel per pallet ---------- */
+  async function leesStockmovePdf(f){
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf = await pdfjsLib.getDocument({ data:await f.arrayBuffer() }).promise;
+    const lines = [];
+    for(let p = 1; p <= pdf.numPages; p++){
+      const items = (await (await pdf.getPage(p)).getTextContent()).items.filter(t => t.str.trim());
+      const rowsY = [];
+      items.forEach(t => {
+        const y = Math.round(t.transform[5]);
+        let row = rowsY.find(r => Math.abs(r.y - y) <= 2);
+        if(!row){ row = { y, parts:[] }; rowsY.push(row); }
+        row.parts.push({ x:t.transform[4], s:t.str.trim() });
+      });
+      rowsY.sort((a, b) => b.y - a.y).forEach(r => lines.push(r.parts.sort((a, b) => a.x - b.x).map(x => x.s).join(' ')));
+    }
+    const nummer = ((lines.join('\n').match(/Movement\s+(\S+)/i)) || [])[1] || '';
+    const groep = {}, volgorde = [];
+    let pallets = 0;
+    lines.forEach(l => {
+      const m = l.match(/^(\d{3,})\s+(.+?)\s+(\d+)$/);
+      if(!m) return;
+      const k = m[2] + '\t' + m[3];
+      if(!groep[k]){ groep[k] = 0; volgorde.push(k); }
+      groep[k]++; pallets++;
+    });
+    return { nummer, pallets, regels:volgorde.map(k => { const [c, q] = k.split('\t'); return c + '\t' + groep[k] + '\t' + q; }) };
+  }
+
   /* ---------- Bestand inlezen ---------- */
   $('file').addEventListener('change', async e => {
     const f = e.target.files[0];
     if(!f) return;
     try{
+      if(/\.pdf$/i.test(f.name)){
+        const r = await leesStockmovePdf(f);
+        if(!r.regels.length) throw new Error('geen pallets gevonden in deze PDF');
+        $('data').value = r.regels.join('\n');
+        if(r.nummer) $('cname').value = 'Stockmove ' + r.nummer;
+        readList();
+        setStatus(r.pallets + ' pallets uit ' + f.name + ' → ' + rows.length + ' regels. ' + $('status').textContent, $('status').className.replace('status','').trim());
+        e.target.value = '';
+        return;
+      }
       if(/\.(xlsx|xls)$/i.test(f.name)){
         const wb = XLSX.read(await f.arrayBuffer(), { type:'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
