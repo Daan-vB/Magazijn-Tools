@@ -14,6 +14,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="bestanden.js?v=2"></script>
 <script src="wh/menu.js?v=4"></script>
+<script src="wh/cache.js?v=1"></script>
 <style>
   :root{--blue:#1d4ea0;--orange:#e8590c;--ink:#10151c;--bg:#eef1f5;--line:#cdd5df;--soft:#f6f8fb;--muted:#5b6673;--ok:#1c7a4a;--warn:#b86e00;--bad:#b3261e}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -439,13 +440,15 @@ async function load(){
   MISSING = [];
   const safe = (t, p) => p.catch(e => { if(isMissing(e)){ MISSING.push(t); return []; } throw e; });
   try{
+    // via WHC: alleen ophalen wat sinds de vorige keer veranderd is (scheelt dataverkeer)
+    const T = window.WHC ? WHC.tabel : (t, q) => getAll(t, q);
     const [prod, cat, vk, bo, al, co, td] = await Promise.all([
-      safe('producten', getAll('producten', 'select=*&order=productcode')),
-      api('GET', 'catalog?key=eq.catalog-ean&select=data').catch(() => []),
-      safe('verkoop', getAll('verkoop', 'select=*')),
-      safe('backorders', getAll('backorders', 'select=*')),
+      safe('producten', T('producten', 'select=*&order=productcode', ['picqer_datum', 'updated_at'])),
+      (window.WHC ? WHC.catalog(['catalog-ean']) : api('GET', 'catalog?key=eq.catalog-ean&select=data')).catch(() => []),
+      safe('verkoop', T('verkoop', 'select=*', ['geimporteerd_op'])),
+      safe('backorders', T('backorders', 'select=*', ['geimporteerd_op'])),
       safe('pakbon_alias', getAll('pakbon_alias', 'select=*')),
-      safe('containers', getAll('containers', 'select=*&order=id')),
+      safe('containers', T('containers', 'select=*&order=id', ['updated_at'])),
       safe('todos', getAll('todos', 'select=*'))
     ]);
     indexProducten(prod);
@@ -2094,7 +2097,7 @@ async function vloernamenOpslaan(){
     await api('POST', 'catalog?on_conflict=key', [{ key:'catalog-ean', mode:'ean', data:cat, updated_at:new Date().toISOString() }], { Prefer:'resolution=merge-duplicates,return=minimal' });
     indexCatalog(cat);
     for(const rij of weg){
-      await api('PATCH', 'producten?productcode=eq.' + encodeURIComponent(rij.code), { actief:false }, { Prefer:'return=minimal' });
+      await api('PATCH', 'producten?productcode=eq.' + encodeURIComponent(rij.code), { actief:false, updated_at:new Date().toISOString() }, { Prefer:'return=minimal' });
       if(P[rij.code]) P[rij.code].actief = false;
     }
     UI.vn.wijzig = {}; UI.vn.los = {}; UI.vn.overzet = 0;
@@ -4230,7 +4233,7 @@ const ACT = {
   vnterug: async el => {
     const code = el.dataset.code;
     try{
-      await api('PATCH', 'producten?productcode=eq.' + encodeURIComponent(code), { actief:true }, { Prefer:'return=minimal' });
+      await api('PATCH', 'producten?productcode=eq.' + encodeURIComponent(code), { actief:true, updated_at:new Date().toISOString() }, { Prefer:'return=minimal' });
       if(P[code]) P[code].actief = true;
       rerender(); toast(code + ' teruggezet. Vloernaam en stuks per pallet opnieuw invullen.', 4000);
     }catch(e){ toast('Mislukt: ' + e.message, 5000); }

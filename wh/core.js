@@ -127,12 +127,15 @@ async function load(){
   const safe = (t, p) => p.catch(e => { if(isMissing(e)){ D.missend.push(t); return []; } throw e; });
   try{
     const keys = ['catalog-ean'].concat(CAT_KEYS).map(k => '"' + k + '"').join(',');
+    // via WHC: alleen ophalen wat sinds de vorige keer veranderd is (scheelt dataverkeer)
+    const T = window.WHC ? WHC.tabel : (t, q) => getAll(t, q);
+    const PK = ['picqer_datum', 'updated_at'];
     const [prod, cat, vk, bo, co] = await Promise.all([
-      safe('producten', getAll('producten', 'select=' + PROD_SEL + '&order=productcode').catch(e => /column/i.test(e.body || '') ? getAll('producten', 'select=*&order=productcode') : Promise.reject(e))),
-      api('GET', 'catalog?key=in.(' + encodeURIComponent(keys) + ')&select=key,data,updated_at'),
-      safe('verkoop', getAll('verkoop', 'select=*')),
-      safe('backorders', getAll('backorders', 'select=*')),
-      safe('containers', getAll('containers', 'select=id,leverancier,pakbon_ref,containernummer,losdatum,lostijd,status,updated_at,verwacht:data->verwacht,regels:data->regels,voorboekingen:data->voorboekingen,geleverd:data->geleverd,verdeling:data->verdeling&order=losdatum'))
+      safe('producten', T('producten', 'select=' + PROD_SEL + '&order=productcode', PK).catch(e => /column/i.test(e.body || '') ? T('producten', 'select=*&order=productcode', PK) : Promise.reject(e))),
+      window.WHC ? WHC.catalog(['catalog-ean'].concat(CAT_KEYS)) : api('GET', 'catalog?key=in.(' + encodeURIComponent(keys) + ')&select=key,data,updated_at'),
+      safe('verkoop', T('verkoop', 'select=*', ['geimporteerd_op'])),
+      safe('backorders', T('backorders', 'select=*', ['geimporteerd_op'])),
+      safe('containers', T('containers', 'select=id,leverancier,pakbon_ref,containernummer,losdatum,lostijd,status,updated_at,verwacht:data->verwacht,regels:data->regels,voorboekingen:data->voorboekingen,geleverd:data->geleverd,verdeling:data->verdeling&order=losdatum', ['updated_at']))
     ]);
     D.P = {}; D.PLOW = {};
     prod.forEach(r => { if(!r.productcode) return; D.P[r.productcode] = r; D.PLOW[r.productcode.toLowerCase()] = r.productcode; });
