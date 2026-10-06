@@ -66,9 +66,23 @@ const locBadge = l => { const s = WHL.soortLoc(l); return `<span class="badge ${
 const locs = arr => (arr || []).map(locBadge).join(' ');
 const boDatum = () => D.BO.reduce((m, r) => r.geimporteerd_op && (!m || r.geimporteerd_op > m) ? r.geimporteerd_op : m, null);
 const advDatum = () => D.ADV ? (D.ADV.ingelezen || D.ADV.datum) : null;
-const lijstOud = () => { const b = boDatum(); return !b || isoDag(b) !== vandaag(); };
+// Nu verplaatsen komt live uit Picqer (koppelcode op dit apparaat); anders uit de laatste backorder-export
+const LV = () => window.WHLIVE ? WHLIVE.status() : null;
+const isLive = () => { const s = LV(); return !!(s && s.klaar && !s.fout); };
+const lijstOud = () => { if(isLive()){ const a = advDatum(); return !a || isoDag(a) !== vandaag(); } const b = boDatum(); return !b || isoDag(b) !== vandaag(); };
+const bronTekst = () => isLive() ? t('live', { x:tijd(LV().data.binnen) }) + ' · ' + t('lijstVan', { b:'', a:wanneer(advDatum()) }).replace(/^[^·]*·\s*/, '') : t('lijstVan', { b:wanneer(boDatum()), a:wanneer(advDatum()) });
+function koppelKaart(){
+  const s = LV();
+  if(!s || s.code) return s && s.fout ? `<div class="reason mt8">${esc(t('live.fout'))} <span class="small muted">${esc(s.fout.message)}</span></div>` : '';
+  return `<div class="card noprint"><h3>${esc(t('live.titel'))}</h3><div class="small muted mt4">${esc(t('live.uitleg'))}</div>
+    <div class="row wrap mt8"><input id="j-code" type="password" autocomplete="off" style="max-width:220px"><button class="btn pri" data-a="koppel">${esc(t('live.knop'))}</button></div></div>`;
+}
 function lijsten(){
   const C = WHL.bereken();
+  if(isLive()){
+    const uit = new Set(C.uitzetten.map(r => r.code)), inRonde = new Set(C.ronde.map(r => r.code));
+    return { C, live:true, mv:WHLIVE.nuLijst(), ronde:C.ronde.filter(r => !uit.has(r.code)), vstSet:new Set(C.vst.map(v => v.code)), niet:C.deels.filter(d => d.adv && !inRonde.has(d.code)) };
+  }
   const uit = new Set(C.uitzetten.map(r => r.code));           // hoort niet in het advies (Daan ruimt op)
   const vstSet = new Set(C.vst.map(v => v.code));
   const inRonde = new Set(C.ronde.map(r => r.code));
@@ -106,8 +120,9 @@ function viewVandaag(){
   const d = new Date();
   app.innerHTML = `
   <div class="card"><h2 class="dag">${esc(hoofdletter(d.toLocaleDateString(loc(), { weekday:'long', day:'numeric', month:'long' })))}</h2>
-    <div class="small muted">${esc(t('lijstVan', { b:wanneer(boDatum()), a:wanneer(advDatum()) }))}</div>
+    <div class="small muted">${esc(bronTekst())}</div>
     ${lijstOud() ? `<div class="reason mt8">${esc(t('oud'))} <a href="#/aanvullen">${esc(t('oudKnop'))}</a></div>` : ''}</div>
+  ${koppelKaart()}
   <div class="tiles">
     <a class="tile ${mvOpen ? 't-bad' : 't-ok'}" href="#/aanvullen/nu"><div class="lbl">1 · ${esc(t('tegel.nu'))}</div><div class="big">${nf(mvOpen)}</div><div class="sub">${esc(t('ordersWacht', { n:nf(nOrders) }))}</div></a>
     <a class="tile ${rondeOpen ? 't-warn' : 't-ok'}" href="#/aanvullen/ronde"><div class="lbl">2 · ${esc(t('tegel.ronde'))}</div><div class="big">${nf(rondeOpen)}</div><div class="sub">${esc(t('tegel.rondeSub'))}</div></a>
@@ -121,14 +136,21 @@ function viewVandaag(){
 function uitlegOpen(){ try{ return localStorage.getItem('junior-uitleg') !== 'dicht'; }catch(e){ return true; } }
 function volgorde(){ try{ return localStorage.getItem('junior-volg') === 'route' ? 'route' : 'oud'; }catch(e){ return 'oud'; } }
 // status van een regel in "Nu verplaatsen": open / klaar / nog open (afgevinkt, maar na Verwerk backorders staat hij er nog)
-const mvStaat = (m, vd) => WHL.mvStaat(m.code, vd);
+const mvStaat = (m, vd) => {
+  if(!m.live) return WHL.mvStaat(m.code, vd);
+  const tk = D.TAKEN['mv:' + vd + ':' + m.code]; if(!tk) return 'open';
+  const vw = D.TAKEN['dg:' + vd + ':verwerk'], s = LV();
+  // afgevinkt vóór Verwerk backorders, en Picqer laat hem daarna nog steeds zien → rood
+  if(vw && vw.op && tk.op && tk.op < vw.op && s && s.data && s.data.binnen > new Date(vw.op).getTime()) return 'nogopen';
+  return 'klaar';
+};
 function viewAanvullen(tab){
   const vd = vandaag();
   const L = lijsten();
   const nNu = L.mv.filter(m => mvStaat(m, vd) !== 'klaar').length;
   const nRonde = L.ronde.filter(r => !tik('rd:' + vd + ':' + r.code)).length;
   const kopHtml = `
-  <div class="card noprint"><div class="row wrap between"><h3>${esc(t('vernieuwTitel'))}</h3><span class="small muted">${esc(t('lijstVan', { b:wanneer(boDatum()), a:wanneer(advDatum()) }))}</span></div>
+  <div class="card noprint"><div class="row wrap between"><h3>${esc(t('vernieuwTitel'))}</h3><span class="small muted">${esc(bronTekst())}</span></div>
     ${lijstOud() ? `<div class="reason mt8">${esc(t('oud'))}</div>` : ''}
     ${diffTekst() ? `<div class="small mt8">${esc(diffTekst())}</div>` : ''}
     <label class="drop mt8" id="drop"><input type="file" id="files" multiple accept=".xlsx,.xls,.csv,.pdf" hidden><b>${esc(t('dropTekst'))}</b></label>
@@ -412,10 +434,12 @@ document.addEventListener('click', async ev => {
     if(v) D.TAKEN[k] = v; else delete D.TAKEN[k];
     rerender();
     try{ await WH.catPatch('wh-taken', { [k]:v }); }catch(e){ /* melding al getoond */ }
+    if(v) setTimeout(() => live(true), 20000);        // Picqer maakt de picklijsten; daarna vers ophalen
     return;
   }
   if(a === 'bestand'){ openBestand(b.dataset.pad); return; }
-  if(a === 'vernieuw'){ await laden(); rerender(); return; }
+  if(a === 'vernieuw'){ await laden(); rerender(); live(true); return; }
+  if(a === 'koppel'){ const v = (($('j-code') || {}).value || '').trim(); if(!v) return; WHLIVE.zetCode(v); live(true); return; }
 });
 window.addEventListener('hashchange', () => { route(); window.scrollTo(0, 0); });
 
@@ -425,11 +449,18 @@ async function ververs(){
   const a = document.activeElement; if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;
   if(/bezig|…/.test(($('impst') || {}).textContent || '')) return;
   if(await laden()) rerender();
+  live();
 }
+// live uit Picqer: ophalen en opnieuw tekenen (niet tijdens typen)
+function live(vers){ if(window.WHLIVE && WHLIVE.status().code) WHLIVE.laad(vers); }
+if(window.WHLIVE) WHLIVE.opNieuw(() => {
+  const a = document.activeElement; if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;
+  if(/^#\/(aanvullen(\/nu)?)?$/.test(location.hash || '#/') || !location.hash) rerender();
+});
 document.addEventListener('visibilitychange', ververs);
 setInterval(ververs, 300000);
 
 document.documentElement.lang = taal;
 kop();
-(async () => { await laden(); route(); })();
+(async () => { await laden(); route(); live(); })();
 })();

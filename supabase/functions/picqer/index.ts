@@ -13,8 +13,9 @@
 //  geen klantgegevens door (geen namen, adressen of klantnummers).
 //  Acties (?actie=…):
 //    status      verbinding testen: magazijnen
-//    vandaag     open picklijsten + backorders van het Hoofdmagazijn
+//    vandaag     open/gepauzeerde/gesnoozede picklijsten + backorders van het Hoofdmagazijn
 //    producten   ?ids=1,2,3 → productcode, naam, barcode en voorraad per locatie
+//    picklijst   ?id=…      → opmerkingen bij één picklijst en de order (opmerking klant)
 // =====================================================================
 
 const DOMEIN = (Deno.env.get("PICQER_DOMAIN") || "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -112,23 +113,35 @@ async function status() {
   };
 }
 
+// gebruikers: alleen naam (voor "toegewezen aan")
+async function gebruikers(): Promise<Record<string, string>> {
+  return await bewaard("users", 3600, async () => {
+    const u = await alles("users", 1000);
+    const m: Record<string, string> = {};
+    u.forEach((x: any) => { m[x.iduser] = [x.firstname || x.first_name, x.lastname || x.last_name].filter(Boolean).join(" ") || x.username || ""; });
+    return m;
+  });
+}
+
 async function vandaag() {
   const picks = async (st: string) => alles("picklists?status=" + st + "&idwarehouse=" + MAGAZIJN, 3000);
-  const [nieuw, pauze, snooze, bo] = await Promise.all([picks("new"), picks("paused"), picks("snoozed"), alles("backorders", 6000)]);
+  const [nieuw, pauze, snooze, bo, wie] = await Promise.all([picks("new"), picks("paused"), picks("snoozed"), alles("backorders", 6000), gebruikers().catch(() => ({} as Record<string, string>))]);
   const pl = (p: any) => ({
     id: p.idpicklist, nr: p.picklistid, s: p.status, u: !!p.urgent, c: p.created,
     d: p.preferred_delivery_date || null, n: p.totalproducts ?? null, gp: p.totalpicked ?? null, toegewezen: !!p.assigned_to_iduser,
+    wie: p.assigned_to_iduser ? (wie[p.assigned_to_iduser] || "") : "", o: p.idorder || null, ref: p.reference || "",
+    pauze: p.paused_reason || "", tot: p.snoozed_until || null,
   });
   return {
     opgehaald: new Date().toISOString(),
     magazijn: MAGAZIJN,
-    picklijsten: nieuw.concat(pauze).map(pl),
+    picklijsten: nieuw.concat(pauze).concat(snooze).map(pl),
     gesnoozed: snooze.length,
     backorders: bo
       .filter((b: any) => !b.idwarehouse || Number(b.idwarehouse) === MAGAZIJN)
       .map((b: any) => ({
         id: b.idbackorder, o: b.idorder, p: b.idproduct, a: Number(b.amount) || 0, v: Number(b.amount_available) || 0,
-        pr: b.priority ?? null, c: b.created_at || null, ink: !!b.is_purchased,
+        pr: b.priority ?? null, c: b.created_at || null, ink: !!b.is_purchased, hp: !!b.has_parts, deel: !!b.part_of_idbackorder,
       })),
   };
 }
@@ -143,6 +156,7 @@ async function producten(idsTxt: string) {
       code: p.productcode,
       naam: p.name,
       ean: p.barcode || "",
+      type: p.type || "",
       abc: p.analysis_abc_classification || "",
       perDag: p.analysis_pick_amount_per_day ?? null,
       loc: (Array.isArray(locs) ? locs : []).map((l: any) => {
@@ -156,6 +170,29 @@ async function producten(idsTxt: string) {
     };
   }));
   return { opgehaald: new Date().toISOString(), magazijn: MAGAZIJN, producten: lijst };
+}
+
+// opmerkingen bij één picklijst (op verzoek, één klik in de app)
+async function picklijst(idTxt: string) {
+  const id = parseInt(idTxt, 10);
+  if (!(id > 0)) throw new Fout("Geen picklijst gevraagd", 400);
+  return await bewaard("pl:" + id, 60, async () => {
+    const p = await pq("picklists/" + id);
+    const opm = (lijst: any) => (Array.isArray(lijst) ? lijst : []).map((c: any) => ({
+      tekst: c.body || "", op: c.created_at || null,
+      door: (c.author && (c.author.full_name || c.author.name || [c.author.firstname || c.author.first_name, c.author.lastname || c.author.last_name].filter(Boolean).join(" "))) || c.author_type || "",
+    }));
+    const [cp, o, co] = await Promise.all([
+      pq("picklists/" + id + "/comments").catch(() => []),
+      p.idorder ? pq("orders/" + p.idorder).catch(() => null) : Promise.resolve(null),
+      p.idorder ? pq("orders/" + p.idorder + "/comments").catch(() => []) : Promise.resolve([]),
+    ]);
+    return {
+      id, nr: p.picklistid, s: p.status, pauze: p.paused_reason || "", tot: p.snoozed_until || null, ref: p.reference || "",
+      order: o ? { id: o.idorder, nr: o.orderid, ref: o.reference || "", klant: o.customer_remarks || "", status: o.status || "" } : null,
+      opmerkingen: opm(cp).concat(opm(co)),
+    };
+  });
 }
 
 // ---------- ingang ----------
@@ -176,6 +213,7 @@ Deno.serve(async (req: Request) => {
       return antwoord(await bewaard("vandaag", 45, vandaag), 200, origin);
     }
     if (actie === "producten") return antwoord(await producten(url.searchParams.get("ids") || ""), 200, origin);
+    if (actie === "picklijst") return antwoord(await picklijst(url.searchParams.get("id") || ""), 200, origin);
     return antwoord({ fout: "Onbekende actie: " + actie }, 400, origin);
   } catch (e) {
     const f = e instanceof Fout ? e : new Fout(String((e as Error)?.message || e));

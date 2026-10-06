@@ -307,3 +307,9 @@ Object.assign(window.JT.el, {
     '<b>Όχι τώρα</b>: το Picqer το προτείνει, αλλά δεν ολοκληρώνει την παραγγελία. Μην το μετακινείς, εκτός αν ο Daan συμφωνήσει μερική αποστολή. Κάτι περίεργο; Πες το στον Daan.'
   ]
 });
+
+/* ---- 7-10: Nu verplaatsen live uit Picqer ---- */
+Object.assign(window.JT.nl, { live:'Nu verplaatsen: live uit Picqer ({x})', 'live.titel':'Picqer koppelen', 'live.uitleg':'Vul één keer de koppelcode in (vraag Daan). Daarna komt Nu verplaatsen live uit Picqer, zonder exports.', 'live.knop':'Koppelen', 'live.fout':'Picqer is nu niet bereikbaar: Nu verplaatsen komt uit de laatste export.' });
+Object.assign(window.JT.en, { live:'Move now: live from Picqer ({x})', 'live.titel':'Connect Picqer', 'live.uitleg':'Enter the link code once (ask Daan). After that, Move now comes live from Picqer, without exports.', 'live.knop':'Connect', 'live.fout':'Picqer cannot be reached right now: Move now uses the last export.' });
+Object.assign(window.JT.es, { live:'Mover ahora: en vivo de Picqer ({x})', 'live.titel':'Conectar Picqer', 'live.uitleg':'Introduce una vez el código de enlace (pregunta a Daan). Después, Mover ahora llega en vivo de Picqer, sin exportaciones.', 'live.knop':'Conectar', 'live.fout':'Picqer no está disponible ahora: Mover ahora usa la última exportación.' });
+Object.assign(window.JT.el, { live:'Μετακίνηση τώρα: ζωντανά από Picqer ({x})', 'live.titel':'Σύνδεση Picqer', 'live.uitleg':'Βάλτε μία φορά τον κωδικό σύνδεσης (ρωτήστε τον Daan). Μετά η Μετακίνηση τώρα έρχεται ζωντανά από το Picqer, χωρίς εξαγωγές.', 'live.knop':'Σύνδεση', 'live.fout':'Το Picqer δεν είναι διαθέσιμο τώρα: η Μετακίνηση τώρα χρησιμοποιεί την τελευταία εξαγωγή.' });
