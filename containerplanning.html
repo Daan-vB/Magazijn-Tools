@@ -13,7 +13,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="bestanden.js?v=2"></script>
-<script src="wh/menu.js?v=3"></script>
+<script src="wh/menu.js?v=4"></script>
 <style>
   :root{--blue:#1d4ea0;--orange:#e8590c;--ink:#10151c;--bg:#eef1f5;--line:#cdd5df;--soft:#f6f8fb;--muted:#5b6673;--ok:#1c7a4a;--warn:#b86e00;--bad:#b3261e}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -220,6 +220,7 @@
    Instellingen
    ===================================================================== */
 const URL_ = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
+const TESTAPP = !!(window.WHM && WHM.TEST);
 const KEY  = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
 const H    = { apikey:KEY, Authorization:'Bearer ' + KEY };
 const MATEN = ['80x120','100x100','110x110','90x120','100x150','120x150','120x180','100x200','120x200','120x240','130x210','130x250','40x120','40x200'];
@@ -1635,6 +1636,7 @@ async function route(){
   if(!h.startsWith('#/producten')) SUP = null;
   const nu = h.startsWith('#/producten') ? 'producten' : h.startsWith('#/c/') ? 'home' : h.startsWith('#/gegevens') ? 'gegevens' : h.startsWith('#/vloernamen') ? 'vloernamen' : h.startsWith('#/vooruit') ? 'vooruit' : 'home';
   if(window.WHM) WHM.zet('cp:' + nu);
+  if(window.WHM && !WHM.magHier('cp:' + nu)){ if(!h.startsWith('#/c/')){ if(dirty) await flushSave(); cur = null; setSaved(''); } app.innerHTML = WHM.nietHier({ producten:'Producten', vloernamen:'Vloernamen', vooruit:'Vooruit' }[nu]); return; }
   if(!h.startsWith('#/c/')){ if(dirty) await flushSave(); cur = null; setSaved(''); }
   if(['containers', 'pakbon_alias', 'verkoop', 'backorders'].some(t => MISSING.includes(t))) return viewSetup();
   if((m = h.match(/^#\/c\/(\d+)(?:\/(\w+))?/))) return viewContainer(+m[1], m[2] || 'pakbon');
@@ -2362,7 +2364,7 @@ function puntenKaart(c, pts){
     const keys = gr.items.map(p => p.key).join('|');
     const todoKan = gr.items.some(p => p.code && !p.eigen) && !klaar;
     const link = gr.tab === 'vloernamen'
-      ? ` <a href="#/vloernamen?q=${esc(een ? gr.items[0].code : '')}" class="small">→ vloernamen</a>`
+      ? (TESTAPP ? ` <a href="#/vloernamen?q=${esc(een ? gr.items[0].code : '')}" class="small">→ vloernamen</a>` : '')
       : (gr.tab && gr.tab !== tab ? ` <a href="#/c/${c.id}/${gr.tab}" class="small">→ ${TABS.find(x => x[0] === gr.tab)[1].toLowerCase()}</a>` : '');
     return `<div class="pt"><span class="lvl badge ${cls}">${lbl}</span><div class="txt">${tekst}${link}</div>
       ${todoKan ? `<button class="btn ghost sm" data-act="naartodo" data-keys="${esc(keys)}" title="Op de todo-lijst van de leverancier (zie productkaart)">→ todo</button>` : ''}
@@ -2615,7 +2617,7 @@ function productenSectie(c, pl){
     <div class="row between wrap"><h2>Producten</h2>
       <div class="row wrap">${mis ? `<span class="badge b-warn">${mis} van ${pl.order.length} nog aanvullen</span><button class="btn acc" data-act="pkallesop">Alles opslaan</button>` : '<span class="badge b-ok">alles compleet</span>'}</div></div>
     <p class="small muted mt8">Per product wat de app weet uit de pakbon, Picqer, het productgeheugen (palletlabels) en de palletdata. Wat ontbreekt staat als invulveld klaar, waar mogelijk al ingevuld (<span class="voor-uitleg">geel</span> = voorstel, controleer). Opslaan bewaart het voor deze én alle volgende containers.</p>
-    ${c.leverancier ? `<p class="small mt8"><a href="#/producten/${encodeURIComponent(levKort(c.leverancier))}">Alle producten van ${esc(levKort(c.leverancier))} in één scherm invullen →</a></p>` : ''}
+    ${c.leverancier && TESTAPP ? `<p class="small mt8"><a href="#/producten/${encodeURIComponent(levKort(c.leverancier))}">Alle producten van ${esc(levKort(c.leverancier))} in één scherm invullen →</a></p>` : ''}
   </div>
   <div class="vgrid">${pl.order.map(code => productKaart(c, pl.map[code])).join('')}</div>
   <div class="row wrap mt12">${mis ? `<button class="btn acc" data-act="pkallesop">Alles opslaan</button>` : ''}<a class="btn pri" href="#/c/${c.id}/verdeling">Verder naar verdeling →</a></div>`;
@@ -3204,13 +3206,13 @@ function wijzer(open){
   // ruimte komende 14 dagen
   const plan = planning(); let plaatsen = 0, n = 0;
   open.forEach(c => { const d = dagen(c); if(d === null || d < 0 || d > 14) return; Object.entries(plan.per[c.id] || {}).forEach(([code, x]) => x.porties.forEach(q => { if(q.soort === 'pallet' && DEST[q.dest] && DEST[q.dest].hier){ const k = num(q.n) || 0; plaatsen += k * (num((P[code] || {}).plaatsen) || 1); n += k; } })); });
-  if(n) L.push({ prio:3, tekst:'Komende 2 weken blijven er ± ' + n + ' pallets hier: ruimte voor ' + nf(plaatsen, 1) + ' palletplaatsen (' + Math.ceil(plaatsen / 4) + '–' + Math.ceil(plaatsen / 3) + ' liggers)', link:'#/vooruit', knop:'vooruit' });
+  if(n && TESTAPP) L.push({ prio:3, tekst:'Komende 2 weken blijven er ± ' + n + ' pallets hier: ruimte voor ' + nf(plaatsen, 1) + ' palletplaatsen (' + Math.ceil(plaatsen / 4) + '–' + Math.ceil(plaatsen / 3) + ' liggers)', link:'#/vooruit', knop:'vooruit' });
   let nMis = 0, nLev = 0, nNiet = 0;
   [...new Set(open.filter(c => (c.data.regels || []).length).map(c => levKort(c.leverancier)))].forEach(k => {
     const sl = poolsLeverancier(k), m = sl.order.filter(code => !P[code] || pkInfo(null, sl.map[code]).nodig.length).length + sl.niet.length;
     if(m){ nMis += m; nLev++; }
   });
-  if(nMis) L.push({ prio:3, tekst:nMis + ' product' + (nMis > 1 ? 'en' : '') + ' of pakbonregel' + (nMis > 1 ? 's' : '') + ' bij ' + nLev + ' leverancier' + (nLev > 1 ? 's' : '') + ' missen nog gegevens — per leverancier in één scherm invullen', link:'#/producten', knop:'invullen' });
+  if(nMis && TESTAPP) L.push({ prio:3, tekst:nMis + ' product' + (nMis > 1 ? 'en' : '') + ' of pakbonregel' + (nMis > 1 ? 's' : '') + ' bij ' + nLev + ' leverancier' + (nLev > 1 ? 's' : '') + ' missen nog gegevens — per leverancier in één scherm invullen', link:'#/producten', knop:'invullen' });
   const mistImp = new Set();
   open.forEach(c => (c.data.regels || []).forEach(r => { if(r.productcode) return; const v = voorstelVoor(r, c.leverancier, true); if(v && !PLOW[v.code.toLowerCase()]) mistImp.add(v.bron || levKort(c.leverancier)); }));
   if(mistImp.size) L.push({ prio:2, tekst:'Importeer de Picqer-productexport van ' + [...mistImp].join(' en ') + ': pakbonregels wachten op die producten (Gegevens)', link:'#/gegevens', knop:'importeren' });
@@ -3752,7 +3754,7 @@ function tabUitvoer(c, g){
     <div class="row between wrap"><h3>2. Palletlabels</h3><button class="btn acc" data-act="labels" ${lab.length ? '' : 'disabled'}>PDF maken (${lab.length} labels)</button></div>
     <div class="row wrap mt8 small">Labels voor: ${Object.keys(DEST).filter(k => DEST[k].label).map(k => `<label class="row" style="gap:4px"><input type="checkbox" data-labeldest="${k}" ${UI.labelDest[k] ? 'checked' : ''}> ${DEST[k].nl} (${alleDest[k] || 0})</label>`).join('')}
       ${aanvulCodes(c).length ? `<label class="row" style="gap:4px"><input type="checkbox" data-aanvullabels ${UI.aanvulLabels !== false ? 'checked' : ''}> + aanvulpallet-labels (${aanvulCodes(c).length})</label>` : ''}</div>
-    <p class="small muted mt8">Zelfde opmaak als de palletlabel-generator: naam, productcode, barcode en aantal (in Picqer-eenheden, bijv. 60 m). Elke pallet krijgt zijn aantal. Voor producten met het vinkje <b>aanvulpallet</b> komt er per product één extra label bij (<i>AANVULPALLET</i> in plaats van het aantal) voor de pallet die wordt aangebroken. Direct-weg-pallets krijgen geen label. <b>Bovenaan elk label staat waar de pallet heen gaat</b>: de bulkplek uit IVOL Warehouse → Containerdag (Ruimte plannen), de picklocatie of VST. Plan de plekken dus vóór je de labels print.</p>
+    <p class="small muted mt8">Zelfde opmaak als de palletlabel-generator: naam, productcode, barcode en aantal (in Picqer-eenheden, bijv. 60 m). Elke pallet krijgt zijn aantal. Voor producten met het vinkje <b>aanvulpallet</b> komt er per product één extra label bij (<i>AANVULPALLET</i> in plaats van het aantal) voor de pallet die wordt aangebroken. Direct-weg-pallets krijgen geen label. Het label toont geen bestemming of plek.</p>
   </div>
   <div class="card out">
     <div class="row between wrap"><h3>3. Stockmove-lijst (${sm.length} pallets naar VST)</h3><div class="row"><button class="btn" data-act="smcopy" ${sm.length ? '' : 'disabled'}>Kopieer</button><button class="btn" data-act="smdown" ${sm.length ? '' : 'disabled'}>Download .txt</button></div></div>
@@ -4033,8 +4035,6 @@ async function labelBestemming(lijst){
 async function maakLabels(c, eigenLijst){
   const lijst = eigenLijst || labelLijst(c);
   if(!lijst.length) return;
-  const metPlek = await labelBestemming(lijst);
-  if(!eigenLijst && lijst.some(r => r.key) && !metPlek) toast('Nog geen bulkplekken: labels zonder plek. In IVOL Warehouse → Containerdag eerst de liggers vrijmaken en leeg bevestigen.', 5000);
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
   try{ doc.viewerPreferences({ 'PrintScaling':'None', 'FitWindow':true }); }catch(e){}

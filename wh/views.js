@@ -43,6 +43,7 @@ function nietKlaar(){
 }
 
 /* ---------- routering ---------- */
+const MENUNAAM = { containerdag:'Containerdag', controle:'Controle', wie:'Wie deed wat', invul:'Invullen', ruimte:'Ruimte', base:'Niveaus', abcheck:'A/B-check', locaties:'Locaties', stelling:'Stellingen', triage:'Triage', planning:'Planning', live:'Picqer live' };
 function parseHash(){
   const h = location.hash || '#/';
   const [pad, qs] = h.slice(1).split('?');
@@ -54,6 +55,8 @@ function route(){
   const { delen, q } = parseHash();
   const naam = delen[0] || 'vandaag';
   if(window.WHM) WHM.zet(naam);
+  if(window.WHM && !WHM.magHier(naam)){ app.innerHTML = WHM.nietHier(MENUNAAM[naam]); return; }
+  if(naam === 'live' || ((naam === 'vandaag' || naam === 'overzicht') && window.WHM && !WHM.TEST)) return WHLIVE.view();
   if(D.fout){ app.innerHTML = geenVerbinding(); return; }
   try{
     if(naam === 'containerdag') return WHD.viewContainerdag(delen[1]);

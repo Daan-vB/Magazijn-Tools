@@ -1,0 +1,228 @@
+/* =====================================================================
+   IVOL Warehouse — Vandaag: live uit Picqer (alleen lezen, 7-10-2026)
+   Leest via het tussenstation (Supabase Edge Function "picqer"):
+     open picklijsten  → open, urgent, ouder dan 24 / 12 / 4 uur
+     backorders        → orders die alleen nog verplaatst hoeven te worden
+     producten         → per product voorraad op pick, bulk en VST
+   De app verandert niets in Picqer. Koppelcode: één keer per apparaat.
+   ===================================================================== */
+window.WHLIVE = (function(){
+'use strict';
+const { $, esc, nf, plural, fdate, toast, D, isoDag } = WH;
+const FN_STD = WH.URL_ + '/functions/v1/picqer';
+const fnUrl = () => { try{ return localStorage.getItem('ivol-fn') || FN_STD; }catch(e){ return FN_STD; } };
+const S = { data:null, laden:false, fout:null, prod:{}, prodLaden:false, prodFout:null, code:'' };
+const app = () => $('app');
+
+/* ---------- koppelcode (alleen op dit apparaat) ---------- */
+function code(){ try{ return localStorage.getItem('ivol-koppelcode') || S.code; }catch(e){ return S.code; } }
+function zetCode(c){ S.code = c; try{ if(c) localStorage.setItem('ivol-koppelcode', c); else localStorage.removeItem('ivol-koppelcode'); }catch(e){} }
+
+/* ---------- tussenstation ---------- */
+async function vraag(actie, params){
+  const qs = new URLSearchParams(Object.assign({ actie }, params || {})).toString();
+  let r;
+  try{ r = await fetch(fnUrl() + '?' + qs, { headers:{ apikey:WH.KEY, 'x-ivol-code':code() }, cache:'no-store' }); }
+  catch(e){ throw Object.assign(new Error('Geen antwoord van het tussenstation. Staat de functie "picqer" in Supabase en is "Verify JWT" uitgezet?'), { soort:'net' }); }
+  const t = await r.text(); let j = null; try{ j = JSON.parse(t); }catch(e){}
+  if(!r.ok){
+    if(j && j.code === 'koppelcode'){ zetCode(''); throw Object.assign(new Error('Koppelcode klopt niet. Vul hem opnieuw in.'), { soort:'code' }); }
+    if(r.status === 401) throw Object.assign(new Error('Supabase weigert het verzoek (401). Zet bij de functie "picqer" Verify JWT uit.'), { soort:'jwt' });
+    if(r.status === 404) throw Object.assign(new Error('Functie "picqer" niet gevonden in Supabase.'), { soort:'net' });
+    throw new Error((j && j.fout) || ('Tussenstation gaf status ' + r.status));
+  }
+  return j;
+}
+
+/* ---------- rekenen (los van het scherm, ook te testen) ---------- */
+function uren(created, nu){
+  const d = new Date(String(created || '').replace(' ', 'T'));       // Picqer-tijd = tijd in Nederland
+  return isNaN(d) ? null : ((nu || Date.now()) - d.getTime()) / 36e5;
+}
+function picklijstCijfers(lijsten, nu){
+  const open = (lijsten || []).filter(p => p.s === 'new' || p.s === 'paused');
+  const ouder = h => open.filter(p => (uren(p.c, nu) ?? 0) >= h).length;
+  const oudste = open.reduce((m, p) => p.c && (!m || p.c < m) ? p.c : m, null);
+  return { open:open.length, gepauzeerd:open.filter(p => p.s === 'paused').length, urgent:open.filter(p => p.u).length,
+    o24:ouder(24), o12:ouder(12), o4:ouder(4), oudste, oudsteUur:oudste ? uren(oudste, nu) : null,
+    nietToegewezen:open.filter(p => !p.toegewezen).length };
+}
+function backorderCijfers(bos){
+  const perOrder = new Map();
+  (bos || []).forEach(b => { if(!perOrder.has(b.o)) perOrder.set(b.o, []); perOrder.get(b.o).push(b); });
+  const prods = new Map();
+  let vol = 0;
+  perOrder.forEach((regels, o) => {
+    if(!regels.every(r => r.v >= r.a)) return;
+    vol++;
+    regels.forEach(r => {
+      const p = prods.get(r.p) || { id:r.p, nodig:0, orders:new Set(), oudste:null };
+      p.nodig += r.a; p.orders.add(o);
+      if(r.c && (!p.oudste || r.c < p.oudste)) p.oudste = r.c;
+      prods.set(r.p, p);
+    });
+  });
+  const lijst = [...prods.values()].map(p => Object.assign(p, { orders:p.orders.size }))
+    .sort((a, b) => String(a.oudste || '9').localeCompare(String(b.oudste || '9')) || b.orders - a.orders);
+  return { orders:perOrder.size, regels:(bos || []).length, vol, wacht:perOrder.size - vol, producten:lijst };
+}
+// waar staat het product en wat moet er gebeuren
+function productStand(p, nodig, magazijn){
+  const hm = (p.loc || []).filter(l => l.w == null || Number(l.w) === Number(magazijn));
+  const kar = hm.filter(l => l.t === 'container');
+  const echt = hm.filter(l => l.t !== 'container');
+  const pick = echt.filter(l => !l.b), bulk = echt.filter(l => l.b && l.v > 0);
+  const vst = (p.loc || []).filter(l => l.w != null && Number(l.w) !== Number(magazijn) && l.v > 0);
+  const pickVrij = pick.reduce((s, l) => s + Math.max(0, l.v - l.r), 0);
+  const bulkV = bulk.reduce((s, l) => s + l.v, 0);
+  const karV = kar.reduce((s, l) => s + l.v, 0);
+  let soort, tekst;
+  if(pickVrij >= nodig){ soort = 'pick'; tekst = 'Staat al op pick: Verwerk backorders in Picqer'; }
+  else if(bulkV > 0){ soort = 'bulk'; tekst = pick.length ? 'Van bulk naar pick' : 'Geen picklocatie: van bulk naar geen specifieke locatie'; }
+  else if(karV > 0){ soort = 'kar'; tekst = 'Staat op retourkar'; }
+  else { soort = 'los'; tekst = 'Niet op een locatie (geen specifieke locatie?)'; }
+  return { soort, tekst, pick, bulk, kar:kar.filter(l => l.v > 0), vst, pickVrij, bulkV };
+}
+
+/* ---------- ophalen ---------- */
+async function haal(vers){
+  if(S.laden || !code()) return;
+  S.laden = true; S.fout = null; teken();
+  try{
+    S.data = await vraag('vandaag', vers ? { vers:'1' } : {});
+    S.data.binnen = Date.now();
+    S.laden = false; teken();
+    haalProducten();
+  }catch(e){ S.fout = e; S.laden = false; teken(); }
+}
+async function haalProducten(){
+  if(!S.data) return;
+  const B = backorderCijfers(S.data.backorders);
+  const ids = B.producten.map(p => p.id).filter(id => !S.prod[id] || Date.now() - S.prod[id].binnen > 120000).slice(0, 150);
+  if(!ids.length){ teken(); return; }
+  S.prodLaden = true; S.prodFout = null; teken();
+  try{
+    for(let i = 0; i < ids.length; i += 50){
+      const r = await vraag('producten', { ids:ids.slice(i, i + 50).join(',') });
+      (r.producten || []).forEach(p => { p.binnen = Date.now(); S.prod[p.id] = p; });
+      teken();
+    }
+  }catch(e){ S.prodFout = e; }
+  S.prodLaden = false; teken();
+}
+
+/* ---------- scherm ---------- */
+const uurTxt = h => h == null ? '' : h < 1 ? Math.round(h * 60) + ' min' : h < 48 ? Math.floor(h) + ' uur' : Math.floor(h / 24) + ' dagen';
+const tijd = ms => new Date(ms).toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' });
+const tegel = (lbl, n, sub, cls) => `<div class="tile ${cls || ''}"><div class="lbl">${esc(lbl)}</div><div class="big">${nf(n)}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+const locLijst = (ls, metR) => ls.map(l => `<span class="loc">${esc(l.n)}</span> <span class="small">${nf(metR ? Math.max(0, l.v - l.r) : l.v)}</span>`).join('<br>');
+
+function koppelKaart(){
+  return `<div class="card" style="border-left:5px solid var(--blue)"><h3>Picqer koppelen</h3>
+    <div class="small muted mt4">Vul één keer de koppelcode in (staat in Supabase bij de Secrets als IVOL_CODE). Hij blijft alleen op dit apparaat bewaard. De app leest alleen; er wordt niets in Picqer veranderd.</div>
+    <div class="row wrap mt8"><input id="lv-code" type="password" autocomplete="off" placeholder="koppelcode" style="max-width:240px"><button class="btn pri" data-lv="code">Koppelen</button></div></div>`;
+}
+function containersKaart(){
+  if(D.fout || !Array.isArray(D.CONT)) return '';
+  const vd = isoDag(), tot = isoDag(Date.now() + 7 * 864e5);
+  const cs = D.CONT.filter(c => c.status !== 'afgerond' && c.losdatum && c.losdatum >= vd && c.losdatum <= tot)
+    .sort((a, b) => a.losdatum.localeCompare(b.losdatum) || String(a.lostijd || '').localeCompare(String(b.lostijd || '')));
+  const dag = d => d === vd ? 'Vandaag' : d === isoDag(Date.now() + 864e5) ? 'Morgen' : fdate(d);
+  return `<div class="card"><div class="row wrap between"><h3>Containers komende 7 dagen</h3><a class="small" href="./containerplanning.html#/">alle containers →</a></div>
+    ${cs.length ? `<div class="mt8">${cs.map(c => `<div class="task"><div class="grow"><div class="tt">${esc(dag(c.losdatum))}${c.lostijd ? ' ' + esc(c.lostijd) : ''} · ${esc((c.leverancier || '').split(' ')[0])} ${esc(c.pakbon_ref || '')}</div>
+      <div class="td">${esc(c.containernummer || '')}</div></div><a class="btn sm" href="./containerplanning.html#/c/${c.id}/uitvoer">Open</a></div>`).join('')}</div>` : '<div class="small muted mt8">Geen containers ingepland.</div>'}</div>`;
+}
+function lijstKaart(B){
+  const mag = S.data.magazijn;
+  const rijen = B.producten.map(b => {
+    const p = S.prod[b.id];
+    if(!p) return { b, p:null, st:null };
+    return { b, p, st:productStand(p, b.nodig, mag) };
+  });
+  const telSoort = k => rijen.filter(r => r.st && r.st.soort === k).length;
+  const volgorde = { bulk:0, los:1, kar:2, pick:3 };
+  rijen.sort((x, y) => (x.st ? volgorde[x.st.soort] : 9) - (y.st ? volgorde[y.st.soort] : 9) || String(x.b.oudste || '').localeCompare(String(y.b.oudste || '')));
+  const cls = { bulk:'b-bulk', pick:'b-ok', kar:'b-warn', los:'b-warn' };
+  const status = S.prodLaden ? '<span class="small muted">locaties ophalen…</span>' : S.prodFout ? `<span class="small" style="color:var(--bad)">${esc(S.prodFout.message)}</span>` : '';
+  return `<div class="card livelijst"><div class="row wrap between"><div><h3>Direct nodig voor orders</h3>
+      <div class="small muted">Orders waarvan alles op voorraad is. ${telSoort('bulk')} van bulk verplaatsen · ${telSoort('pick')} staan al op pick (alleen Verwerk backorders) · ${telSoort('kar') + telSoort('los')} nakijken</div></div>
+      <div class="row">${status}<button class="btn sm noprint" data-lv="print">Print lijst</button></div></div>
+    <div class="printonly pkop"><b>Direct nodig voor orders</b><span>Picqer ${esc(new Date(S.data.binnen).toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }))}</span></div>
+    ${rijen.length ? `<div class="scroll mt8"><table><tr><th>Product</th><th class="n">Nodig</th><th>Pick (vrij)</th><th>Bulk</th><th>Wat</th></tr>
+      ${rijen.map(({ b, p, st }) => `<tr><td><span class="code">${esc(p ? p.code : '#' + b.id)}</span><div class="desc">${esc(p ? p.naam : '')}</div></td>
+        <td class="n"><b>${nf(b.nodig)}</b><div class="desc">${plural(b.orders, 'order', 'orders')}${b.oudste ? ' · ' + esc(uurTxt(uren(b.oudste))) : ''}</div></td>
+        <td>${st ? locLijst(st.pick, true) || '<span class="desc">geen</span>' : ''}</td>
+        <td>${st ? locLijst(st.bulk) + (st.kar.length ? '<br>' + locLijst(st.kar) : '') + (st.vst.length ? `<div class="desc">VST ${nf(st.vst.reduce((s, l) => s + l.v, 0))}</div>` : '') : ''}</td>
+        <td>${st ? `<span class="badge ${cls[st.soort]}">${esc(st.tekst)}</span>` : '<span class="desc">…</span>'}</td></tr>`).join('')}</table></div>`
+      : '<div class="empty">Geen orders die alleen op een verplaatsing wachten.</div>'}
+    ${B.producten.length > 150 ? `<div class="small muted mt8">Eerste 150 producten getoond (van ${nf(B.producten.length)}).</div>` : ''}</div>`;
+}
+
+// staat dit scherm nu open? (Warehouse: Vandaag; Test: alleen Picqer live)
+function opScherm(){
+  const h = (location.hash || '#/').split('?')[0];
+  if(h === '#/live') return true;
+  return !(window.WHM && WHM.TEST) && (h === '#/' || h === '#' || h === '#/vandaag' || h === '#/overzicht');
+}
+function teken(){
+  if(!opScherm()) return;
+  const a = app(); if(!a) return;
+  const dagNaam = new Date().toLocaleDateString('nl-NL', { weekday:'long', day:'numeric', month:'long' }).replace(/^./, c => c.toUpperCase());
+  const kopStatus = S.laden ? 'ophalen…' : S.data ? 'bijgewerkt ' + tijd(S.data.binnen) : '';
+  let h = `<div class="card"><div class="row wrap between"><div><h2 style="font-size:19px">${esc(dagNaam)}</h2>
+      <div class="small muted">Picqer live · alleen lezen${kopStatus ? ' · ' + esc(kopStatus) : ''}</div></div>
+      ${code() ? `<div class="row"><button class="btn sm" data-lv="ververs" ${S.laden ? 'disabled' : ''}>Ververs</button><button class="btn sm ghost" data-lv="afkoppelen" title="Koppelcode van dit apparaat wissen">code wissen</button></div>` : ''}</div>
+      ${S.fout ? `<div class="status err">${esc(S.fout.message)}</div>` : ''}</div>`;
+  if(!code()) h += koppelKaart();
+  else if(!S.data) h += `<div class="card empty">${S.laden ? 'Ophalen uit Picqer…' : 'Nog niets opgehaald.'}</div>`;
+  else {
+    const P = picklijstCijfers(S.data.picklijsten);
+    const B = backorderCijfers(S.data.backorders);
+    h += `<div class="card"><div class="row wrap between"><h3>Picklijsten</h3><span class="small muted">${P.oudste ? 'oudste ' + esc(uurTxt(P.oudsteUur)) + ' open' : ''}</span></div>
+      <div class="tiles mt8">${tegel('Open', P.open, (P.gepauzeerd ? nf(P.gepauzeerd) + ' gepauzeerd' : '') + (S.data.gesnoozed ? (P.gepauzeerd ? ' · ' : '') + nf(S.data.gesnoozed) + ' gesnoozed' : ''), 't-info')}
+        ${tegel('Urgent', P.urgent, '', P.urgent ? 't-bad' : 't-ok')}
+        ${tegel('Ouder dan 24 uur', P.o24, '', P.o24 ? 't-bad' : 't-ok')}
+        ${tegel('Ouder dan 12 uur', P.o12, '', P.o12 ? 't-warn' : 't-ok')}
+        ${tegel('Ouder dan 4 uur', P.o4, '', P.o4 ? 't-warn' : 't-ok')}</div></div>
+      <div class="card"><h3>Backorders</h3>
+      <div class="tiles mt8">${tegel('Orders in backorder', B.orders, plural(B.regels, 'regel', 'regels'), 't-info')}
+        ${tegel('Alles op voorraad', B.vol, 'alleen verplaatsen of verwerken', B.vol ? 't-bad' : 't-ok')}
+        ${tegel('Producten', B.producten.length, 'voor die orders', B.producten.length ? 't-warn' : 't-ok')}
+        ${tegel('Wacht op voorraad', B.wacht, 'niet alles op voorraad', 't-vst')}</div></div>
+      ${lijstKaart(B)}`;
+  }
+  h += containersKaart();
+  a.innerHTML = h;
+}
+
+function view(){
+  teken();
+  if(code() && !S.laden && (!S.data || Date.now() - S.data.binnen > 120000)) haal();
+}
+
+document.addEventListener('click', ev => {
+  const b = ev.target.closest && ev.target.closest('[data-lv]'); if(!b) return;
+  const k = b.dataset.lv;
+  if(k === 'code'){ const v = ($('lv-code').value || '').trim(); if(!v) return toast('Vul de koppelcode in'); zetCode(v); S.fout = null; haal(true); }
+  if(k === 'ververs'){ S.prod = {}; haal(true); }
+  if(k === 'afkoppelen'){ zetCode(''); S.data = null; S.fout = null; teken(); }
+  if(k === 'print'){
+    const oud = document.title, n = new Date(), dd = x => String(x).padStart(2, '0');
+    document.title = 'Direct nodig voor orders ' + isoDag(n) + ' ' + dd(n.getHours()) + dd(n.getMinutes());
+    document.body.classList.add('printlive');
+    window.print();
+    setTimeout(() => { document.body.classList.remove('printlive'); document.title = oud; }, 500);
+  }
+});
+document.addEventListener('keydown', ev => { if(ev.key === 'Enter' && ev.target && ev.target.id === 'lv-code'){ ev.preventDefault(); const k = document.querySelector('[data-lv="code"]'); if(k) k.click(); } });
+// elke 2 minuten vers zolang het scherm open staat
+setInterval(() => {
+  if(document.visibilityState !== 'visible' || !code() || S.laden || !opScherm()) return;
+  if(S.data && Date.now() - S.data.binnen > 120000) haal();
+}, 30000);
+const st = document.createElement('style');
+st.textContent = '@media print{body.printlive #app>*:not(.livelijst){display:none !important} body.printlive .livelijst .noprint{display:none !important} body.printlive .livelijst table{font-size:11px}}';
+document.head.appendChild(st);
+
+return { view, picklijstCijfers, backorderCijfers, productStand, uren };
+})();
