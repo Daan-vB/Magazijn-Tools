@@ -34,7 +34,7 @@ nl:`
 <li><b>Rood</b>: afgevinkt, maar na Verwerk backorders staat hij er nog. Kijk in Picqer of hij echt (genoeg) verplaatst is.</li>
 <li><b>Print</b>: papieren lijst met vakje, van, naar, aantal, barcode en een kolom Gedaan voor het echte aantal.</li>
 </ul>
-<p><b>Containers</b>: containers die eraan komen, met pakbon en losplanning (PDF) zodra Daan die klaar heeft. Op elk palletlabel staat bovenaan waar de pallet heen gaat: NAAR een bulkplek, een picklocatie of VST.</p>
+<p><b>Containers</b>: containers die eraan komen, met pakbon en losplanning (PDF) zodra Daan die klaar heeft.</p>
 <p><b>Palletlabels</b>: de palletlabel-generator (nieuw venster).</p>
 
 <h3>4. Exports uit Picqer, stap voor stap</h3>
