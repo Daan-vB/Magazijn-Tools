@@ -127,6 +127,7 @@ RH90x150HD	5"></textarea>
 
     <button class="act btn-run" id="read" disabled>Lijst inlezen</button>
     <button class="act btn-print" id="pdf" disabled>Labels maken (PDF)</button>
+    <button class="act btn-run" id="pn" disabled>Palletnummer-stickers (herdruk uit Stockmove-PDF)</button>
     <div class="status" id="status"></div>
 
     <p class="hint" style="margin-top:auto">
@@ -151,6 +152,7 @@ RH90x150HD	5"></textarea>
   let byCode = {};           // exacte productcode (lowercase) -> [items]
   let byNorm = {};           // genormaliseerde code -> [items]
   let rows = [];             // ingelezen regels
+  let pnRegels = [], pnTitel = '';   // palletnummers uit een Stockmove-PDF
 
   /* ---------- Database ---------- */
   async function loadCatalog(){
@@ -407,18 +409,20 @@ RH90x150HD	5"></textarea>
 
   function leesStockmoveTekst(t){
     const lines = t.lines;
-    const nummer = ((lines.join('\n').match(/Movement\s+(\S+)/i)) || [])[1] || '';
+    const nummer = ((lines.join('\n').match(/(?:Movement|Batch outbound)\s+(\S+)/i)) || [])[1] || '';
     const nm = nummer ? 'Stockmove ' + nummer : '';
     const groep = {}, volgorde = [];
     let pallets = 0;
+    const lijst = [];
     lines.forEach(l => {
       const m = l.match(/^(\d{3,})\s+(.+?)\s+(\d+)$/);
       if(!m) return;
       const k = m[2] + '\t' + m[3];
       if(!groep[k]){ groep[k] = 0; volgorde.push(k); }
       groep[k]++; pallets++;
+      lijst.push({ nr:m[1], sku:m[2], qty:parseInt(m[3], 10) });
     });
-    return { nummer:nm, pallets, zonder:[], regels:volgorde.map(k => { const [c, q] = k.split('\t'); return c + '\t' + groep[k] + '\t' + q; }) };
+    return { nummer:nm, pallets, zonder:[], lijst, regels:volgorde.map(k => { const [c, q] = k.split('\t'); return c + '\t' + groep[k] + '\t' + q; }) };
   }
 
   /* Picqer-inruimlijst: één regel per product met totaal aantal -> pallets via standaard stuks per pallet */
@@ -467,16 +471,20 @@ RH90x150HD	5"></textarea>
     try{
       if(/\.pdf$/i.test(f.name)){
         const regels = [], namen = [], zonder = [];
+        pnRegels = [];
         let pallets = 0;
         for(const fl of files){
           const r = await leesPdf(fl);
           if(!r.regels.length) throw new Error('geen regels gevonden in ' + fl.name);
           regels.push(...r.regels); pallets += r.pallets; zonder.push(...r.zonder);
           if(r.nummer) namen.push(r.nummer);
+          if(r.lijst) pnRegels.push(...r.lijst);
+          if(r.titel) pnTitel = r.titel;
         }
         $('data').value = regels.join('\n');
         if(namen.length) $('cname').value = namen.join(' + ');
         readList();
+        $('pn').disabled = !pnRegels.length;
         let msg = pallets + ' pallets uit ' + files.length + ' PDF(\'s) → ' + rows.length + ' regels.';
         if(zonder.length) msg += ' Geen standaard stuks per pallet bekend: ' + zonder.join(', ') + ' (vul het aantal zelf in).';
         setStatus(msg + ' ' + $('status').textContent, zonder.length ? 'err' : 'ok');
@@ -508,6 +516,47 @@ RH90x150HD	5"></textarea>
   $('cname').addEventListener('input', () => { const h = document.querySelector('.sheet-head h2'); if(h) h.textContent = $('cname').value || 'Containerlijst'; });
   $('read').addEventListener('click', readList);
   $('pdf').addEventListener('click', makePdf);
+
+  /* ---------- Palletnummer-stickers (zelfde indeling als de Stockmove-print) ---------- */
+  function makePalletnummers(){
+    try{
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+      try{ doc.viewerPreferences({ 'PrintScaling':'None', 'FitWindow':true }); }catch(e){}
+      const W = 297, geenEan = new Set();
+      pnRegels.forEach((r, i) => {
+        if(i) doc.addPage('a4', 'landscape');
+        doc.setTextColor(51, 51, 51);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(22);
+        doc.text('Palletnummer:', W/2, 26, { align:'center' });
+        doc.setFont('helvetica', 'bold');
+        const pt = Math.min(300, 230 * 2.835 / (r.nr.length * 0.556));
+        doc.setFontSize(pt);
+        doc.text(r.nr, W/2, 26 + pt * 0.72 / 2.835 + 14, { align:'center' });
+        doc.setFontSize(46);
+        doc.text(r.sku, W/2, 138, { align:'center' });
+        const m = lookup(r.sku).matches[0];
+        const ean = m ? String(m.ean || '').replace(/\s+/g, '') : '';
+        if(ean){
+          try{
+            const cv = document.createElement('canvas');
+            JsBarcode(cv, ean, { format:isEan(ean) ? (ean.length === 8 ? 'EAN8' : 'EAN13') : 'CODE128', height:90, width:3, displayValue:true, fontSize:26, margin:4 });
+            const w = 80, h = Math.min(26, w * (cv.height / cv.width));
+            doc.addImage(cv.toDataURL('image/png'), 'PNG', (W - w)/2, 143, w, h);
+          }catch(e){ geenEan.add(r.sku); }
+        } else geenEan.add(r.sku);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(54);
+        doc.text(r.qty + (r.qty === 1 ? ' stuk' : ' stuks'), W/2, 196, { align:'center' });
+      });
+      const B = window.Bestanden;
+      const naam = 'Palletnummers ' + (pnTitel || (pnRegels[0].nr + '-' + pnRegels[pnRegels.length-1].nr)) + '.pdf';
+      doc.setProperties({ title:naam.replace(/\.pdf$/, '') });
+      if(B) B.aanbieden(doc.output('blob'), naam, 'palletlabels', { titel:pnRegels.length + ' palletnummers klaar' });
+      else window.open(doc.output('bloburl'), '_blank');
+      setStatus(pnRegels.length + ' palletnummer-stickers klaar (' + pnRegels[0].nr + ' t/m ' + pnRegels[pnRegels.length-1].nr + ').' + (geenEan.size ? ' Geen EAN gevonden voor: ' + [...geenEan].join(', ') + ' (zonder barcode geprint).' : ''), geenEan.size ? 'err' : 'ok');
+    }catch(e){ setStatus('Palletnummers maken is mislukt: ' + e.message, 'err'); }
+  }
+  $('pn').addEventListener('click', makePalletnummers);
 
   function setStatus(msg, cls){ $('status').textContent = msg; $('status').className = 'status ' + (cls||''); }
   function esc(s){ return String(s ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
