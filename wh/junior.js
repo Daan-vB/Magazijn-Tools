@@ -106,7 +106,6 @@ function route(){
   try{
     if(naam === 'aanvullen') return viewAanvullen(h[1] === 'ronde' ? 'ronde' : h[1] === 'niet' ? 'niet' : 'nu');
     if(naam === 'containers') return viewContainers();
-    if(naam === 'leveringen') return viewLeveringen(h[1] || '');
     if(naam === 'handleiding') return viewHandleiding();
     return viewVandaag();
   }catch(e){
@@ -115,60 +114,6 @@ function route(){
   }
 }
 const rerender = () => { const y = window.scrollY; route(); window.scrollTo(0, y); };
-
-
-/* ---------- Leveringen: wat is binnen en waar moet het heen ---------- */
-const LEVUI = { bezig:false, auto:false };
-function levLaad(){
-  if(LEVUI.bezig || !window.WHLEV) return;
-  LEVUI.bezig = true;
-  WHLEV.laad().then(() => { LEVUI.bezig = false; if(/^#\/leveringen/.test(location.hash)) rerender(); })
-    .catch(() => { LEVUI.bezig = false; });
-}
-function levTekst(x){
-  let naar = t('lev.naar.' + x.dest);
-  if(x.dest === 'PICK' && (x.pick || []).length) naar += ' ' + x.pick.slice(0, 2).join(' / ');
-  const wat = x.pallet ? t('lev.pallets', { n:x.n }) + ' (' + t('lev.perPallet', { n:nf(x.per) }) + ')' : t('lev.stuks', { n:nf(x.stuks) });
-  return wat + ' — ' + naar;
-}
-function viewLeveringen(key){
-  if(!window.WHLEV){ app.innerHTML = `<div class="card empty">${esc(t('sync.laden'))}</div>`; return; }
-  if(!LEVUI.auto && !WHLEV.S.data){ LEVUI.auto = true; levLaad(); }
-  // alleen leveringen die Daan heeft nagekeken en vrijgegeven (stap 'Verdeling akkoord')
-  const alle = WHLEV.leveringen().filter(l => l.soort === 'ontvangst' && ((l.bewaard || {}).gedaan || {}).verdeling);
-  if(key){
-    const lev = alle.find(l => l.key === key);
-    if(lev){
-      const taken = WHLEV.takenVan(lev);
-      const gedaan = (lev.bewaard || {}).taken || {};
-      const n = taken.filter(x => gedaan[x.id]).length;
-      app.innerHTML = `<div class="card"><div class="row wrap between"><div><h2>${esc(lev.leverancier || t('lev.titel'))}</h2>
-          <div class="small muted">${esc([lev.nummer, lev.datum && datum(lev.datum)].filter(Boolean).join(' · '))}</div></div>
-          <a class="small" href="#/leveringen">${esc(t('lev.terug'))}</a></div>
-        <div class="mt8"><span class="badge ${n === taken.length ? 'b-ok' : 'b-info'}">${esc(t('lev.taken', { n, m:taken.length }))}</span></div></div>
-        ${n === taken.length && taken.length ? `<div class="card empty">${esc(t('lev.alles'))}</div>` : ''}
-        ${taken.map(x => `<div class="card cont ${gedaan[x.id] ? '' : 'nu'}"><div class="row wrap between">
-          <div><h3>${esc(x.code)}</h3><div class="small muted">${esc(WHL.naamVan(x.code))}</div>
-            <div class="mt8"><b>${esc(levTekst(x))}</b></div></div>
-          <button class="btn ${gedaan[x.id] ? '' : 'pri'}" data-a="levtaak" data-k="${esc(lev.key)}" data-t="${esc(x.id)}">${gedaan[x.id] ? '✓' : esc(t('lev.klaar'))}</button>
-        </div></div>`).join('')}`;
-      return;
-    }
-  }
-  const kaart = l => {
-    const taken = WHLEV.takenVan(l);
-    const gedaan = (l.bewaard || {}).taken || {};
-    const n = taken.filter(x => gedaan[x.id]).length;
-    return `<a class="card cont ${n === taken.length && taken.length ? '' : 'nu'}" style="display:block;text-decoration:none;color:inherit" href="#/leveringen/${esc(l.key)}">
-      <div class="row wrap between"><div><h3>${esc(l.leverancier || '?')}</h3>
-        <div class="small muted">${esc([l.nummer, l.datum && datum(l.datum)].filter(Boolean).join(' · '))}</div></div>
-        <span class="badge ${n === taken.length && taken.length ? 'b-ok' : 'b-info'}">${esc(t('lev.taken', { n, m:taken.length }))}</span></div></a>`;
-  };
-  app.innerHTML = `<div class="card"><div class="row wrap between"><h2>${esc(t('lev.titel'))}</h2>
-      <button class="btn pri" data-a="levververs"${LEVUI.bezig ? ' disabled' : ''}>↻ ${esc(t('vernieuw'))}</button></div>
-      <div class="small muted mt4">${esc(t('lev.kies'))}</div></div>
-    ${alle.length ? alle.map(kaart).join('') : `<div class="card empty">${esc(LEVUI.bezig ? t('sync.laden') : t('lev.geen'))}</div>`}`;
-}
 
 /* ---------- Vandaag ---------- */
 function viewVandaag(){
@@ -489,18 +434,6 @@ document.addEventListener('click', async ev => {
     try{ await WH.catPatch('wh-taken', { [k]:v }); }catch(e){ /* melding al getoond */ }
     return;
   }
-  if(a === 'levtaak'){
-    const k = b.dataset.k, id = b.dataset.t;
-    const lev = WHLEV.leveringen().find(l => l.key === k);
-    if(lev){
-      const tk = Object.assign({}, (lev.bewaard || {}).taken); tk[id] = !tk[id];
-      D.LEV = Object.assign({}, D.LEV, { [k]:Object.assign({}, lev.bewaard, { taken:tk }) });
-      rerender();
-      try{ await WH.catPatch('wh-leveringen', { [k]:D.LEV[k] }); }catch(e){}
-    }
-    return;
-  }
-  if(a === 'levververs'){ levLaad(); rerender(); return; }
   if(a === 'gang'){ if(b.dataset.w === 'ronde') UI.gangRonde = b.dataset.v; else UI.gangNu = b.dataset.v; rerender(); return; }
   if(a === 'print'){ window.print(); return; }
   if(a === 'meld'){ UI.meld = b.dataset.code || null; rerender(); const i = document.querySelector('[data-meld] input'); if(i) i.focus(); return; }

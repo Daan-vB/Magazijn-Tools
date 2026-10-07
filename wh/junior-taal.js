@@ -7,10 +7,6 @@ window.JT = {
 nl:{
   loc:'nl-NL', naam:'Nederlands',
   'nav.vandaag':'Vandaag', 'nav.aanvullen':'Aanvullen', 'nav.containers':'Containers', 'nav.labels':'Palletlabels',
-  'nav.lev':'Leveringen', 'lev.titel':'Leveringen', 'lev.kies':'Kies de levering waar je mee bezig bent.', 'lev.geen':'Nog geen levering klaargezet. Daan zet hem klaar zodra de verdeling bekend is.',
-  'lev.taken':'{n} klaar van {m}', 'lev.klaar':'Klaar', 'lev.terug':'← andere levering', 'lev.alles':'Alles klaar. Goed gedaan!',
-  'lev.naar.BO':'apart zetten voor orders', 'lev.naar.PICK':'naar de picklocatie', 'lev.naar.UP':'naar de stelling boven de pick', 'lev.naar.VST':'klaarzetten voor VST',
-  'lev.pallets':'{n} pallet|{n} pallets', 'lev.stuks':'{n} stuks', 'lev.perPallet':'{n} per pallet',
   'sync.laden':'laden…', 'sync.ok':'verbonden', 'sync.fout':'geen verbinding', vernieuw:'Vernieuwen',
   week:'Week {n}',
   lijstVan:'Backorders: {b} · Aanvuladvies: {a}',
@@ -57,10 +53,6 @@ nl:{
 en:{
   loc:'en-GB', naam:'English',
   'nav.vandaag':'Today', 'nav.aanvullen':'Replenish', 'nav.containers':'Containers', 'nav.labels':'Pallet labels',
-  'nav.lev':'Deliveries', 'lev.titel':'Deliveries', 'lev.kies':'Pick the delivery you are working on.', 'lev.geen':'No delivery ready yet. Daan releases it once the split is known.',
-  'lev.taken':'{n} of {m} done', 'lev.klaar':'Done', 'lev.terug':'← other delivery', 'lev.alles':'All done. Well done!',
-  'lev.naar.BO':'set aside for orders', 'lev.naar.PICK':'to the pick location', 'lev.naar.UP':'to the rack above the pick', 'lev.naar.VST':'ready for VST',
-  'lev.pallets':'{n} pallet|{n} pallets', 'lev.stuks':'{n} pieces', 'lev.perPallet':'{n} per pallet',
   'sync.laden':'loading…', 'sync.ok':'connected', 'sync.fout':'no connection', vernieuw:'Refresh',
   week:'Week {n}',
   lijstVan:'Backorders: {b} · Replenishment advice: {a}',
@@ -107,10 +99,6 @@ en:{
 es:{
   loc:'es-ES', naam:'Español',
   'nav.vandaag':'Hoy', 'nav.aanvullen':'Reponer', 'nav.containers':'Contenedores', 'nav.labels':'Etiquetas de palé',
-  'nav.lev':'Entregas', 'lev.titel':'Entregas', 'lev.kies':'Elige la entrega en la que trabajas.', 'lev.geen':'Todavía no hay entrega preparada. Daan la libera cuando sepa el reparto.',
-  'lev.taken':'{n} de {m} hechas', 'lev.klaar':'Hecho', 'lev.terug':'← otra entrega', 'lev.alles':'Todo hecho. ¡Buen trabajo!',
-  'lev.naar.BO':'apartar para pedidos', 'lev.naar.PICK':'a la ubicación de picking', 'lev.naar.UP':'a la estantería encima del picking', 'lev.naar.VST':'preparar para VST',
-  'lev.pallets':'{n} palé|{n} palés', 'lev.stuks':'{n} unidades', 'lev.perPallet':'{n} por palé',
   'sync.laden':'cargando…', 'sync.ok':'conectado', 'sync.fout':'sin conexión', vernieuw:'Actualizar',
   week:'Semana {n}',
   lijstVan:'Backorders: {b} · Consejo de reposición: {a}',
@@ -157,10 +145,6 @@ es:{
 el:{
   loc:'el-GR', naam:'Ελληνικά',
   'nav.vandaag':'Σήμερα', 'nav.aanvullen':'Αναπλήρωση', 'nav.containers':'Κοντέινερ', 'nav.labels':'Ετικέτες παλετών',
-  'nav.lev':'Παραδόσεις', 'lev.titel':'Παραδόσεις', 'lev.kies':'Διάλεξε την παράδοση με την οποία ασχολείσαι.', 'lev.geen':'Καμία παράδοση έτοιμη ακόμη. Ο Daan την ανοίγει μόλις οριστεί η κατανομή.',
-  'lev.taken':'{n} από {m} έτοιμα', 'lev.klaar':'Έτοιμο', 'lev.terug':'← άλλη παράδοση', 'lev.alles':'Όλα έτοιμα. Μπράβο!',
-  'lev.naar.BO':'ξεχωριστά για παραγγελίες', 'lev.naar.PICK':'στη θέση picking', 'lev.naar.UP':'στο ράφι πάνω από το picking', 'lev.naar.VST':'έτοιμα για VST',
-  'lev.pallets':'{n} παλέτα|{n} παλέτες', 'lev.stuks':'{n} τεμάχια', 'lev.perPallet':'{n} ανά παλέτα',
   'sync.laden':'φόρτωση…', 'sync.ok':'συνδέθηκε', 'sync.fout':'χωρίς σύνδεση', vernieuw:'Ανανέωση',
   week:'Εβδομάδα {n}',
   lijstVan:'Backorders: {b} · Πρόταση αναπλήρωσης: {a}',
