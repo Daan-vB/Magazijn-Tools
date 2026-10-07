@@ -1,55 +1,38 @@
-# Leest de Supabase-database Palletlabels (alleen lezen) en schrijft alles naar map out/.
-# Draait in GitHub Actions; het resultaat wordt daar versleuteld met sleutel-publiek.pem,
-# zodat alleen Claude het kan openen. Er komt geen bedrijfsdata leesbaar in de repo of de logs.
+# Leest de Supabase-database Palletlabels (alleen lezen, met dezelfde publieke sleutel als de app)
+# en schrijft alles naar map out/. Draait in GitHub Actions; het resultaat wordt daar versleuteld
+# met sleutel-publiek.pem, zodat alleen Claude het kan openen. Geen bedrijfsdata leesbaar in repo of logs.
 import json, os, sys, urllib.request, urllib.error
 
-REF = os.environ.get("PROJECT", "jarbgetbwkjtxwtcfwmq")
-TOKEN = os.environ["SUPABASE_ACCESS_TOKEN"]
-MAX_MB = float(os.environ.get("MAX_MB", "60"))
+URL = "https://jarbgetbwkjtxwtcfwmq.supabase.co/rest/v1/"
+KEY = "sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA"   # staat ook in wh/core.js
+TABELLEN = ["producten", "catalog", "containers", "pakbon_alias", "verkoop", "backorders", "todos"]
 os.makedirs("out", exist_ok=True)
 
 
-def sql(q):
-    req = urllib.request.Request(
-        f"https://api.supabase.com/v1/projects/{REF}/database/query",
-        data=json.dumps({"query": q}).encode(),
-        headers={"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json", "User-Agent": "ivol-export/1.0"},
-        method="POST",
-    )
+def get(path, rng=None):
+    h = {"apikey": KEY, "Authorization": f"Bearer {KEY}", "User-Agent": "ivol-export/1.0"}
+    if rng:
+        h.update({"Range": rng, "Range-Unit": "items"})
     try:
-        with urllib.request.urlopen(req, timeout=120) as r:
+        with urllib.request.urlopen(urllib.request.Request(URL + path, headers=h), timeout=180) as r:
             return json.loads(r.read())
     except urllib.error.HTTPError as e:
-        # foutmelding als annotatie, zodat hij zonder logbestand leesbaar is (geen data, alleen de melding)
-        print(f"::error::HTTP {e.code}: {e.read()[:300].decode(errors='replace')}")
-        sys.exit(1)
+        print(f"::warning::{path.split('?')[0]}: HTTP {e.code} {e.read()[:200].decode(errors='replace')}")
+        return None
 
 
-schema = {
-    "tabellen": sql("""select c.relname as tabel, c.reltuples::bigint as rijen_schatting,
-        pg_total_relation_size(c.oid) as bytes, c.relrowsecurity as rls
-        from pg_class c join pg_namespace n on n.oid=c.relnamespace
-        where n.nspname='public' and c.relkind='r' order by 1"""),
-    "kolommen": sql("""select table_name as tabel, column_name as kolom, data_type as type, is_nullable, column_default
-        from information_schema.columns where table_schema='public' order by table_name, ordinal_position"""),
-    "policies": sql("select tablename as tabel, policyname, cmd, roles::text, qual, with_check from pg_policies where schemaname='public'"),
-    "constraints": sql("""select conrelid::regclass::text as tabel, conname, pg_get_constraintdef(oid) as def
-        from pg_constraint where connamespace='public'::regnamespace"""),
-    "catalog_keys": sql("select key, mode, updated_at, pg_column_size(data) as bytes from catalog order by key"),
-}
-json.dump(schema, open("out/schema.json", "w"), ensure_ascii=False, indent=1)
-
-for t in schema["tabellen"]:
-    naam, mb = t["tabel"], t["bytes"] / 1e6
-    if mb > MAX_MB:
-        print(f"overgeslagen (te groot): {naam} {mb:.1f} MB")
-        continue
-    rows, off, stap = [], 0, 2000 if naam != "catalog" else 5
+# welke tabellen bestaan er (OpenAPI-overzicht; lukt niet altijd met de publieke sleutel)
+oa = get("")
+extra = sorted(k.strip("/") for k in (oa or {}).get("paths", {}) if k.count("/") == 1 and len(k) > 1)
+json.dump({"openapi_tabellen": extra}, open("out/schema.json", "w"))
+for t in TABELLEN + [x for x in extra if x not in TABELLEN]:
+    rows, stap = [], (1000 if t != "catalog" else 3)
     while True:
-        part = sql(f'select * from "{naam}" order by 1 offset {off} limit {stap}')
+        part = get(f"{t}?select=*", f"{len(rows)}-{len(rows) + stap - 1}")
+        if part is None:
+            break
         rows += part
         if len(part) < stap:
             break
-        off += stap
-    json.dump(rows, open(f"out/{naam}.json", "w"), ensure_ascii=False)
-    print(f"{naam}: {len(rows)} rijen")
+    json.dump(rows, open(f"out/{t}.json", "w"), ensure_ascii=False)
+    print(f"{t}: {len(rows)} rijen")
