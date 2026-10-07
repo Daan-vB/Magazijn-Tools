@@ -147,17 +147,42 @@ async function haalProducten(){
   S.prodLaden = false; S.prodKlaar = true; teken(); meld();
 }
 async function haalPicklijst(id){
-  S.pl[id] = { laden:true }; teken();
+  S.pl[id] = { laden:true }; teken(); meld();
   try{ S.pl[id] = await vraag('picklijst', { id }); }
   catch(e){ S.pl[id] = { fout:e.message }; }
-  teken();
+  teken(); meld();
+}
+
+/* ---------- teksten (Junior geeft zijn eigen taal mee via WHLIVE.taal) ---------- */
+const NL = {
+  picklijsten:'Picklijsten', tikTegel:'tik een tegel voor de lijst', oudsteOpen:'oudste open {x}',
+  open:'Open', urgent:'Urgent', o24:'Ouder dan 24 uur', o12:'Ouder dan 12 uur', o4:'Ouder dan 4 uur',
+  pauze:'Gepauzeerd', pauzeSub:'met reden', snooze:'Gesnoozed', snoozeSub:'tot een datum',
+  backorders:'Backorders', boAlle:'Orders in backorder', regels:'{n} regel|{n} regels', boVol:'Alles op voorraad', boVolSub:'alleen verplaatsen of verwerken',
+  boProd:'Producten', boProdSub:'voor die orders', boWacht:'Wacht op voorraad', boWachtSub:'niet alles op voorraad',
+  'tl.open':'Open picklijsten', 'tl.urgent':'Urgente picklijsten', 'tl.o24':'Open, ouder dan 24 uur', 'tl.o12':'Open, ouder dan 12 uur', 'tl.o4':'Open, ouder dan 4 uur',
+  'tl.pauze':'Gepauzeerde picklijsten', 'tl.snooze':'Gesnoozede picklijsten', 'tl.bo-alle':'Orders in backorder', 'tl.bo-vol':'Orders met alles op voorraad', 'tl.bo-wacht':'Orders die wachten op voorraad',
+  kPicklijst:'Picklijst', kAangemaakt:'Aangemaakt', kProducten:'Producten', kReden:'Reden pauze', kTot:'Gesnoozed tot', kToegewezen:'Toegewezen', kRef:'Referentie',
+  kOrder:'Order', kSinds:'In backorder sinds', kRegels:'Regels', kOpVoorraad:'Op voorraad',
+  opm:'opmerkingen', verberg:'verberg', sluiten:'sluiten', ophalen:'Opmerkingen ophalen…', geenOpm:'Geen opmerkingen.', klant:'Opmerking klant', opmerking:'Opmerking',
+  gepickt:'{n} gepickt', voorkeur:'voorkeur {x}', alles:'alles', vanTot:'{a} van {b}', opVrd:'({n} op voorraad)', geenPl:'Geen picklijsten.', geenOrders:'Geen orders.',
+  codeNoot:'Productcodes staan erbij voor de orders met alles op voorraad; bij de andere alleen het Picqer-nummer.', ja:'ja', order:'order {x}',
+  min:'{n} min', uur:'{n} uur', dagen:'{n} dagen'
+};
+let TAAL = null, LOCALE = () => 'nl-NL';
+function T(k, v){
+  let s = TAAL ? TAAL(k) : undefined;
+  if(s === undefined || s === null) s = NL[k] !== undefined ? NL[k] : k;
+  if(s.includes('|')){ const [een, meer] = s.split('|'); s = v && Number(v.n) === 1 ? een : meer; }
+  return s.replace(/\{(\w+)\}/g, (m, x) => v && v[x] !== undefined ? v[x] : m);
 }
 
 /* ---------- scherm ---------- */
-const uurTxt = h => h == null ? '' : h < 1 ? Math.round(h * 60) + ' min' : h < 48 ? Math.floor(h) + ' uur' : Math.floor(h / 24) + ' dagen';
-const tijd = ms => new Date(ms).toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' });
-const pqTijd = s => { if(!s) return ''; const d = new Date(String(s).replace(' ', 'T')); return isNaN(d) ? String(s) : d.toLocaleString('nl-NL', { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }); };
-const tegel = (k, lbl, n, sub, cls) => `<a class="tile ${cls || ''} ${S.open === k ? 'aan' : ''}" href="javascript:void 0" data-lv="open" data-k="${k}"><div class="lbl">${esc(lbl)}</div><div class="big">${nf(n)}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</a>`;
+const uurTxt = h => h == null ? '' : h < 1 ? T('min', { n:Math.round(h * 60) }) : h < 48 ? T('uur', { n:Math.floor(h) }) : T('dagen', { n:Math.floor(h / 24) });
+const tijd = ms => new Date(ms).toLocaleTimeString(LOCALE(), { hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
+const pqTijd = s => { if(!s) return ''; const d = new Date(String(s).replace(' ', 'T')); return isNaN(d) ? String(s) : d.toLocaleString(LOCALE(), { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', hourCycle:'h23' }); };
+const dagKort = s => { if(!s) return ''; const d = new Date(String(s).length <= 10 ? s + 'T12:00:00' : s); return isNaN(d) ? String(s) : d.toLocaleDateString(LOCALE(), { weekday:'short', day:'numeric', month:'short' }); };
+const tegel = (k, lbl, n, sub, cls, href) => `<a class="tile ${cls || ''} ${S.open === k ? 'aan' : ''}" href="${href || 'javascript:void 0'}" ${href ? '' : `data-lv="open" data-k="${k}"`}><div class="lbl">${esc(lbl)}</div><div class="big">${nf(n)}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</a>`;
 const locLijst = (ls, metR) => ls.map(l => `<span class="loc">${esc(l.n)}</span> <span class="small">${nf(metR ? Math.max(0, l.v - l.r) : l.v)}</span>`).join('<br>');
 const pqLink = (pad, tekst) => `<a href="${PICQER}/${pad}" target="_blank" rel="noopener">${esc(tekst)}</a>`;
 
@@ -178,50 +203,74 @@ function containersKaart(){
 }
 
 // lijst achter een picklijst-tegel
-const PL_TITEL = { open:'Open picklijsten', urgent:'Urgente picklijsten', o24:'Open, ouder dan 24 uur', o12:'Open, ouder dan 12 uur', o4:'Open, ouder dan 4 uur', pauze:'Gepauzeerde picklijsten', snooze:'Gesnoozede picklijsten' };
+const PL_KEYS = ['open', 'urgent', 'o24', 'o12', 'o4', 'pauze', 'snooze'];
 function picklijstDetail(G){
   const k = S.open, lijst = (G[k] || []).slice().sort((a, b) => k === 'snooze' ? String(a.tot || '').localeCompare(String(b.tot || '')) : String(a.c || '').localeCompare(String(b.c || '')));
-  const extraKop = k === 'pauze' ? '<th>Reden pauze</th>' : k === 'snooze' ? '<th>Gesnoozed tot</th>' : '<th>Toegewezen</th>';
-  const extra = p => k === 'pauze' ? `<td>${esc(p.pauze || '–')}</td>` : k === 'snooze' ? `<td><b>${esc(pqTijd(p.tot) || '–')}</b></td>` : `<td>${esc(p.wie || (p.toegewezen ? 'ja' : '–'))}</td>`;
+  const extraKop = k === 'pauze' ? `<th>${esc(T('kReden'))}</th>` : k === 'snooze' ? `<th>${esc(T('kTot'))}</th>` : `<th>${esc(T('kToegewezen'))}</th>`;
+  const extra = p => k === 'pauze' ? `<td>${esc(p.pauze || '–')}</td>` : k === 'snooze' ? `<td><b>${esc(pqTijd(p.tot) || '–')}</b></td>` : `<td>${esc(p.wie || (p.toegewezen ? T('ja') : '–'))}</td>`;
   const det = p => {
     if(S.plOpen !== p.id) return '';
     const d = S.pl[p.id];
     let h;
-    if(!d || d.laden) h = '<span class="small muted">Opmerkingen ophalen…</span>';
+    if(!d || d.laden) h = `<span class="small muted">${esc(T('ophalen'))}</span>`;
     else if(d.fout) h = `<span class="small" style="color:var(--bad)">${esc(d.fout)}</span>`;
     else {
       const regels = [];
-      if(d.pauze) regels.push(`<div><b>Reden pauze:</b> ${esc(d.pauze)}</div>`);
-      if(d.tot) regels.push(`<div><b>Gesnoozed tot:</b> ${esc(pqTijd(d.tot))}</div>`);
-      if(d.order && d.order.klant) regels.push(`<div><b>Opmerking klant:</b> ${esc(d.order.klant)}</div>`);
-      (d.opmerkingen || []).forEach(o => regels.push(`<div><b>${esc(o.door || 'Opmerking')}</b> <span class="desc">${esc(pqTijd(o.op))}</span><br>${esc(o.tekst)}</div>`));
-      h = regels.length ? regels.join('<div class="mt4"></div>') : '<span class="small muted">Geen opmerkingen.</span>';
-      if(d.order) h += `<div class="small mt8">Order ${pqLink('orders/' + d.order.id, d.order.nr || d.order.id)}${d.order.ref ? ' · ' + esc(d.order.ref) : ''}</div>`;
+      if(d.pauze) regels.push(`<div><b>${esc(T('kReden'))}:</b> ${esc(d.pauze)}</div>`);
+      if(d.tot) regels.push(`<div><b>${esc(T('kTot'))}:</b> ${esc(pqTijd(d.tot))}</div>`);
+      if(d.order && d.order.klant) regels.push(`<div><b>${esc(T('klant'))}:</b> ${esc(d.order.klant)}</div>`);
+      (d.opmerkingen || []).forEach(o => regels.push(`<div><b>${esc(o.door || T('opmerking'))}</b> <span class="desc">${esc(pqTijd(o.op))}</span><br>${esc(o.tekst)}</div>`));
+      h = regels.length ? regels.join('<div class="mt4"></div>') : `<span class="small muted">${esc(T('geenOpm'))}</span>`;
+      if(d.order) h += `<div class="small mt8">${esc(T('kOrder'))} ${pqLink('orders/' + d.order.id, d.order.nr || d.order.id)}${d.order.ref ? ' · ' + esc(d.order.ref) : ''}</div>`;
     }
     return `<tr><td colspan="6" style="background:var(--soft)">${h}</td></tr>`;
   };
-  return `<div class="card livedetail"><div class="row wrap between"><h3>${esc(PL_TITEL[k])} (${nf(lijst.length)})</h3><button class="btn sm ghost" data-lv="open" data-k="${k}">sluiten</button></div>
-    ${lijst.length ? `<div class="scroll mt8"><table><tr><th>Picklijst</th><th>Aangemaakt</th><th class="n">Producten</th>${extraKop}<th>Referentie</th><th></th></tr>
-      ${lijst.map(p => `<tr><td>${pqLink('picklists/' + p.id, p.nr || p.id)}${p.u ? ' <span class="badge b-bad">urgent</span>' : ''}</td>
-        <td>${esc(pqTijd(p.c))}<div class="desc">${esc(uurTxt(uren(p.c)))}${p.d ? ' · voorkeur ' + esc(fdate(p.d)) : ''}</div></td>
-        <td class="n">${p.n != null ? nf(p.n) : ''}${p.gp ? `<div class="desc">${nf(p.gp)} gepickt</div>` : ''}</td>
+  return `<div class="card livedetail"><div class="row wrap between"><h3>${esc(T('tl.' + k))} (${nf(lijst.length)})</h3><button class="btn sm ghost" data-lv="open" data-k="${k}">${esc(T('sluiten'))}</button></div>
+    ${lijst.length ? `<div class="scroll mt8"><table><tr><th>${esc(T('kPicklijst'))}</th><th>${esc(T('kAangemaakt'))}</th><th class="n">${esc(T('kProducten'))}</th>${extraKop}<th>${esc(T('kRef'))}</th><th></th></tr>
+      ${lijst.map(p => `<tr><td>${pqLink('picklists/' + p.id, p.nr || p.id)}${p.u ? ` <span class="badge b-bad">${esc(T('urgent').toLowerCase())}</span>` : ''}</td>
+        <td>${esc(pqTijd(p.c))}<div class="desc">${esc(uurTxt(uren(p.c)))}${p.d ? ' · ' + esc(T('voorkeur', { x:dagKort(p.d) })) : ''}</div></td>
+        <td class="n">${p.n != null ? nf(p.n) : ''}${p.gp ? `<div class="desc">${esc(T('gepickt', { n:nf(p.gp) }))}</div>` : ''}</td>
         ${extra(p)}<td>${esc(p.ref || '')}</td>
-        <td><button class="btn sm" data-lv="pl" data-id="${p.id}">${S.plOpen === p.id ? 'verberg' : 'opmerkingen'}</button></td></tr>${det(p)}`).join('')}</table></div>`
-      : '<div class="empty">Geen picklijsten.</div>'}</div>`;
+        <td><button class="btn sm" data-lv="pl" data-id="${p.id}">${esc(S.plOpen === p.id ? T('verberg') : T('opm'))}</button></td></tr>${det(p)}`).join('')}</table></div>`
+      : `<div class="empty">${esc(T('geenPl'))}</div>`}</div>`;
 }
 // lijst achter een backorder-tegel
 function orderDetail(B){
   const k = S.open;
   const lijst = B.orderLijst.filter(o => k === 'bo-vol' ? o.vol : k === 'bo-wacht' ? !o.vol : true);
-  const titel = { 'bo-alle':'Orders in backorder', 'bo-vol':'Orders met alles op voorraad', 'bo-wacht':'Orders die wachten op voorraad' }[k];
   const codeVan = id => S.prod[id] ? S.prod[id].code : null;
-  return `<div class="card livedetail"><div class="row wrap between"><h3>${esc(titel)} (${nf(lijst.length)})</h3><button class="btn sm ghost" data-lv="open" data-k="${k}">sluiten</button></div>
-    ${lijst.length ? `<div class="scroll mt8"><table><tr><th>Order</th><th>In backorder sinds</th><th class="n">Regels</th><th>Op voorraad</th><th>Producten</th></tr>
-      ${lijst.map(o => `<tr><td>${pqLink('orders/' + o.o, 'order ' + o.o)}</td><td>${esc(pqTijd(o.oudste))}<div class="desc">${esc(uurTxt(uren(o.oudste)))}</div></td>
-        <td class="n">${nf(o.regels.length)}</td><td>${o.vol ? '<span class="badge b-ok">alles</span>' : `<span class="badge b-warn">${nf(o.opVoorraad)} van ${nf(o.regels.length)}</span>`}</td>
-        <td class="small">${o.regels.filter(r => !r.hp).map(r => `<span class="code">${esc(codeVan(r.p) || '#' + r.p)}</span> ${nf(r.a)}${r.v < r.a ? ` <span class="desc">(${nf(r.v)} op voorraad)</span>` : ''}`).join('<br>')}</td></tr>`).join('')}</table></div>
-      <div class="small muted mt8">Productcodes staan erbij voor de orders met alles op voorraad; bij de andere alleen het Picqer-nummer.</div>`
-      : '<div class="empty">Geen orders.</div>'}</div>`;
+  return `<div class="card livedetail"><div class="row wrap between"><h3>${esc(T('tl.' + k))} (${nf(lijst.length)})</h3><button class="btn sm ghost" data-lv="open" data-k="${k}">${esc(T('sluiten'))}</button></div>
+    ${lijst.length ? `<div class="scroll mt8"><table><tr><th>${esc(T('kOrder'))}</th><th>${esc(T('kSinds'))}</th><th class="n">${esc(T('kRegels'))}</th><th>${esc(T('kOpVoorraad'))}</th><th>${esc(T('kProducten'))}</th></tr>
+      ${lijst.map(o => `<tr><td>${pqLink('orders/' + o.o, T('order', { x:o.o }))}</td><td>${esc(pqTijd(o.oudste))}<div class="desc">${esc(uurTxt(uren(o.oudste)))}</div></td>
+        <td class="n">${nf(o.regels.length)}</td><td>${o.vol ? `<span class="badge b-ok">${esc(T('alles'))}</span>` : `<span class="badge b-warn">${esc(T('vanTot', { a:nf(o.opVoorraad), b:nf(o.regels.length) }))}</span>`}</td>
+        <td class="small">${o.regels.filter(r => !r.hp).map(r => `<span class="code">${esc(codeVan(r.p) || '#' + r.p)}</span> ${nf(r.a)}${r.v < r.a ? ` <span class="desc">${esc(T('opVrd', { n:nf(r.v) }))}</span>` : ''}`).join('<br>')}</td></tr>`).join('')}</table></div>
+      <div class="small muted mt8">${esc(T('codeNoot'))}</div>`
+      : `<div class="empty">${esc(T('geenOrders'))}</div>`}</div>`;
+}
+// picklijsten + backorders (tegels met de lijst eronder); prodHref = waar de tegel Producten heen gaat (Junior: Nu verplaatsen)
+function overzicht(opts){
+  opts = opts || {};
+  if(!S.data) return '';
+  const G = picklijstGroepen(S.data.picklijsten);
+  const P = picklijstCijfers(S.data.picklijsten);
+  const B = backorderCijfers(S.data.backorders);
+  const nSnooze = S.data.picklijsten.some(p => p.s === 'snoozed') ? P.gesnoozed : (S.data.gesnoozed || 0);
+  const nProd = opts.nProd != null ? opts.nProd : rijen().length;
+  return `<div class="card"><div class="row wrap between"><h3>${esc(T('picklijsten'))}</h3><span class="small muted">${P.oudste ? esc(T('oudsteOpen', { x:uurTxt(P.oudsteUur) })) + ' · ' : ''}${esc(T('tikTegel'))}</span></div>
+      <div class="tiles mt8">${tegel('open', T('open'), P.open, '', 't-info')}
+        ${tegel('urgent', T('urgent'), P.urgent, '', P.urgent ? 't-bad' : 't-ok')}
+        ${tegel('o24', T('o24'), P.o24, '', P.o24 ? 't-bad' : 't-ok')}
+        ${tegel('o12', T('o12'), P.o12, '', P.o12 ? 't-warn' : 't-ok')}
+        ${tegel('o4', T('o4'), P.o4, '', P.o4 ? 't-warn' : 't-ok')}
+        ${tegel('pauze', T('pauze'), P.gepauzeerd, esc(T('pauzeSub')), 't-grey')}
+        ${tegel('snooze', T('snooze'), nSnooze, esc(T('snoozeSub')), 't-grey')}</div></div>
+    ${PL_KEYS.includes(S.open) ? picklijstDetail(G) : ''}
+    <div class="card"><h3>${esc(T('backorders'))}</h3>
+      <div class="tiles mt8">${tegel('bo-alle', T('boAlle'), B.orders, esc(T('regels', { n:nf(B.regels) })), 't-info')}
+        ${tegel('bo-vol', T('boVol'), B.vol, esc(T('boVolSub')), B.vol ? 't-bad' : 't-ok')}
+        ${tegel('bo-prod', T('boProd'), nProd, esc(T('boProdSub')), B.vol ? 't-warn' : 't-ok', opts.prodHref)}
+        ${tegel('bo-wacht', T('boWacht'), B.wacht, esc(T('boWachtSub')), 't-vst')}</div></div>
+    ${/^bo-(alle|vol|wacht)$/.test(S.open) ? orderDetail(B) : ''}`;
 }
 function lijstKaart(){
   const R = rijen();
@@ -265,25 +314,7 @@ function teken(){
   if(!code()) h += koppelKaart();
   else if(!S.data) h += `<div class="card empty">${S.laden ? 'Ophalen uit Picqer…' : 'Nog niets opgehaald.'}</div>`;
   else {
-    const G = picklijstGroepen(S.data.picklijsten);
-    const P = picklijstCijfers(S.data.picklijsten);
-    const B = backorderCijfers(S.data.backorders);
-    const nSnooze = S.data.picklijsten.some(p => p.s === 'snoozed') ? P.gesnoozed : (S.data.gesnoozed || 0);
-    h += `<div class="card"><div class="row wrap between"><h3>Picklijsten</h3><span class="small muted">${P.oudste ? 'oudste open ' + esc(uurTxt(P.oudsteUur)) : ''} · tik een tegel voor de lijst</span></div>
-      <div class="tiles mt8">${tegel('open', 'Open', P.open, '', 't-info')}
-        ${tegel('urgent', 'Urgent', P.urgent, '', P.urgent ? 't-bad' : 't-ok')}
-        ${tegel('o24', 'Ouder dan 24 uur', P.o24, '', P.o24 ? 't-bad' : 't-ok')}
-        ${tegel('o12', 'Ouder dan 12 uur', P.o12, '', P.o12 ? 't-warn' : 't-ok')}
-        ${tegel('o4', 'Ouder dan 4 uur', P.o4, '', P.o4 ? 't-warn' : 't-ok')}
-        ${tegel('pauze', 'Gepauzeerd', P.gepauzeerd, 'met reden', 't-grey')}
-        ${tegel('snooze', 'Gesnoozed', nSnooze, 'tot een datum', 't-grey')}</div></div>
-      ${PL_TITEL[S.open] ? picklijstDetail(G) : ''}
-      <div class="card"><h3>Backorders</h3>
-      <div class="tiles mt8">${tegel('bo-alle', 'Orders in backorder', B.orders, plural(B.regels, 'regel', 'regels'), 't-info')}
-        ${tegel('bo-vol', 'Alles op voorraad', B.vol, 'alleen verplaatsen of verwerken', B.vol ? 't-bad' : 't-ok')}
-        ${tegel('bo-prod', 'Producten', rijen().length, 'voor die orders', B.vol ? 't-warn' : 't-ok')}
-        ${tegel('bo-wacht', 'Wacht op voorraad', B.wacht, 'niet alles op voorraad', 't-vst')}</div></div>
-      ${/^bo-(alle|vol|wacht)$/.test(S.open) ? orderDetail(B) : ''}
+    h += overzicht() + `
       ${lijstKaart()}`;
   }
   h += containersKaart();
@@ -305,13 +336,13 @@ document.addEventListener('click', ev => {
   if(k === 'open'){
     ev.preventDefault();
     if(b.dataset.k === 'bo-prod'){ const l = $('lv-lijst'); if(l) l.scrollIntoView({ behavior:'smooth' }); return; }
-    S.open = S.open === b.dataset.k ? '' : b.dataset.k; S.plOpen = null; teken();
+    S.open = S.open === b.dataset.k ? '' : b.dataset.k; S.plOpen = null; teken(); meld();
     const d = document.querySelector('.livedetail'); if(d && S.open) d.scrollIntoView({ behavior:'smooth', block:'nearest' });
   }
   if(k === 'pl'){
     const id = +b.dataset.id;
     S.plOpen = S.plOpen === id ? null : id;
-    if(S.plOpen && !S.pl[id]) haalPicklijst(id); else teken();
+    if(S.plOpen && !S.pl[id]) haalPicklijst(id); else { teken(); meld(); }
   }
   if(k === 'print'){
     const oud = document.title, n = new Date(), dd = x => String(x).padStart(2, '0');
@@ -328,10 +359,11 @@ setInterval(() => {
   if(S.data && Date.now() - S.data.binnen > 120000) laad();
 }, 30000);
 const st = document.createElement('style');
-st.textContent = '.tile[data-lv]{cursor:pointer}.tile.aan{outline:2px solid var(--blue);outline-offset:1px}.tile.t-grey{border-left-color:#9aa7b8}'
+st.textContent = '.livedetail .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}.livedetail table{width:100%;border-collapse:collapse;font-size:13px}.livedetail th{text-align:left;font-size:11.5px;font-weight:700;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line,#cdd5df);background:var(--soft);white-space:nowrap}.livedetail td{padding:6px 8px;border-bottom:1px solid #e6ebf1;vertical-align:top}.livedetail td.n,.livedetail th.n{text-align:right}.badge.b-ok{background:#dff3e8;color:#1c7a4a}'
+  + '.tile[data-lv]{cursor:pointer}.tile.aan{outline:2px solid var(--blue);outline-offset:1px}.tile.t-grey{border-left-color:#9aa7b8}'
   + '@media print{body.printlive #app>*:not(.livelijst){display:none !important} body.printlive .livelijst .noprint{display:none !important} body.printlive .livelijst table{font-size:11px}}';
 document.head.appendChild(st);
 
-return { view, laad, nuLijst, opNieuw:f => LUISTER.push(f), status:() => ({ code:!!code(), data:S.data, laden:S.laden, fout:S.fout, prodLaden:S.prodLaden, klaar:!!S.data && S.prodKlaar }),
+return { view, laad, nuLijst, overzicht, taal:(f, l) => { TAAL = f; if(l) LOCALE = l; }, opNieuw:f => LUISTER.push(f), status:() => ({ code:!!code(), data:S.data, laden:S.laden, fout:S.fout, prodLaden:S.prodLaden, klaar:!!S.data && S.prodKlaar }),
   zetCode, picklijstCijfers, picklijstGroepen, backorderCijfers, productStand, uren };
 })();

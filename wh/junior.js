@@ -123,6 +123,7 @@ function viewVandaag(){
     <div class="small muted">${esc(bronTekst())}</div>
     ${lijstOud() ? `<div class="reason mt8">${esc(t('oud'))} <a href="#/aanvullen">${esc(t('oudKnop'))}</a></div>` : ''}</div>
   ${koppelKaart()}
+  ${window.WHLIVE ? WHLIVE.overzicht({ prodHref:'#/aanvullen/nu', nProd:isLive() ? mv.length : null }) : ''}
   <div class="tiles">
     <a class="tile ${mvOpen ? 't-bad' : 't-ok'}" href="#/aanvullen/nu"><div class="lbl">1 · ${esc(t('tegel.nu'))}</div><div class="big">${nf(mvOpen)}</div><div class="sub">${esc(t('ordersWacht', { n:nf(nOrders) }))}</div></a>
     <a class="tile ${rondeOpen ? 't-warn' : 't-ok'}" href="#/aanvullen/ronde"><div class="lbl">2 · ${esc(t('tegel.ronde'))}</div><div class="big">${nf(rondeOpen)}</div><div class="sub">${esc(t('tegel.rondeSub'))}</div></a>
@@ -451,7 +452,8 @@ async function ververs(){
   if(await laden()) rerender();
   live();
 }
-// live uit Picqer: ophalen en opnieuw tekenen (niet tijdens typen)
+// live uit Picqer: ophalen en opnieuw tekenen (niet tijdens typen); overzicht in de taal van Junior
+if(window.WHLIVE) WHLIVE.taal(k => (JT[taal] || {})['lv.' + k], () => loc());
 function live(vers){ if(window.WHLIVE && WHLIVE.status().code) WHLIVE.laad(vers); }
 if(window.WHLIVE) WHLIVE.opNieuw(() => {
   const a = document.activeElement; if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;

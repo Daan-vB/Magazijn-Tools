@@ -313,3 +313,50 @@ Object.assign(window.JT.nl, { live:'Nu verplaatsen: live uit Picqer ({x})', 'liv
 Object.assign(window.JT.en, { live:'Move now: live from Picqer ({x})', 'live.titel':'Connect Picqer', 'live.uitleg':'Enter the link code once (ask Daan). After that, Move now comes live from Picqer, without exports.', 'live.knop':'Connect', 'live.fout':'Picqer cannot be reached right now: Move now uses the last export.' });
 Object.assign(window.JT.es, { live:'Mover ahora: en vivo de Picqer ({x})', 'live.titel':'Conectar Picqer', 'live.uitleg':'Introduce una vez el código de enlace (pregunta a Daan). Después, Mover ahora llega en vivo de Picqer, sin exportaciones.', 'live.knop':'Conectar', 'live.fout':'Picqer no está disponible ahora: Mover ahora usa la última exportación.' });
 Object.assign(window.JT.el, { live:'Μετακίνηση τώρα: ζωντανά από Picqer ({x})', 'live.titel':'Σύνδεση Picqer', 'live.uitleg':'Βάλτε μία φορά τον κωδικό σύνδεσης (ρωτήστε τον Daan). Μετά η Μετακίνηση τώρα έρχεται ζωντανά από το Picqer, χωρίς εξαγωγές.', 'live.knop':'Σύνδεση', 'live.fout':'Το Picqer δεν είναι διαθέσιμο τώρα: η Μετακίνηση τώρα χρησιμοποιεί την τελευταία εξαγωγή.' });
+
+/* ---- 7-10: overzicht picklijsten en backorders (live) ---- */
+Object.assign(window.JT.en, {
+  'lv.picklijsten':'Picklists', 'lv.tikTegel':'tap a tile for the list', 'lv.oudsteOpen':'oldest open {x}',
+  'lv.open':'Open', 'lv.urgent':'Urgent', 'lv.o24':'Older than 24 hours', 'lv.o12':'Older than 12 hours', 'lv.o4':'Older than 4 hours',
+  'lv.pauze':'Paused', 'lv.pauzeSub':'with reason', 'lv.snooze':'Snoozed', 'lv.snoozeSub':'until a date',
+  'lv.backorders':'Backorders', 'lv.boAlle':'Orders in backorder', 'lv.regels':'{n} line|{n} lines', 'lv.boVol':'All in stock', 'lv.boVolSub':'only move or process',
+  'lv.boProd':'Products', 'lv.boProdSub':'for those orders', 'lv.boWacht':'Waiting for stock', 'lv.boWachtSub':'not everything in stock',
+  'lv.tl.open':'Open picklists', 'lv.tl.urgent':'Urgent picklists', 'lv.tl.o24':'Open, older than 24 hours', 'lv.tl.o12':'Open, older than 12 hours', 'lv.tl.o4':'Open, older than 4 hours',
+  'lv.tl.pauze':'Paused picklists', 'lv.tl.snooze':'Snoozed picklists', 'lv.tl.bo-alle':'Orders in backorder', 'lv.tl.bo-vol':'Orders with everything in stock', 'lv.tl.bo-wacht':'Orders waiting for stock',
+  'lv.kPicklijst':'Picklist', 'lv.kAangemaakt':'Created', 'lv.kProducten':'Products', 'lv.kReden':'Pause reason', 'lv.kTot':'Snoozed until', 'lv.kToegewezen':'Assigned', 'lv.kRef':'Reference',
+  'lv.kOrder':'Order', 'lv.kSinds':'In backorder since', 'lv.kRegels':'Lines', 'lv.kOpVoorraad':'In stock',
+  'lv.opm':'comments', 'lv.verberg':'hide', 'lv.sluiten':'close', 'lv.ophalen':'Loading comments…', 'lv.geenOpm':'No comments.', 'lv.klant':'Customer remark', 'lv.opmerking':'Comment',
+  'lv.gepickt':'{n} picked', 'lv.voorkeur':'preferred {x}', 'lv.alles':'all', 'lv.vanTot':'{a} of {b}', 'lv.opVrd':'({n} in stock)', 'lv.geenPl':'No picklists.', 'lv.geenOrders':'No orders.',
+  'lv.codeNoot':'Product codes are shown for orders with everything in stock; for the others only the Picqer number.', 'lv.ja':'yes', 'lv.order':'order {x}',
+  'lv.min':'{n} min', 'lv.uur':'{n} h', 'lv.dagen':'{n} days'
+});
+Object.assign(window.JT.es, {
+  'lv.picklijsten':'Listas de picking', 'lv.tikTegel':'toca una casilla para ver la lista', 'lv.oudsteOpen':'la más antigua abierta {x}',
+  'lv.open':'Abiertas', 'lv.urgent':'Urgente', 'lv.o24':'Más de 24 horas', 'lv.o12':'Más de 12 horas', 'lv.o4':'Más de 4 horas',
+  'lv.pauze':'En pausa', 'lv.pauzeSub':'con motivo', 'lv.snooze':'Pospuestas', 'lv.snoozeSub':'hasta una fecha',
+  'lv.backorders':'Backorders', 'lv.boAlle':'Pedidos en backorder', 'lv.regels':'{n} línea|{n} líneas', 'lv.boVol':'Todo en stock', 'lv.boVolSub':'solo mover o procesar',
+  'lv.boProd':'Productos', 'lv.boProdSub':'para esos pedidos', 'lv.boWacht':'Esperando stock', 'lv.boWachtSub':'no todo en stock',
+  'lv.tl.open':'Listas de picking abiertas', 'lv.tl.urgent':'Listas de picking urgentes', 'lv.tl.o24':'Abiertas, más de 24 horas', 'lv.tl.o12':'Abiertas, más de 12 horas', 'lv.tl.o4':'Abiertas, más de 4 horas',
+  'lv.tl.pauze':'Listas de picking en pausa', 'lv.tl.snooze':'Listas de picking pospuestas', 'lv.tl.bo-alle':'Pedidos en backorder', 'lv.tl.bo-vol':'Pedidos con todo en stock', 'lv.tl.bo-wacht':'Pedidos esperando stock',
+  'lv.kPicklijst':'Lista', 'lv.kAangemaakt':'Creada', 'lv.kProducten':'Productos', 'lv.kReden':'Motivo de pausa', 'lv.kTot':'Pospuesta hasta', 'lv.kToegewezen':'Asignada', 'lv.kRef':'Referencia',
+  'lv.kOrder':'Pedido', 'lv.kSinds':'En backorder desde', 'lv.kRegels':'Líneas', 'lv.kOpVoorraad':'En stock',
+  'lv.opm':'comentarios', 'lv.verberg':'ocultar', 'lv.sluiten':'cerrar', 'lv.ophalen':'Cargando comentarios…', 'lv.geenOpm':'Sin comentarios.', 'lv.klant':'Comentario del cliente', 'lv.opmerking':'Comentario',
+  'lv.gepickt':'{n} recogidos', 'lv.voorkeur':'preferencia {x}', 'lv.alles':'todo', 'lv.vanTot':'{a} de {b}', 'lv.opVrd':'({n} en stock)', 'lv.geenPl':'No hay listas.', 'lv.geenOrders':'No hay pedidos.',
+  'lv.codeNoot':'Los códigos de producto aparecen en los pedidos con todo en stock; en los demás solo el número de Picqer.', 'lv.ja':'sí', 'lv.order':'pedido {x}',
+  'lv.min':'{n} min', 'lv.uur':'{n} h', 'lv.dagen':'{n} días'
+});
+Object.assign(window.JT.el, {
+  'lv.picklijsten':'Λίστες συλλογής', 'lv.tikTegel':'πατήστε ένα πλακίδιο για τη λίστα', 'lv.oudsteOpen':'η παλαιότερη ανοιχτή {x}',
+  'lv.open':'Ανοιχτές', 'lv.urgent':'Επείγουσες', 'lv.o24':'Πάνω από 24 ώρες', 'lv.o12':'Πάνω από 12 ώρες', 'lv.o4':'Πάνω από 4 ώρες',
+  'lv.pauze':'Σε παύση', 'lv.pauzeSub':'με αιτία', 'lv.snooze':'Σε αναβολή', 'lv.snoozeSub':'έως μια ημερομηνία',
+  'lv.backorders':'Backorders', 'lv.boAlle':'Παραγγελίες σε backorder', 'lv.regels':'{n} γραμμή|{n} γραμμές', 'lv.boVol':'Όλα σε απόθεμα', 'lv.boVolSub':'μόνο μετακίνηση ή επεξεργασία',
+  'lv.boProd':'Προϊόντα', 'lv.boProdSub':'για αυτές τις παραγγελίες', 'lv.boWacht':'Περιμένουν απόθεμα', 'lv.boWachtSub':'όχι όλα σε απόθεμα',
+  'lv.tl.open':'Ανοιχτές λίστες', 'lv.tl.urgent':'Επείγουσες λίστες', 'lv.tl.o24':'Ανοιχτές, πάνω από 24 ώρες', 'lv.tl.o12':'Ανοιχτές, πάνω από 12 ώρες', 'lv.tl.o4':'Ανοιχτές, πάνω από 4 ώρες',
+  'lv.tl.pauze':'Λίστες σε παύση', 'lv.tl.snooze':'Λίστες σε αναβολή', 'lv.tl.bo-alle':'Παραγγελίες σε backorder', 'lv.tl.bo-vol':'Παραγγελίες με όλα σε απόθεμα', 'lv.tl.bo-wacht':'Παραγγελίες που περιμένουν απόθεμα',
+  'lv.kPicklijst':'Λίστα', 'lv.kAangemaakt':'Δημιουργήθηκε', 'lv.kProducten':'Προϊόντα', 'lv.kReden':'Αιτία παύσης', 'lv.kTot':'Αναβολή έως', 'lv.kToegewezen':'Ανατέθηκε', 'lv.kRef':'Αναφορά',
+  'lv.kOrder':'Παραγγελία', 'lv.kSinds':'Σε backorder από', 'lv.kRegels':'Γραμμές', 'lv.kOpVoorraad':'Σε απόθεμα',
+  'lv.opm':'σχόλια', 'lv.verberg':'απόκρυψη', 'lv.sluiten':'κλείσιμο', 'lv.ophalen':'Φόρτωση σχολίων…', 'lv.geenOpm':'Χωρίς σχόλια.', 'lv.klant':'Σχόλιο πελάτη', 'lv.opmerking':'Σχόλιο',
+  'lv.gepickt':'{n} συλλέχθηκαν', 'lv.voorkeur':'προτίμηση {x}', 'lv.alles':'όλα', 'lv.vanTot':'{a} από {b}', 'lv.opVrd':'({n} σε απόθεμα)', 'lv.geenPl':'Δεν υπάρχουν λίστες.', 'lv.geenOrders':'Δεν υπάρχουν παραγγελίες.',
+  'lv.codeNoot':'Οι κωδικοί προϊόντων φαίνονται στις παραγγελίες με όλα σε απόθεμα· στις υπόλοιπες μόνο ο αριθμός Picqer.', 'lv.ja':'ναι', 'lv.order':'παραγγελία {x}',
+  'lv.min':'{n} λεπτά', 'lv.uur':'{n} ώρες', 'lv.dagen':'{n} ημέρες'
+});
