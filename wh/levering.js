@@ -133,6 +133,31 @@ function regelsVan(o, po){
   return Object.values(per).sort((a, b) => (b.ontvangen || b.besteld) - (a.ontvangen || a.besteld));
 }
 
+// levertijd: hoeveel dagen zat er tussen bestellen en binnenkomen, per leverancier
+function levertijden(){
+  const d = S.data || {}; const per = {};
+  (d.inkoop || []).forEach(p => {
+    if(!p.besteld_op || !p.klaar_op) return;
+    const n = Math.round((new Date(String(p.klaar_op).slice(0, 10) + 'T12:00:00') - new Date(String(p.besteld_op).slice(0, 10) + 'T12:00:00')) / 864e5);
+    if(!(n >= 0 && n < 400)) return;
+    const k = levKort(p.leverancier).toLowerCase();
+    (per[k] = per[k] || []).push(n);
+  });
+  const uit = {};
+  Object.entries(per).forEach(([k, v]) => uit[k] = { n:v.length, gem:Math.round(v.reduce((a, b) => a + b, 0) / v.length), min:Math.min(...v), max:Math.max(...v) });
+  return uit;
+}
+function levertijdTekst(lev){
+  const t = levertijden()[levKort(lev.leverancier).toLowerCase()];
+  const po = lev.po;
+  const eigen = po && po.besteld_op && (po.klaar_op || po.verwacht_op)
+    ? Math.round((new Date(String(po.klaar_op || po.verwacht_op).slice(0, 10) + 'T12:00:00') - new Date(String(po.besteld_op).slice(0, 10) + 'T12:00:00')) / 864e5) : null;
+  const d = [];
+  if(eigen !== null && eigen >= 0) d.push('levertijd ' + eigen + ' dagen');
+  if(t && t.n >= 2) d.push('deze leverancier gemiddeld ' + t.gem + ' dagen (' + t.min + '–' + t.max + ', ' + t.n + ' leveringen)');
+  return d.join(' · ');
+}
+
 /* =====================================================================
    Verdeling: het advies
    Regels (uit de containerplanning, hier ook voor Europese leveringen):
@@ -308,7 +333,7 @@ function viewLijst(){
         <div class="small mt4">${WH.plural(l.regels.length, 'product', 'producten')} · ${nf(stuks)} stuks${waarde ? ' · € ' + nf(waarde) : ''}${l.wie ? ' · ' + esc(l.wie) : ''}
           ${l.container ? B.badge('container ' + (l.container.pakbon_ref || l.container.containernummer || l.container.id), 'b-blue') : ''}
           ${tekort ? B.badge('niet compleet geleverd', 'b-warn') : ''}</div></div>
-      <div class="small muted" style="text-align:right">${esc(dagTekst(l))}<div class="mt4">${v === STAPPEN.length ? B.badge('klaar', 'b-ok') : B.badge(v + '/' + STAPPEN.length + ' stappen', v ? 'b-warn' : 'b-grey')}</div></div></a>`;
+      <div class="small muted" style="text-align:right">${esc(dagTekst(l))}${l.soort === 'inkoop' && levertijdTekst(l) ? '<div class="mt4">' + esc(levertijdTekst(l)) + '</div>' : ''}<div class="mt4">${v === STAPPEN.length ? B.badge('klaar', 'b-ok') : B.badge(v + '/' + STAPPEN.length + ' stappen', v ? 'b-warn' : 'b-grey')}</div></div></a>`;
   };
   app().innerHTML = kaartBron()
     + `<div class="card"><div class="row wrap">${tabKnop('binnen', 'Binnengekomen', binnen.length)}${tabKnop('verwacht', 'Verwacht', verwacht.length)}</div>
@@ -359,7 +384,11 @@ function viewLevering(key){
       <div><a class="code" href="#/p/${encodeURIComponent(r.code)}">${esc(r.code)}</a> <span class="desc">${esc(r.naam || f.naam)}</span>
         <div class="small mt4">${v.porties.filter(p => portieStuks(p)).map(p => B.badge((p.pallet ? (p.n > 1 ? p.n + '× pallet ' + nf(p.stuks) : 'pallet ' + nf(p.stuks)) : nf(portieStuks(p)) + ' stuks') + ' → ' + DEST[p.dest].nl, DEST[p.dest].kleur)).join(' ')}
           ${v.vast ? B.badge('zelf aangepast', 'b-blue') : ''}</div>
-        <div class="small muted mt4">${esc(v.uitleg)}${v.spp ? ' · ' + nf(v.spp) + ' per pallet' : ' · stuks per pallet onbekend'}</div>
+        <div class="small muted mt4">${esc(v.uitleg)}</div>
+        <div class="row wrap mt4"><span class="small muted">Stuks per pallet:</span>
+          <input type="number" min="1" step="1" value="${v.spp || ''}" placeholder="?" data-spp="${esc(r.code)}" style="width:90px;padding:5px 7px;border:1px solid #cdd5df;border-radius:6px">
+          <button class="btn sm" data-d="lev-spp" data-k="${esc(lev.key)}" data-c="${esc(r.code)}">Opslaan</button>
+          ${v.spp ? '' : '<span class="small">' + B.badge('zonder dit getal kan de app geen pallets maken', 'b-warn') + '</span>'}</div>
         <div class="small muted">nu hier ${nf(f.hm)}${f.pick !== null ? ' (pick ' + nf(f.pick) + ')' : ''} · VST ${nf(f.vst)} · verkoop ${f.rate ? nf(f.rate) + '/mnd' : 'onbekend'}${f.bo ? ' · ' + nf(f.bo) + ' backorder' : ''}</div>
         <div class="row wrap mt4">${['BO', 'PICK', 'UP', 'VST'].map(dd => `<button class="btn sm" data-d="lev-schuif" data-k="${esc(lev.key)}" data-c="${esc(r.code)}" data-dest="${dd}">alles → ${DEST[dd].nl}</button>`).join('')}
           ${v.vast ? `<button class="btn sm ghost" data-d="lev-advies" data-k="${esc(lev.key)}" data-c="${esc(r.code)}">terug naar advies</button>` : ''}</div></div></div>`;
@@ -379,7 +408,8 @@ function viewLevering(key){
   const pq = picqerRegels(lev);
 
   app().innerHTML = `<div class="card"><div class="row wrap between"><div><h2>${esc(lev.leverancier || 'Levering')}</h2>
-      <div class="small muted">${esc([lev.nummer && 'ontvangst ' + lev.nummer, lev.inkoop && 'inkooporder ' + lev.inkoop, lev.wie, lev.datum && (WH.fdate ? WH.fdate(lev.datum) : lev.datum)].filter(Boolean).join(' · '))}</div></div>
+      <div class="small muted">${esc([lev.nummer && 'ontvangst ' + lev.nummer, lev.inkoop && 'inkooporder ' + lev.inkoop, lev.wie, lev.datum && (WH.fdate ? WH.fdate(lev.datum) : lev.datum)].filter(Boolean).join(' · '))}</div>
+      ${lev.po && lev.po.besteld_op ? `<div class="small muted mt4">besteld ${esc(String(lev.po.besteld_op).slice(0, 10))}${lev.po.verwacht_op ? ' · verwacht ' + esc(String(lev.po.verwacht_op).slice(0, 10)) : ''}${levertijdTekst(lev) ? ' · ' + esc(levertijdTekst(lev)) : ''}</div>` : ''}</div>
       <a class="small" href="#/leveringen">← alle leveringen</a></div>
     <div class="small mt8">${WH.plural(lev.regels.length, 'product', 'producten')} · ${nf(stuks)} stuks${waarde ? ' · € ' + nf(waarde) + ' inkoopwaarde' : ''}
       ${(() => { const sm = { BO:0, PICK:0, UP:0, VST:0 }; taken.forEach(x => sm[x.dest] += x.stuks);
@@ -502,6 +532,15 @@ async function klik(a, b){
   if(a === 'lev-advies' && lev){
     const v = Object.assign({}, (lev.bewaard || {}).verdeling); delete v[b.dataset.c];
     await onthoud(key, { verdeling:v }); teken(); return true;
+  }
+  if(a === 'lev-spp' && lev){
+    const c = b.dataset.c;
+    const inp = document.querySelector('[data-spp="' + (window.CSS && CSS.escape ? CSS.escape(c) : c) + '"]');
+    const n = inp ? num(inp.value) : 0;
+    if(!(n > 0)) return toast('Vul een getal groter dan 0 in.', 4000), true;
+    await WH.zetStuksPerPallet(c, n);
+    toast(c + ': ' + nf(n) + ' per pallet opgeslagen.');
+    teken(); return true;
   }
   if(a === 'lev-labels' && lev){ maakLabels(lev); return true; }
   if(a === 'lev-kopieer' && lev){
