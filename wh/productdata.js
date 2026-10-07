@@ -1033,8 +1033,8 @@ function viewKies(){
     <div class="row wrap mt12 small muted" style="gap:14px"><span class="row" style="gap:6px"><span class="pd-dot ok" style="margin:0"></span>compleet</span><span class="row" style="gap:6px"><span class="pd-dot dub" style="margin:0"></span>dubbel, kies</span><span class="row" style="gap:6px"><span class="pd-dot" style="margin:0"></span>nog niet compleet</span><span>(laag 1 t/m 3)</span></div></div>
   ${toon.map(famKaart).join('') || '<div class="card empty">Geen producten in deze selectie.</div>'}
   ${fams.length > toon.length ? `<div class="row wrap" style="justify-content:center;margin:6px 0 14px"><button class="btn" data-pd="meer">Toon meer (${nf(fams.length - toon.length)} families)</button></div>` : ''}
-  <div class="pd-voet"><div class="grow"><b>${nSel ? plural(nSel, 'product', 'producten') + ' geselecteerd' : 'Niets geselecteerd'}</b><div class="small muted">${nSel ? 'De selectie blijft staan, ook als je een andere filter kiest.' : 'Vink producten aan om ze samen in te vullen.'}</div></div>
-    ${nSel ? `<div class="row wrap"><button class="btn" data-pd="selniets">Niets</button><button class="btn acc" data-pd="samen">Samen invullen (${nSel}) →</button></div>` : ''}</div>`;
+  <div class="pd-voet"><div class="grow"><b>${nSel ? plural(nSel, 'product', 'producten') + ' geselecteerd' : 'Niets geselecteerd'}</b><div class="small muted">${nSel ? 'De selectie blijft staan, ook als je een andere filter kiest.' : 'Vink eerst producten aan (vakje links), dan kun je ze samen invullen.'}</div></div>
+    <div class="row wrap">${nSel ? '<button class="btn" data-pd="selniets">Niets</button>' : ''}<button class="btn acc" data-pd="samen" ${nSel ? '' : 'disabled'}>Samen invullen (${nSel}) →</button></div></div>`;
   if(UI.naFk){ const fk = UI.naFk; UI.naFk = null; setTimeout(() => { const el = $('fam-' + idVan(fk)); if(el) el.scrollIntoView({ block:'center' }); }, 60); }
 }
 
