@@ -20,6 +20,7 @@
 //
 //  Acties:
 //   GET  ?actie=status    → welke magazijnen, welk adres (schrijft niets)
+//   GET  ?actie=inventaris → telt wat er al in de testomgeving staat (schrijft niets)
 //   POST ?actie=controle  → stap 1: maakt locatie DEMO-CONTROLE aan en verwijdert
 //                           hem meteen weer. Laat zien of de sleutel mag schrijven.
 //  Volgende blokken (locaties, leveranciers, producten, voorraad, inkooporders,
@@ -152,6 +153,53 @@ async function controle() {
   return uit;
 }
 
+// Alle pagina's (100 per keer), alleen lezen
+async function alles(pad: string, max: number): Promise<any[]> {
+  const uit: any[] = [];
+  for (let off = 0; off < max; off += 100) {
+    const r = await pq("GET", pad + (pad.includes("?") ? "&" : "?") + "offset=" + off);
+    if (!Array.isArray(r) || !r.length) break;
+    uit.push(...r);
+    if (r.length < 100) break;
+  }
+  return uit;
+}
+
+// Wat staat er al in de testomgeving? (schrijft niets) — kijk eerst, vul daarna aan.
+async function inventaris() {
+  const veilig = async (pad: string, max: number) => { try { return { lijst: await alles(pad, max), fout: "" }; } catch (e) { return { lijst: [] as any[], fout: String((e as Error).message || e) }; } };
+  const loc = await veilig("locations", 5000);
+  const prod = await veilig("products", 3000);
+  const lev = await veilig("suppliers", 500);
+  const ink = await veilig("purchaseorders", 1000);
+  const ord = await veilig("orders", 2000);
+  const bo = await veilig("backorders", 3000);
+  const telPer = (l: any[], f: (x: any) => string) => { const m: Record<string, number> = {}; l.forEach((x) => { const k = f(x) || "(leeg)"; m[k] = (m[k] || 0) + 1; }); return m; };
+  const hm = loc.lijst.filter((l: any) => l.idwarehouse === MAGAZIJN);
+  const demo = (l: any[], f: (x: any) => string) => l.filter((x) => String(f(x) || "").startsWith(DEMO)).length;
+  return {
+    domein: DOMEIN,
+    magazijn: MAGAZIJN,
+    locaties: {
+      totaal: loc.lijst.length, hoofdmagazijn: hm.length,
+      bulk: hm.filter((l: any) => l.is_bulk_location).length,
+      tijdelijk: hm.filter((l: any) => l.unlink_on_empty).length,
+      voorbeeld: hm.slice(0, 10).map((l: any) => l.name),
+      demo: demo(loc.lijst, (x) => x.name), fout: loc.fout,
+    },
+    producten: {
+      totaal: prod.lijst.length,
+      metEan: prod.lijst.filter((p: any) => p.barcode).length,
+      voorbeeld: prod.lijst.slice(0, 8).map((p: any) => p.productcode),
+      demo: demo(prod.lijst, (x) => x.productcode), fout: prod.fout,
+    },
+    leveranciers: { totaal: lev.lijst.length, namen: lev.lijst.slice(0, 15).map((s: any) => s.name), demo: demo(lev.lijst, (x) => x.name), fout: lev.fout },
+    inkooporders: { totaal: ink.lijst.length, perStatus: telPer(ink.lijst, (x) => x.status), fout: ink.fout },
+    orders: { totaal: ord.lijst.length, perStatus: telPer(ord.lijst, (x) => x.status), fout: ord.fout },
+    backorders: { totaal: bo.lijst.length, fout: bo.fout },
+  };
+}
+
 // ---------- ingang ----------
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
@@ -166,6 +214,7 @@ Deno.serve(async (req: Request) => {
   const actie = url.searchParams.get("actie") || "status";
   try {
     if (actie === "status") return antwoord(await status(), 200, origin);
+    if (actie === "inventaris") return antwoord(await inventaris(), 200, origin);
     if (actie === "controle") {
       if (req.method !== "POST") return antwoord({ fout: "Deze actie schrijft en werkt alleen met POST (gebruik de knop op testdata.html)." }, 405, origin);
       return antwoord(await controle(), 200, origin);

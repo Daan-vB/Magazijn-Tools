@@ -24,6 +24,10 @@
   <button data-a="status">Alleen verbinding tonen</button>
   <button class="p" data-a="controle">Controleer schrijfrechten</button>
 </div>
+<div class="card"><h2>Stap 2 · Wat staat er al in de testomgeving?</h2>
+  <div class="muted">Alleen tellen en kijken, er wordt niets aangemaakt of gewijzigd.</div>
+  <button class="p" data-a="inventaris">Toon wat er al staat</button>
+</div>
 <div class="card"><h2>Resultaat</h2><div id="uit" class="muted">Nog niets uitgevoerd.</div><pre id="raw" hidden></pre></div>
 <script>
 'use strict';
@@ -55,6 +59,20 @@ const taken = {
   async status(){
     const j = await vraag('status');
     toon('Verbinding met ' + j.domein, j.magazijnen.map(m => esc(m.naam) + ' (id ' + m.id + ')' + (m.id === j.magazijn ? ' ← ingesteld' : '')), j);
+  },
+  async inventaris(){
+    const j = await vraag('inventaris');
+    const per = o => Object.keys(o || {}).length ? Object.entries(o).map(([k, v]) => esc(k) + ' ' + v).join(', ') : 'geen';
+    const f = x => x.fout ? ' <span class="bad">(fout: ' + esc(x.fout) + ')</span>' : '';
+    toon('Zo staat ' + j.domein + ' erbij', [
+      '<b>Locaties:</b> ' + j.locaties.totaal + ' totaal, ' + j.locaties.hoofdmagazijn + ' in het hoofdmagazijn (' + j.locaties.bulk + ' bulk, ' + j.locaties.tijdelijk + ' tijdelijk), ' + j.locaties.demo + ' met DEMO-' + f(j.locaties),
+      'Voorbeeld: ' + esc(j.locaties.voorbeeld.join(', ')),
+      '<b>Producten:</b> ' + j.producten.totaal + ' (' + j.producten.metEan + ' met EAN), ' + j.producten.demo + ' met DEMO-' + f(j.producten),
+      'Voorbeeld: ' + esc(j.producten.voorbeeld.join(', ')),
+      '<b>Leveranciers:</b> ' + j.leveranciers.totaal + (j.leveranciers.namen.length ? ' — ' + esc(j.leveranciers.namen.join(', ')) : '') + f(j.leveranciers),
+      '<b>Inkooporders:</b> ' + j.inkooporders.totaal + ' (' + per(j.inkooporders.perStatus) + ')' + f(j.inkooporders),
+      '<b>Orders:</b> ' + j.orders.totaal + ' (' + per(j.orders.perStatus) + ')' + f(j.orders),
+      '<b>Backorders:</b> ' + j.backorders.totaal + f(j.backorders)], j);
   },
   async controle(){
     const j = await vraag('controle');
