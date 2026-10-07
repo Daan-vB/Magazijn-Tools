@@ -1,7 +1,7 @@
 # Leest de Supabase-database Palletlabels (alleen lezen) en schrijft alles naar map out/.
 # Draait in GitHub Actions; het resultaat wordt daar versleuteld met sleutel-publiek.pem,
 # zodat alleen Claude het kan openen. Er komt geen bedrijfsdata leesbaar in de repo of de logs.
-import json, os, sys, urllib.request
+import json, os, sys, urllib.request, urllib.error
 
 REF = os.environ.get("PROJECT", "jarbgetbwkjtxwtcfwmq")
 TOKEN = os.environ["SUPABASE_ACCESS_TOKEN"]
@@ -13,11 +13,16 @@ def sql(q):
     req = urllib.request.Request(
         f"https://api.supabase.com/v1/projects/{REF}/database/query",
         data=json.dumps({"query": q}).encode(),
-        headers={"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"},
+        headers={"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json", "User-Agent": "ivol-export/1.0"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=120) as r:
-        return json.loads(r.read())
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        # foutmelding als annotatie, zodat hij zonder logbestand leesbaar is (geen data, alleen de melding)
+        print(f"::error::HTTP {e.code}: {e.read()[:300].decode(errors='replace')}")
+        sys.exit(1)
 
 
 schema = {
