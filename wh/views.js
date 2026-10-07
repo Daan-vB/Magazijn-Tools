@@ -43,7 +43,7 @@ function nietKlaar(){
 }
 
 /* ---------- routering ---------- */
-const MENUNAAM = { containerdag:'Containerdag', controle:'Controle', wie:'Wie deed wat', ontvangsten:'Ontvangsten', leveringen:'Leveringen', levering:'Leveringen', invul:'Invullen', ruimte:'Ruimte', base:'Niveaus', abcheck:'A/B-check', locaties:'Locaties', stelling:'Stellingen', triage:'Triage', planning:'Planning', live:'Picqer live', aanvullive:'Aanvuladvies live', productdata:'Productdata' };
+const MENUNAAM = { containerdag:'Containerdag', controle:'Controle', wie:'Wie deed wat', ontvangsten:'Ontvangsten', leveringen:'Ontvangsten', levering:'Ontvangsten', invul:'Invullen', ruimte:'Ruimte', base:'Niveaus', abcheck:'A/B-check', locaties:'Locaties', stelling:'Stellingen', triage:'Triage', planning:'Planning', live:'Picqer live', aanvullive:'Aanvuladvies live', productdata:'Productdata' };
 function parseHash(){
   const h = location.hash || '#/';
   const [pad, qs] = h.slice(1).split('?');

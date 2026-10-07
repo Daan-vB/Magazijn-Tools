@@ -126,9 +126,10 @@ function levLaad(){
     .catch(() => { LEVUI.bezig = false; });
 }
 function levTekst(x){
-  const naar = t('lev.naar.' + x.dest);
-  if(x.pallet) return t('lev.pallets', { n:x.n }) + ' (' + t('lev.perPallet', { n:nf(x.per) }) + ') — ' + naar;
-  return t('lev.stuks', { n:nf(x.stuks) }) + ' — ' + naar;
+  let naar = t('lev.naar.' + x.dest);
+  if(x.dest === 'PICK' && (x.pick || []).length) naar += ' ' + x.pick.slice(0, 2).join(' / ');
+  const wat = x.pallet ? t('lev.pallets', { n:x.n }) + ' (' + t('lev.perPallet', { n:nf(x.per) }) + ')' : t('lev.stuks', { n:nf(x.stuks) });
+  return wat + ' — ' + naar;
 }
 function viewLeveringen(key){
   if(!window.WHLEV){ app.innerHTML = `<div class="card empty">${esc(t('sync.laden'))}</div>`; return; }

@@ -1,7 +1,7 @@
 /* =====================================================================
    IVOL Warehouse Test — DEMO-leveringen (7-10-2026)
-   Verzonnen inkooporders en ontvangsten, zodat de hele keten te testen is
-   zonder op een echte levering te wachten. Picqer wordt niet gelezen en
+   Verzonnen inkooporders en ontvangsten van Europese leveranciers, zodat de
+   hele keten te testen is zonder op een echte levering te wachten. Picqer wordt niet gelezen en
    niet geschreven; wat de app in demo onthoudt blijft op dit apparaat.
 
    De producten zijn wél echt: de app pakt bestaande productcodes uit de
@@ -44,13 +44,13 @@ function keten(sinds){
       regels:[regel(p(4), 12), regel(p(5), 8), regel(p(6), 2)], ontvangen:{} },
     { id:9003, nummer:'DEMO-PO-1003', leverancier:'Greentyre', besteld:-9, verwacht:0, binnen:0, uur:11, wie:'Sala',
       regels:[regel(p(7), 0, 25), regel(p(8), 0, 60)], ontvangen:{} },
-    { id:9004, nummer:'DEMO-PO-1004', leverancier:'Wallace Industrial (container)', besteld:-70, verwacht:0, binnen:0, uur:8, wie:'Karin',
-      regels:[regel(p(9), 28), regel(p(10), 16), regel(p(11), 9), regel(p(13), 4)], ontvangen:{} }
+    { id:9004, nummer:'DEMO-PO-1004', leverancier:'Verlinden Rubber', besteld:-11, verwacht:0, binnen:0, uur:8, wie:'Karin',
+      regels:[regel(p(9), 5), regel(p(10), 3), regel(p(11), 1, 30)], ontvangen:{} }
   ];
   const VERWACHT = [
     { id:9101, nummer:'DEMO-PO-1101', leverancier:'Rubber Select B.V.', besteld:-5, verwacht:3, regels:[regel(p(0), 4), regel(p(14), 2)] },
     { id:9102, nummer:'DEMO-PO-1102', leverancier:'MFL Europe', besteld:-12, verwacht:10, regels:[regel(p(4), 10), regel(p(15), 6), regel(p(16), 3)] },
-    { id:9103, nummer:'DEMO-PO-1103', leverancier:'Shandong Hongli (container)', besteld:-30, verwacht:21, regels:[regel(p(9), 30), regel(p(17), 18), regel(p(18), 12)] }
+    { id:9103, nummer:'DEMO-PO-1103', leverancier:'Verlinden Rubber', besteld:-4, verwacht:14, regels:[regel(p(9), 6), regel(p(17), 3), regel(p(18), 2)] }
   ];
   const prijs = code => Math.round(((num((D.P[code] || {}).voorraad_hm) || 50) % 37 + 8) * 100) / 100;
   const inkoop = ORDERS.map(o => ({

@@ -1,15 +1,22 @@
 /* =====================================================================
-   IVOL Warehouse — Leveringen van A tot Z (7-10-2026)
-   Eén lijn voor elke levering, of die nu per container of per vracht van
-   een Europese leverancier komt:
+   IVOL Warehouse — Ontvangsten van Europese leveranciers (8-10-2026)
+   Alleen Europese leveringen. Containers van buiten Europa lopen via
+   Containerplanning; die werken heel anders en blijven hier buiten.
 
-     1. Inkoop      — wat is besteld, voor hoeveel, wanneer verwacht
-     2. Ontvangst   — wat is er werkelijk opgeboekt in Picqer, door wie
-     3. Controle    — besteld naast ontvangen; tekort = backorder bij de leverancier
-     4. Verdeling   — advies per product: backorders eerst, dan hier aanvullen
-                      tot het doel (standaard 1,5 maand verkoop), rest naar VST
-     5. Palletlabels— alleen voor de pallets die een label nodig hebben
-     6. Verplaatsen — korte taken voor de vloer, en de regels voor Picqer
+   Hoe het loopt:
+     Gino bestelt · Karin bewaakt de orderbevestigingen en levertijden
+     levering komt binnen · Daan, Kate of Sala controleren de pakbon
+     Karin boekt op in Picqer (geen specifieke locatie) en verwerkt backorders
+     → vanaf hier neemt deze app het over:
+
+     1. Klopt het?    — besteld naast opgeboekt; tekort blijft bij de leverancier
+     2. Direct weg    — wat er aan orders/backorders wacht gaat niet de stelling in
+     3. Palletlabels  — alleen voor de pallets die een label nodig hebben
+     4. Waarheen      — per product: picklocatie of de stelling erboven
+     5. Controleer    — de app kijkt in Picqer of alles echt verplaatst is
+
+   VST komt hier niet voor: Europese pallets gaan vrijwel nooit naar de opslag.
+   Een uitzondering kan met één klik.
 
    Alles wat uit Picqer komt wordt alleen gelezen. Wat de app zelf onthoudt
    (verdeling, afgevinkte stappen, koppeling aan een container) staat in de
@@ -170,7 +177,7 @@ const DEST = {
   BO:{ nl:'backorders', kleur:'b-bad', uitleg:'gaat direct naar de orders die erop wachten' },
   PICK:{ nl:'picklocatie', kleur:'b-ok', uitleg:'aanvullen op de picklocatie' },
   UP:{ nl:'bulk (boven pick)', kleur:'b-blue', uitleg:'pallet in de stelling boven de picklocatie' },
-  VST:{ nl:'VST', kleur:'b-warn', uitleg:'naar Van Spreuwel, buiten het Hoofdmagazijn' }
+  VST:{ nl:'VST (uitzondering)', kleur:'b-warn', uitleg:'naar Van Spreuwel — bij Europese leveringen een uitzondering' }
 };
 function feiten(c){
   const p = D.P[c] || {};
@@ -224,13 +231,13 @@ function advies(c, aantal, opt){
   } else if(nodig > 0){
     const n = Math.min(rest, nodig); if(n > 0){ porties.push({ dest:'PICK', stuks:n }); rest -= n; hier += n; }
   }
-  // 4. rest: hele pallets naar VST, een restje blijft hier
+  // 4. de rest blijft ook hier: hele pallets de stelling in, het restje naar de pick
   if(rest > 0){
     if(spp > 0 && rest >= spp){
       const n = Math.floor(rest / spp);
-      for(let i = 0; i < n; i++) porties.push({ dest:'VST', stuks:spp, pallet:true });
+      for(let i = 0; i < n; i++) porties.push({ dest:'UP', stuks:spp, pallet:true });
       rest -= n * spp;
-      uitleg.push(n + ' pallet' + (n === 1 ? '' : 's') + ' naar VST (meer dan ' + nf(maanden, 1) + ' maand voorraad hier)');
+      uitleg.push('de overige ' + n + ' pallet' + (n === 1 ? '' : 's') + ' ook in de stelling (meer dan ' + nf(maanden, 1) + ' maand voorraad)');
     }
     if(rest > 0){ porties.push({ dest:'PICK', stuks:rest }); rest = 0; }
   }
@@ -276,6 +283,7 @@ function takenVan(lev){
       if(!portieStuks(p)) return;
       uit.push({
         id:c + ':' + i, code:c, dest:p.dest, stuks:portieStuks(p), n:num(p.n) || 1, per:num(p.stuks) || 0, pallet:!!p.pallet,
+        pick:pickLocs(c), bulk:bulkLocs(c),
         tekst: (p.pallet ? (p.n > 1 ? p.n + ' pallets' : '1 pallet') + ' (' + nf(p.stuks) + ' per pallet)' : nf(portieStuks(p)) + ' stuks') + ' → ' + DEST[p.dest].nl
       });
     });
@@ -294,15 +302,74 @@ function picqerRegels(lev){
 }
 
 /* =====================================================================
+   Europees of container?
+   Containers lopen via Containerplanning. Een levering heet hier "container"
+   als hij aan een containerrecord hangt of als de leverancier eerder zo is
+   gemerkt. Met één klik om te zetten; de app onthoudt het per leverancier.
+   ===================================================================== */
+const levSleutel = l => 'lev:' + sleutelVan(levKort(l.leverancier) || l.inkoop || l.key);
+function soortVan(l){
+  const eigen = (l.bewaard || {}).soort;
+  if(eigen) return eigen;
+  const perLev = BEWAARD()[levSleutel(l)];
+  if(perLev && perLev.soort) return perLev.soort;
+  return l.container ? 'container' : 'eu';
+}
+async function zetSoort(l, soort){
+  await onthoud(l.key, { soort });
+  await onthoud(levSleutel(l), { soort, leverancier:l.leverancier || '' });
+}
+
+/* =====================================================================
+   Controleren in Picqer: is alles ook echt verplaatst?
+   ===================================================================== */
+const CTRL = {};
+async function controleer(lev){
+  const k = lev.key;
+  CTRL[k] = { bezig:true };
+  teken();
+  try{
+    const sinds = (lev.datum || isoDag(Date.now())) + ' 00:00';
+    const obj = await WHLIVE.vraag('verplaatsingen', { sinds });
+    await WH.impVerplaatsingen(obj);
+    CTRL[k] = { bezig:false, op:new Date().toISOString(), rijen:rapport(lev) };
+  }catch(e){ CTRL[k] = { bezig:false, fout:(e && e.message) || String(e) }; }
+  teken();
+}
+const isBulk = loc => !!(D.LOC[loc] || {}).bulk;
+// per product: hoeveel moest er naar pick en naar bulk, en hoeveel is er volgens Picqer heen gegaan
+function rapport(lev){
+  const taken = takenVan(lev);
+  const vp = ((D.VP && D.VP !== 'laden' && D.VP.rows) || []).filter(r => String(r[1]).slice(0, 10) >= (lev.datum || ''));
+  const per = {};
+  taken.forEach(t => {
+    const x = per[t.code] = per[t.code] || { code:t.code, moet:{ PICK:0, UP:0, BO:0, VST:0 }, ging:{ PICK:0, UP:0, VST:0 } };
+    x.moet[t.dest] += t.stuks;
+  });
+  vp.forEach(r => {
+    const c = code(r[3]); const x = per[c]; if(!x) return;
+    if(r[5]) return;                                  // alleen vanaf "geen specifieke locatie"
+    const naar = r[6];
+    if(r[7] === 'Bulk van Spreuwel') x.ging.VST += r[4];
+    else if(isBulk(naar)) x.ging.UP += r[4];
+    else if(naar) x.ging.PICK += r[4];
+  });
+  return Object.values(per).map(x => {
+    const moetHier = x.moet.PICK + x.moet.UP, gingHier = x.ging.PICK + x.ging.UP;
+    const staat = !moetHier ? 'bo' : gingHier >= moetHier ? 'ok' : gingHier > 0 ? 'deel' : 'niets';
+    return Object.assign(x, { moetHier, gingHier, staat });
+  }).sort((a, b) => ({ niets:0, deel:1, bo:2, ok:3 }[a.staat] - { niets:0, deel:1, bo:2, ok:3 }[b.staat]));
+}
+
+/* =====================================================================
    Schermen
    ===================================================================== */
 function kaartBron(){
-  const B = WHV();
   const code = window.WHLIVE && WHLIVE.status().code;
   const knop = `<button class="btn pri sm" data-d="lev-ververs"${S.bezig ? ' disabled' : ''}>${S.bezig ? 'Bezig…' : 'Ververs uit Picqer'}</button>`;
   const dag = (n, t) => `<button class="btn sm ${S.dagen === n ? 'pri' : ''}" data-d="lev-dagen" data-v="${n}">${t}</button>`;
-  return `<div class="card"><div class="row wrap between"><div><h2>Leveringen</h2>
-      <div class="small muted">Van inkoop tot opgeruimd: wat is besteld, wat is binnen, wat moet waarheen.</div></div>${knop}</div>
+  return `<div class="card"><div class="row wrap between"><div><h2>Ontvangsten</h2>
+      <div class="small muted">Europese leveranciers. Zodra Karin de ontvangst heeft opgeboekt, staat hier wat ermee moet gebeuren.</div></div>${knop}</div>
     <div class="row wrap mt8">${dag(7, '7 dagen')}${dag(30, '30 dagen')}${dag(90, '90 dagen')}
       <button class="btn sm ${S.demo ? 'ok' : 'ghost'}" data-d="lev-demo">${S.demo ? '✓ Demo aan' : 'Demo aanzetten'}</button>
       ${S.demo ? '<span class="badge b-warn">DEMO — verzonnen leveringen, Picqer wordt niet gelezen</span>' : ''}</div>
@@ -311,7 +378,7 @@ function kaartBron(){
     ${!code && !S.demo ? '<div class="small mt8">Eerst de koppelcode invullen: open Vandaag, daar vraagt de app er één keer om.</div>' : ''}
     ${S.klaar ? `<div class="small muted mt8">Bijgewerkt ${esc(S.klaar)}${S.demo ? '' : ' · rechtstreeks uit Picqer, alleen lezen'}</div>` : ''}</div>`;
 }
-const STAPPEN = [['controle', 'Gecontroleerd'], ['verdeling', 'Vrijgegeven'], ['labels', 'Labels geprint'], ['verplaatst', 'Verplaatst'], ['picqer', 'In Picqer gezet']];
+const STAPPEN = [['controle', 'Gecontroleerd'], ['verdeling', 'Vrijgegeven'], ['labels', 'Labels geprint'], ['verplaatst', 'Verplaatst']];
 function voortgang(lev){
   const g = (lev.bewaard || {}).gedaan || {};
   return STAPPEN.filter(([k]) => g[k]).length;
@@ -319,8 +386,10 @@ function voortgang(lev){
 function viewLijst(){
   const B = WHV();
   const alle = leveringen();
-  const binnen = alle.filter(l => l.soort === 'ontvangst');
-  const verwacht = alle.filter(l => l.soort === 'inkoop');
+  const eu = alle.filter(l => soortVan(l) === 'eu');
+  const cont = alle.filter(l => soortVan(l) !== 'eu');
+  const binnen = eu.filter(l => l.soort === 'ontvangst');
+  const verwacht = eu.filter(l => l.soort === 'inkoop');
   const tabKnop = (k, t, n) => `<button class="btn ${S.tab === k ? 'pri' : ''}" data-d="lev-tab" data-v="${k}">${t}${n ? ' (' + n + ')' : ''}</button>`;
   const lijst = S.tab === 'verwacht' ? verwacht : binnen;
   const rij = l => {
@@ -331,14 +400,20 @@ function viewLijst(){
     return `<a class="mv" style="grid-template-columns:1fr auto;text-decoration:none;color:inherit" href="#/levering/${esc(l.key)}">
       <div><b>${esc(l.leverancier || 'Leverancier onbekend')}</b> <span class="muted small">${esc([l.nummer, l.inkoop].filter(Boolean).join(' · '))}</span>
         <div class="small mt4">${WH.plural(l.regels.length, 'product', 'producten')} · ${nf(stuks)} stuks${waarde ? ' · € ' + nf(waarde) : ''}${l.wie ? ' · ' + esc(l.wie) : ''}
-          ${l.container ? B.badge('container ' + (l.container.pakbon_ref || l.container.containernummer || l.container.id), 'b-blue') : ''}
           ${tekort ? B.badge('niet compleet geleverd', 'b-warn') : ''}</div></div>
-      <div class="small muted" style="text-align:right">${esc(dagTekst(l))}${l.soort === 'inkoop' && levertijdTekst(l) ? '<div class="mt4">' + esc(levertijdTekst(l)) + '</div>' : ''}<div class="mt4">${v === STAPPEN.length ? B.badge('klaar', 'b-ok') : B.badge(v + '/' + STAPPEN.length + ' stappen', v ? 'b-warn' : 'b-grey')}</div></div></a>`;
+      <div class="small muted" style="text-align:right">${esc(dagTekst(l))}${l.soort === 'inkoop' && levertijdTekst(l) ? '<div class="mt4">' + esc(levertijdTekst(l)) + '</div>' : ''}
+        <div class="mt4">${v === STAPPEN.length ? B.badge('klaar', 'b-ok') : B.badge(v + '/' + STAPPEN.length + ' stappen', v ? 'b-warn' : 'b-grey')}</div></div></a>`;
   };
   app().innerHTML = kaartBron()
     + `<div class="card"><div class="row wrap">${tabKnop('binnen', 'Binnengekomen', binnen.length)}${tabKnop('verwacht', 'Verwacht', verwacht.length)}</div>
-      <div class="small muted mt8">${S.tab === 'verwacht' ? 'Inkooporders die nog moeten komen, op verwachte leverdatum.' : (S.demo ? 'Verzonnen leveringen om mee te oefenen. Klik er een open en loop de vijf stappen door.' : 'Ontvangsten uit Picqer. Klik een levering open om hem helemaal af te handelen.')}</div>
-      <div class="mt8">${lijst.length ? lijst.map(rij).join('') : '<div class="small muted">Niets gevonden in deze periode.</div>'}</div></div>`;
+      <div class="small muted mt8">${S.tab === 'verwacht' ? 'Inkooporders van Europese leveranciers die nog moeten komen.' : (S.demo ? 'Verzonnen leveringen om mee te oefenen. Kies er een en volg de stappen.' : 'Kies de levering waar je mee bezig bent.')}</div>
+      <div class="mt8">${lijst.length ? lijst.map(rij).join('') : '<div class="small muted">Niets gevonden in deze periode.</div>'}</div></div>`
+    + (cont.length ? `<div class="card"><h3>Containers (${cont.length})</h3>
+      <div class="small muted mt4">Deze horen bij Containerplanning en blijven hier buiten. Staat er iets tussen dat wél een gewone Europese levering is? Zet hem om.</div>
+      <div class="mt8">${cont.map(l => `<div class="mv" style="grid-template-columns:1fr auto"><div><b>${esc(l.leverancier || '?')}</b>
+        <span class="muted small">${esc([l.nummer, l.inkoop].filter(Boolean).join(' · '))}</span>
+        ${l.container ? B.badge('container ' + (l.container.pakbon_ref || l.container.containernummer || l.container.id), 'b-blue') : ''}</div>
+        <div><button class="btn sm" data-d="lev-soort" data-k="${esc(l.key)}" data-v="eu">Dit is Europees</button></div></div>`).join('')}</div></div>` : '');
 }
 function dagTekst(l){
   if(!l.datum) return '';
@@ -348,12 +423,21 @@ function dagTekst(l){
   return d === 0 ? 'vandaag' : d === -1 ? 'gisteren' : dt;
 }
 
-/* ---------- één levering: de hele afhandeling ---------- */
+/* ---------- één ontvangst: alles wat ermee moet gebeuren ---------- */
+const pickLocs = c => (window.WHL ? WHL.locsVan(c) : []).filter(l => !isBulk(l));
+const bulkLocs = c => (window.WHL ? WHL.locsVan(c) : []).filter(l => isBulk(l));
+function naarTekst(t){
+  if(t.dest === 'BO') return 'apart houden voor de orders die erop wachten';
+  if(t.dest === 'VST') return 'naar VST';
+  if(t.dest === 'PICK'){ const l = pickLocs(t.code); return 'naar de picklocatie' + (l.length ? ' ' + l.slice(0, 2).join(' / ') : ' (nog geen picklocatie bekend)'); }
+  const b = bulkLocs(t.code);
+  return 'in de stelling boven de pick' + (b.length ? ' (staat nu ook op ' + b.slice(0, 3).join(', ') + ')' : '');
+}
 function viewLevering(key){
   const B = WHV();
   const lev = leveringen().find(l => l.key === key);
   if(!lev){
-    app().innerHTML = kaartBron() + '<div class="card empty">Deze levering staat niet in de opgehaalde periode. Klik hierboven op Ververs uit Picqer of kies een langere periode.</div>';
+    app().innerHTML = kaartBron() + '<div class="card empty">Deze ontvangst staat niet in de opgehaalde periode. Klik hierboven op Ververs uit Picqer of kies een langere periode.</div>';
     return;
   }
   const g = (lev.bewaard || {}).gedaan || {};
@@ -365,93 +449,107 @@ function viewLevering(key){
   const waarde = lev.regels.reduce((s, r) => s + (r.besteld || r.ontvangen || 0) * (r.prijs || 0), 0);
   const vink = (k, t) => `<button class="btn sm ${g[k] ? 'ok' : ''}" data-d="lev-stap" data-k="${esc(lev.key)}" data-s="${k}">${g[k] ? '✓ ' + t : t}</button>`;
 
-  // 1. controle besteld vs ontvangen
+  // 1. klopt de ontvangst
   const ctrl = lev.regels.map(r => {
     const tekort = r.besteld > 0 ? r.besteld - r.ontvangen : 0;
     const kl = !r.besteld ? 'b-grey' : tekort > 0 ? 'b-warn' : tekort < 0 ? 'b-bad' : 'b-ok';
     const t = !r.besteld ? 'niet besteld — stond niet op de inkooporder'
-      : tekort > 0 ? nf(tekort) + ' te weinig — backorder bij de leverancier'
+      : tekort > 0 ? nf(tekort) + ' te weinig — blijft openstaan bij de leverancier'
       : tekort < 0 ? nf(-tekort) + ' te veel geleverd' : 'compleet';
     return `<tr><td><a class="code" href="#/p/${encodeURIComponent(r.code)}">${esc(r.code)}</a><div class="desc">${esc(r.naam || (window.WHL ? WHL.naamVan(r.code) : ''))}</div></td>
       <td class="n">${r.besteld ? nf(r.besteld) : '—'}</td><td class="n"><b>${nf(r.ontvangen)}</b></td><td>${B.badge(t, kl)}</td></tr>`;
   }).join('');
+  const mankement = lev.regels.some(r => r.besteld > 0 && r.ontvangen !== r.besteld) || lev.regels.some(r => !r.besteld);
 
-  // 2. verdeling
-  const vrij = lev.regels.map(r => {
-    const v = vd[r.code];
-    const f = v.f;
-    return `<div class="mv" style="grid-template-columns:1fr">
-      <div><a class="code" href="#/p/${encodeURIComponent(r.code)}">${esc(r.code)}</a> <span class="desc">${esc(r.naam || f.naam)}</span>
-        <div class="small mt4">${v.porties.filter(p => portieStuks(p)).map(p => B.badge((p.pallet ? (p.n > 1 ? p.n + '× pallet ' + nf(p.stuks) : 'pallet ' + nf(p.stuks)) : nf(portieStuks(p)) + ' stuks') + ' → ' + DEST[p.dest].nl, DEST[p.dest].kleur)).join(' ')}
-          ${v.vast ? B.badge('zelf aangepast', 'b-blue') : ''}</div>
-        <div class="small muted mt4">${esc(v.uitleg)}</div>
-        <div class="row wrap mt4"><span class="small muted">Stuks per pallet:</span>
-          <input type="number" min="1" step="1" value="${v.spp || ''}" placeholder="?" data-spp="${esc(r.code)}" style="width:90px;padding:5px 7px;border:1px solid #cdd5df;border-radius:6px">
-          <button class="btn sm" data-d="lev-spp" data-k="${esc(lev.key)}" data-c="${esc(r.code)}">Opslaan</button>
-          ${v.spp ? '' : '<span class="small">' + B.badge('zonder dit getal kan de app geen pallets maken', 'b-warn') + '</span>'}</div>
-        <div class="small muted">nu hier ${nf(f.hm)}${f.pick !== null ? ' (pick ' + nf(f.pick) + ')' : ''} · VST ${nf(f.vst)} · verkoop ${f.rate ? nf(f.rate) + '/mnd' : 'onbekend'}${f.bo ? ' · ' + nf(f.bo) + ' backorder' : ''}</div>
-        <div class="row wrap mt4">${['BO', 'PICK', 'UP', 'VST'].map(dd => `<button class="btn sm" data-d="lev-schuif" data-k="${esc(lev.key)}" data-c="${esc(r.code)}" data-dest="${dd}">alles → ${DEST[dd].nl}</button>`).join('')}
-          ${v.vast ? `<button class="btn sm ghost" data-d="lev-advies" data-k="${esc(lev.key)}" data-c="${esc(r.code)}">terug naar advies</button>` : ''}</div></div></div>`;
-  }).join('');
+  // 2. direct weg voor orders
+  const bo = taken.filter(t => t.dest === 'BO');
 
   // 3. labels
   const labels = taken.filter(t => t.pallet);
   const zonderNaam = [...new Set(labels.map(t => t.code))].filter(c => !labelNaam(c));
-  // 4. taken
-  const open = taken.filter(t => !gedaanT[t.id]);
-  const takenHtml = taken.map(t => `<div class="mv" style="grid-template-columns:auto 1fr auto">
+
+  // 4. waarheen
+  const stelling = taken.filter(t => t.dest !== 'BO');
+  const open = stelling.filter(t => !gedaanT[t.id]);
+  const takenHtml = stelling.map(t => `<div class="mv" style="grid-template-columns:auto 1fr auto">
       <div><button class="btn sm ${gedaanT[t.id] ? 'ok' : ''}" data-d="lev-taak" data-k="${esc(lev.key)}" data-t="${esc(t.id)}">${gedaanT[t.id] ? '✓' : 'klaar'}</button></div>
       <div><a class="code" href="#/p/${encodeURIComponent(t.code)}">${esc(t.code)}</a> <span class="desc">${esc(window.WHL ? WHL.naamVan(t.code) : '')}</span>
-        <div class="small mt4">${esc(t.tekst)}</div></div>
+        <div class="small mt4"><b>${esc(t.pallet ? (t.n > 1 ? t.n + ' pallets' : '1 pallet') + ' van ' + nf(t.per) : nf(t.stuks) + ' stuks')}</b> — ${esc(naarTekst(t))}</div></div>
       <div>${B.badge(DEST[t.dest].nl, DEST[t.dest].kleur)}</div></div>`).join('');
-  // 5. picqer
-  const pq = picqerRegels(lev);
 
-  app().innerHTML = `<div class="card"><div class="row wrap between"><div><h2>${esc(lev.leverancier || 'Levering')}</h2>
-      <div class="small muted">${esc([lev.nummer && 'ontvangst ' + lev.nummer, lev.inkoop && 'inkooporder ' + lev.inkoop, lev.wie, lev.datum && (WH.fdate ? WH.fdate(lev.datum) : lev.datum)].filter(Boolean).join(' · '))}</div>
-      ${lev.po && lev.po.besteld_op ? `<div class="small muted mt4">besteld ${esc(String(lev.po.besteld_op).slice(0, 10))}${lev.po.verwacht_op ? ' · verwacht ' + esc(String(lev.po.verwacht_op).slice(0, 10)) : ''}${levertijdTekst(lev) ? ' · ' + esc(levertijdTekst(lev)) : ''}</div>` : ''}</div>
-      <a class="small" href="#/leveringen">← alle leveringen</a></div>
+  // 5. controle
+  const c = CTRL[lev.key] || {};
+  const rap = c.rijen || [];
+  const ctrlHtml = !rap.length ? '' : `<div class="mt8">${rap.map(x => {
+      const kl = { ok:'b-ok', deel:'b-warn', niets:'b-bad', bo:'b-grey' }[x.staat];
+      const t = x.staat === 'bo' ? 'alleen apart gehouden voor orders'
+        : x.staat === 'ok' ? 'alles verplaatst (' + nf(x.gingHier) + ' stuks)'
+        : x.staat === 'deel' ? nf(x.gingHier) + ' van ' + nf(x.moetHier) + ' verplaatst'
+        : 'nog niets verplaatst (' + nf(x.moetHier) + ' stuks)';
+      return `<div class="mv" style="grid-template-columns:auto 1fr"><div>${B.badge(x.staat === 'ok' ? 'goed' : x.staat === 'bo' ? '—' : x.staat === 'deel' ? 'half' : 'open', kl)}</div>
+        <div><a class="code" href="#/p/${encodeURIComponent(x.code)}">${esc(x.code)}</a> <span class="desc">${esc(window.WHL ? WHL.naamVan(x.code) : '')}</span>
+        <div class="small mt4">${esc(t)}${x.ging.VST ? ' · ' + nf(x.ging.VST) + ' naar VST' : ''}</div></div></div>`;
+    }).join('')}</div>`;
+
+  app().innerHTML = `<div class="card"><div class="row wrap between"><div><h2>${esc(lev.leverancier || 'Ontvangst')}</h2>
+      <div class="small muted">${esc([lev.nummer && 'ontvangst ' + lev.nummer, lev.inkoop && 'inkooporder ' + lev.inkoop, lev.wie && 'opgeboekt door ' + lev.wie, lev.datum && (WH.fdate ? WH.fdate(lev.datum) : lev.datum)].filter(Boolean).join(' · '))}</div>
+      ${lev.po && lev.po.besteld_op ? `<div class="small muted mt4">besteld ${esc(String(lev.po.besteld_op).slice(0, 10))}${levertijdTekst(lev) ? ' · ' + esc(levertijdTekst(lev)) : ''}</div>` : ''}</div>
+      <a class="small" href="#/leveringen">← alle ontvangsten</a></div>
     <div class="small mt8">${WH.plural(lev.regels.length, 'product', 'producten')} · ${nf(stuks)} stuks${waarde ? ' · € ' + nf(waarde) + ' inkoopwaarde' : ''}
       ${(() => { const sm = { BO:0, PICK:0, UP:0, VST:0 }; taken.forEach(x => sm[x.dest] += x.stuks);
-        return ['BO', 'PICK', 'UP', 'VST'].filter(k => sm[k] > 0).map(k => B.badge(nf(sm[k]) + ' → ' + DEST[k].nl, DEST[k].kleur)).join(' '); })()}
-      ${lev.container ? B.badge('hoort bij container ' + (lev.container.pakbon_ref || lev.container.containernummer), 'b-blue') : ''}</div>
-    <div class="row wrap mt8"><span class="small muted">Hoort bij container:</span>
-      <select data-d="lev-cont" data-k="${esc(lev.key)}" style="padding:6px 8px;border:1px solid #cdd5df;border-radius:6px">
-        <option value="">— geen —</option>
-        ${(D.CONT || []).filter(c => c.status !== 'afgerond').map(c => `<option value="${esc(c.id)}"${lev.container && String(lev.container.id) === String(c.id) ? ' selected' : ''}>${esc((c.leverancier || '').split(' ')[0] + ' ' + (c.pakbon_ref || c.containernummer || c.id) + (c.losdatum ? ' · ' + c.losdatum : ''))}</option>`).join('')}
-      </select>${lev.container ? ` <a class="small" href="#/containerdag/${esc(lev.container.losdatum || '')}">naar containerdag →</a>` : ''}</div>
-    <div class="row wrap mt8">${STAPPEN.map(([k, t]) => `<span class="badge ${g[k] ? 'b-ok' : 'b-grey'}">${g[k] ? '✓ ' : ''}${esc(t)}</span>`).join(' ')}</div></div>
+        return ['BO', 'PICK', 'UP', 'VST'].filter(k => sm[k] > 0).map(k => B.badge(nf(sm[k]) + ' → ' + DEST[k].nl, DEST[k].kleur)).join(' '); })()}</div>
+    <div class="row wrap mt8">${STAPPEN.map(([k, t]) => `<span class="badge ${g[k] ? 'b-ok' : 'b-grey'}">${g[k] ? '✓ ' : ''}${esc(t)}</span>`).join(' ')}</div>
+    <div class="row wrap mt8"><button class="btn sm ghost" data-d="lev-soort" data-k="${esc(lev.key)}" data-v="container">Dit is een container →</button></div></div>
 
   <div class="card"><h3>1. Klopt de ontvangst?</h3>
-    <div class="small muted mt4">Wat is besteld en wat is er werkelijk opgeboekt. Een tekort blijft bij de leverancier openstaan.</div>
-    <div class="scroll mt8"><table><tr><th>Product</th><th class="n">Besteld</th><th class="n">Ontvangen</th><th>Klopt het?</th></tr>${ctrl}</table></div>
+    <div class="small muted mt4">Wat Gino besteld heeft naast wat Karin heeft opgeboekt. ${mankement ? 'Er staat iets open — meld dat bij Karin.' : 'Alles komt overeen.'}</div>
+    <div class="scroll mt8"><table><tr><th>Product</th><th class="n">Besteld</th><th class="n">Opgeboekt</th><th>Klopt het?</th></tr>${ctrl}</table></div>
     <div class="row wrap mt8">${vink('controle', 'Gecontroleerd')}</div></div>
 
-  <div class="card"><h3>2. Waar gaat het heen?</h3>
-    <div class="small muted mt4">Backorders eerst, dan de picklocatie, dan hier aanvullen tot ${nf(mnd, 1)} maand verkoop, de rest naar VST. Klopt iets niet? Zet het met één klik om — de app onthoudt het.</div>
-    <div class="row wrap mt8">${[1, 1.5, 2, 3].map(m => `<button class="btn sm ${mnd === m ? 'pri' : ''}" data-d="lev-mnd" data-k="${esc(lev.key)}" data-v="${m}">${nf(m, 1)} maand</button>`).join('')}</div>
-    <div class="mt8">${vrij}</div>
-    <div class="row wrap mt8">${vink('verdeling', 'Verdeling akkoord — vrijgeven aan het magazijn')}</div>
-    <div class="small muted mt4">Zolang je dit niet aanklikt ziet het magazijn deze levering niet in Junior.</div></div>
+  <div class="card"><h3>2. Gaat direct weg voor orders</h3>
+    ${bo.length ? `<div class="small muted mt4">Dit hoeft de stelling niet in: er wachten orders op. Laat het bij de inpaktafel of op de picklocatie.</div>
+      <div class="mt8">${bo.map(t => `<div class="mv" style="grid-template-columns:1fr auto"><div><a class="code" href="#/p/${encodeURIComponent(t.code)}">${esc(t.code)}</a>
+        <span class="desc">${esc(window.WHL ? WHL.naamVan(t.code) : '')}</span><div class="small mt4"><b>${nf(t.stuks)} stuks</b> — ${esc(boTekst(t.code))}</div></div>
+        <div>${B.badge('direct weg', 'b-bad')}</div></div>`).join('')}</div>`
+      : '<div class="small muted mt4">Niets: er wachten geen orders op deze producten.</div>'}</div>
 
   <div class="card"><h3>3. Palletlabels</h3>
-    <div class="small muted mt4">${labels.length ? nf(labels.reduce((s, t) => s + t.n, 0)) + ' labels voor de pallets die een label nodig hebben. Losse stuks en backorders krijgen geen label.' : 'Geen pallets in deze levering, dus geen labels nodig.'}</div>
+    <div class="small muted mt4">${labels.length ? nf(labels.reduce((s, t) => s + t.n, 0)) + ' labels — alleen voor de pallets die de stelling in gaan. Losse stuks en wat direct weggaat krijgen geen label.' : 'Geen pallets in deze levering, dus geen labels nodig.'}</div>
     ${zonderNaam.length ? `<div class="small mt8">${B.badge('Geen vloernaam voor: ' + zonderNaam.join(', '), 'b-warn')} <a class="small" href="#/productdata">vul aan bij Productdata</a></div>` : ''}
     <div class="row wrap mt8">${labels.length ? `<button class="btn pri sm" data-d="lev-labels" data-k="${esc(lev.key)}">Palletlabels maken (PDF)</button>` : ''}${vink('labels', 'Labels geprint')}</div></div>
 
-  <div class="card"><div class="row wrap between"><h3>4. Verplaatsen</h3><span>${B.badge(taken.length - open.length + ' van ' + taken.length + ' klaar', open.length ? 'b-warn' : 'b-ok')}</span></div>
-    <div class="small muted mt4">Korte taken voor de vloer. Eén regel per bestemming.</div>
-    <div class="mt8">${takenHtml || '<div class="small muted">Nog niets te verplaatsen.</div>'}</div>
-    <div class="row wrap mt8">${vink('verplaatst', 'Verplaatst')}</div></div>
+  <div class="card"><div class="row wrap between"><h3>4. Waar gaat het heen?</h3><span>${B.badge(stelling.length - open.length + ' van ' + stelling.length + ' klaar', open.length ? 'b-warn' : 'b-ok')}</span></div>
+    <div class="small muted mt4">Volg deze lijst. Doel: ${nf(mnd, 1)} maand verkoop op voorraad hier.
+      ${[1, 1.5, 2, 3].map(m => `<button class="btn sm ${mnd === m ? 'pri' : ''}" data-d="lev-mnd" data-k="${esc(lev.key)}" data-v="${m}">${nf(m, 1)} mnd</button>`).join('')}</div>
+    <div class="mt8">${takenHtml || '<div class="small muted">Niets te verplaatsen.</div>'}</div>
+    <div class="row wrap mt8">${vink('verdeling', 'Vrijgeven aan het magazijn')}${vink('verplaatst', 'Verplaatst')}</div>
+    <div class="small muted mt4">Zolang je niet vrijgeeft, ziet het magazijn deze ontvangst niet in Junior.</div></div>
 
-  <div class="card"><h3>5. In Picqer zetten</h3>
-    <div class="small muted mt4">De app schrijft zelf niets in Picqer. Dit zijn de regels die erin moeten.</div>
-    ${pq.vst.length ? `<div class="mt8"><b>Stockmove (naar VST)</b> — plak dit in de app van Maxime, één regel per pallet:
-      <textarea class="mt4" rows="${Math.min(10, pq.vst.length + 1)}" readonly style="width:100%;font-family:ui-monospace,monospace">${esc(pq.vst.join('\n'))}</textarea>
-      <button class="btn sm mt4" data-d="lev-kopieer" data-k="${esc(lev.key)}">Kopieer</button></div>` : ''}
-    ${pq.hier.length ? `<div class="mt8"><b>Hoofdmagazijn</b><div class="scroll mt4"><table><tr><th>Product</th><th class="n">Stuks</th><th>Naar</th></tr>
-      ${pq.hier.map(h => `<tr><td class="code">${esc(h.code)}</td><td class="n">${nf(h.stuks)}</td><td>${esc(DEST[h.dest].nl)}</td></tr>`).join('')}</table></div></div>` : ''}
-    <div class="row wrap mt8">${vink('picqer', 'In Picqer gezet')}</div></div>`;
+  <div class="card"><h3>5. Controleer</h3>
+    <div class="small muted mt4">De app kijkt in Picqer of alles ook echt verplaatst is, precies zoals hierboven staat.</div>
+    <div class="row wrap mt8"><button class="btn pri sm" data-d="lev-ctrl" data-k="${esc(lev.key)}"${c.bezig ? ' disabled' : ''}>${c.bezig ? 'Bezig…' : 'Controleer in Picqer'}</button>
+      ${c.op ? `<span class="small muted">gecontroleerd om ${esc(new Date(c.op).toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' }))}</span>` : ''}</div>
+    ${c.fout ? `<div class="small mt8"><span class="bad">${esc(c.fout)}</span></div>` : ''}
+    ${ctrlHtml}</div>
+
+  <div class="card"><h3>Aanpassen</h3>
+    <div class="small muted mt4">Klopt een bestemming niet? Zet het om — de app onthoudt het voor de volgende keer.</div>
+    <div class="mt8">${lev.regels.map(r => { const v = vd[r.code]; return `<div class="mv" style="grid-template-columns:1fr">
+      <div><a class="code" href="#/p/${encodeURIComponent(r.code)}">${esc(r.code)}</a> <span class="desc">${esc(r.naam || v.f.naam)}</span>
+        <div class="small mt4">${v.porties.filter(p => portieStuks(p)).map(p => B.badge((p.pallet ? (p.n > 1 ? p.n + '× pallet ' + nf(p.stuks) : 'pallet ' + nf(p.stuks)) : nf(portieStuks(p)) + ' stuks') + ' → ' + DEST[p.dest].nl, DEST[p.dest].kleur)).join(' ')}
+          ${v.vast ? B.badge('zelf aangepast', 'b-blue') : ''}</div>
+        <div class="small muted mt4">${esc(v.uitleg)}</div>
+        <div class="small muted">nu hier ${nf(v.f.hm)}${v.f.pick !== null ? ' (pick ' + nf(v.f.pick) + ')' : ''} · verkoop ${v.f.rate ? nf(v.f.rate) + '/mnd' : 'onbekend'}${v.f.bo ? ' · ' + nf(v.f.bo) + ' backorder' : ''}</div>
+        <div class="row wrap mt4"><span class="small muted">Stuks per pallet:</span>
+          <input type="number" min="1" step="1" value="${v.spp || ''}" placeholder="?" data-spp="${esc(r.code)}" style="width:80px;padding:5px 7px;border:1px solid #cdd5df;border-radius:6px">
+          <button class="btn sm" data-d="lev-spp" data-k="${esc(lev.key)}" data-c="${esc(r.code)}">Opslaan</button>
+          ${['BO', 'PICK', 'UP', 'VST'].map(dd => `<button class="btn sm" data-d="lev-schuif" data-k="${esc(lev.key)}" data-c="${esc(r.code)}" data-dest="${dd}">alles → ${DEST[dd].nl}</button>`).join('')}
+          ${v.vast ? `<button class="btn sm ghost" data-d="lev-advies" data-k="${esc(lev.key)}" data-c="${esc(r.code)}">terug naar advies</button>` : ''}</div></div></div>`; }).join('')}</div></div>`;
+}
+function boTekst(c){
+  const b = (D.BO || []).filter(x => code(x.productcode) === c);
+  const orders = [...new Set(b.map(x => x.bestelling).filter(Boolean))];
+  return orders.length ? WH.plural(orders.length, 'order', 'orders') + ' wacht' + (orders.length === 1 ? '' : 'en') + ' hierop' + (orders.length <= 3 ? ' (' + orders.join(', ') + ')' : '') : 'wacht op orders';
 }
 
 /* ---------- palletlabels ---------- */
@@ -542,6 +640,12 @@ async function klik(a, b){
     toast(c + ': ' + nf(n) + ' per pallet opgeslagen.');
     teken(); return true;
   }
+  if(a === 'lev-soort' && lev){
+    await zetSoort(lev, b.dataset.v);
+    if(b.dataset.v === 'container') location.hash = '#/leveringen'; else teken();
+    return true;
+  }
+  if(a === 'lev-ctrl' && lev){ controleer(lev); return true; }
   if(a === 'lev-labels' && lev){ maakLabels(lev); return true; }
   if(a === 'lev-kopieer' && lev){
     const t = picqerRegels(lev).vst.join('\n');
@@ -570,6 +674,6 @@ document.addEventListener('click', async ev => {
   if(!/^lev-/.test(b.dataset.d || '') || b.tagName === 'SELECT') return;
   try{ await klik(b.dataset.d, b); }catch(e){ toast('Lukte niet: ' + ((e && e.message) || e), 6000); }
 });
-return { view, klik, laad, advies, leveringen, takenVan, picqerRegels, verdelingVan, S,
+return { view, klik, laad, advies, leveringen, takenVan, naarTekst, soortVan, picqerRegels, verdelingVan, S,
   demoAan:v => { S.demo = !!v; S.data = null; S.auto = false; try{ localStorage.setItem('ivol-lev-demo-aan', v ? '1' : '0'); }catch(e){} } };
 })();
