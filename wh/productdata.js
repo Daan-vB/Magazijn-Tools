@@ -53,7 +53,7 @@ const LEEGWAARDE = v => leeg(v) || String(v).trim().toLowerCase() === 'onb';
 const NVT = v => String(v ?? '').trim().toLowerCase() === 'nvt';
 
 /* ---------- toestand ---------- */
-const S = { pd:{}, extra:{}, cat:null, klaar:false, laden:null, mist:false, fout:null, idx:null };
+const S = { pd:{}, extra:{}, cat:null, labels:{}, klaar:false, laden:null, mist:false, fout:null, idx:null };
 const bewaard = k => { try{ return localStorage.getItem('wh-pd-' + k); }catch(e){ return null; } };
 const bewaar = (k, v) => { try{ localStorage.setItem('wh-pd-' + k, v); }catch(e){} };
 const UI = { scope:bewaard('scope') || 'A', laag:+(bewaard('laag') || 1), lev:bewaard('lev') || '', zoek:'', over:new Set(), i:0, concept:{}, alles:{}, mig:null };
@@ -68,11 +68,12 @@ async function laad(vers){
       const [rows, extra, cat] = await Promise.all([
         T('productdata', 'select=*', ['updated_at']).catch(e => { if(isMissing(e)){ S.mist = true; return []; } throw e; }),
         T('producten', 'select=productcode,gewicht_product_g,lengte_product_cm,breedte_product_cm,hoogte_product_cm,leverancier_code&order=productcode', ['picqer_datum', 'updated_at']).catch(() => []),
-        (window.WHC ? WHC.catalog(['wh-pq-cat']) : api('GET', 'catalog?key=eq.wh-pq-cat&select=key,data,updated_at')).catch(() => [])
+        (window.WHC ? WHC.catalog(['wh-pq-cat', 'catalog-ean']) : api('GET', 'catalog?key=in.(%22wh-pq-cat%22,%22catalog-ean%22)&select=key,data,updated_at')).catch(() => [])
       ]);
       S.pd = {}; rows.forEach(r => { S.pd[r.productcode] = { data:r.data || {}, meta:r.meta || {}, t:r.updated_at }; });
       S.extra = {}; extra.forEach(r => { S.extra[r.productcode] = r; });
       S.cat = ((cat || []).find(r => r.key === 'wh-pq-cat') || {}).data || null;
+      S.labels = ((cat || []).find(r => r.key === 'catalog-ean') || {}).data || {};
       S.idx = null; S.klaar = true; S.fout = null;
     }catch(e){ S.fout = e; }
   })();
@@ -153,12 +154,26 @@ function modus(lijst){
 }
 
 /* ---------- waarden: productdata, anders wat al bekend was ---------- */
+// palletlabels (catalog-ean) kan meerdere regels per product hebben: zelfde product, andere vloernaam of ander aantal.
+// Eén waarde → overzetten. Verschillende waarden → niet overzetten, Daan kiest (conflict).
+const labelRegels = code => (D.GEH[String(code || '').toLowerCase()] || []).slice().sort((a, b) => (b.used || 0) - (a.used || 0));
+function labelSpp(code){
+  const m = new Map();   // volgorde: laatst gebruikte regel eerst (een gewoon object zet getallen op volgorde)
+  labelRegels(code).forEach(g => {
+    const q = String(g.qty ?? '').trim(); if(!q || /^0+([.,]0+)?$/.test(q) || /^onb/i.test(q) || /^x$/i.test(q)) return;   // 0 = label zonder aantal
+    const k = NVT(q) ? 'nvt' : (num(q) !== null ? String(num(q)) : q);
+    if(!m.has(k)) m.set(k, []);
+    m.get(k).push(g.name || g.sub);
+  });
+  return m;
+}
+function labelNamen(code){ return [...new Set(labelRegels(code).map(g => String(g.name || '').replace(/\s+/g, ' ').trim()).filter(Boolean))]; }
 function oudeWaarde(code, k){
-  const g = geh1(code), p = D.P[code] || {}, a = D.AANVUL[code];
+  const g = geh1(code), p = D.P[code] || {}, a = D.AANVUL[code], lr = labelRegels(code);
   switch(k){
-    case 'spp': { if(!g) return null; const q = String(g.qty ?? '').trim(); if(!q || /^0+$/.test(q)) return null; return { v:q.toLowerCase() === 'onb' ? null : q, bron:'palletlabels' }; }
-    case 'vn': return g && g.name ? { v:g.name, bron:'palletlabels' } : null;
-    case 'met': return g && (g.aanvul === 'deel' || /^0+$/.test(String(g.qty ?? '').trim())) ? { v:'deel', bron:'palletlabels (aanvulpallet)' } : null;
+    case 'spp': { const m = labelSpp(code), ks = [...m.keys()]; if(!ks.length) return null; if(ks.length > 1) return { conflict:ks.map(v => ({ v, waar:m.get(v) })), bron:'palletlabels' }; return { v:ks[0], bron:'palletlabels' }; }
+    case 'vn': { const n = labelNamen(code); if(!n.length) return null; if(n.length > 1) return { conflict:n.map(v => ({ v, waar:[] })), bron:'palletlabels' }; return { v:n[0], bron:'palletlabels' }; }
+    case 'met': return lr.some(g => g.aanvul === 'deel' || /^0+$/.test(String(g.qty ?? '').trim())) ? { v:'deel', bron:'palletlabels (aanvulpallet)' } : null;
     case 'maat': return p.palletmaat ? { v:p.palletmaat, bron:'containers' } : null;
     case 'hoogte': return !leeg(p.hoogte_cm) ? { v:String(p.hoogte_cm), bron:'containers' } : null;
     case 'gewicht': return !leeg(p.gewicht_kg) ? { v:String(p.gewicht_kg), bron:'containers' } : null;
@@ -193,11 +208,37 @@ function nodig(code, k, w){
 }
 // huidige toestand van een veld
 function staat(code, k){
-  const v = pdWaarde(code, k);
-  if(v !== null && !LEEGWAARDE(v)) return { v, s:'ok' };
-  const o = oudeWaarde(code, k);
+  const v = pdWaarde(code, k), o = oudeWaarde(code, k);
+  const r = S.pd[code], bron = r && r.meta && r.meta[k] && r.meta[k].bron;
+  if(v !== null && !LEEGWAARDE(v)){
+    // eerder overgezet terwijl palletlabels twee waarden had: opnieuw laten kiezen
+    if(bron === 'overgezet' && o && o.conflict) return { v:'', s:'open', conflict:o.conflict };
+    return { v, s:'ok' };
+  }
+  if(o && o.conflict) return { v:'', s:'open', conflict:o.conflict };
   if(o && !LEEGWAARDE(o.v)) return { v:o.v, s:'oud', bron:o.bron };
   return { v:v || '', s:'open' };
+}
+// producten met dubbele regels in palletlabels
+function dubbel(){
+  const uit = [];
+  Object.keys(D.P).forEach(code => {
+    const lr = labelRegels(code); if(lr.length < 2) return;
+    const spp = oudeWaarde(code, 'spp'), vn = oudeWaarde(code, 'vn');
+    uit.push({ code, regels:lr, sppConflict:!!(spp && spp.conflict), vnConflict:!!(vn && vn.conflict) });
+  });
+  return uit.sort((a, b) => b.sppConflict - a.sppConflict || rang(a.code) - rang(b.code));
+}
+// labelregels die niet bij een bestaand Picqer-product horen
+function wees(){
+  const uit = [];
+  Object.entries(S.labels || {}).forEach(([naam, g]) => {
+    if(!g) return;
+    const sub = String(g.sub ?? '').trim();
+    if(!sub) uit.push({ naam, sub:'', qty:g.qty, waarom:'geen productcode' });
+    else if(!D.PLOW[sub.toLowerCase()]) uit.push({ naam, sub, qty:g.qty, waarom:'niet in Picqer' });
+  });
+  return uit;
 }
 const waardeFn = code => k => { const st = staat(code, k); return st.s === 'open' ? (UI.concept[code] && UI.concept[code][k]) || '' : st.v; };
 // voor op het scherm: wat er nu staat, anders het voorstel (zo rekent plaatsen mee met een voorgestelde palletmaat)
@@ -219,6 +260,10 @@ function pbRegels(code){ return index().pb[code] || []; }
 function voorstel(code, k, w){
   const p = D.P[code] || {}, x = S.extra[code] || {}, eh = eenheid(code), kg = kleurgenoten(code);
   const oud = oudeWaarde(code, k);
+  if(oud && oud.conflict){
+    const st = staat(code, k);
+    if(st.s === 'open') return { v:oud.conflict[0].v, bron:'palletlabels heeft ' + oud.conflict.length + ' verschillende: ' + oud.conflict.map(c => c.v + (c.waar && c.waar.length && k === 'spp' ? ' (' + c.waar.join(', ') + ')' : '')).join(' / ') + ' · eerste = laatst gebruikt, kies de juiste', z:'laag' };
+  }
   if(oud && !LEEGWAARDE(oud.v) && pdWaarde(code, k) === null) return { v:oud.v, bron:'stond al in ' + oud.bron, z:'hoog' };
   const genoot = kg.length ? vanGenoten(kg, k, 'zelfde als') : null;
   const fam = () => { const f = vanGenoten(famLeden(code).filter(c => !kg.includes(c)), k, 'familie:'); if(f) f.z = 'laag'; return f; };
@@ -550,9 +595,10 @@ function viewStart(){
   </div>
   ${S.mist ? `<div class="card" style="border-left:4px solid var(--bad)"><h3>Tabel productdata bestaat nog niet</h3><p class="small mt8">Ververs over een minuut. Blijft dit staan, meld het aan Claude.</p></div>` : ''}
   ${!S.mist && migN ? `<div class="card" style="border-left:4px solid var(--blue)"><h3>Eerst: overzetten wat al bekend is</h3>
-    <p class="small mt8">Van ${nf(mig.prod)} producten staan gegevens nog verspreid over palletlabels, containers en de aanvulbase: ${Object.entries(mig.t).map(([k, n]) => nf(n) + ' × ' + esc(VELDEN[k].t.toLowerCase())).join(', ')}. Eén klik zet ze over naar productdata. De oude plekken blijven ongemoeid.</p>
+    <p class="small mt8">Van ${nf(mig.prod)} producten staan gegevens nog verspreid over palletlabels, containers en de aanvulbase: ${Object.entries(mig.t).map(([k, n]) => nf(n) + ' × ' + esc(VELDEN[k].t.toLowerCase())).join(', ')}. Eén klik zet ze over naar productdata. De oude plekken blijven ongemoeid. Wat dubbel en verschillend in palletlabels staat, gaat niet mee: dat kies je zelf.</p>
     <div class="row wrap mt12"><button class="btn pri" data-pd="mig">Zet ${nf(migN)} waarden over</button></div></div>` : ''}
   ${UI.mig ? `<div class="card" style="border-left:4px solid var(--ok)"><h3>Overgezet</h3><div class="small mt8">${Object.keys(UI.mig.voor).map(k => esc(VELDEN[k].t) + ': vóór <b>' + nf(UI.mig.voor[k]) + '</b>, na <b>' + nf(UI.mig.na[k] || 0) + '</b>' + ((UI.mig.na[k] || 0) === UI.mig.voor[k] ? ' ✓' : ' <span class="badge b-bad">verschil</span>')).join('<br>')}</div></div>` : ''}
+  ${opschonenKaart()}
   <div class="card">
     <h3>Hoe ver ben je</h3><div class="small muted mt4">${nf(codes.length)} producten in deze selectie. Kies een laag en vul die eerst helemaal.</div>
     <div class="pd-lagen mt12">${LAGEN.map(l => { const v = voortgang(codes, l.n); const pct = v.velden ? Math.round(100 * v.gevuld / v.velden) : 100; return `<button class="pd-laag ${UI.laag === l.n ? 'on' : ''}" data-pd="laag" data-v="${l.n}"><div><b>${l.n}. ${esc(l.t)}</b><div class="u">${esc(l.u)}</div></div><div class="pd-bar"><i style="width:${pct}%"></i></div><div class="pct">${pct}%<small>${nf(v.vol)} / ${nf(v.tot)} compleet</small></div></button>`; }).join('')}</div>
@@ -563,6 +609,29 @@ function viewStart(){
   </div>
   <div class="card mt12"><div class="pd-leg"><i></i>geel = voorstel, controleer en druk Klopt · <i class="ok"></i>groen = vastgelegd · "schatting" in oranje = minder zeker, kijk extra goed</div>
   <div class="small muted mt8">Getoetst tegen wat al bekend was (stuks per pallet): voorstel van een kleurgenoot klopte 83%, van VST-pallets 80%, van bulkpallets 84%. Een schatting uit de familie klopte maar 43%: kijk daar dus goed.</div></div>`;
+}
+
+/* ---------- opschonen: dubbele en losse labelregels ---------- */
+function opschonenKaart(){
+  const d = dubbel(), w = wees();
+  if(!d.length && !w.length) return '';
+  const nC = d.filter(x => x.sppConflict || x.vnConflict).length, nQ = d.filter(x => x.sppConflict).length;
+  const open = d.filter(x => (x.sppConflict && staat(x.code, 'spp').s === 'open') || (x.vnConflict && staat(x.code, 'vn').s === 'open')).length;
+  return `<div class="card" style="border-left:4px solid var(--warn)"><h3>Dubbel in palletlabels</h3>
+    <p class="small mt8">${plural(d.length, 'product heeft', 'producten hebben')} meer dan één labelregel. Bij ${nf(nQ)} staat er een ander aantal per pallet, bij ${nf(nC - nQ)} alleen een andere vloernaam. Die zijn <b>niet</b> overgezet: jij kiest welke klopt. ${w.length ? nf(w.length) + ' labelregels horen bij geen bestaand Picqer-product (outlet-codes, losse getallen, geen code); die gaan nergens heen.' : ''}</p>
+    <div class="row wrap mt12"><a class="btn ${open ? 'acc' : ''}" href="#/productdata/dubbel">${open ? nf(open) + ' te kiezen →' : 'Bekijken'}</a></div></div>`;
+}
+function viewDubbel(){
+  const d = dubbel().filter(x => x.sppConflict || x.vnConflict), w = wees();
+  const kaart = x => {
+    const ks = [x.sppConflict ? 'spp' : null, x.vnConflict ? 'vn' : null].filter(Boolean);
+    const regels = x.regels.map(g => `<div class="small"><span class="mono">${esc(g.name || '')}</span> · ${esc(String(g.qty ?? '') || 'leeg')} per pallet${g.used ? ' · laatst gebruikt ' + esc(new Date(g.used).toLocaleDateString('nl-NL')) : ''}</div>`).join('');
+    return productKaart(x.code, ks, false).replace('<div class="pd-velden">', `<div class="mt8" style="background:var(--soft);border-radius:6px;padding:8px 10px"><div class="tiny muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.04em">Regels in palletlabels</div>${regels}</div><div class="pd-velden">`);
+  };
+  app.innerHTML = `<a class="small" href="#/productdata">← Productdata</a>${maatLijst()}
+  <div class="card mt8"><h2>Dubbel in palletlabels</h2><p class="small muted mt4">Kies per product welk aantal en welke vloernaam klopt en druk Klopt. Dat wordt de waarheid in productdata. Palletlabels zelf blijft ongemoeid tot de apps uit productdata lezen.</p></div>
+  ${d.map(kaart).join('') || '<div class="card empty">Geen dubbele waarden meer.</div>'}
+  ${w.length ? `<div class="card"><details><summary class="small" style="cursor:pointer;font-weight:700">${nf(w.length)} labelregels zonder bestaand Picqer-product</summary><div class="mt8">${w.map(x => `<div class="small"><span class="mono">${esc(x.naam)}</span> → ${esc(x.sub || '–')} · ${esc(x.waarom)}</div>`).join('')}</div></details></div>` : ''}`;
 }
 
 /* ---------- families ---------- */
@@ -777,6 +846,7 @@ async function view(delen){
   if(sub === 'fam') return viewFamilies();
   if(sub === 'een') return viewEen();
   if(sub === 'p' && arg) return viewProduct(arg);
+  if(sub === 'dubbel') return viewDubbel();
   return viewStart();
 }
 // na het opnieuw laden van de app (WH.load) ook de index vernieuwen
