@@ -1,0 +1,34 @@
+# Eenmalige, versleutelde kopie van de database voor analyse door Claude (alleen lezen).
+# Start door .github/export/verzoek.txt te wijzigen of via Actions → Run workflow.
+# Het bestand is versleuteld met een publieke sleutel: zonder de privésleutel (alleen bij Claude) is het onleesbaar.
+# Het wordt na 1 dag automatisch verwijderd.
+name: Data-export (versleuteld)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/export/verzoek.txt']
+  workflow_dispatch:
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT: jarbgetbwkjtxwtcfwmq   # Palletlabels
+    steps:
+      - uses: actions/checkout@v4
+      - name: Database lezen
+        run: python3 .github/export/export.py
+      - name: Versleutelen
+        run: |
+          tar czf data.tgz out
+          openssl rand -out k.bin 32
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in data.tgz -out data.enc -pass file:k.bin
+          openssl pkeyutl -encrypt -pubin -inkey .github/export/sleutel-publiek.pem -pkeyopt rsa_padding_mode:oaep -in k.bin -out k.enc
+          mkdir pakket && mv data.enc k.enc pakket/
+          rm -rf out data.tgz k.bin
+          ls -la pakket
+      - uses: actions/upload-artifact@v4
+        with:
+          name: export
+          path: pakket
+          retention-days: 1
