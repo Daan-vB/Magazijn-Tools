@@ -750,6 +750,62 @@ function vstNieuw(code){
 }
 
 /* ---------- scherm: controle na het verplaatsen ---------- */
+/* ---------- Controle live uit Picqer (verplaatsingen + voorraad per locatie van de containerproducten) ---------- */
+const CL = { bezig:false, stap:'', fout:'', klaar:null, auto:{} };
+function controleLiveKaart(dag){
+  const L = window.WHLIVE;
+  if(!L) return '';
+  const heeftCode = L.status().code;
+  const knop = `<button class="btn pri sm" data-d="cl-ververs" data-dag="${dag}"${CL.bezig ? ' disabled' : ''}>${CL.bezig ? 'Bezig…' : 'Ververs uit Picqer'}</button>`;
+  const tekst = CL.bezig ? esc(CL.stap) : CL.fout ? `<span class="bad">${esc(CL.fout)}</span>` : CL.klaar ? 'Bijgewerkt ' + esc(CL.klaar) + ' · verplaatsingen en voorraad per locatie rechtstreeks uit Picqer (alleen lezen)' : heeftCode ? 'Haalt de verplaatsingen en de voorraad per locatie rechtstreeks uit Picqer.' : 'Eerst de koppelcode invullen: open Vandaag, daar vraagt de app er één keer om.';
+  return `<div class="card"><div class="row wrap between"><div><h3>Live uit Picqer</h3><div class="small muted mt4">${tekst}</div></div>${heeftCode ? knop : '<a class="btn sm" href="#/">Naar Vandaag</a>'}</div></div>`;
+}
+function controleAuto(P, dag){
+  const L = window.WHLIVE;
+  if(!L || !L.status().code || CL.bezig || CL.auto[dag]) return;
+  CL.auto[dag] = true;
+  setTimeout(() => controleLive(P, dag), 0);
+}
+async function controleLive(P, dag){
+  const L = window.WHLIVE, B = V();
+  if(!L || CL.bezig) return;
+  CL.bezig = true; CL.fout = ''; CL.stap = 'Verplaatsingen ophalen…';
+  const teken = () => { if(/^#\/controle/.test(location.hash)) B.rerender(); };
+  teken();
+  try{
+    const obj = await L.vraag('verplaatsingen', { sinds:dag + ' 00:00' });
+    await WH.impVerplaatsingen(obj);
+    CL.stap = 'Voorraad per locatie ophalen…'; teken();
+    const rows = window.WHC ? await WHC.catalog(['wh-pq-cat']) : await WH.api('GET', 'catalog?key=eq.wh-pq-cat&select=key,data,updated_at');
+    const cat = ((rows || []).find(r => r.key === 'wh-pq-cat') || {}).data;
+    const ids = (cat && cat.ids) || {};
+    const codes = [...new Set([].concat(P.up, P.pick, P.bo, P.vst).map(x => x.code))];
+    const zonder = codes.filter(c => !ids[c]);
+    const MAG = 3857;
+    const vraagIds = codes.map(c => ids[c]).filter(Boolean);
+    const codeVan = {}; codes.forEach(c => { if(ids[c]) codeVan[ids[c]] = c; });
+    for(let i = 0; i < vraagIds.length; i += 100){
+      const r = await L.vraag('producten', { ids:vraagIds.slice(i, i + 100).join(',') });
+      (r.producten || []).forEach(p => {
+        const c = codeVan[p.id] || p.code;
+        const v = D.VR[c] = { locs:{}, geen:0, cont:{} };
+        let som = 0;
+        (p.loc || []).filter(l => l.w === MAG).forEach(l => {
+          if(!(l.v > 0)) return;
+          som += l.v;
+          if(l.t === 'container' || /^container\s*\d+$/i.test(l.n)) v.cont[l.n] = (v.cont[l.n] || 0) + l.v;
+          else v.locs[l.n] = (v.locs[l.n] || 0) + l.v;
+        });
+        const tot = ((p.vw || []).find(x => x[0] === MAG) || [0, 0])[1];
+        v.geen = Math.max(0, tot - som);
+      });
+    }
+    D.VRDATUM = new Date().toISOString();
+    const nu = new Date(); CL.klaar = String(nu.getHours()).padStart(2, '0') + ':' + String(nu.getMinutes()).padStart(2, '0') + (zonder.length ? ' · niet gevonden in Picqer-lijst: ' + zonder.join(', ') : '');
+  }catch(e){ CL.fout = e.message || String(e); }
+  CL.bezig = false; CL.stap = '';
+  teken();
+}
 function viewControle(dagArg){
   if(dagArg) UI.dag = dagArg;
   const dag = kiesDag();
@@ -757,8 +813,9 @@ function viewControle(dagArg){
   const B = V();
   const vrVers = D.VRDATUM && isoDag(D.VRDATUM) >= dag;
   const vstVers = (D.VSTDATUM && isoDag(D.VSTDATUM) >= dag) || (D.VSTVRDATUM && isoDag(D.VSTVRDATUM) >= dag);
-  const exp = `<div class="card"><div class="row wrap between"><div><h2>Controle ${esc(kort(dag))}</h2><div class="small muted">${P.cs.map(c => esc(cNaam(c))).join(' · ')}</div></div><a class="small" href="#/containerdag/${dag}">← containerdag</a></div>
-    <div class="mt8"><b>Exports van ná het verplaatsen</b> (sleep ze tegelijk hierin):</div>
+  controleAuto(P, dag);
+  const exp = controleLiveKaart(dag) + `<div class="card"><div class="row wrap between"><div><h2>Controle ${esc(kort(dag))}</h2><div class="small muted">${P.cs.map(c => esc(cNaam(c))).join(' · ')}</div></div><a class="small" href="#/containerdag/${dag}">← containerdag</a></div>
+    <div class="mt8"><b>Liever met bestanden?</b> Exports van ná het verplaatsen (sleep ze tegelijk hierin):</div>
     <div class="small mt4">1. Voorraad per locatie, Hoofdmagazijn (zelfde export als stock-…xlsx van 2-9) ${B.exportLeeftijd(D.VRDATUM)}<br>
       2. VST: voorraad per locatie of locatie-export van magazijn Bulk van Spreuwel ${B.exportLeeftijd(D.VSTVRDATUM || D.VSTDATUM)}<br>
       3. Backorders (Backorders → Exporteer backorders) ${B.exportLeeftijd(B.dataDatums().backorders)}<br>
@@ -873,7 +930,7 @@ function vpKaart(P, dag){
     return '<div class="card small muted">Verplaatsingen laden…</div>';
   }
   const alle = (D.VP.rows || []).filter(r => String(r[1]).slice(0, 10) >= dag);
-  const uitleg = `<div class="small muted mt4">Haal ze op na het verplaatsen: op de Mac <b>Verplaatsingen ophalen</b> dubbelklikken (map 02_Werk_IVOL › 07_Tools_en_app_bronnen), Enter = vandaag. Sleep het bestand uit 00_Inbox hierboven in.</div>`;
+  const uitleg = `<div class="small muted mt4">Na het verplaatsen: klik bovenaan op <b>Ververs uit Picqer</b>. (Oude route: op de Mac <b>Verplaatsingen ophalen</b> dubbelklikken en het bestand uit 00_Inbox hierboven slepen.)</div>`;
   if(!alle.length) return `<div class="card"><h3>Verplaatsingen in Picqer</h3><div class="small mt4">Nog geen verplaatsingen sinds ${esc(kort(dag))}.</div>${uitleg}</div>`;
   const plan = vpGepland(P);
   const codes = Object.keys(plan).concat(P.bo.map(x => x.code), P.vst.map(x => x.code)).filter((c, i, a) => a.indexOf(c) === i);
@@ -1449,6 +1506,7 @@ document.addEventListener('click', async ev => {
     WH.excel(['Tijd', 'Gebruiker', 'Productcode', 'Naam', 'Aantal', 'Van locatie', 'Naar locatie', 'Soort', 'Magazijn'], rijen, 'Wie deed wat' + (WIE.wie ? ' - ' + WIE.wie : '') + '.xlsx');
     return;
   }
+  if(a === 'cl-ververs'){ const dag = b.dataset.dag; controleLive(dagPlan(dag), dag); return; }
   if(a === 'vp-af'){ const r = await vpAfleiden(); WH.toast ? WH.toast(vpAfTekst(r)) : alert(vpAfTekst(r)); V().rerender(); return; }
   if(a === 'vp-xlsx'){
     const dag = b.dataset.dag;

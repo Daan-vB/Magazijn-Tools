@@ -14,11 +14,13 @@
 //  Acties (?actie=…):
 //    status      verbinding testen: magazijnen
 //    vandaag     open/gepauzeerde/gesnoozede picklijsten + backorders van het Hoofdmagazijn
-//    producten   ?ids=1,2,3 → productcode, naam, barcode en voorraad per locatie
+//    producten   ?ids=1,2,3 → productcode, naam, barcode, voorraad per magazijn (vw) en per locatie
 //    picklijst   ?id=…      → opmerkingen bij één picklijst en de order (opmerking klant)
 //    catalogus   ?van=0     → 1.000 producten per keer: id, code, voorraad Hoofdmagazijn en VST (alleen met voorraad)
 //    locaties    ?ids=1,2   → voorraad per locatie voor max. 60 producten (voor het aanvuladvies)
 //    mutaties    ?sinds=…   → welke producten sinds dat moment een voorraadmutatie hadden (Hoofdmagazijn)
+//    verplaatsingen ?sinds=… → alle verplaatsingen tussen locaties sinds dat moment, met locatie-, product- en gebruikersnamen
+//                              (zelfde inhoud als het bestand van "Verplaatsingen ophalen" op de Mac)
 // =====================================================================
 
 const DOMEIN = (Deno.env.get("PICQER_DOMAIN") || "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -162,6 +164,7 @@ async function producten(idsTxt: string) {
       type: p.type || "",
       abc: p.analysis_abc_classification || "",
       perDag: p.analysis_pick_amount_per_day ?? null,
+      vw: (Array.isArray(p.stock) ? p.stock : []).map((x: any) => [x.idwarehouse, Number(x.stock) || 0]),
       loc: (Array.isArray(locs) ? locs : []).map((l: any) => {
         const s = l.stock_for_product || {};
         return {
@@ -217,6 +220,32 @@ async function mutaties(sinds: string) {
   return { sinds, laatste, regels: r.length, ids: [...ids], vol: r.length >= 8000 };
 }
 
+// alle verplaatsingen tussen locaties sinds een moment (voor Controle); zelfde vorm als het Mac-bestand
+async function verplaatsingen(sinds: string) {
+  if (!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(sinds || "")) throw new Fout("Ongeldig moment", 400);
+  const hist = (await alles("location-stock-history?sincedate=" + encodeURIComponent(sinds.replace("T", " ")), 6000))
+    .filter((h: any) => h && h.change_type === "movement");
+  const uniek = (veld: string[]) => [...new Set(hist.flatMap((h: any) => veld.map((v) => h[v])).filter((x: any) => x > 0))] as number[];
+  const [magazijnen, locaties, producten, gebruikers] = await Promise.all([
+    pq("warehouses").catch(() => []),
+    perStuk(uniek(["idlocation", "contra_idlocation"]), 4, (id) => pq("locations/" + id).catch(() => null)),
+    perStuk(uniek(["idproduct"]), 4, (id) => pq("products/" + id).catch(() => null)),
+    perStuk(uniek(["iduser"]), 2, (id) => pq("users/" + id).catch(() => null)),
+  ]);
+  return {
+    bron: "picqer-location-stock-history", versie: 1, sinds, opgehaald: new Date().toISOString(),
+    magazijnen: (Array.isArray(magazijnen) ? magazijnen : []).map((w: any) => ({ idwarehouse: w.idwarehouse, name: w.name })),
+    historie: hist.map((h: any) => ({
+      idproduct_location_stock_history: h.idproduct_location_stock_history, change_type: h.change_type, stock_change: h.stock_change,
+      idlocation: h.idlocation, contra_idlocation: h.contra_idlocation, idproduct: h.idproduct, iduser: h.iduser, changed_at: h.changed_at,
+    })),
+    locaties: locaties.filter(Boolean).map((l: any) => ({ idlocation: l.idlocation, name: l.name, idwarehouse: l.idwarehouse })),
+    producten: producten.filter(Boolean).map((p: any) => ({ idproduct: p.idproduct, productcode: p.productcode })),
+    gebruikers: gebruikers.filter(Boolean).map((u: any) => ({ iduser: u.iduser, firstname: u.firstname || u.first_name || "", lastname: u.lastname || u.last_name || "", username: u.username || "" })),
+    vol: hist.length >= 6000,
+  };
+}
+
 // opmerkingen bij één picklijst (op verzoek, één klik in de app)
 async function picklijst(idTxt: string) {
   const id = parseInt(idTxt, 10);
@@ -261,6 +290,7 @@ Deno.serve(async (req: Request) => {
     if (actie === "picklijst") return antwoord(await picklijst(url.searchParams.get("id") || ""), 200, origin);
     if (actie === "catalogus") return antwoord(await catalogus(url.searchParams.get("van") || "0"), 200, origin);
     if (actie === "locaties") return antwoord(await locaties(url.searchParams.get("ids") || ""), 200, origin);
+    if (actie === "verplaatsingen") return antwoord(await verplaatsingen(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "mutaties") return antwoord(await mutaties(url.searchParams.get("sinds") || ""), 200, origin);
     return antwoord({ fout: "Onbekende actie: " + actie }, 400, origin);
   } catch (e) {
