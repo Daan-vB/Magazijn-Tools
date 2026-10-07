@@ -31,8 +31,8 @@ const VOL = [
   { k:'aanvul', t:'Aanvuladvies', href:W + '#/aanvullen', sub:[
     ['aanvullive', 'Live advies', W + '#/aanvullive'], ['aanvullen', 'Aanvullen (export)', W + '#/aanvullen'], ['base', 'Niveaus', W + '#/base'], ['abcheck', 'A/B-check', W + '#/abcheck'],
     ['invul', 'Invullen', W + '#/invul'], ['locaties', 'Locaties', W + '#/locaties'], ['stelling', 'Stellingen', W + '#/stelling'], ['triage', 'Triage', W + '#/triage'], ['backorders', 'Backorders', W + '#/backorders']] },
-  { k:'ontv', t:'Ontvangsten', href:W + '#/ontvangsten', sub:[
-    ['ontvangsten', 'Ontvangsten', W + '#/ontvangsten']] },
+  { k:'ontv', t:'Leveringen', href:W + '#/leveringen', sub:[
+    ['leveringen', 'Leveringen', W + '#/leveringen'], ['ontvangsten', 'Ontvangsten (ruw)', W + '#/ontvangsten']] },
   { k:'cont', t:'Containers', href:CP + '#/', sub:[
     ['cp:home', 'Containers', CP + '#/'], ['cp:vooruit', 'Vooruit', CP + '#/vooruit'], ['containerdag', 'Containerdag', W + '#/containerdag'], ['controle', 'Controle', W + '#/controle'], ['wie', 'Wie deed wat', W + '#/wie'],
     ['ruimte', 'Ruimte', W + '#/ruimte'], ['cp:producten', 'Producten', CP + '#/producten'], ['cp:vloernamen', 'Vloernamen', CP + '#/vloernamen']] },
@@ -45,7 +45,7 @@ const VOL = [
 
 const GROEPEN = TEST ? VOL : BASIS;
 // schermen zonder eigen menuregel: bij welk onderdeel horen ze
-const ALIAS = { p:'aanvullen', overzicht:'vandaag', 'cp:c':'cp:home' };
+const ALIAS = { p:'aanvullen', overzicht:'vandaag', 'cp:c':'cp:home', levering:'leveringen' };
 const IN_APP = new Set(GROEPEN.flatMap(g => g.sub.map(s => s[0])).concat(Object.keys(ALIAS)));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
 

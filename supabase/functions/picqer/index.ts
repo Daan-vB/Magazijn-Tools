@@ -307,6 +307,84 @@ async function ontvangstenLijst(sinds: string) {
   };
 }
 
+// =====================================================================
+//  De hele keten in één antwoord: inkooporders (besteld, verwacht, waarde)
+//  en ontvangsten (wat is er werkelijk binnengekomen, door wie, wanneer).
+//  Alles alleen lezen. De app koppelt ontvangst → inkooporder → levering.
+// =====================================================================
+const getalVan = (o: any, velden: string[]) => {
+  for (const v of velden) { const x = o && o[v]; const n = Number(x); if (x !== undefined && x !== null && x !== "" && isFinite(n)) return n; }
+  return 0;
+};
+const tekstVan = (o: any, velden: string[]) => {
+  for (const v of velden) { const x = o && o[v]; if (typeof x === "string" && x.trim()) return x.trim(); if (x && typeof x === "object" && typeof x.name === "string" && x.name.trim()) return x.name.trim(); }
+  return "";
+};
+function poRegels(p: any) {
+  return (Array.isArray(p.products) ? p.products : []).map((r: any) => ({
+    idproduct: r.idproduct || null,
+    code: tekstVan(r, ["productcode", "product_code"]),
+    naam: tekstVan(r, ["name", "productname"]),
+    besteld: getalVan(r, ["amount", "amount_ordered", "amountordered"]),
+    ontvangen: getalVan(r, ["amountreceived", "amount_received", "received"]),
+    prijs: getalVan(r, ["price", "purchaseprice", "productprice"]),
+  }));
+}
+async function keten(sinds: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(sinds || "")) throw new Fout("Ongeldige datum", 400);
+  const [ruweInk, ruweOntv] = await Promise.all([
+    alles("purchaseorders", 1500).catch(() => [] as any[]),
+    alles("receipts", 1500).catch(() => [] as any[]),
+  ]);
+  const datumVan = (o: any) => String(tekstVan(o, ["completed_at", "created_at", "updated_at", "purchased_at"]) || "").slice(0, 10);
+  const open = (p: any) => !/completed|cancelled|canceled/i.test(String(p.status || ""));
+  // inkooporders: alles wat nog open staat + wat sinds de gevraagde datum is afgerond
+  const inkSel = ruweInk.filter((p: any) => open(p) || datumVan(p) >= sinds)
+    .sort((a: any, b: any) => (b.idpurchaseorder || 0) - (a.idpurchaseorder || 0)).slice(0, 120);
+  const ontvSel = ruweOntv.filter((r: any) => datumVan(r) >= sinds)
+    .sort((a: any, b: any) => (b.idreceipt || 0) - (a.idreceipt || 0)).slice(0, 60);
+  // regels staan niet altijd in de lijst: dan per stuk ophalen
+  const [ink, ontv] = await Promise.all([
+    perStuk(inkSel, 3, async (p: any) => (Array.isArray(p.products) && p.products.length ? p : await pq("purchaseorders/" + p.idpurchaseorder).catch(() => p))),
+    perStuk(ontvSel, 3, async (r: any) => (Array.isArray(r.products) && r.products.length ? r : await pq("receipts/" + r.idreceipt).catch(() => r))),
+  ]);
+  // namen van leveranciers en gebruikers erbij
+  const levIds = [...new Set([...ink, ...ontv].map((o: any) => o.idsupplier).filter((x: any) => x > 0))] as number[];
+  const gebrIds = [...new Set(ontv.flatMap((r: any) => [r.iduser, r.idpicker, r.completed_by_iduser]).filter((x: any) => x > 0))] as number[];
+  const lev = new Map<number, string>(), gebr = new Map<number, string>();
+  await Promise.all([
+    perStuk(levIds.slice(0, 60), 3, async (id) => { const s = await pq("suppliers/" + id).catch(() => null); if (s) lev.set(id, s.name || ""); }),
+    perStuk(gebrIds.slice(0, 30), 3, async (id) => { const u = await pq("users/" + id).catch(() => null); if (u) gebr.set(id, ((u.firstname || u.first_name || "") + " " + (u.lastname || u.last_name || "")).trim() || u.username || ""); }),
+  ]);
+  const levNaam = (o: any) => tekstVan(o, ["supplier", "suppliername", "supplier_name"]) || lev.get(o.idsupplier) || "";
+  return {
+    bron: "picqer-keten", versie: 1, sinds, opgehaald: new Date().toISOString(),
+    velden: { inkoop: ink[0] ? Object.keys(ink[0]) : [], ontvangst: ontv[0] ? Object.keys(ontv[0]) : [], inkoopregel: ink[0] && ink[0].products && ink[0].products[0] ? Object.keys(ink[0].products[0]) : [], ontvangstregel: ontv[0] && ontv[0].products && ontv[0].products[0] ? Object.keys(ontv[0].products[0]) : [] },
+    inkoop: ink.map((p: any) => ({
+      id: p.idpurchaseorder, nummer: tekstVan(p, ["purchaseorderid"]), status: String(p.status || ""),
+      leverancier: levNaam(p), idleverancier: p.idsupplier || null,
+      besteld_op: tekstVan(p, ["purchased_at", "created_at"]) || null,
+      verwacht_op: tekstVan(p, ["delivery_date", "deliverydate", "expected_delivery_date"]) || null,
+      klaar_op: tekstVan(p, ["completed_at"]) || null,
+      magazijn: p.idwarehouse || null,
+      opmerking: tekstVan(p, ["remarks", "comment"]),
+      regels: poRegels(p),
+    })),
+    ontvangsten: ontv.map((r: any) => ({
+      id: r.idreceipt, nummer: tekstVan(r, ["receiptid"]), status: String(r.status || ""),
+      inkooporder: tekstVan(r, ["purchaseorderid"]), idinkooporder: r.idpurchaseorder || null,
+      leverancier: levNaam(r), wie: gebr.get(r.iduser) || gebr.get(r.idpicker) || gebr.get(r.completed_by_iduser) || "",
+      aangemaakt: tekstVan(r, ["created_at"]) || null, klaar: tekstVan(r, ["completed_at"]) || null,
+      producten: (Array.isArray(r.products) ? r.products : []).map((p: any) => ({
+        idproduct: p.idproduct || null,
+        code: tekstVan(p, ["productcode", "product_code"]),
+        naam: tekstVan(p, ["name", "productname"]),
+        aantal: getalVan(p, ["amount_received", "amountreceived", "received", "amount"]),
+      })),
+    })),
+  };
+}
+
 // opmerkingen bij één picklijst (op verzoek, één klik in de app)
 async function picklijst(idTxt: string) {
   const id = parseInt(idTxt, 10);
@@ -352,6 +430,7 @@ Deno.serve(async (req: Request) => {
     if (actie === "catalogus") return antwoord(await catalogus(url.searchParams.get("van") || "0"), 200, origin);
     if (actie === "locaties") return antwoord(await locaties(url.searchParams.get("ids") || ""), 200, origin);
     if (actie === "ontvangsten") return antwoord(await ontvangsten(url.searchParams.get("refs") || ""), 200, origin);
+    if (actie === "keten") return antwoord(await keten(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "ontvangstenlijst") return antwoord(await ontvangstenLijst(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "verplaatsingen") return antwoord(await verplaatsingen(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "mutaties") return antwoord(await mutaties(url.searchParams.get("sinds") || ""), 200, origin);
