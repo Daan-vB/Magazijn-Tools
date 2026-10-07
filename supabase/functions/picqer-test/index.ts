@@ -251,6 +251,39 @@ async function verplaatsingen(sinds: string) {
   };
 }
 
+// ontvangsten (RC) per inkooporder: wat is er werkelijk opgeboekt (alleen lezen)
+async function ontvangsten(refsTxt: string) {
+  const refs = [...new Set((refsTxt || "").split(",").map((s) => s.trim()).filter((s) => /^[\w .\/-]{2,60}$/.test(s)))].slice(0, 10);
+  if (!refs.length) throw new Fout("Geen pakbonnummer gevraagd", 400);
+  const norm = (s: any) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const sleutels = refs.map(norm);
+  const raakt = (o: any) => ["purchaseorderid", "reference", "supplier_orderid", "receiptid", "supplier_reference", "remarks"]
+    .some((v) => { const x = norm(o && o[v]); return x && sleutels.some((k) => x.includes(k)); });
+  const [ink, ontv] = await Promise.all([
+    alles("purchaseorders", 500).catch(() => []),
+    alles("receipts", 500),
+  ]);
+  const poIds = new Map<number, string>();
+  ink.filter(raakt).forEach((p: any) => poIds.set(p.idpurchaseorder, p.purchaseorderid || ""));
+  const gevonden = ontv.filter((r: any) => poIds.has(r.idpurchaseorder) || raakt(r));
+  const detail = await perStuk(gevonden, 3, async (r: any) => {
+    if (Array.isArray(r.products) && r.products.length) return r;
+    return await pq("receipts/" + r.idreceipt).catch(() => r);
+  });
+  const getal = (p: any) => {
+    for (const v of ["amount_received", "amountreceived", "received", "amount"]) { const n = Number(p[v]); if (isFinite(n) && p[v] !== undefined && p[v] !== null) return n; }
+    return 0;
+  };
+  return {
+    bron: "picqer-receipts", versie: 1, refs, opgehaald: new Date().toISOString(),
+    ontvangsten: detail.map((r: any) => ({
+      id: r.idreceipt, nummer: r.receiptid || "", inkooporder: r.purchaseorderid || poIds.get(r.idpurchaseorder) || "", idpurchaseorder: r.idpurchaseorder || null,
+      status: r.status || "", datum: r.created_at || r.completed_at || null,
+      producten: (Array.isArray(r.products) ? r.products : []).map((p: any) => ({ idproduct: p.idproduct, code: p.productcode || p.product_code || "", aantal: getal(p) })),
+    })),
+  };
+}
+
 // opmerkingen bij één picklijst (op verzoek, één klik in de app)
 async function picklijst(idTxt: string) {
   const id = parseInt(idTxt, 10);
@@ -296,6 +329,7 @@ Deno.serve(async (req: Request) => {
     if (actie === "picklijst") return antwoord(await picklijst(url.searchParams.get("id") || ""), 200, origin);
     if (actie === "catalogus") return antwoord(await catalogus(url.searchParams.get("van") || "0"), 200, origin);
     if (actie === "locaties") return antwoord(await locaties(url.searchParams.get("ids") || ""), 200, origin);
+    if (actie === "ontvangsten") return antwoord(await ontvangsten(url.searchParams.get("refs") || ""), 200, origin);
     if (actie === "verplaatsingen") return antwoord(await verplaatsingen(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "mutaties") return antwoord(await mutaties(url.searchParams.get("sinds") || ""), 200, origin);
     return antwoord({ fout: "Onbekende actie: " + actie }, 400, origin);

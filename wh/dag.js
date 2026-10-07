@@ -751,7 +751,7 @@ function vstNieuw(code){
 
 /* ---------- scherm: controle na het verplaatsen ---------- */
 /* ---------- Controle live uit Picqer (verplaatsingen + voorraad per locatie van de containerproducten) ---------- */
-const CL = { bezig:false, stap:'', fout:'', klaar:null, auto:{} };
+const CL = { bezig:false, stap:'', fout:'', klaar:null, auto:{}, ont:{} };
 function controleLiveKaart(dag){
   const L = window.WHLIVE;
   if(!L) return '';
@@ -801,6 +801,16 @@ async function controleLive(P, dag){
       });
     }
     D.VRDATUM = new Date().toISOString();
+    CL.stap = 'Ontvangsten ophalen…'; teken();
+    try{
+      const refs = [...new Set(P.cs.map(c => c.pakbon_ref).filter(Boolean))];
+      if(refs.length){
+        const o = await L.vraag('ontvangsten', { refs:refs.join(',') });
+        const ontv = {}, nummers = [];
+        (o.ontvangsten || []).forEach(r => { nummers.push(r.nummer); (r.producten || []).forEach(p => { if(p.code) ontv[p.code] = (ontv[p.code] || 0) + (Number(p.aantal) || 0); }); });
+        CL.ont[dag] = { ontv, nummers, n:(o.ontvangsten || []).length };
+      }
+    }catch(e){ CL.ont[dag] = { fout:e.message || String(e) }; }
     const nu = new Date(); CL.klaar = String(nu.getHours()).padStart(2, '0') + ':' + String(nu.getMinutes()).padStart(2, '0') + (zonder.length ? ' · niet gevonden in Picqer-lijst: ' + zonder.join(', ') : '');
   }catch(e){ CL.fout = e.message || String(e); }
   CL.bezig = false; CL.stap = '';
@@ -849,6 +859,12 @@ function viewControle(dagArg){
       else if(!r[6]) terug += r[4];
     });
     const regels = [];
+    const OT = CL.ont[dag];
+    if(OT && OT.ontv){
+      const verw = P.cs.reduce((t, c) => t + (c.regels || []).filter(r => r.productcode === code).reduce((u, r) => u + (num(r.aantal) || 0), 0), 0);
+      const ont = OT.ontv[code] || 0;
+      if(verw > 0) regels.push([ont === verw ? 'ok' : ont > 0 ? 'let' : 'fout', 'opgeboekt: ' + nf(ont) + ' van ' + nf(verw) + ' stuks volgens pakbon']);
+    }
     const check = (naam, plan_, kreeg_, extra) => {
       if(!(plan_ > 0)) return;
       regels.push([kreeg_ >= plan_ ? 'ok' : kreeg_ > 0 ? 'let' : 'fout', naam + ': ' + nf(kreeg_) + ' van ' + nf(plan_) + ' stuks verplaatst' + (extra || '')]);
@@ -870,6 +886,9 @@ function viewControle(dagArg){
     return { code, erg, regels };
   }).sort((a, b) => ({ fout:0, let:1, ok:2 }[a.erg] - { fout:0, let:1, ok:2 }[b.erg]));
   const cls = { ok:'b-ok', let:'b-warn', fout:'b-bad', info:'b-grey' };
+  const OT2 = CL.ont[dag];
+  const ontNote = !OT2 ? '' : OT2.fout ? `<div class="small mt8"><span class="bad">Ontvangsten niet gelezen: ${esc(OT2.fout)}</span></div>` : !OT2.n ? `<div class="small mt8">${B.badge('Geen ontvangst gevonden in Picqer voor ' + P.cs.map(c => c.pakbon_ref).filter(Boolean).join(', '), 'b-warn')}</div>` :
+    `<div class="small mt8">Ontvangsten: ${esc(OT2.nummers.join(', '))}${(() => { const ex = Object.keys(OT2.ontv).filter(c => OT2.ontv[c] > 0 && !codes.includes(c) && !P.cs.some(k => (k.regels || []).some(r => r.productcode === c))); return ex.length ? ' · ' + B.badge('niet op pakbon: ' + ex.map(c => c + ' ' + nf(OT2.ontv[c])).join(', '), 'b-warn') : ''; })()}</div>`;
   const tabel = rijen.map(r => `<div class="mv" style="grid-template-columns:auto 1fr"><div>${B.badge(r.erg === 'ok' ? 'goed' : r.erg === 'let' ? 'let op' : 'mis', cls[r.erg])}</div>
     <div><a class="code" href="#/p/${encodeURIComponent(r.code)}">${esc(r.code)}</a> <span class="desc">${esc(WHL.naamVan(r.code))}</span>
     <div class="small mt4">${r.regels.map(([k, t]) => B.badge(t, cls[k])).join(' ')}</div></div></div>`).join('');
@@ -881,7 +900,7 @@ function viewControle(dagArg){
     .filter((x, i, arr) => arr.findIndex(y => y.code === x.code) === i);
   app.innerHTML = exp + vpKaart(P, dag) + `<div class="card"><div class="row wrap between"><h3>Container-producten</h3><span>${B.badge(nGoed + ' goed', 'b-ok')} ${B.badge(nLet + ' let op', 'b-warn')} ${B.badge(nFout + ' mis', 'b-bad')}</span></div>
       <div class="small muted mt4">Picqer van ${esc(fdt(D.VRDATUM))}. De app controleert alleen de hoeveelheden (hoeveel naar bulk, pick en VST, hoeveel nog op geen specifieke locatie), niet waar de pallets staan. "Mis" = nog niets verplaatst.</div>
-      <div class="mt8">${tabel}</div>
+      ${ontNote}<div class="mt8">${tabel}</div>
       <div class="row wrap mt8"><button class="btn ok" data-a="tik" data-k="cc:dag:${dag}:controle">${tik('cc:dag:' + dag + ':controle') ? '✓ Controle afgerond' : 'Controle afgerond'}</button></div></div>
     <div class="card"><h3>VST-palletnummers ${esc(kort(dag))}</h3>${vstRijen.length ? `<div class="scroll mt8"><table><tr><th>Product</th><th>Nieuwe palletnummers</th></tr>${vstRijen.map(x => `<tr><td class="code">${esc(x.code)}</td><td class="loc">${esc(x.nieuw.join(', '))}</td></tr>`).join('')}</table></div>
       <div class="row wrap mt8"><button class="btn sm" data-d="vst-xlsx" data-dag="${dag}">Download VST-lijst (Excel)</button></div>` : '<div class="small muted mt8">Nog geen nieuwe palletnummers gevonden. Laad de VST-export van ná de Stockmove in (de app vergelijkt met de vorige VST-export).</div>'}</div>
