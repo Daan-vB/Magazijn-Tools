@@ -30,7 +30,7 @@ const VOL = [
   { k:'vandaag', t:'Vandaag', href:W + '#/', sub:[
     ['vandaag', 'Vandaag', W + '#/'], ['live', 'Picqer live', W + '#/live'], ['planning', 'Planning', W + '#/planning']] },
   { k:'aanvul', t:'Aanvuladvies', href:W + '#/aanvullen', sub:[
-    ['aanvullen', 'Aanvullen', W + '#/aanvullen'], ['base', 'Niveaus', W + '#/base'], ['abcheck', 'A/B-check', W + '#/abcheck'],
+    ['aanvullen', 'Aanvullen', W + '#/aanvullen'], ['aanvullive', 'Live advies', W + '#/aanvullive'], ['base', 'Niveaus', W + '#/base'], ['abcheck', 'A/B-check', W + '#/abcheck'],
     ['invul', 'Invullen', W + '#/invul'], ['locaties', 'Locaties', W + '#/locaties'], ['stelling', 'Stellingen', W + '#/stelling'], ['triage', 'Triage', W + '#/triage'], ['backorders', 'Backorders', W + '#/backorders']] },
   { k:'cont', t:'Containers', href:CP + '#/', sub:[
     ['cp:home', 'Containers', CP + '#/'], ['cp:vooruit', 'Vooruit', CP + '#/vooruit'], ['containerdag', 'Containerdag', W + '#/containerdag'], ['controle', 'Controle', W + '#/controle'], ['wie', 'Wie deed wat', W + '#/wie'],

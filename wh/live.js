@@ -371,6 +371,6 @@ st.textContent = '.livedetail .scroll{overflow-x:auto;-webkit-overflow-scrolling
   + '@media print{body.printlive #app>*:not(.livelijst){display:none !important} body.printlive .livelijst .noprint{display:none !important} body.printlive .livelijst table{font-size:11px}}';
 document.head.appendChild(st);
 
-return { view, laad, nuLijst, overzicht, taal:(f, l) => { TAAL = f; if(l) LOCALE = l; }, opNieuw:f => LUISTER.push(f), status:() => ({ code:!!code(), data:S.data, laden:S.laden, fout:S.fout, prodLaden:S.prodLaden, klaar:!!S.data && S.prodKlaar }),
+return { view, laad, vraag, rijen, nuLijst, overzicht, taal:(f, l) => { TAAL = f; if(l) LOCALE = l; }, opNieuw:f => LUISTER.push(f), status:() => ({ code:!!code(), data:S.data, laden:S.laden, fout:S.fout, prodLaden:S.prodLaden, klaar:!!S.data && S.prodKlaar }),
   zetCode, picklijstCijfers, picklijstGroepen, backorderCijfers, productStand, uren };
 })();

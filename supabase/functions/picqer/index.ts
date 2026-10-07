@@ -16,6 +16,9 @@
 //    vandaag     open/gepauzeerde/gesnoozede picklijsten + backorders van het Hoofdmagazijn
 //    producten   ?ids=1,2,3 → productcode, naam, barcode en voorraad per locatie
 //    picklijst   ?id=…      → opmerkingen bij één picklijst en de order (opmerking klant)
+//    catalogus   ?van=0     → 1.000 producten per keer: id, code, voorraad Hoofdmagazijn en VST (alleen met voorraad)
+//    locaties    ?ids=1,2   → voorraad per locatie voor max. 60 producten (voor het aanvuladvies)
+//    mutaties    ?sinds=…   → welke producten sinds dat moment een voorraadmutatie hadden (Hoofdmagazijn)
 // =====================================================================
 
 const DOMEIN = (Deno.env.get("PICQER_DOMAIN") || "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -172,6 +175,48 @@ async function producten(idsTxt: string) {
   return { opgehaald: new Date().toISOString(), magazijn: MAGAZIJN, producten: lijst };
 }
 
+// alle producten met voorraad, 10 pagina's (1.000 producten) per aanroep
+const VST = Number(Deno.env.get("PICQER_VST") || "3991");
+async function catalogus(vanTxt: string) {
+  const van = Math.max(0, parseInt(vanTxt || "0", 10) || 0);
+  const paginas = await perStuk(Array.from({ length: 10 }, (_, i) => van + i * 100), 3, (off) => bewaard("cat:" + off, 600, () => pq("products?offset=" + off)));
+  const rijen: unknown[] = [];
+  let klaar = false;
+  paginas.forEach((r: any) => {
+    if (!Array.isArray(r) || r.length < 100) klaar = true;
+    (Array.isArray(r) ? r : []).forEach((p: any) => {
+      const st = (w: number) => { const x = (p.stock || []).find((s: any) => Number(s.idwarehouse) === w); return x ? Number(x.stock) || 0 : 0; };
+      const hm = st(MAGAZIJN), vst = st(VST);
+      if (hm > 0 || vst > 0) rijen.push([p.idproduct, p.productcode, hm, vst, p.analysis_abc_classification || "", p.analysis_pick_amount_per_day ?? null]);
+    });
+  });
+  return { van, volgende: van + 1000, klaar, rijen };
+}
+// voorraad per locatie, alleen wat het aanvuladvies nodig heeft
+async function locaties(idsTxt: string) {
+  const ids = [...new Set(String(idsTxt || "").split(",").map((x) => parseInt(x, 10)).filter((x) => x > 0))].slice(0, 60);
+  if (!ids.length) throw new Fout("Geen producten gevraagd", 400);
+  const lijst = await perStuk(ids, 4, async (id) => {
+    const locs = await pq("products/" + id + "/locations").catch(() => null);
+    if (!Array.isArray(locs)) return [id, null];
+    return [id, locs.map((l: any) => {
+      const s = l.stock_for_product || {};
+      return [l.name, l.idwarehouse ?? null, l.is_bulk_location ? 1 : 0, l.type === "container" ? 1 : 0,
+        Number(s.stock ?? l.stock ?? 0) || 0, Number(s.stock_reserved_picklists ?? l.stock_reserved_picklists ?? 0) || 0];
+    })];
+  });
+  return { opgehaald: new Date().toISOString(), lijst };
+}
+// producten met een voorraadmutatie sinds een moment (Picqer-tijd, bv. 2026-10-07 08:00:00)
+async function mutaties(sinds: string) {
+  if (!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(sinds || "")) throw new Fout("Ongeldig moment", 400);
+  const r = await alles("stockhistory?idwarehouse=" + MAGAZIJN + "&sincedate=" + encodeURIComponent(sinds.replace("T", " ")), 8000);
+  const ids = new Set<number>();
+  let laatste = "";
+  r.forEach((h: any) => { if (h.idproduct) ids.add(h.idproduct); if (h.changed_at && h.changed_at > laatste) laatste = h.changed_at; });
+  return { sinds, laatste, regels: r.length, ids: [...ids], vol: r.length >= 8000 };
+}
+
 // opmerkingen bij één picklijst (op verzoek, één klik in de app)
 async function picklijst(idTxt: string) {
   const id = parseInt(idTxt, 10);
@@ -214,6 +259,9 @@ Deno.serve(async (req: Request) => {
     }
     if (actie === "producten") return antwoord(await producten(url.searchParams.get("ids") || ""), 200, origin);
     if (actie === "picklijst") return antwoord(await picklijst(url.searchParams.get("id") || ""), 200, origin);
+    if (actie === "catalogus") return antwoord(await catalogus(url.searchParams.get("van") || "0"), 200, origin);
+    if (actie === "locaties") return antwoord(await locaties(url.searchParams.get("ids") || ""), 200, origin);
+    if (actie === "mutaties") return antwoord(await mutaties(url.searchParams.get("sinds") || ""), 200, origin);
     return antwoord({ fout: "Onbekende actie: " + actie }, 400, origin);
   } catch (e) {
     const f = e instanceof Fout ? e : new Fout(String((e as Error)?.message || e));
