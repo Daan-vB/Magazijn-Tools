@@ -860,7 +860,7 @@ function viewControle(dagArg){
     });
     const regels = [];
     const OT = CL.ont[dag];
-    if(OT && OT.ontv){
+    if(OT && OT.ontv && OT.n){
       const verw = P.cs.reduce((t, c) => t + (c.regels || []).filter(r => r.productcode === code).reduce((u, r) => u + (num(r.aantal) || 0), 0), 0);
       const ont = OT.ontv[code] || 0;
       if(verw > 0) regels.push([ont === verw ? 'ok' : ont > 0 ? 'let' : 'fout', 'opgeboekt: ' + nf(ont) + ' van ' + nf(verw) + ' stuks volgens pakbon']);
