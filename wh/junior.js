@@ -39,20 +39,7 @@ function zetTaal(tl){
 }
 
 /* ---------- kop en navigatie ---------- */
-// op apparaten die ook Warehouse/Test gebruiken (Daan, Karin): snel terug naar die apps
-function appWissel(){
-  let ja = false; try{ ja = localStorage.getItem('ivol-beheer') === '1'; }catch(e){}
-  const r = document.querySelector('header.top .rechts');
-  if(!ja || !r || document.querySelector('.appwissel')) return;
-  const st = document.createElement('style');
-  st.textContent = '.appwissel{display:inline-flex;gap:2px;background:#1b222c;border-radius:8px;padding:2px;margin-right:8px}.appwissel a{font-size:12px;padding:5px 10px;color:#8a98aa;border-radius:6px;text-decoration:none;font-weight:700;white-space:nowrap}.appwissel a.on{background:#33404f;color:#fff}';
-  document.head.appendChild(st);
-  const w = document.createElement('span'); w.className = 'appwissel';
-  w.innerHTML = '<a href="./warehouse.html#/">Warehouse</a><a href="./test.html#/">Test</a><a href="./junior.html#/" class="on">Junior</a>';
-  r.prepend(w);
-}
 function kop(){
-  appWissel();
   document.querySelectorAll('[data-t]').forEach(el => el.textContent = t(el.dataset.t));
   document.querySelectorAll('#talen button').forEach(b => b.classList.toggle('on', b.dataset.taal === taal));
   document.querySelectorAll('.ico[data-a="vernieuw"]').forEach(b => b.title = t('vernieuw'));
