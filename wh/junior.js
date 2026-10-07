@@ -39,7 +39,20 @@ function zetTaal(tl){
 }
 
 /* ---------- kop en navigatie ---------- */
+// op apparaten die ook Warehouse/Test gebruiken (Daan, Karin): snel terug naar die apps
+function appWissel(){
+  let ja = false; try{ ja = localStorage.getItem('ivol-beheer') === '1'; }catch(e){}
+  const r = document.querySelector('header.top .rechts');
+  if(!ja || !r || document.querySelector('.appwissel')) return;
+  const st = document.createElement('style');
+  st.textContent = '.appwissel{display:inline-flex;gap:2px;background:#1b222c;border-radius:8px;padding:2px;margin-right:8px}.appwissel a{font-size:12px;padding:5px 10px;color:#8a98aa;border-radius:6px;text-decoration:none;font-weight:700;white-space:nowrap}.appwissel a.on{background:#33404f;color:#fff}';
+  document.head.appendChild(st);
+  const w = document.createElement('span'); w.className = 'appwissel';
+  w.innerHTML = '<a href="./warehouse.html#/">Warehouse</a><a href="./test.html#/">Test</a><a href="./junior.html#/" class="on">Junior</a>';
+  r.prepend(w);
+}
 function kop(){
+  appWissel();
   document.querySelectorAll('[data-t]').forEach(el => el.textContent = t(el.dataset.t));
   document.querySelectorAll('#talen button').forEach(b => b.classList.toggle('on', b.dataset.taal === taal));
   document.querySelectorAll('.ico[data-a="vernieuw"]').forEach(b => b.title = t('vernieuw'));
@@ -75,7 +88,7 @@ function koppelKaart(){
   const s = LV();
   if(!s || s.code) return s && s.fout ? `<div class="reason mt8">${esc(t('live.fout'))} <span class="small muted">${esc(s.fout.message)}</span></div>` : '';
   return `<div class="card noprint"><h3>${esc(t('live.titel'))}</h3><div class="small muted mt4">${esc(t('live.uitleg'))}</div>
-    <div class="row wrap mt8"><input id="j-code" type="password" autocomplete="off" style="max-width:220px"><button class="btn pri" data-a="koppel">${esc(t('live.knop'))}</button></div></div>`;
+    <div class="row wrap mt8"><input id="j-code" type="password" autocomplete="off" style="max-width:220px;padding:8px 10px;font-size:15px;border:1px solid #cdd5df;border-radius:6px"><button class="btn pri" data-a="koppel">${esc(t('live.knop'))}</button></div></div>`;
 }
 function lijsten(){
   const C = WHL.bereken();

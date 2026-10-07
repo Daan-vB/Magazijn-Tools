@@ -60,6 +60,13 @@ function nietHier(naam){
     <div class="row wrap mt12"><a class="btn pri" href="${esc(testLink())}">Open in Test</a><a class="btn" href="./warehouse.html#/">Naar Vandaag</a></div></div>`;
 }
 
+// dit apparaat gebruikt Warehouse/Test: Junior toont dan ook de wissel terug
+try{ localStorage.setItem('ivol-beheer', '1'); }catch(e){}
+const wst = document.createElement('style');
+wst.textContent = '.appwissel{display:inline-flex;gap:2px;background:#1b222c;border-radius:8px;padding:2px;align-self:center}'
+  + '.appwissel a{font-size:12px !important;padding:4px 10px !important;color:#8a98aa !important;border-radius:6px;text-decoration:none;font-weight:700;white-space:nowrap}'
+  + '.appwissel a.on{background:#33404f;color:#fff !important}';
+document.head.appendChild(wst);
 function kop(){
   const h1 = document.querySelector('header.top h1');
   if(!h1 || h1.dataset.app) return;
@@ -82,9 +89,9 @@ function zet(sleutel){
   laatste = sleutel;
   const g = GROEPEN.find(x => x.sub.some(s => s[0] === sleutel)) || GROEPEN[0];
   const nav = document.getElementById('nav');
-  const rechts = TEST
-    ? '<span class="sep"></span><a href="./warehouse.html" class="klein">Warehouse</a><a href="./junior.html" class="klein">Junior</a>'
-    : '<span class="sep"></span><a href="./junior.html" class="klein">Junior</a><a href="./test.html" class="klein">Test</a>';
+  // wisselen tussen de drie apps (altijd naar de echte app, niet omgezet naar Test)
+  const rechts = '<span class="sep"></span><span class="appwissel">'
+    + `<a data-app href="./warehouse.html#/" class="${TEST ? '' : 'on'}">Warehouse</a><a data-app href="./test.html#/" class="${TEST ? 'on' : ''}">Test</a><a data-app href="./junior.html#/">Junior</a></span>`;
   if(nav) nav.innerHTML = GROEPEN.map(x => `<a href="${x.href}" class="${x === g ? 'on' : ''}">${esc(x.t)}</a>`).join('') + rechts;
   let sub = document.getElementById('subnav');
   if(!sub){ sub = document.createElement('nav'); sub.id = 'subnav'; sub.className = 'subnav'; const top = document.querySelector('header.top'); if(top) top.appendChild(sub); }
@@ -95,7 +102,7 @@ function zet(sleutel){
 // In Test blijven links binnen Test (oude links in de schermen wijzen nog naar warehouse.html / containerplanning.html)
 if(TEST){
   document.addEventListener('click', ev => {
-    const a = ev.target.closest && ev.target.closest('a[href]'); if(!a || a.target === '_blank') return;
+    const a = ev.target.closest && ev.target.closest('a[href]'); if(!a || a.target === '_blank' || a.hasAttribute('data-app')) return;
     const href = a.getAttribute('href');
     let nieuw = null;
     if(/^\.?\/?warehouse\.html/.test(href)) nieuw = href.replace(/^\.?\/?warehouse\.html/, './test.html');
