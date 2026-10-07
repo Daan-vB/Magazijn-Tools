@@ -13,7 +13,7 @@ window.WH = (function(){
 const URL_ = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
 const KEY  = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
 const H    = { apikey:KEY, Authorization:'Bearer ' + KEY };
-const CAT_KEYS = ['wh-locaties', 'wh-vst-locaties', 'wh-vst-locaties-vorige', 'wh-pq', 'wh-advies', 'wh-aanvul', 'wh-taken', 'wh-triage', 'wh-voorraad', 'wh-vst-voorraad', 'wh-verkoop-mnd', 'wh-bo-vorige', 'wh-stellingen'];
+const CAT_KEYS = ['wh-locaties', 'wh-vst-locaties', 'wh-vst-locaties-vorige', 'wh-pq', 'wh-advies', 'wh-aanvul', 'wh-taken', 'wh-triage', 'wh-voorraad', 'wh-vst-voorraad', 'wh-verkoop-mnd', 'wh-bo-vorige', 'wh-stellingen', 'wh-todo'];
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 /* ---------- hulpjes ---------- */
@@ -104,7 +104,7 @@ function catPatch(key, patch){
     const d = (r && r.data) || {};
     Object.entries(patch).forEach(([k, v]) => { if(v === null) delete d[k]; else d[k] = v; });
     await catZet(key, d);
-    const veld = { 'wh-aanvul':'AANVUL', 'wh-taken':'TAKEN', 'wh-triage':'TRIAGE', 'wh-stellingen':'STEL' }[key];
+    const veld = { 'wh-aanvul':'AANVUL', 'wh-taken':'TAKEN', 'wh-triage':'TRIAGE', 'wh-stellingen':'STEL', 'wh-todo':'TODO' }[key];
     if(veld) D[veld] = d;
     setSaved('Opgeslagen ' + new Date().toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' }));
     return d;
@@ -116,7 +116,7 @@ function catPatch(key, patch){
 /* ---------- gegevens in het geheugen ---------- */
 const D = {
   P:{}, PLOW:{}, VK:{}, BO:[], GEH:{}, CONT:[],
-  LOC:{}, LOCDATUM:null, VSTLOC:{}, VSTDATUM:null, VSTLOCVORIG:{}, PQ:{}, PQDATUM:null, ADV:null, AANVUL:{}, TAKEN:{}, TRIAGE:{}, STEL:{},
+  LOC:{}, LOCDATUM:null, VSTLOC:{}, VSTDATUM:null, VSTLOCVORIG:{}, PQ:{}, PQDATUM:null, ADV:null, AANVUL:{}, TAKEN:{}, TRIAGE:{}, STEL:{}, TODO:{},
   VR:{}, VRDATUM:null, VSTVR:{}, VSTVRDATUM:null, VKM:null, BOVORIG:null, PAL:{},
   catTijd:{}, missend:[], geladen:0, fout:null
 };
@@ -164,6 +164,7 @@ async function load(){
     D.TAKEN = C['wh-taken'] || {};
     D.TRIAGE = C['wh-triage'] || {};
     D.STEL = C['wh-stellingen'] || {};
+    D.TODO = C['wh-todo'] || {};
     D.geladen = Date.now(); D.fout = null;
     if(window.WHL) WHL.reset();
     if(window.WHB) WHB.reset();

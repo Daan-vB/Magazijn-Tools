@@ -301,9 +301,14 @@ function opScherm(){
   if(h === '#/live') return true;
   return !WHM.TEST && (h === '#/' || h === '#' || h === '#/vandaag' || h === '#/overzicht');
 }
-function teken(){
+// niet opnieuw tekenen terwijl iemand typt (taak, koppelcode); na het typen alsnog
+function bezigMetTypen(){ const e = document.activeElement; return !!(e && /INPUT|TEXTAREA|SELECT/.test(e.tagName) && e.closest && e.closest('#app')); }
+document.addEventListener('focusout', () => setTimeout(() => { if(S.uitgesteld && !bezigMetTypen()){ S.uitgesteld = false; teken(); } }, 200));
+function teken(forceer){
   if(!opScherm()) return;
   const a = app(); if(!a) return;
+  if(!forceer && bezigMetTypen()){ S.uitgesteld = true; return; }
+  S.uitgesteld = false;
   const y = window.scrollY;
   const dagNaam = new Date().toLocaleDateString('nl-NL', { weekday:'long', day:'numeric', month:'long' }).replace(/^./, c => c.toUpperCase());
   const kopStatus = S.laden ? 'ophalen…' : S.data ? 'bijgewerkt ' + tijd(S.data.binnen) : '';
@@ -311,6 +316,7 @@ function teken(){
       <div class="small muted">Picqer live · alleen lezen${kopStatus ? ' · ' + esc(kopStatus) : ''}</div></div>
       ${code() ? `<div class="row"><button class="btn sm" data-lv="ververs" ${S.laden ? 'disabled' : ''}>Ververs</button><button class="btn sm ghost" data-lv="afkoppelen" title="Koppelcode van dit apparaat wissen">code wissen</button></div>` : ''}</div>
       ${S.fout ? `<div class="status err">${esc(S.fout.message)}</div>` : ''}</div>`;
+  if(window.WHTAAK) h += WHTAAK.kaart();
   if(!code()) h += koppelKaart();
   else if(!S.data) h += `<div class="card empty">${S.laden ? 'Ophalen uit Picqer…' : 'Nog niets opgehaald.'}</div>`;
   else {
@@ -358,6 +364,7 @@ setInterval(() => {
   if(document.visibilityState !== 'visible' || !code() || S.laden || !opScherm()) return;
   if(S.data && Date.now() - S.data.binnen > 120000) laad();
 }, 30000);
+if(window.WHTAAK) WHTAAK.opHerteken(() => teken(true));
 const st = document.createElement('style');
 st.textContent = '.livedetail .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}.livedetail table{width:100%;border-collapse:collapse;font-size:13px}.livedetail th{text-align:left;font-size:11.5px;font-weight:700;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line,#cdd5df);background:var(--soft);white-space:nowrap}.livedetail td{padding:6px 8px;border-bottom:1px solid #e6ebf1;vertical-align:top}.livedetail td.n,.livedetail th.n{text-align:right}.badge.b-ok{background:#dff3e8;color:#1c7a4a}'
   + '.tile[data-lv]{cursor:pointer}.tile.aan{outline:2px solid var(--blue);outline-offset:1px}.tile.t-grey{border-left-color:#9aa7b8}'
