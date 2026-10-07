@@ -43,7 +43,7 @@ function nietKlaar(){
 }
 
 /* ---------- routering ---------- */
-const MENUNAAM = { containerdag:'Containerdag', controle:'Controle', wie:'Wie deed wat', invul:'Invullen', ruimte:'Ruimte', base:'Niveaus', abcheck:'A/B-check', locaties:'Locaties', stelling:'Stellingen', triage:'Triage', planning:'Planning', live:'Picqer live', aanvullive:'Aanvuladvies live' };
+const MENUNAAM = { containerdag:'Containerdag', controle:'Controle', wie:'Wie deed wat', invul:'Invullen', ruimte:'Ruimte', base:'Niveaus', abcheck:'A/B-check', locaties:'Locaties', stelling:'Stellingen', triage:'Triage', planning:'Planning', live:'Picqer live', aanvullive:'Aanvuladvies live', productdata:'Productdata' };
 function parseHash(){
   const h = location.hash || '#/';
   const [pad, qs] = h.slice(1).split('?');
@@ -58,6 +58,7 @@ function route(){
   if(window.WHM && !WHM.magHier(naam)){ app.innerHTML = WHM.nietHier(MENUNAAM[naam]); return; }
   if(naam === 'aanvullive') return WHAL.view(delen[1], '#/aanvullive');
   if(naam === 'aanvullen' && window.WHM && !WHM.TEST) return WHAL.view(delen[1], '#/aanvullen');
+  if(naam === 'productdata' && window.WHPD) return WHPD.view(delen.slice(1));
   if(naam === 'live' || ((naam === 'vandaag' || naam === 'overzicht') && window.WHM && !WHM.TEST)) return WHLIVE.view();
   if(D.fout){ app.innerHTML = geenVerbinding(); return; }
   try{

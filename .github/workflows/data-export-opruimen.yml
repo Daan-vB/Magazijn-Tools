@@ -10,4 +10,5 @@ jobs:
   opruimen:
     runs-on: ubuntu-latest
     steps:
-      - run: git push "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" --delete export-versleuteld || true
+      - env: { GH_TOKEN: "${{ github.token }}" }
+        run: gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/export-versleuteld" && echo "::notice::tak verwijderd" || echo "::notice::geen tak om te verwijderen"

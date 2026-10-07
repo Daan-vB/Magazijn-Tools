@@ -22,12 +22,12 @@
   a{color:var(--blue)}
 
   .top{background:var(--ink);color:#e8edf4;display:flex;align-items:center;gap:8px 16px;padding:10px 18px;padding-top:calc(10px + env(safe-area-inset-top,0px));position:sticky;top:0;z-index:30;flex-wrap:wrap}
-  .top .brand{display:flex;align-items:center;gap:10px}
+  .top .brand{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;min-width:0;max-width:100%}
   .top h1{font-size:17px;font-weight:800;white-space:nowrap;letter-spacing:.01em}
   .top h1 span{color:#f08a4b}
   .sync{display:inline-block;color:#fff;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border-radius:3px;background:#33404f}
   .sync.ok{background:var(--ok)} .sync.err{background:var(--bad)}
-  .bron{font:inherit;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:3px;border:0;cursor:pointer;color:#fff;white-space:nowrap}
+  .bron{font:inherit;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:3px;border:0;cursor:pointer;color:#fff;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
   .bron.live{background:var(--ok)} .bron.test{background:var(--orange)} .bron.fout{background:var(--bad)}
   body.bron-test .top{box-shadow:inset 0 -4px 0 var(--orange)}
   .top nav{display:flex;gap:2px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;max-width:100%}
@@ -260,7 +260,7 @@
 <div id="toast" hidden></div>
 
 <script>window.WH_APP = 'test';</script>
-<script src="wh/menu.js?v=8"></script>
+<script src="wh/menu.js?v=9"></script>
 <script src="wh/cache.js?v=1"></script>
 <script src="wh/core.js?v=14"></script>
 <script src="wh/logica.js?v=8"></script>
@@ -273,6 +273,7 @@
 <script src="wh/live.js?v=5"></script>
 <script src="wh/bron.js?v=1"></script>
 <script src="wh/aanvullive.js?v=2"></script>
-<script src="wh/views.js?v=18"></script>
+<script src="wh/productdata.js?v=1"></script>
+<script src="wh/views.js?v=19"></script>
 </body>
 </html>

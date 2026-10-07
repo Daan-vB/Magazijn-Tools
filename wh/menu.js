@@ -35,6 +35,8 @@ const VOL = [
     ['cp:home', 'Containers', CP + '#/'], ['cp:vooruit', 'Vooruit', CP + '#/vooruit'], ['containerdag', 'Containerdag', W + '#/containerdag'], ['controle', 'Controle', W + '#/controle'], ['wie', 'Wie deed wat', W + '#/wie'],
     ['ruimte', 'Ruimte', W + '#/ruimte'], ['cp:producten', 'Producten', CP + '#/producten'], ['cp:vloernamen', 'Vloernamen', CP + '#/vloernamen']] },
   LAB,
+  { k:'pd', t:'Productdata', href:W + '#/productdata', sub:[
+    ['productdata', 'Productdata', W + '#/productdata']] },
   { k:'geg', t:'Gegevens', href:W + '#/gegevens', sub:[
     ['gegevens', 'Gegevens inladen', W + '#/gegevens'], ['cp:gegevens', 'Gegevens containers', CP + '#/gegevens']] }
 ];
