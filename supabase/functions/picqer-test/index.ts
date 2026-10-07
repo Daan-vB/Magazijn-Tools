@@ -284,6 +284,34 @@ async function ontvangsten(refsTxt: string) {
   };
 }
 
+// recente ontvangsten (RC): leverancier, wie, wanneer, welke producten en aantallen (alleen lezen)
+async function ontvangstenLijst(sinds: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(sinds || "")) throw new Fout("Ongeldige datum", 400);
+  const lijst = (await alles("receipts", 2000))
+    .filter((r: any) => String(r.created_at || r.completed_at || "").slice(0, 10) >= sinds)
+    .sort((a: any, b: any) => (b.idreceipt || 0) - (a.idreceipt || 0)).slice(0, 40);
+  const detail = await perStuk(lijst, 3, async (r: any) => (Array.isArray(r.products) && r.products.length ? r : await pq("receipts/" + r.idreceipt).catch(() => r)));
+  const lev = new Map<number, string>(), gebr = new Map<number, string>();
+  const levIds = [...new Set(detail.map((r: any) => r.idsupplier).filter((x: any) => x > 0))] as number[];
+  const gebrIds = [...new Set(detail.flatMap((r: any) => [r.iduser, r.idpicker, r.completed_by_iduser]).filter((x: any) => x > 0))] as number[];
+  await Promise.all([
+    perStuk(levIds, 3, async (id) => { const s = await pq("suppliers/" + id).catch(() => null); if (s) lev.set(id, s.name || ""); }),
+    perStuk(gebrIds, 3, async (id) => { const u = await pq("users/" + id).catch(() => null); if (u) gebr.set(id, ((u.firstname || u.first_name || "") + " " + (u.lastname || u.last_name || "")).trim() || u.username || ""); }),
+  ]);
+  const getal = (p: any) => { for (const v of ["amount_received", "amountreceived", "received", "amount"]) { const n = Number(p[v]); if (p[v] !== undefined && p[v] !== null && isFinite(n)) return n; } return 0; };
+  return {
+    bron: "picqer-receipts", versie: 1, sinds, opgehaald: new Date().toISOString(),
+    velden: detail[0] ? Object.keys(detail[0]) : [],
+    ontvangsten: detail.map((r: any) => ({
+      id: r.idreceipt, nummer: r.receiptid || "", inkooporder: r.purchaseorderid || "", status: r.status || "",
+      leverancier: (r.supplier && r.supplier.name) || r.suppliername || lev.get(r.idsupplier) || "",
+      wie: gebr.get(r.iduser) || gebr.get(r.idpicker) || gebr.get(r.completed_by_iduser) || "",
+      aangemaakt: r.created_at || null, klaar: r.completed_at || null,
+      producten: (Array.isArray(r.products) ? r.products : []).map((p: any) => ({ code: p.productcode || p.product_code || "", naam: p.name || "", aantal: getal(p) })),
+    })),
+  };
+}
+
 // opmerkingen bij één picklijst (op verzoek, één klik in de app)
 async function picklijst(idTxt: string) {
   const id = parseInt(idTxt, 10);
@@ -330,6 +358,7 @@ Deno.serve(async (req: Request) => {
     if (actie === "catalogus") return antwoord(await catalogus(url.searchParams.get("van") || "0"), 200, origin);
     if (actie === "locaties") return antwoord(await locaties(url.searchParams.get("ids") || ""), 200, origin);
     if (actie === "ontvangsten") return antwoord(await ontvangsten(url.searchParams.get("refs") || ""), 200, origin);
+    if (actie === "ontvangstenlijst") return antwoord(await ontvangstenLijst(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "verplaatsingen") return antwoord(await verplaatsingen(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "mutaties") return antwoord(await mutaties(url.searchParams.get("sinds") || ""), 200, origin);
     return antwoord({ fout: "Onbekende actie: " + actie }, 400, origin);

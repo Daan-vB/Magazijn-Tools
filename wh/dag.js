@@ -908,6 +908,40 @@ function viewControle(dagArg){
       <div class="scroll mt8"><table><tr><th>Product</th><th class="n">Op geen locatie</th><th class="n">Verkoop/mnd</th><th>Heeft</th></tr>${geen.slice(0, 40).map(x => `<tr><td><a class="code" href="#/p/${encodeURIComponent(x.c)}">${esc(x.c)}</a><div class="desc">${esc(WHL.naamVan(x.c))}</div></td><td class="n">${nf(x.n)}</td><td class="n">${nf(x.vk, 1)}</td><td>${V().locs(WHL.locsVan(x.c).slice(0, 3))}</td></tr>`).join('')}</table></div>${geen.length > 40 ? `<div class="small muted mt4">+ ${nf(geen.length - 40)} meer</div>` : ''}</div>`;
   koppelDrop('cdrop', 'cfiles', 'cst', () => viewControle());
 }
+
+/* ---------- Ontvangsten uit Picqer ---------- */
+const ONT = { bezig:false, fout:'', data:null, dagen:7, auto:false };
+async function ontLaad(){
+  const L = window.WHLIVE, B = V();
+  if(!L || ONT.bezig) return;
+  ONT.bezig = true; ONT.fout = ''; B.rerender();
+  try{ ONT.data = await L.vraag('ontvangstenlijst', { sinds:isoDag(Date.now() - (ONT.dagen - 1) * 864e5) }); }
+  catch(e){ ONT.fout = e.message || String(e); }
+  ONT.bezig = false; if(/^#\/ontvangst/.test(location.hash)) B.rerender();
+}
+function viewOntvangsten(){
+  const B = V();
+  const L = window.WHLIVE;
+  if(L && L.status().code && !ONT.auto){ ONT.auto = true; setTimeout(ontLaad, 0); }
+  const d = ONT.data;
+  const tijd = t => t ? String(t).slice(5, 16).replace('T', ' ').replace(/^(\d\d)-(\d\d)/, '$2-$1') : '';
+  const kaart = r => {
+    const tot = (r.producten || []).reduce((t, p) => t + (p.aantal || 0), 0);
+    return `<div class="card"><div class="row wrap between"><div><b>${esc(r.leverancier || 'Leverancier onbekend')}</b> <span class="muted small">${esc(r.nummer)}${r.inkooporder ? ' · ' + esc(r.inkooporder) : ''}</span></div>
+      <div class="small muted">${esc(tijd(r.klaar || r.aangemaakt))}${r.wie ? ' · ' + esc(r.wie) : ''}${r.status ? ' · ' + esc(r.status) : ''}</div></div>
+      <div class="small mt4">${nf((r.producten || []).length)} producten · ${nf(tot)} stuks</div>
+      <div class="scroll mt8"><table>${(r.producten || []).map(p => `<tr><td><a class="code" href="#/p/${encodeURIComponent(p.code)}">${esc(p.code)}</a> <span class="desc">${esc(p.naam || WHL.naamVan(p.code))}</span></td><td class="n"><b>${nf(p.aantal)}</b></td></tr>`).join('')}</table></div></div>`;
+  };
+  const dagKnop = (n, t) => `<button class="btn sm ${ONT.dagen === n ? 'pri' : ''}" data-d="ont-dagen" data-v="${n}">${t}</button>`;
+  app.innerHTML = `<div class="card"><div class="row wrap between"><div><h2>Ontvangsten</h2><div class="small muted">Rechtstreeks uit Picqer (alleen lezen): wat is er wanneer, van welke leverancier en door wie ontvangen.</div></div>
+    <button class="btn pri sm" data-d="ont-ververs"${ONT.bezig ? ' disabled' : ''}>${ONT.bezig ? 'Bezig…' : 'Ververs uit Picqer'}</button></div>
+    <div class="row wrap mt8">${dagKnop(1, 'Vandaag')}${dagKnop(3, '3 dagen')}${dagKnop(7, '7 dagen')}${dagKnop(30, '30 dagen')}</div>
+    ${ONT.fout ? `<div class="small mt8"><span class="bad">${esc(ONT.fout)}</span></div>` : ''}
+    ${!(L && L.status().code) ? '<div class="small mt8">Eerst de koppelcode invullen: open Vandaag, daar vraagt de app er één keer om.</div>' : ''}
+    ${d && !(d.ontvangsten || []).length ? '<div class="small mt8">Geen ontvangsten gevonden in deze periode.</div>' : ''}
+    ${d && d.velden && d.velden.length && (d.ontvangsten || []).some(r => !r.leverancier || !(r.producten || []).length) ? `<div class="small muted mt8">Let op: niet alles uit Picqer is herkend. Velden van Picqer: ${esc(d.velden.join(', '))}</div>` : ''}</div>`
+    + (d ? (d.ontvangsten || []).map(kaart).join('') : '');
+}
 /* ---------- verplaatsingen uit Picqer naast de planning ---------- */
 function vpGepland(P){
   const per = {};
@@ -1493,6 +1527,8 @@ document.addEventListener('click', async ev => {
     WH.excel(['Tijd', 'Gebruiker', 'Productcode', 'Naam', 'Aantal', 'Van locatie', 'Naar locatie', 'Soort', 'Magazijn'], rijen, 'Wie deed wat' + (WIE.wie ? ' - ' + WIE.wie : '') + '.xlsx');
     return;
   }
+  if(a === 'ont-ververs'){ ontLaad(); return; }
+  if(a === 'ont-dagen'){ ONT.dagen = +b.dataset.v; ontLaad(); return; }
   if(a === 'cl-ververs'){ const dag = b.dataset.dag; controleLive(dagPlan(dag), dag); return; }
   if(a === 'vp-af'){ const r = await vpAfleiden(); WH.toast ? WH.toast(vpAfTekst(r)) : alert(vpAfTekst(r)); V().rerender(); return; }
   if(a === 'vp-xlsx'){
@@ -1515,5 +1551,5 @@ document.addEventListener('keydown', ev => {
   if(inp){ ev.preventDefault(); const k = inp.dataset.loc; const btn = document.querySelector(`[data-d="plaats"][data-k="${CSS.escape(k)}"]`); if(btn) btn.click(); }
 });
 
-return { vpAfleiden, vpAfTekst, viewWie, viewVandaag, viewContainerdag, viewControle, viewBackorders, viewRuimte, viewInvul, dagPlan, plan, bulkVoorstellen, ruimte, boDiff, kiesDag, invulLijst, parseZone, parseSel, vrijmaakLijst, koppelRijen, ligVoorstel };
+return { viewOntvangsten, vpAfleiden, vpAfTekst, viewWie, viewVandaag, viewContainerdag, viewControle, viewBackorders, viewRuimte, viewInvul, dagPlan, plan, bulkVoorstellen, ruimte, boDiff, kiesDag, invulLijst, parseZone, parseSel, vrijmaakLijst, koppelRijen, ligVoorstel };
 })();

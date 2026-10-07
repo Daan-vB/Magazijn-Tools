@@ -43,7 +43,7 @@ function nietKlaar(){
 }
 
 /* ---------- routering ---------- */
-const MENUNAAM = { containerdag:'Containerdag', controle:'Controle', wie:'Wie deed wat', invul:'Invullen', ruimte:'Ruimte', base:'Niveaus', abcheck:'A/B-check', locaties:'Locaties', stelling:'Stellingen', triage:'Triage', planning:'Planning', live:'Picqer live', aanvullive:'Aanvuladvies live', productdata:'Productdata' };
+const MENUNAAM = { containerdag:'Containerdag', controle:'Controle', wie:'Wie deed wat', ontvangsten:'Ontvangsten', invul:'Invullen', ruimte:'Ruimte', base:'Niveaus', abcheck:'A/B-check', locaties:'Locaties', stelling:'Stellingen', triage:'Triage', planning:'Planning', live:'Picqer live', aanvullive:'Aanvuladvies live', productdata:'Productdata' };
 function parseHash(){
   const h = location.hash || '#/';
   const [pad, qs] = h.slice(1).split('?');
@@ -65,6 +65,7 @@ function route(){
     if(naam === 'containerdag') return WHD.viewContainerdag(delen[1]);
     if(naam === 'controle') return WHD.viewControle(delen[1]);
     if(naam === 'wie') return WHD.viewWie();
+    if(naam === 'ontvangsten') return WHD.viewOntvangsten();
     if(naam === 'invul') return WHD.viewInvul(delen[1]);
     if(naam === 'backorders') return WHD.viewBackorders();
     if(naam === 'ruimte') return WHD.viewRuimte();

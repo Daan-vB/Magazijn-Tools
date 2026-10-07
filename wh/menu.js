@@ -31,6 +31,8 @@ const VOL = [
   { k:'aanvul', t:'Aanvuladvies', href:W + '#/aanvullen', sub:[
     ['aanvullive', 'Live advies', W + '#/aanvullive'], ['aanvullen', 'Aanvullen (export)', W + '#/aanvullen'], ['base', 'Niveaus', W + '#/base'], ['abcheck', 'A/B-check', W + '#/abcheck'],
     ['invul', 'Invullen', W + '#/invul'], ['locaties', 'Locaties', W + '#/locaties'], ['stelling', 'Stellingen', W + '#/stelling'], ['triage', 'Triage', W + '#/triage'], ['backorders', 'Backorders', W + '#/backorders']] },
+  { k:'ontv', t:'Ontvangsten', href:W + '#/ontvangsten', sub:[
+    ['ontvangsten', 'Ontvangsten', W + '#/ontvangsten']] },
   { k:'cont', t:'Containers', href:CP + '#/', sub:[
     ['cp:home', 'Containers', CP + '#/'], ['cp:vooruit', 'Vooruit', CP + '#/vooruit'], ['containerdag', 'Containerdag', W + '#/containerdag'], ['controle', 'Controle', W + '#/controle'], ['wie', 'Wie deed wat', W + '#/wie'],
     ['ruimte', 'Ruimte', W + '#/ruimte'], ['cp:producten', 'Producten', CP + '#/producten'], ['cp:vloernamen', 'Vloernamen', CP + '#/vloernamen']] },
