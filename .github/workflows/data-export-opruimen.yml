@@ -1,0 +1,13 @@
+# Verwijdert de tijdelijke tak export-versleuteld zodra Claude het pakket heeft opgehaald.
+name: Data-export opruimen
+on:
+  push:
+    branches: [main]
+    paths: ['.github/export/opruimen.txt']
+permissions:
+  contents: write
+jobs:
+  opruimen:
+    runs-on: ubuntu-latest
+    steps:
+      - run: git push "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" --delete export-versleuteld || true
