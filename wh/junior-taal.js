@@ -360,3 +360,9 @@ Object.assign(window.JT.el, {
   'lv.codeNoot':'Οι κωδικοί προϊόντων φαίνονται στις παραγγελίες με όλα σε απόθεμα· στις υπόλοιπες μόνο ο αριθμός Picqer.', 'lv.ja':'ναι', 'lv.order':'παραγγελία {x}',
   'lv.min':'{n} λεπτά', 'lv.uur':'{n} ώρες', 'lv.dagen':'{n} ημέρες'
 });
+
+/* ---- 7-10: aanvullen live, Vernieuwen in plaats van afvinken ---- */
+Object.assign(window.JT.nl, { liveTip:'Verplaats in de Picqer-app en tik daarna op Vernieuwen: wat klaar is, verdwijnt van de lijst.', gedaan:'Vandaag al gedaan ({n})', rondeLive:'Aanvulronde: Picqer {x}', bezigLive:'bijwerken…', rondeNog:'De aanvulronde komt nog uit de PDF van het aanvuladvies.' });
+Object.assign(window.JT.en, { liveTip:'Move it in the Picqer app, then tap Refresh: what is done disappears from the list.', gedaan:'Already done today ({n})', rondeLive:'Replenishment round: Picqer {x}', bezigLive:'updating…', rondeNog:'The replenishment round still comes from the replenishment advice PDF.' });
+Object.assign(window.JT.es, { liveTip:'Muévelo en la app de Picqer y luego toca Actualizar: lo que está hecho desaparece de la lista.', gedaan:'Ya hecho hoy ({n})', rondeLive:'Ronda de reposición: Picqer {x}', bezigLive:'actualizando…', rondeNog:'La ronda de reposición todavía viene del PDF del consejo de reposición.' });
+Object.assign(window.JT.el, { liveTip:'Μετακινήστε στην εφαρμογή Picqer και μετά πατήστε Ανανέωση: ό,τι έγινε φεύγει από τη λίστα.', gedaan:'Έγινε ήδη σήμερα ({n})', rondeLive:'Γύρος αναπλήρωσης: Picqer {x}', bezigLive:'ενημέρωση…', rondeNog:'Ο γύρος αναπλήρωσης έρχεται ακόμα από το PDF της πρότασης αναπλήρωσης.' });

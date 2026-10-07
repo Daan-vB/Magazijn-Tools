@@ -178,18 +178,42 @@ function vergelijk(R){
 /* ---------- scherm ---------- */
 const locs = (ls, i) => ls.map(l => `<span class="loc">${esc(l[0])}</span> <span class="small">${nf(i === 'vrij' ? Math.max(0, l[4] - l[5]) : l[4])}</span>`).join('<br>');
 const tijdTxt = iso => iso ? new Date(iso).toLocaleString('nl-NL', { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '–';
+// BASE = '#/aanvullen' (Warehouse) of '#/aanvullive' (Test); in Test ook "alles opnieuw" en Vergelijk
+let BASE = '#/aanvullive';
+const isTest = () => BASE === '#/aanvullive';
 function kop(tab, R, V){
   const st = S.st || {};
+  const L = window.WHLIVE ? WHLIVE.status() : null;
   const nNu = window.WHLIVE ? WHLIVE.nuLijst().length : 0;
-  const t = (k, l, n) => `<a class="tab ${tab === k ? 'on' : ''}" href="#/aanvullive/${k}">${esc(l)} <span class="nr">${n == null ? '…' : nf(n)}</span></a>`;
-  return `<div class="card noprint"><div class="row wrap between"><div><h2>Aanvuladvies live</h2>
-      <div class="small muted">Uitgerekend uit Picqer: pickvoorraad (vrij) onder "aanvullen onder" en voorraad op bulk. Niveaus uit de productexport van ${esc(D.PQDATUM ? fdate(D.PQDATUM) : '–')}. Alleen lezen.</div></div>
-      <div class="row">${S.bezig ? '' : `<button class="btn pri" data-al="bijwerken">Bijwerken</button><button class="btn sm ghost" data-al="alles" title="Alle producten opnieuw ophalen">alles opnieuw</button>`}</div></div>
+  const t = (k, l, n) => `<a class="tab ${tab === k ? 'on' : ''}" href="${BASE}/${k}">${esc(l)} <span class="nr">${n == null ? '…' : nf(n)}</span></a>`;
+  const bron = [L && L.data ? 'orders ' + new Date(L.data.binnen).toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' }) : null,
+    st.bijgewerkt ? 'aanvulronde ' + tijdTxt(st.bijgewerkt) : null].filter(Boolean).join(' · ');
+  return `<div class="card noprint"><div class="row wrap between"><div><h2>${isTest() ? 'Aanvuladvies live' : 'Aanvullen'}</h2>
+      <div class="small muted">Live uit Picqer, alleen lezen${bron ? ' · ' + esc(bron) : ''}. Verplaatsen doe je in Picqer; daarna <b>Ververs</b> en wat klaar is verdwijnt van de lijst.</div></div>
+      <div class="row">${S.bezig ? '' : `<button class="btn pri" data-al="ververs">Ververs</button>${isTest() ? '<button class="btn sm ghost" data-al="alles" title="Alle producten opnieuw ophalen">alles opnieuw</button>' : ''}`}</div></div>
     ${S.bezig ? `<div class="mt8"><div class="small"><b>${esc(S.stap)}</b></div><div class="ab-voortgang" style="text-align:left;min-width:0"><div class="balk"><i style="width:${Math.round(S.voortgang * 100)}%"></i></div></div></div>`
-      : `<div class="small muted mt8">Bijgewerkt ${esc(tijdTxt(st.bijgewerkt))} · ${nf(st.kandidaten || 0)} producten met pick én bulk${S.laatsteRun ? ` · laatste keer ${nf(S.laatsteRun.vernieuwd)} vernieuwd in ${S.laatsteRun.duur} s` : ''}${S.cat ? ` · productlijst ${esc(tijdTxt(S.cat.t))}` : ''}</div>`}
+      : isTest() ? `<div class="small muted mt8">${nf(st.kandidaten || 0)} producten met pick én bulk${S.laatsteRun ? ` · laatste keer ${nf(S.laatsteRun.vernieuwd)} vernieuwd in ${S.laatsteRun.duur} s` : ''}${S.cat ? ` · productlijst ${esc(tijdTxt(S.cat.t))}` : ''} · niveaus uit de productexport van ${esc(D.PQDATUM ? fdate(D.PQDATUM) : '–')}</div>` : ''}
     ${S.fout ? `<div class="status err">${esc(S.fout.message)}</div>` : ''}</div>
-  <div class="tabs noprint">${t('orders', '1 · Voor orders', nNu)}${t('ronde', '2 · Aanvulronde', R ? R.uit.length : null)}${t('vst', '3 · Van VST', V ? V.producten.length : null)}${t('vergelijk', 'Vergelijk met PDF', null)}</div>`;
+  <div class="tabs noprint">${t('orders', '1 · Voor orders', nNu)}${t('ronde', '2 · Aanvulronde', R ? R.uit.length : null)}${t('vst', '3 · Van VST', V ? V.producten.length : null)}${isTest() ? t('vergelijk', 'Vergelijk met PDF', null) : ''}</div>`;
 }
+// wat vandaag op de lijst stond en er nu niet meer op staat (= gedaan); gedeeld via wh-taken
+function registreer(){
+  const L = window.WHLIVE ? WHLIVE.status() : null;
+  const k = 'alz:' + isoDag(), oud = (D.TAKEN || {})[k] || {};
+  const nu = L && L.klaar && !L.prodLaden && !L.fout ? WHLIVE.nuLijst().map(m => m.code) : [];
+  const rd = S.st && S.st.p ? ronde().uit.map(r => r.code) : [];
+  const a = [...new Set((oud.nu || []).concat(nu))], b = [...new Set((oud.ronde || []).concat(rd))];
+  if(a.length !== (oud.nu || []).length || b.length !== (oud.ronde || []).length)
+    WH.catPatch('wh-taken', { [k]:{ nu:a, ronde:b, op:new Date().toISOString() } }).catch(() => {});
+}
+function gedaan(soort){
+  const x = (D.TAKEN || {})['alz:' + isoDag()] || {};
+  if(soort === 'nu'){ const L = WHLIVE.status(); if(!L.klaar) return []; const nu = new Set(WHLIVE.nuLijst().map(m => m.code)); return (x.nu || []).filter(c => !nu.has(c)); }
+  if(!S.st || !S.st.p) return [];
+  const nu = new Set(ronde().uit.map(r => r.code));
+  return (x.ronde || []).filter(c => !nu.has(c));
+}
+const gedaanHtml = soort => { const g = gedaan(soort); return g.length ? `<details class="mt12 noprint"><summary>Vandaag al gedaan (${g.length})</summary><div class="small mt8">${g.map(c => `<span class="code">${esc(c)}</span> <span class="desc">${esc((D.P[c] || {}).naam || '')}</span>`).join('<br>')}</div></details>` : ''; };
 function printKop(titel){ return `<div class="printonly pkop"><b>${esc(titel)}</b><span>Picqer ${esc(tijdTxt((S.st || {}).bijgewerkt))}</span></div>`; }
 function tabOrders(){
   const L = window.WHLIVE ? WHLIVE.status() : null;
@@ -200,10 +224,10 @@ function tabOrders(){
     ${lijst.length ? `<div class="scroll mt8"><table><tr><th>Product</th><th>Van (bulk)</th><th>Naar (pick)</th><th class="n">Verplaatsen</th><th class="n">Orders</th></tr>
       ${lijst.map(m => `<tr><td><span class="code">${esc(m.code)}</span><div class="desc">${esc(m.naam || '')}</div></td><td>${m.van.map(v => `<span class="loc">${esc(v)}</span>`).join(' ')}</td>
         <td>${m.naar.length ? m.naar.map(v => `<span class="loc">${esc(v)}</span>`).join(' ') : '<span class="badge b-warn">geen specifieke locatie</span>'}</td><td class="n"><b>${nf(m.verpl)}</b></td><td class="n">${nf(m.orders.length)}</td></tr>`).join('')}</table></div>`
-      : `<div class="empty">${L.klaar ? 'Niets: geen orders die alleen op een verplaatsing wachten.' : 'Ophalen…'}</div>`}</div>`;
+      : `<div class="empty">${L.klaar ? 'Niets: geen orders die alleen op een verplaatsing wachten.' : 'Ophalen…'}</div>`}${gedaanHtml('nu')}</div>`;
 }
 function tabRonde(R){
-  if(!S.st || !S.st.p) return `<div class="card empty">Nog niet uitgerekend. Klik <b>Bijwerken</b> (de eerste keer duurt een paar minuten).</div>`;
+  if(!S.st || !S.st.p) return `<div class="card empty">Nog niet uitgerekend. ${isTest() ? 'Klik <b>alles opnieuw</b> (de eerste keer duurt een paar minuten).' : 'Dat gebeurt één keer in Test → Live advies.'}</div>`;
   const gangen = [...new Set(R.uit.map(r => r.gang))];
   const lijst = R.uit.filter(r => !S.gang || r.gang === S.gang);
   let vorige = '';
@@ -217,10 +241,10 @@ function tabRonde(R){
           <td>${locs(r.s.bulk.slice(0, 3))}${r.s.bulk.length > 3 ? `<div class="desc">+${r.s.bulk.length - 3}</div>` : ''}</td><td class="n"><b style="font-size:16px">${nf(r.aantal)}</b></td></tr>`; }).join('')}</table></div>`
       : '<div class="empty">Niets aan te vullen.</div>'}
     ${R.leeg.length ? `<details class="mt12"><summary>Onder het niveau, maar geen bulkvoorraad (${R.leeg.length})</summary><div class="scroll mt8"><table><tr><th>Product</th><th>Pick (vrij)</th><th class="n">Onder / tot</th><th>Retourkar</th></tr>
-      ${R.leeg.map(r => `<tr><td><span class="code">${esc(r.code)}</span><div class="desc">${esc(r.naam)}</div></td><td>${locs(r.s.pick, 'vrij')}</td><td class="n">${nf(r.lvl)} / ${nf(r.tot)}</td><td>${r.s.kar.length ? locs(r.s.kar) : ''}${(S.cat.vst || {})[r.code] ? `<div class="desc">VST ${nf(S.cat.vst[r.code])}</div>` : ''}</td></tr>`).join('')}</table></div></details>` : ''}</div>`;
+      ${R.leeg.map(r => `<tr><td><span class="code">${esc(r.code)}</span><div class="desc">${esc(r.naam)}</div></td><td>${locs(r.s.pick, 'vrij')}</td><td class="n">${nf(r.lvl)} / ${nf(r.tot)}</td><td>${r.s.kar.length ? locs(r.s.kar) : ''}${(S.cat.vst || {})[r.code] ? `<div class="desc">VST ${nf(S.cat.vst[r.code])}</div>` : ''}</td></tr>`).join('')}</table></div></details>` : ''}${gedaanHtml('ronde')}</div>`;
 }
 function tabVst(V){
-  if(!V) return `<div class="card empty">Wacht op Picqer-gegevens (backorders en productlijst). Klik eventueel <b>Bijwerken</b>.</div>`;
+  if(!V) return `<div class="card empty">Wacht op Picqer-gegevens (backorders en productlijst). Klik eventueel <b>Ververs</b>.</div>`;
   return `<div class="card"><div class="row wrap between"><div><h3>3 · Van VST halen</h3><div class="small muted">Orders die niet compleet zijn met de voorraad hier, maar wel met de voorraad bij VST. Oudste order eerst.</div></div><button class="btn sm noprint" data-al="print" data-t="Van VST halen">Print</button></div>
     ${printKop('Van VST halen')}
     ${V.producten.length ? `<div class="scroll mt8"><table><tr><th>Product</th><th class="n">Nodig</th><th class="n">Op VST</th><th>Palletnummers (laatste export)</th><th class="n">Orders</th></tr>
@@ -249,28 +273,50 @@ function tabVergelijk(R){
 }
 
 let TAB = 'ronde';
+const LUISTER = [];
+const meld = () => LUISTER.forEach(f => { try{ f(); }catch(e){ console.error(e); } });
 function teken(){
-  if(!/^#\/aanvullive/.test(location.hash || '')) return;
+  meld();
+  if(!(location.hash || '').startsWith(BASE)) return;
   const a = app(); if(!a) return;
   const y = window.scrollY;
   const R = S.st && S.st.p ? ronde() : null;
   const Vs = vanVst();
-  a.innerHTML = kop(TAB, R, Vs) + (TAB === 'orders' ? tabOrders() : TAB === 'vst' ? tabVst(Vs) : TAB === 'vergelijk' ? (R ? tabVergelijk(R) : tabRonde(R)) : tabRonde(R || { uit:[], leeg:[] }));
+  a.innerHTML = kop(TAB, R, Vs) + (TAB === 'orders' ? tabOrders() : TAB === 'vst' ? tabVst(Vs) : TAB === 'vergelijk' && isTest() ? (R ? tabVergelijk(R) : tabRonde(R)) : tabRonde(R || { uit:[], leeg:[] }));
   window.scrollTo(0, y);
 }
-async function view(tab){
-  TAB = ['orders', 'ronde', 'vst', 'vergelijk'].includes(tab) ? tab : 'ronde';
+// verversen: nieuwste stand uit de database (een ander apparaat kan net bijgewerkt hebben), Picqer-orders opnieuw,
+// en alleen als de stand ouder is dan minMin minuten zelf de gewijzigde producten ophalen
+async function ververs(minMin){
+  if(S.bezig) return;
+  if(window.WHLIVE && WHLIVE.status().code) WHLIVE.laad(true);
+  S.geladen = false; await laadOpslag();
+  if(S.st && S.st.bijgewerkt && window.WHLIVE && WHLIVE.status().code && uurOud(S.st.bijgewerkt) * 60 >= (minMin == null ? 1 : minMin)) await bijwerken(false);
+  registreer(); teken();
+}
+// Junior: aanvulronde in dezelfde vorm als de export-lijst
+function rondeLijst(){
+  if(!S.st || !S.st.p) return null;
+  return ronde().uit.map(r => ({ live:true, code:r.code, naam:r.naam, bulk:r.s.bulk.map(l => l[0]), pick:r.s.pick.map(l => l[0]), geenPick:false,
+    gang:r.gang, aantal:r.aantal, pickst:r.s.pickVrij, lvl:r.lvl, tot:r.tot }));
+}
+async function view(tab, base){
+  BASE = base || '#/aanvullive';
+  const tabs = ['orders', 'ronde', 'vst'].concat(isTest() ? ['vergelijk'] : []);
+  TAB = tabs.includes(tab) ? tab : (isTest() ? 'ronde' : 'orders');
   teken();
   if(window.WHLIVE && WHLIVE.status().code && !WHLIVE.status().data && !WHLIVE.status().laden) WHLIVE.laad();
   if(!S.geladen){ await laadOpslag(); teken(); }
-  // automatisch bijwerken als het langer dan 30 minuten geleden is
-  if(!S.bezig && WHLIVE.status().code && (!S.st || uurOud(S.st.bijgewerkt) > 0.5) && S.st) bijwerken(false);
+  // automatisch verversen als de stand ouder is dan 10 minuten
+  if(!S.bezig && S.st && WHLIVE.status().code && uurOud(S.st.bijgewerkt) > 1 / 6) ververs(10);
 }
-if(window.WHLIVE) WHLIVE.opNieuw(() => teken());
+if(window.WHLIVE) WHLIVE.opNieuw(() => { registreer(); teken(); });
+// elke 5 minuten vers zolang het scherm open staat
+setInterval(() => { if(document.visibilityState === 'visible' && (location.hash || '').startsWith(BASE) && !S.bezig) ververs(10); }, 300000);
 document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('[data-al]'); if(!b) return;
   const k = b.dataset.al;
-  if(k === 'bijwerken') bijwerken(false);
+  if(k === 'ververs' || k === 'bijwerken') ververs(1);
   if(k === 'alles') bijwerken(true);
   if(k === 'gang'){ S.gang = b.dataset.g || ''; teken(); }
   if(k === 'print'){
@@ -279,5 +325,5 @@ document.addEventListener('click', ev => {
     window.print(); setTimeout(() => { document.title = oud; }, 500);
   }
 });
-return { view, bijwerken, ronde, vanVst, kandidaten, stand, S };
+return { view, ververs, bijwerken, ronde, rondeLijst, vanVst, kandidaten, stand, gedaan, registreer, laadOpslag, opNieuw:f => LUISTER.push(f), S };
 })();

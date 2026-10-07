@@ -69,8 +69,14 @@ const advDatum = () => D.ADV ? (D.ADV.ingelezen || D.ADV.datum) : null;
 // Nu verplaatsen komt live uit Picqer (koppelcode op dit apparaat); anders uit de laatste backorder-export
 const LV = () => window.WHLIVE ? WHLIVE.status() : null;
 const isLive = () => { const s = LV(); return !!(s && s.klaar && !s.fout); };
-const lijstOud = () => { if(isLive()){ const a = advDatum(); return !a || isoDag(a) !== vandaag(); } const b = boDatum(); return !b || isoDag(b) !== vandaag(); };
-const bronTekst = () => isLive() ? t('live', { x:tijd(LV().data.binnen) }) + ' · ' + t('lijstVan', { b:'', a:wanneer(advDatum()) }).replace(/^[^·]*·\s*/, '') : t('lijstVan', { b:wanneer(boDatum()), a:wanneer(advDatum()) });
+// aanvulronde live (uitgerekend uit Picqer, gedeeld via de database) of nog uit de PDF
+const rondeLive = () => window.WHAL && WHAL.S.st && WHAL.S.st.p ? WHAL.rondeLijst() : null;
+const lijstOud = () => { if(isLive()){ if(rondeLive()) return false; const a = advDatum(); return !a || isoDag(a) !== vandaag(); } const b = boDatum(); return !b || isoDag(b) !== vandaag(); };
+const bronTekst = () => {
+  if(!isLive()) return t('lijstVan', { b:wanneer(boDatum()), a:wanneer(advDatum()) });
+  const r = rondeLive() ? t('rondeLive', { x:wanneer(WHAL.S.st.bijgewerkt) }) : t('lijstVan', { b:'', a:wanneer(advDatum()) }).replace(/^[^·]*·\s*/, '');
+  return t('live', { x:tijd(LV().data.binnen) }) + ' · ' + r + (window.WHAL && WHAL.S.bezig ? ' · ' + t('bezigLive') : '');
+};
 function koppelKaart(){
   const s = LV();
   if(!s || s.code) return s && s.fout ? `<div class="reason mt8">${esc(t('live.fout'))} <span class="small muted">${esc(s.fout.message)}</span></div>` : '';
@@ -81,7 +87,8 @@ function lijsten(){
   const C = WHL.bereken();
   if(isLive()){
     const uit = new Set(C.uitzetten.map(r => r.code)), inRonde = new Set(C.ronde.map(r => r.code));
-    return { C, live:true, mv:WHLIVE.nuLijst(), ronde:C.ronde.filter(r => !uit.has(r.code)), vstSet:new Set(C.vst.map(v => v.code)), niet:C.deels.filter(d => d.adv && !inRonde.has(d.code)) };
+    const rl = rondeLive();
+    return { C, live:true, rondeLive:!!rl, mv:WHLIVE.nuLijst(), ronde:rl || C.ronde.filter(r => !uit.has(r.code)), vstSet:rl ? new Set() : new Set(C.vst.map(v => v.code)), niet:rl ? [] : C.deels.filter(d => d.adv && !inRonde.has(d.code)) };
   }
   const uit = new Set(C.uitzetten.map(r => r.code));           // hoort niet in het advies (Daan ruimt op)
   const vstSet = new Set(C.vst.map(v => v.code));
@@ -111,10 +118,10 @@ const rerender = () => { const y = window.scrollY; route(); window.scrollTo(0, y
 /* ---------- Vandaag ---------- */
 function viewVandaag(){
   const vd = vandaag();
-  const { mv, ronde, niet } = lijsten();
+  const { mv, ronde, niet, live } = lijsten();
   const mvOpen = mv.filter(m => mvStaat(m, vd) !== 'klaar').length;
   const nOrders = new Set(mv.flatMap(m => m.orders)).size;
-  const rondeOpen = ronde.filter(r => !tik('rd:' + vd + ':' + r.code)).length;
+  const rondeOpen = live ? ronde.length : ronde.filter(r => !tik('rd:' + vd + ':' + r.code)).length;
   const cs = D.CONT.filter(c => c.status !== 'afgerond').sort(contSort);
   const vc = cs.find(c => c.losdatum && c.losdatum >= vd) || cs[0];
   const d = new Date();
@@ -127,7 +134,7 @@ function viewVandaag(){
   <div class="tiles">
     <a class="tile ${mvOpen ? 't-bad' : 't-ok'}" href="#/aanvullen/nu"><div class="lbl">1 · ${esc(t('tegel.nu'))}</div><div class="big">${nf(mvOpen)}</div><div class="sub">${esc(t('ordersWacht', { n:nf(nOrders) }))}</div></a>
     <a class="tile ${rondeOpen ? 't-warn' : 't-ok'}" href="#/aanvullen/ronde"><div class="lbl">2 · ${esc(t('tegel.ronde'))}</div><div class="big">${nf(rondeOpen)}</div><div class="sub">${esc(t('tegel.rondeSub'))}</div></a>
-    <a class="tile t-grey" href="#/aanvullen/niet"><div class="lbl">${esc(t('tegel.niet'))}</div><div class="big">${nf(niet.length)}</div><div class="sub">${esc(t('tegel.nietSub'))}</div></a>
+    ${live ? '' : `<a class="tile t-grey" href="#/aanvullen/niet"><div class="lbl">${esc(t('tegel.niet'))}</div><div class="big">${nf(niet.length)}</div><div class="sub">${esc(t('tegel.nietSub'))}</div></a>`}
     <a class="tile t-info" href="#/containers"><div class="lbl">${esc(t('tegel.cont'))}</div><div class="big">${nf(cs.length)}</div><div class="sub">${esc(vc ? t('volgende', { x:contKort(vc) + (vc.losdatum ? ' · ' + dagTekst(vc.losdatum) : '') }) : t('geenGepland'))}</div></a>
     <a class="tile t-vst" href="./" target="_blank" rel="noopener"><div class="lbl">${esc(t('tegel.labels'))} ↗</div><div class="big">▦</div><div class="sub">${esc(t('tegel.labelsSub'))}</div></a>
   </div>`;
@@ -139,17 +146,25 @@ function volgorde(){ try{ return localStorage.getItem('junior-volg') === 'route'
 // status van een regel in "Nu verplaatsen": open / klaar / nog open (afgevinkt, maar na Verwerk backorders staat hij er nog)
 const mvStaat = (m, vd) => {
   if(!m.live) return WHL.mvStaat(m.code, vd);
-  const tk = D.TAKEN['mv:' + vd + ':' + m.code]; if(!tk) return 'open';
-  const vw = D.TAKEN['dg:' + vd + ':verwerk'], s = LV();
-  // afgevinkt vóór Verwerk backorders, en Picqer laat hem daarna nog steeds zien → rood
-  if(vw && vw.op && tk.op && tk.op < vw.op && s && s.data && s.data.binnen > new Date(vw.op).getTime()) return 'nogopen';
-  return 'klaar';
+  return 'open';                 // live: wat klaar is, verdwijnt na Vernieuwen vanzelf van de lijst
 };
 function viewAanvullen(tab){
   const vd = vandaag();
   const L = lijsten();
   const nNu = L.mv.filter(m => mvStaat(m, vd) !== 'klaar').length;
-  const nRonde = L.ronde.filter(r => !tik('rd:' + vd + ':' + r.code)).length;
+  const nRonde = L.live ? L.ronde.length : L.ronde.filter(r => !tik('rd:' + vd + ':' + r.code)).length;
+  if(L.live){
+    if(tab === 'niet') tab = 'nu';
+    const bezig = window.WHAL && WHAL.S.bezig;
+    app.innerHTML = `<div class="card noprint"><div class="row wrap between"><div><h3>${esc(t('nav.aanvullen'))}</h3><div class="small muted">${esc(bronTekst())}</div></div>
+        <button class="btn pri" data-a="lververs" ${bezig ? 'disabled' : ''}>↻ ${esc(t('vernieuw'))}</button></div>
+        <div class="small mt8">${esc(t('liveTip'))}</div>${L.rondeLive ? '' : `<div class="reason mt8">${esc(t('rondeNog'))}</div>`}</div>
+      <div class="tabs noprint">
+        <a class="tab ${tab === 'nu' ? 'on' : ''} ${nNu ? 'hot' : ''}" href="#/aanvullen/nu">1 · ${esc(t('tegel.nu'))} <span class="nr">${nf(nNu)}</span></a>
+        <a class="tab ${tab === 'ronde' ? 'on' : ''}" href="#/aanvullen/ronde">2 · ${esc(t('tegel.ronde'))} <span class="nr">${nf(nRonde)}</span></a></div>`
+      + (tab === 'ronde' ? tabRonde(L, vd) : tabNu(L, vd));
+    return;
+  }
   const kopHtml = `
   <div class="card noprint"><div class="row wrap between"><h3>${esc(t('vernieuwTitel'))}</h3><span class="small muted">${esc(bronTekst())}</span></div>
     ${lijstOud() ? `<div class="reason mt8">${esc(t('oud'))}</div>` : ''}
@@ -190,7 +205,7 @@ function meldForm(code){
 const bc = code => window.WHB ? WHB.svg(code) : '';
 const naarHtml = m => m.naar ? locs(m.naar) : `<span class="badge b-warn">${esc(t('geenLoc'))}</span>` + (m.voorstelPick ? ` <span class="small muted">${esc(t('ofNieuw'))}</span> ${locBadge(m.voorstelPick)}` : '');
 function tabNu(L, vd){
-  if(!L.mv.length) return `<div class="card empty">${esc(t('leegNu'))}</div>`;
+  if(!L.mv.length) return `<div class="card empty">${esc(t('leegNu'))}</div>` + (L.live ? `<div class="card">${gedaanLijst('nu') || ''}</div>` : '');
   const volg = volgorde();
   const lijst = L.mv.filter(m => !UI.gangNu || m.gang === UI.gangNu).slice().sort(WHL.mvSort(volg));
   const open = lijst.filter(m => mvStaat(m, vd) !== 'klaar');
@@ -203,8 +218,8 @@ function tabNu(L, vd){
     <div class="mt8">${gangFilter(L.mv, UI.gangNu, 'nu')}</div>
     <div class="reason mt8">${esc(t('scanTip'))}</div>
     ${lijst.map(m => mvHtml(m, vd)).join('')}
-    <div class="card verwerk mt12 ${vw ? 'klaar' : ''}"><div class="row wrap between"><div>${vw ? esc(t('verwerkOm', { x:tijd(vw.op) })) : t('klaarNu')}<div class="small muted mt4">${esc(t('verwerkNa'))}</div></div>
-      <button class="btn ${vw ? '' : 'pri'}" data-a="verwerk">${esc(vw ? t('verwerkUit') : t('verwerkKnop'))}</button></div></div></div>
+    ${L.live ? gedaanLijst('nu') : `<div class="card verwerk mt12 ${vw ? 'klaar' : ''}"><div class="row wrap between"><div>${vw ? esc(t('verwerkOm', { x:tijd(vw.op) })) : t('klaarNu')}<div class="small muted mt4">${esc(t('verwerkNa'))}</div></div>
+      <button class="btn ${vw ? '' : 'pri'}" data-a="verwerk">${esc(vw ? t('verwerkUit') : t('verwerkKnop'))}</button></div></div>`}</div>
   ${printTabel('1 · ' + t('tegel.nu'), open.map(m => ({ code:m.code, naam:m.naam, van:m.van, naar:m.naar, geen:!m.naar, aantal:m.verpl, extra:mvMeta(m) })), false, 'Junior - Nu verplaatsen')}`;
 }
 function mvMeta(m){
@@ -221,7 +236,7 @@ function mvHtml(m, vd){
   const st = mvStaat(m, vd);
   const tk = D.TAKEN[k], vw = D.TAKEN['dg:' + vd + ':verwerk'];
   return `<div class="mv metbc ${st === 'klaar' ? 'klaar' : ''} ${st === 'nogopen' ? 'nogopen' : ''}">
-    <div>${tikKnop(k)}</div>
+    <div>${m.live ? '' : tikKnop(k)}</div>
     <div><div><span class="code">${esc(m.code)}</span> <span class="desc">${esc(m.naam || '')}</span>${m.dz ? ` <span class="badge b-info">${esc(t('dz'))}</span>` : ''}</div>
       <div class="route"><span class="rl">${esc(t('van'))}</span>${locs(m.van) || `<span class="badge b-grey">${esc(t('bulkOnb'))}</span>`}<span class="pijl">→</span><span class="rl">${esc(t('naar'))}</span>${naarHtml(m)}</div>
       <div class="meta">${esc(mvMeta(m))}</div>
@@ -233,18 +248,18 @@ function mvHtml(m, vd){
   </div>`;
 }
 function tabRonde(L, vd){
-  if(!D.ADV || !L.ronde.length) return `<div class="card empty">${esc(t('leegRonde'))}</div>`;
+  if((!L.rondeLive && !D.ADV) || !L.ronde.length) return `<div class="card empty">${esc(t('leegRonde'))}</div>` + (L.rondeLive ? `<div class="card">${gedaanLijst('ronde') || ''}</div>` : '');
   const lijst = L.ronde.filter(r => !UI.gangRonde || r.gang === UI.gangRonde);
   let vorige = null, html = '';
   lijst.forEach(r => {
     if(r.gang !== vorige){
       const n = lijst.filter(x => x.gang === r.gang);
-      html += `<div class="gangkop"><b>${esc(t('gang'))} ${esc(r.gang)}</b><span class="small muted">${esc(t('openVan', { a:n.filter(x => !tik('rd:' + vd + ':' + x.code)).length, b:n.length }))}</span></div>`;
+      html += `<div class="gangkop"><b>${esc(t('gang'))} ${esc(r.gang)}</b><span class="small muted">${esc(L.rondeLive ? String(n.length) : t('openVan', { a:n.filter(x => !tik('rd:' + vd + ':' + x.code)).length, b:n.length }))}</span></div>`;
       vorige = r.gang;
     }
     const k = 'rd:' + vd + ':' + r.code;
-    html += `<div class="mv metbc ${tik(k) ? 'klaar' : ''}">
-      <div>${tikKnop(k)}</div>
+    html += `<div class="mv metbc ${!L.rondeLive && tik(k) ? 'klaar' : ''}">
+      <div>${L.rondeLive ? '' : tikKnop(k)}</div>
       <div><div><span class="code">${esc(r.code)}</span> <span class="desc">${esc(r.naam || (r.pr && r.pr.naam) || '')}</span></div>
         <div class="route"><span class="rl">${esc(t('van'))}</span>${locs(r.bulk)}<span class="pijl">→</span><span class="rl">${esc(t('naar'))}</span>${r.geenPick ? `<span class="badge b-warn">${esc(t('geenPick'))}</span>` : locs(r.pick)}</div>
         <div class="meta">${esc(rondeMeta(r))}</div>
@@ -254,15 +269,21 @@ function tabRonde(L, vd){
       <div class="bc">${bc(r.code)}</div>
       <div class="aant">${nf(r.aantal)}<small>${esc(t('advies'))}</small></div></div>`;
   });
-  const open = lijst.filter(r => !tik('rd:' + vd + ':' + r.code));
+  const open = L.rondeLive ? lijst : lijst.filter(r => !tik('rd:' + vd + ':' + r.code));
   return `<div class="card scherm"><div class="row wrap between"><div><h2>2 · ${esc(t('tegel.ronde'))}</h2><div class="small muted">${esc(t('introRonde'))}</div></div>
       <div class="row"><span class="badge b-warn">${esc(t('open', { n:open.length }))}</span><button class="btn sm pri noprint" data-a="print">${esc(t('print'))}</button></div></div>
     <div class="mt12">${gangFilter(L.ronde, UI.gangRonde, 'ronde')}</div>
-    <div class="reason mt8">${esc(t('scanTip'))}</div>${html}</div>
+    <div class="reason mt8">${esc(t('scanTip'))}</div>${html}${L.rondeLive ? gedaanLijst('ronde') : ''}</div>
   ${printTabel('2 · ' + t('tegel.ronde') + (UI.gangRonde ? ' · ' + t('gang') + ' ' + UI.gangRonde : ''), open.map(r => ({ code:r.code, naam:r.naam || (r.pr && r.pr.naam) || '', van:r.bulk, naar:r.geenPick ? null : r.pick, geen:r.geenPick, aantal:r.aantal, extra:rondeMeta(r), gang:r.gang })), true, 'Junior - Aanvulronde' + (UI.gangRonde ? ' gang ' + UI.gangRonde : ''))}`;
+}
+// vandaag al gedaan (stond vandaag op de lijst, nu niet meer) — gedeeld met Warehouse
+function gedaanLijst(soort){
+  const g = window.WHAL ? WHAL.gedaan(soort) : [];
+  return g.length ? `<details class="mt12 noprint"><summary>${esc(t('gedaan', { n:g.length }))}</summary><div class="small mt8">${g.map(c => `<span class="code">${esc(c)}</span> <span class="desc">${esc((D.P[c] || {}).naam || '')}</span>`).join('<br>')}</div></details>` : '';
 }
 function rondeMeta(r){
   const d = [t('pickvrd', { n:nf(r.pickst) })];
+  if(r.live && r.lvl != null) d.push(nf(r.lvl) + ' / ' + nf(r.tot));
   if(r.deels) d.push(t('deelsKort'));
   return d.join(' · ');
 }
@@ -439,7 +460,7 @@ document.addEventListener('click', async ev => {
     return;
   }
   if(a === 'bestand'){ openBestand(b.dataset.pad); return; }
-  if(a === 'vernieuw'){ await laden(); rerender(); live(true); return; }
+  if(a === 'vernieuw' || a === 'lververs'){ if(a === 'vernieuw') await laden(); rerender(); live(true); if(window.WHAL) WHAL.ververs(1); return; }
   if(a === 'koppel'){ const v = (($('j-code') || {}).value || '').trim(); if(!v) return; WHLIVE.zetCode(v); live(true); return; }
 });
 window.addEventListener('hashchange', () => { route(); window.scrollTo(0, 0); });
@@ -451,10 +472,15 @@ async function ververs(){
   if(/bezig|…/.test(($('impst') || {}).textContent || '')) return;
   if(await laden()) rerender();
   live();
+  if(window.WHAL) WHAL.ververs(10);
 }
 // live uit Picqer: ophalen en opnieuw tekenen (niet tijdens typen); overzicht in de taal van Junior
 if(window.WHLIVE) WHLIVE.taal(k => (JT[taal] || {})['lv.' + k], () => loc());
 function live(vers){ if(window.WHLIVE && WHLIVE.status().code) WHLIVE.laad(vers); }
+if(window.WHAL) WHAL.opNieuw(() => {
+  const a = document.activeElement; if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;
+  if(/^#\/(aanvullen(\/(nu|ronde))?)?$/.test(location.hash || '#/') || !location.hash) rerender();
+});
 if(window.WHLIVE) WHLIVE.opNieuw(() => {
   const a = document.activeElement; if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;
   if(/^#\/(aanvullen(\/nu)?)?$/.test(location.hash || '#/') || !location.hash) rerender();
@@ -464,5 +490,5 @@ setInterval(ververs, 300000);
 
 document.documentElement.lang = taal;
 kop();
-(async () => { await laden(); route(); live(); })();
+(async () => { await laden(); route(); live(); if(window.WHAL){ await WHAL.laadOpslag(); rerender(); WHAL.ververs(10); } })();
 })();
