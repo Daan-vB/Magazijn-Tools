@@ -21,6 +21,7 @@
 //     dat het echt de testomgeving is.
 //  Acties (?actie=…): status, vandaag, producten, picklijst, catalogus,
 //  locaties, mutaties, verplaatsingen (zelfde als "picqer").
+//  Wordt automatisch live gezet door GitHub (workflow supabase-functies).
 // =====================================================================
 
 const DOMEIN = (Deno.env.get("PICQER_TEST_DOMAIN") || "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
