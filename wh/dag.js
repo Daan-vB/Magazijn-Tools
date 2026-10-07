@@ -833,64 +833,37 @@ function viewControle(dagArg){
   if(!D.VP) WH.laadVerplaatsingen().then(() => { if(/^#\/controle/.test(location.hash)) B.rerender(); });
   const vpr = ((D.VP && D.VP !== 'laden' && D.VP.rows) || []).filter(r => String(r[1]).slice(0, 10) >= dag);
   const vpTijd = r => String(r[1]).slice(5, 16).replace('T', ' ');
+  // Alleen hoeveelheden: wat volgens de planning moest komen, en wat er volgens Picqer is verplaatst (geen plekken, geen advies waar het hoort)
   const rijen = codes.map(code => {
     const vr = D.VR[code] || { locs:{}, geen:0, cont:{} };
-    const up = P.up.filter(p => p.code === code);
-    const pick = P.pick.filter(p => p.code === code);
-    const bo = P.bo.filter(p => p.code === code);
-    const vst = P.vst.filter(p => p.code === code);
-    const regels = [];
-    // bulk: per locatie optellen wat er moest komen
-    const moet = {};
-    up.forEach(p => { const l = (tv(p.key) || {}).loc || (P.voorstel[p.key] || {}).loc; if(l) moet[l] = (moet[l] || 0) + p.stuks; else regels.push(['fout', 'pallet ' + (p.i + 1) + ' heeft geen locatie']); });
-    Object.entries(moet).forEach(([l, n]) => {
-      const q = vr.locs[l] || 0;
-      if(q >= n) regels.push(['ok', l + ': ' + nf(q) + (q > n ? ' (moest ' + nf(n) + ', stond er al wat?)' : '')]);
-      else if(q > 0) regels.push(['let', l + ': ' + nf(q) + ' van ' + nf(n)]);
-      else {
-        const weg = vpr.filter(r => r[3] === code && r[5] === l && r[6] !== l);
-        if(weg.length) regels.push(['ok', l + ': ' + nf(n) + ' erop gezet, later verplaatst naar ' + (weg[weg.length - 1][6] || 'geen specifieke locatie') + ' (' + weg[weg.length - 1][2] + ' ' + vpTijd(weg[weg.length - 1]) + ')']);
-        else regels.push(['fout', l + ': niets in Picqer (moest ' + nf(n) + ')']);
-      }
+    const som = arr => arr.filter(p => p.code === code).reduce((t, x) => t + (x.stuks || 0), 0);
+    const plan = { bulk:som(P.up), pick:som(P.pick), vst:som(P.vst), bo:som(P.bo) };
+    const palVst = P.vst.filter(p => p.code === code && p.pal).reduce((t, x) => t + (x.n || 1), 0);
+    const kreeg = { bulk:0, pick:0, vst:0 }, vstPal = new Set();
+    let terug = 0;
+    vpr.filter(r => r[3] === code).forEach(r => {
+      const soort = vpSoort(r);
+      if(!r[5] && soort.startsWith('VST')){ kreeg.vst += r[4]; vstPal.add(String(r[6])); }
+      else if(!r[5] && soort === 'Naar bulk') kreeg.bulk += r[4];
+      else if(!r[5] && soort === 'Naar pick') kreeg.pick += r[4];
+      else if(!r[6]) terug += r[4];
     });
-    // pick
-    const pd = pickDoel(code);
-    let geenMag = 0;
-    if(pick.length){
-      const n = pick.reduce((s, x) => s + x.stuks, 0);
-      if(!pd.locs.length){
-        geenMag = n;
-        regels.push([vr.geen >= n ? 'let' : 'fout', 'geen picklocatie: ' + nf(vr.geen) + ' op geen specifieke locatie (moest ' + nf(n) + '). Geef een picklocatie (Invullen)']);
-      } else {
-        const op = pd.locs.map(l => [l, vr.locs[l] || 0]);
-        const q = op.reduce((s, x) => s + x[1], 0);
-        const netto = vpr.filter(r => r[3] === code).reduce((s, r) => s + (pd.locs.includes(r[6]) && r[6] !== r[5] ? r[4] : 0) - (pd.locs.includes(r[5]) && r[6] !== r[5] ? r[4] : 0), 0);
-        const viaPicqer = q < n && netto >= n;
-        regels.push([q >= n || viaPicqer ? 'ok' : q > 0 ? 'let' : 'fout', 'pick ' + op.map(x => x[0] + ' ' + nf(x[1])).join(', ') + ' (moest minstens ' + nf(n) + ')' + (viaPicqer ? ' · er is ' + nf(netto) + ' naartoe verplaatst volgens Picqer, de rest is inmiddels gepickt' : '') + (pd.nieuw ? ' · nieuwe picklocatie: koppelen in Picqer' : '')]);
-      }
-    }
-    // andere bulk waar het product ook staat
-    const ander = Object.entries(vr.locs).filter(([l, q]) => q > 0 && !moet[l] && !pd.locs.includes(l));
-    if(ander.length) regels.push(['info', 'ook op ' + ander.map(([l, q]) => l + ' ' + nf(q)).join(', ')]);
-    // geen specifieke locatie: mag alleen wat voor orders apart staat
-    const boStuks = bo.reduce((s, x) => s + x.stuks, 0);
-    if(vr.geen > geenMag){
+    const regels = [];
+    const check = (naam, plan_, kreeg_, extra) => {
+      if(!(plan_ > 0)) return;
+      regels.push([kreeg_ >= plan_ ? 'ok' : kreeg_ > 0 ? 'let' : 'fout', naam + ': ' + nf(kreeg_) + ' van ' + nf(plan_) + ' stuks verplaatst' + (extra || '')]);
+    };
+    check('bulk', plan.bulk, kreeg.bulk);
+    check('pick', plan.pick, kreeg.pick);
+    check('VST', plan.vst, kreeg.vst, palVst ? ' (' + vstPal.size + ' van ' + palVst + ' pallets)' : '');
+    if(plan.bo) regels.push(['info', 'backorders: ' + nf(plan.bo) + ' stuks apart gehouden']);
+    if(terug) regels.push(['let', nf(terug) + ' stuks teruggezet naar geen specifieke locatie']);
+    // wat is er nog niet verplaatst
+    const boStuks = plan.bo;
+    if(vr.geen > 0){
       const bov = boVan(code);
-      if(vr.geen <= boStuks && bov.orders) regels.push(['info', nf(vr.geen) + ' op geen specifieke locatie (voor ' + plural(bov.orders, 'order', 'orders') + ')']);
+      if(boStuks && vr.geen <= boStuks && bov.orders) regels.push(['info', nf(vr.geen) + ' nog op geen specifieke locatie (voor ' + plural(bov.orders, 'order', 'orders') + ')']);
       else regels.push(['let', nf(vr.geen) + ' nog op geen specifieke locatie']);
-    }
-    // VST
-    if(vst.length){
-      const n = vst.reduce((s, x) => s + (x.pal ? x.n : 0), 0);
-      const nieuw = vstNieuw(code);
-      const metAantal = (D.VSTVR[code] || []).filter(([p]) => nieuw.includes(p));
-      const vstMv = vpr.filter(r => r[3] === code && r[7] === 'Bulk van Spreuwel');
-      if(vstMv.length && !(vstVers && nieuw.length)){
-        const nn = new Set(vstMv.map(r => r[6])).size;
-        regels.push([nn >= n ? 'ok' : 'let', 'VST ' + nn + ' van ' + n + ' pallets volgens Picqer-verplaatsingen (' + [...new Set(vstMv.map(r => r[2]))].join(', ') + ' ' + vpTijd(vstMv[0]) + ')']);
-      }
-      else if(!vstVers) regels.push(['let', 'VST: export van ná de Stockmove ontbreekt']);
-      else regels.push([nieuw.length >= n ? 'ok' : nieuw.length ? 'let' : 'fout', 'VST ' + nieuw.length + ' van ' + n + ' pallets' + (nieuw.length ? ': ' + (metAantal.length ? metAantal.map(([p, q]) => p + ' (' + nf(q) + ')').join(', ') : nieuw.join(', ')) : '')]);
     }
     const erg = regels.some(r => r[0] === 'fout') ? 'fout' : regels.some(r => r[0] === 'let') ? 'let' : 'ok';
     if(erg === 'fout') nFout++; else if(erg === 'let') nLet++; else nGoed++;
@@ -907,7 +880,7 @@ function viewControle(dagArg){
   const vstRijen = P.vst.map(x => { let nieuw = vstNieuw(x.code); if(!nieuw.length) nieuw = [...new Set(vpr.filter(r => r[3] === x.code && r[7] === 'Bulk van Spreuwel').map(r => String(r[6])))].sort((u, v) => (parseInt(u, 10) || 0) - (parseInt(v, 10) || 0)); return { code:x.code, nieuw }; }).filter(x => x.nieuw.length)
     .filter((x, i, arr) => arr.findIndex(y => y.code === x.code) === i);
   app.innerHTML = exp + vpKaart(P, dag) + `<div class="card"><div class="row wrap between"><h3>Container-producten</h3><span>${B.badge(nGoed + ' goed', 'b-ok')} ${B.badge(nLet + ' let op', 'b-warn')} ${B.badge(nFout + ' mis', 'b-bad')}</span></div>
-      <div class="small muted mt4">Voorraad per locatie van ${esc(fdt(D.VRDATUM))}. "Mis" = pallet niet gevonden op de plek waar hij hoort: plek vergeten in Picqer, of op een andere plek gezet.</div>
+      <div class="small muted mt4">Picqer van ${esc(fdt(D.VRDATUM))}. De app controleert alleen de hoeveelheden (hoeveel naar bulk, pick en VST, hoeveel nog op geen specifieke locatie), niet waar de pallets staan. "Mis" = nog niets verplaatst.</div>
       <div class="mt8">${tabel}</div>
       <div class="row wrap mt8"><button class="btn ok" data-a="tik" data-k="cc:dag:${dag}:controle">${tik('cc:dag:' + dag + ':controle') ? '✓ Controle afgerond' : 'Controle afgerond'}</button></div></div>
     <div class="card"><h3>VST-palletnummers ${esc(kort(dag))}</h3>${vstRijen.length ? `<div class="scroll mt8"><table><tr><th>Product</th><th>Nieuwe palletnummers</th></tr>${vstRijen.map(x => `<tr><td class="code">${esc(x.code)}</td><td class="loc">${esc(x.nieuw.join(', '))}</td></tr>`).join('')}</table></div>
@@ -932,28 +905,23 @@ function vpKaart(P, dag){
   const alle = (D.VP.rows || []).filter(r => String(r[1]).slice(0, 10) >= dag);
   const uitleg = `<div class="small muted mt4">Na het verplaatsen: klik bovenaan op <b>Ververs uit Picqer</b>. (Oude route: op de Mac <b>Verplaatsingen ophalen</b> dubbelklikken en het bestand uit 00_Inbox hierboven slepen.)</div>`;
   if(!alle.length) return `<div class="card"><h3>Verplaatsingen in Picqer</h3><div class="small mt4">Nog geen verplaatsingen sinds ${esc(kort(dag))}.</div>${uitleg}</div>`;
-  const plan = vpGepland(P);
-  const codes = Object.keys(plan).concat(P.bo.map(x => x.code), P.vst.map(x => x.code)).filter((c, i, a) => a.indexOf(c) === i);
+  const codes = P.up.map(x => x.code).concat(P.pick.map(x => x.code), P.bo.map(x => x.code), P.vst.map(x => x.code)).filter((c, i, a) => a.indexOf(c) === i);
   const tijd = t => (String(t).slice(0, 10) === dag ? '' : kort(String(t).slice(0, 10)) + ' ') + String(t).slice(11, 16);
   const plek = l => l ? V().locBadge(l) : '<span class="badge b-grey">geen specifieke locatie</span>';
-  let nPal = 0, nPalOk = 0;
+  const SOORTKLEUR = { 'Naar bulk':'b-grey', 'Naar pick':'b-pick', 'VST (Stockmove)':'b-ok' };
   const blokken = codes.map(code => {
     const rr = alle.filter(r => r[3] === code);
-    const pl = plan[code] || { bulk:{}, pick:[] };
-    const naar = {}; rr.forEach(r => { if(r[6]) naar[r[6]] = (naar[r[6]] || 0) + r[4]; });
-    const checks = Object.entries(pl.bulk).map(([l, n]) => { nPal++; const q = naar[l] || 0; if(q >= n) nPalOk++; return B.badge(l + ': ' + (q >= n ? '✓ ' + nf(q) : q ? nf(q) + ' van ' + nf(n) : 'niet verplaatst'), q >= n ? 'b-ok' : q ? 'b-warn' : 'b-bad'); });
-    if(!rr.length && !checks.length) return '';
-    const regels = rr.map(r => {
-      const soort = r[6] && pl.bulk[r[6]] ? B.badge('gepland', 'b-ok') : r[6] && pl.pick.includes(r[6]) ? B.badge('pick', 'b-pick') : !r[6] ? '' : B.badge('niet gepland', 'b-warn');
-      return `<tr><td class="small">${esc(tijd(r[1]))}</td><td class="small">${esc(r[2])}</td><td class="n"><b>${nf(r[4])}</b></td><td>${plek(r[5])} <span class="pijl">→</span> ${plek(r[6])} ${soort}</td></tr>`;
-    }).join('');
+    if(!rr.length) return '';
+    const per = {}; rr.forEach(r => { const k = vpSoort(r); per[k] = (per[k] || 0) + r[4]; });
+    const checks = Object.entries(per).map(([k, n]) => B.badge(k.replace('Naar ', '') + ' ' + nf(n), SOORTKLEUR[k] || 'b-grey'));
+    const regels = rr.map(r => `<tr><td class="small">${esc(tijd(r[1]))}</td><td class="small">${esc(r[2])}</td><td class="n"><b>${nf(r[4])}</b></td><td>${plek(r[5])} <span class="pijl">→</span> ${plek(r[6])} ${B.badge(vpSoort(r).replace('Naar ', ''), SOORTKLEUR[vpSoort(r)] || 'b-grey')}</td></tr>`).join('');
     return `<div class="mt12"><a class="code" href="#/p/${encodeURIComponent(code)}">${esc(code)}</a> <span class="desc">${esc(WHL.naamVan(code))}</span>
-      ${checks.length ? `<div class="small mt4">${checks.join(' ')}</div>` : ''}
-      ${rr.length ? `<div class="scroll mt4"><table>${regels}</table></div>` : '<div class="small muted mt4">Geen verplaatsingen van dit product.</div>'}</div>`;
+      <div class="small mt4">${checks.join(' ')}</div>
+      <div class="scroll mt4"><table>${regels}</table></div></div>`;
   }).join('');
   const wie = {}; alle.forEach(r => wie[r[2]] = (wie[r[2]] || 0) + 1);
   return `<div class="card"><div class="row wrap between"><h3>Verplaatsingen in Picqer sinds ${esc(kort(dag))}</h3>
-      <span>${nPal ? B.badge(nPalOk + ' van ' + nPal + ' geplande bulkplekken gevuld', nPalOk === nPal ? 'b-ok' : 'b-warn') : ''}</span></div>
+      </div>
     <div class="small muted mt4">Opgehaald ${esc(fdt(D.VP.datum))} · ${nf(alle.length)} verplaatsingen · ${Object.entries(wie).map(([w, n]) => esc(w) + ' ' + n).join(' · ')}</div>
     ${blokken || '<div class="small muted mt8">Geen verplaatsingen van de container-producten.</div>'}
     <details class="mt12"><summary>Alle verplaatsingen sinds ${esc(kort(dag))} (${nf(alle.length)})</summary>
