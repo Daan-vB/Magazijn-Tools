@@ -133,7 +133,8 @@ function levTekst(x){
 function viewLeveringen(key){
   if(!window.WHLEV){ app.innerHTML = `<div class="card empty">${esc(t('sync.laden'))}</div>`; return; }
   if(!LEVUI.auto && !WHLEV.S.data){ LEVUI.auto = true; levLaad(); }
-  const alle = WHLEV.leveringen().filter(l => l.soort === 'ontvangst');
+  // alleen leveringen die Daan heeft nagekeken en vrijgegeven (stap 'Verdeling akkoord')
+  const alle = WHLEV.leveringen().filter(l => l.soort === 'ontvangst' && ((l.bewaard || {}).gedaan || {}).verdeling);
   if(key){
     const lev = alle.find(l => l.key === key);
     if(lev){

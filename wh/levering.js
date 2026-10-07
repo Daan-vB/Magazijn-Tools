@@ -90,7 +90,7 @@ function leveringen(){
     if(po) gebruikt.add(po.id);
     const key = 'o' + o.id;
     const b = vanLev(key);
-    const cont = b.container ? (D.CONT || []).find(c => String(c.id) === String(b.container)) : containerBij(po || { leverancier:o.leverancier, nummer:o.inkooporder });
+    const cont = b.container ? (D.CONT || []).find(c => String(c.id) === String(b.container)) : containerBij(po || { leverancier:o.leverancier, nummer:o.inkooporder, verwacht_op:(o.klaar || o.aangemaakt || '') });
     uit.push({
       key, soort:'ontvangst', id:o.id,
       leverancier: o.leverancier || (po && po.leverancier) || '',
@@ -286,7 +286,7 @@ function kaartBron(){
     ${!code && !S.demo ? '<div class="small mt8">Eerst de koppelcode invullen: open Vandaag, daar vraagt de app er één keer om.</div>' : ''}
     ${S.klaar ? `<div class="small muted mt8">Bijgewerkt ${esc(S.klaar)}${S.demo ? '' : ' · rechtstreeks uit Picqer, alleen lezen'}</div>` : ''}</div>`;
 }
-const STAPPEN = [['controle', 'Gecontroleerd'], ['verdeling', 'Verdeling akkoord'], ['labels', 'Labels geprint'], ['verplaatst', 'Verplaatst'], ['picqer', 'In Picqer gezet']];
+const STAPPEN = [['controle', 'Gecontroleerd'], ['verdeling', 'Vrijgegeven'], ['labels', 'Labels geprint'], ['verplaatst', 'Verplaatst'], ['picqer', 'In Picqer gezet']];
 function voortgang(lev){
   const g = (lev.bewaard || {}).gedaan || {};
   return STAPPEN.filter(([k]) => g[k]).length;
@@ -385,6 +385,11 @@ function viewLevering(key){
       ${(() => { const sm = { BO:0, PICK:0, UP:0, VST:0 }; taken.forEach(x => sm[x.dest] += x.stuks);
         return ['BO', 'PICK', 'UP', 'VST'].filter(k => sm[k] > 0).map(k => B.badge(nf(sm[k]) + ' → ' + DEST[k].nl, DEST[k].kleur)).join(' '); })()}
       ${lev.container ? B.badge('hoort bij container ' + (lev.container.pakbon_ref || lev.container.containernummer), 'b-blue') : ''}</div>
+    <div class="row wrap mt8"><span class="small muted">Hoort bij container:</span>
+      <select data-d="lev-cont" data-k="${esc(lev.key)}" style="padding:6px 8px;border:1px solid #cdd5df;border-radius:6px">
+        <option value="">— geen —</option>
+        ${(D.CONT || []).filter(c => c.status !== 'afgerond').map(c => `<option value="${esc(c.id)}"${lev.container && String(lev.container.id) === String(c.id) ? ' selected' : ''}>${esc((c.leverancier || '').split(' ')[0] + ' ' + (c.pakbon_ref || c.containernummer || c.id) + (c.losdatum ? ' · ' + c.losdatum : ''))}</option>`).join('')}
+      </select>${lev.container ? ` <a class="small" href="#/containerdag/${esc(lev.container.losdatum || '')}">naar containerdag →</a>` : ''}</div>
     <div class="row wrap mt8">${STAPPEN.map(([k, t]) => `<span class="badge ${g[k] ? 'b-ok' : 'b-grey'}">${g[k] ? '✓ ' : ''}${esc(t)}</span>`).join(' ')}</div></div>
 
   <div class="card"><h3>1. Klopt de ontvangst?</h3>
@@ -396,7 +401,8 @@ function viewLevering(key){
     <div class="small muted mt4">Backorders eerst, dan de picklocatie, dan hier aanvullen tot ${nf(mnd, 1)} maand verkoop, de rest naar VST. Klopt iets niet? Zet het met één klik om — de app onthoudt het.</div>
     <div class="row wrap mt8">${[1, 1.5, 2, 3].map(m => `<button class="btn sm ${mnd === m ? 'pri' : ''}" data-d="lev-mnd" data-k="${esc(lev.key)}" data-v="${m}">${nf(m, 1)} maand</button>`).join('')}</div>
     <div class="mt8">${vrij}</div>
-    <div class="row wrap mt8">${vink('verdeling', 'Verdeling akkoord')}</div></div>
+    <div class="row wrap mt8">${vink('verdeling', 'Verdeling akkoord — vrijgeven aan het magazijn')}</div>
+    <div class="small muted mt4">Zolang je dit niet aanklikt ziet het magazijn deze levering niet in Junior.</div></div>
 
   <div class="card"><h3>3. Palletlabels</h3>
     <div class="small muted mt4">${labels.length ? nf(labels.reduce((s, t) => s + t.n, 0)) + ' labels voor de pallets die een label nodig hebben. Losse stuks en backorders krijgen geen label.' : 'Geen pallets in deze levering, dus geen labels nodig.'}</div>
@@ -514,9 +520,15 @@ function view(delen){
   if(delen && delen[0]) return viewLevering(delen[0]);
   return viewLijst();
 }
+document.addEventListener('change', async ev => {
+  const b = ev.target.closest('[data-d="lev-cont"]'); if(!b) return;
+  const key = b.dataset.k;
+  await onthoud(key, { container:b.value || null });
+  teken();
+});
 document.addEventListener('click', async ev => {
   const b = ev.target.closest('[data-d]'); if(!b) return;
-  if(!/^lev-/.test(b.dataset.d || '')) return;
+  if(!/^lev-/.test(b.dataset.d || '') || b.tagName === 'SELECT') return;
   try{ await klik(b.dataset.d, b); }catch(e){ toast('Lukte niet: ' + ((e && e.message) || e), 6000); }
 });
 return { view, klik, laad, advies, leveringen, takenVan, picqerRegels, verdelingVan, S,
