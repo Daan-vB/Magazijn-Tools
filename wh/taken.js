@@ -49,6 +49,13 @@ function taakRegel(t, vd){
       <div class="wie mt4">${(t.wie || []).map(esc).join(' · ') || 'niemand'}</div></div>
     <div class="noprint" style="white-space:nowrap"><button class="btn sm ghost" data-tk="bewerk" data-id="${esc(t.id)}">✎</button><button class="btn sm ghost" data-tk="weg" data-id="${esc(t.id)}" title="verwijderen">✕</button></div></div>`;
 }
+// tijd altijd in 24-uursnotatie (per kwartier), los van de taalinstelling van het apparaat
+function tijdKeuze(v){
+  const opts = [''];
+  for(let h = 5; h <= 22; h++) for(const m of ['00', '15', '30', '45']) opts.push(String(h).padStart(2, '0') + ':' + m);
+  if(v && !opts.includes(v)) opts.push(v);
+  return `<select id="tk-tijd" style="width:auto">${opts.map(o => `<option value="${o}" ${o === v ? 'selected' : ''}>${o || 'geen tijd'}</option>`).join('')}</select>`;
+}
 function formHtml(){
   const t = UI.bewerk ? D.TODO[UI.bewerk] : null;
   const wie = UI.wie, datum = UI.datum || isoDag(), prio = UI.prio;
@@ -58,7 +65,7 @@ function formHtml(){
     <div class="row wrap mt8"><span class="small muted">Voor</span>${MENSEN.map(m => `<button class="btn sm ${wie.includes(m) ? 'pri' : ''}" data-tk="wie" data-m="${m}">${m}</button>`).join('')}</div>
     <div class="row wrap mt8"><span class="small muted">Wanneer</span><input id="tk-datum" type="date" value="${esc(datum)}" style="width:auto">
       <button class="btn sm" data-tk="dag" data-d="0">vandaag</button><button class="btn sm" data-tk="dag" data-d="1">morgen</button>
-      <span class="small muted">om</span><input id="tk-tijd" type="time" value="${esc(UI.concept && UI.concept.tijd !== undefined ? UI.concept.tijd : (t ? t.tijd || '' : ''))}" style="width:auto"></div>
+      <span class="small muted">om</span>${tijdKeuze(UI.concept && UI.concept.tijd !== undefined ? UI.concept.tijd : (t ? t.tijd || '' : ''))}</div>
     <div class="row wrap mt8"><span class="small muted">Herhalen</span><button class="btn sm ${!UI.herhaal ? 'pri' : ''}" data-tk="herh" data-h="">Eenmalig</button><button class="btn sm ${UI.herhaal === 'week' ? 'pri' : ''}" data-tk="herh" data-h="week">Elke week op ${esc(weekdag(datum))}</button></div>
     <div class="row wrap mt8"><span class="small muted">Prioriteit</span>${[1, 2, 3].map(p => `<button class="btn sm ${prio === p ? 'pri' : ''}" data-tk="prio" data-p="${p}"><span class="prio p${p}"></span>${PRIO[p]}</button>`).join('')}</div>
     <div class="row wrap mt12"><button class="btn ok" data-tk="opslaan">${t ? 'Opslaan' : 'Taak toevoegen'}</button><button class="btn" data-tk="annuleer">Annuleren</button>
