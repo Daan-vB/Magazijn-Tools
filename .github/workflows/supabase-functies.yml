@@ -5,7 +5,7 @@ name: Supabase-functies live zetten
 on:
   push:
     branches: [main]
-    paths: ['supabase/functions/**']
+    paths: ['supabase/functions/**', '!supabase/functions/db-setup/**']   # db-setup heeft een eigen workflow
   workflow_dispatch:
     inputs:
       functie:
@@ -26,8 +26,8 @@ jobs:
         id: welke
         run: |
           if [ -n "${{ github.event.inputs.functie }}" ]; then echo "lijst=${{ github.event.inputs.functie }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "lijst=$(ls supabase/functions | tr '\n' ' ')" >> $GITHUB_OUTPUT
-          else echo "lijst=$(git diff --name-only HEAD~1 HEAD -- supabase/functions | cut -d/ -f3 | sort -u | tr '\n' ' ')" >> $GITHUB_OUTPUT; fi
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "lijst=$(ls supabase/functions | grep -v db-setup | tr '\n' ' ')" >> $GITHUB_OUTPUT
+          else echo "lijst=$(git diff --name-only HEAD~1 HEAD -- supabase/functions | cut -d/ -f3 | sort -u | grep -v db-setup | tr '\n' ' ')" >> $GITHUB_OUTPUT; fi
       - name: Live zetten (Verify JWT uit, koppelcode beschermt)
         run: |
           for f in ${{ steps.welke.outputs.lijst }}; do

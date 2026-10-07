@@ -1,0 +1,29 @@
+# Database-opbouw: zet functie db-setup live, roept hem één keer aan (maakt nieuwe tabellen) en verwijdert hem daarna.
+# Bestaande tabellen en data worden niet geraakt.
+name: Database-opbouw
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/functions/db-setup/**']
+  workflow_dispatch:
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT: jarbgetbwkjtxwtcfwmq   # Palletlabels
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Functie live zetten
+        run: supabase functions deploy db-setup --project-ref "$PROJECT" --no-verify-jwt
+      - name: Eén keer uitvoeren
+        run: |
+          sleep 5
+          R=$(curl -sS -X POST "https://$PROJECT.supabase.co/functions/v1/db-setup")
+          echo "::notice::db-setup: $R"
+          echo "$R" | grep -q '"ok":true'
+      - name: Functie weer verwijderen
+        if: always()
+        run: supabase functions delete db-setup --project-ref "$PROJECT" || true
