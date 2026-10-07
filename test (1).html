@@ -5,9 +5,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="IVOL Warehouse">
+<meta name="apple-mobile-web-app-title" content="IVOL Test">
 <meta name="theme-color" content="#10151c">
-<title>IVOL Warehouse</title>
+<title>IVOL Warehouse Test</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
@@ -27,6 +27,9 @@
   .top h1 span{color:#f08a4b}
   .sync{display:inline-block;color:#fff;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border-radius:3px;background:#33404f}
   .sync.ok{background:var(--ok)} .sync.err{background:var(--bad)}
+  .bron{font:inherit;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:3px;border:0;cursor:pointer;color:#fff;white-space:nowrap}
+  .bron.live{background:var(--ok)} .bron.test{background:var(--orange)} .bron.fout{background:var(--bad)}
+  body.bron-test .top{box-shadow:inset 0 -4px 0 var(--orange)}
   .top nav{display:flex;gap:2px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;max-width:100%}
   .top nav::-webkit-scrollbar{display:none}
   .top nav a{color:#c4cfdd;text-decoration:none;padding:6px 10px;border-radius:6px;font-weight:600;font-size:13.5px;white-space:nowrap}
@@ -256,6 +259,7 @@
 <main id="app"><div class="empty">Laden…</div></main>
 <div id="toast" hidden></div>
 
+<script>window.WH_APP = 'test';</script>
 <script src="wh/menu.js?v=8"></script>
 <script src="wh/cache.js?v=1"></script>
 <script src="wh/core.js?v=14"></script>
@@ -267,6 +271,7 @@
 <script src="wh/stelling.js?v=5"></script>
 <script src="wh/taken.js?v=2"></script>
 <script src="wh/live.js?v=5"></script>
+<script src="wh/bron.js?v=1"></script>
 <script src="wh/aanvullive.js?v=2"></script>
 <script src="wh/views.js?v=18"></script>
 </body>
