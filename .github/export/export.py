@@ -5,7 +5,7 @@ import json, os, sys, urllib.request, urllib.error
 
 URL = "https://jarbgetbwkjtxwtcfwmq.supabase.co/rest/v1/"
 KEY = "sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA"   # staat ook in wh/core.js
-TABELLEN = ["producten", "catalog", "containers", "pakbon_alias", "verkoop", "backorders", "todos"]
+TABELLEN = ["producten", "catalog", "containers", "pakbon_alias", "verkoop", "backorders", "todos", "productdata"]
 os.makedirs("out", exist_ok=True)
 
 
