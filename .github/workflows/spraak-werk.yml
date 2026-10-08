@@ -59,7 +59,7 @@ jobs:
           espeak-ng -v nl -s 150 -w test.wav -f .github/spraak/testtekst.txt
           ffmpeg -loglevel error -y -i test.wav -ac 1 -ar 16000 -c:a libopus -b:a 32k audio.ogg
       - name: Whisper installeren
-        run: pip install -q faster-whisper==1.1.1
+        run: pip install -q faster-whisper==1.1.1 'av<15'
       - name: Omzetten naar tekst
         env:
           DEEL: ${{ matrix.i }}

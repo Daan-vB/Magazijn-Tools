@@ -26,7 +26,10 @@ try:
                'per doos, max per ligger, vloernaam, volgende, sportvloertegel, sportvloer, ringmat, stalmat, rubbertegel, '
                'whiteboard, bureaustoel, kokos, spaghetti, rubberloper, traanplaat, ribbel, noppen, hamerslag, cobra, '
                'Wallace, Rubberselect, Stockz, MFL, kilo, centimeter, millimeter, 80 bij 120, 100 bij 120.')
-    segs, info = model.transcribe('stuk.wav', language='nl', vad_filter=True, beam_size=5, initial_prompt=woorden, condition_on_previous_text=False)
+    import numpy as np
+    pcm = subprocess.check_output(['ffmpeg', '-loglevel', 'error', '-i', 'stuk.wav', '-f', 's16le', '-ac', '1', '-ar', '16000', '-'])
+    geluid = np.frombuffer(pcm, np.int16).astype(np.float32) / 32768.0
+    segs, info = model.transcribe(geluid, language='nl', vad_filter=True, beam_size=5, initial_prompt=woorden, condition_on_previous_text=False)
     rijen = []
     for s in segs:
         a = start + s.start
