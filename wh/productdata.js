@@ -1403,6 +1403,9 @@ const WB_NIET = /marker|wisser|houder|\bkit\b|magne(et|ten)|sheets|ezel|onderste
 // outlet = losse retourstukken: geen aanvulregel
 const isOutlet = c => /outlet/i.test(c) || /outlet/i.test(naamVan(c));
 const isMidden = c => /batch midden/i.test(String((D.P[c] || {}).tags || ''));
+// ribbel 40 en 50 cm op maat (1 t/m 10 m) in de stellingkasten: concept nog in ontwikkeling, slaan we nu over (afspraak Daan 9-10-2026)
+const isOpMaat = c => /^MR65SX2\.7-0\.[45](-\d+)?$/i.test(c) || /stellingkast/i.test(String((D.P[c] || {}).locaties_hm || ''));
+const isLater = c => isMidden(c) || isOpMaat(c);
 const naamVan = c => String((D.P[c] || {}).naam || '');
 const tagsVan = c => String((D.P[c] || {}).tags || '').toLowerCase();
 function breedteCm(naam){
@@ -1454,7 +1457,7 @@ function regelIndeling(){
   const per = {}, zonderPick = {}, van = {};
   REGELS.forEach(R => { per[R.id] = []; zonderPick[R.id] = 0; });
   Object.keys(D.P).forEach(c => {
-    if(!actief(c) || isMidden(c) || isOutlet(c)) return;
+    if(!actief(c) || isLater(c) || isOutlet(c)) return;
     const R = REGELS.find(R => R.past(c)); if(!R) return;
     if(locaties(c).pick.length){ per[R.id].push(c); van[c] = R; } else zonderPick[R.id]++;
   });
@@ -1547,7 +1550,7 @@ async function bewaarRegel(){
 // tegels in CE: wat regelmatig gepickt wordt maar geen picklocatie heeft, of wel een picklocatie maar geen aanvuladvies
 function tegelOverzicht(){
   return Object.keys(D.P).filter(c => {
-    if(!actief(c) || isMidden(c) || isOutlet(c)) return false;
+    if(!actief(c) || isLater(c) || isOutlet(c)) return false;
     const p = D.P[c], tags = String(p.tags || '').toLowerCase();
     if(/kunststof pen|\bpin\b|pen voor|pennen/i.test(p.naam || '')) return false;
     const tegel = /tile5050|tile50100/.test(tags) || String(p.locaties_hm || '').split(',').some(l => /^\s*CE/i.test(l)) || /rubber tegel|puzzeltegel|vloertegel/i.test(p.naam || '');
@@ -1603,7 +1606,7 @@ function autoPlan(codes){
 const REGELNAAM = { regel:'aanvulregel', 'maxpick:picqer':'Picqer-instelling', 'lvl:picqer':'Picqer-instelling', 'hoogte:genoot':'kleurgenoot', 'vn:genoot':'naam kleurgenoot', 'spp:mvvst':'verplaatst naar VST', 'spp:vst2':'VST-pallets', 'spp:bulk2':'bulkpallets', oud:'palletlabels / containers', 'pick:picqer':'Picqer-locatie', 'maxpick:aanvulbase':'aanvulbase', 'lvl:aanvulbase':'aanvulbase', 'maxpick:som':'bij + volle pallet', 'met:som':'uit bij en max', 'met:geenpallet':'komt niet op pallet', 'maat:afm':'Picqer-afmetingen', 'hoogte:fam':'familie', 'gewicht:pakbon':'pakbon', 'gewicht:picqer':'Picqer-gewicht', 'gewicht:picqerm':'Picqer-gewicht per m/cm/rol', 'gewicht:eigen':'jouw kg per stuk/m', 'plaatsen:maat':'uit palletmaat', 'maxlig:fam':'familie' };
 const regelNaam = r => REGELNAAM[r] || (/:genoot$/.test(r) ? 'kleurgenoot' : r);
 function viewAuto(){
-  const sc = UI.autoScope || 'belangrijk', codes = lijst(sc, false);
+  const sc = UI.autoScope || 'belangrijk', codes = lijst(sc, false).filter(c => !isLater(c));
   const { rijen, tel } = autoPlan(codes);
   const nW = rijen.reduce((s, r) => s + Object.keys(r.nieuw).length, 0);
   const nAuto = Object.values(S.pd).reduce((s, r) => s + Object.values(r.meta || {}).filter(m => m && m.bron === 'auto').length, 0);
@@ -1626,7 +1629,7 @@ function viewAuto(){
     <div class="row wrap">${nAuto ? `<button class="btn" data-pd="autoweg">Automatische waarden weghalen</button>` : ''}<button class="btn acc" data-pd="autosave" ${nW ? '' : 'disabled'}>Vul ${nf(nW)} waarden in</button></div></div>`;
 }
 async function bewaarAuto(){
-  const { rijen } = autoPlan(lijst(UI.autoScope || 'belangrijk', false));
+  const { rijen } = autoPlan(lijst(UI.autoScope || 'belangrijk', false).filter(c => !isLater(c)));
   const wijz = {}; rijen.forEach(r => { wijz[r.code] = r.nieuw; });
   const n = await opslaan(wijz, 'auto');
   return { n, nW:rijen.reduce((s, r) => s + Object.keys(r.nieuw).length, 0) };
@@ -1642,8 +1645,9 @@ async function autoWeg(){
    Midden (Batch Midden) is van Katerina: apart en overgeslagen. */
 const KORT = { spp:'Per pallet', pick:'Pick', lvl:'Bij', maxpick:'Max', met:'Met', maat:'Maat', hoogte:'Hoogte', gewicht:'Gewicht', plaatsen:'Plaatsen', maxlig:'Max/ligger', spd:'Per doos', vn:'Vloernaam' };
 const FEED_VELDEN = ['spp', 'pick', 'lvl', 'maxpick', 'met', 'maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig', 'spd', 'vn'];
-const zoneVan = c => { if(isMidden(c)) return 'MIDDEN'; const l = locaties(c), loc = (l.pick[0] || l.bulk[0] || [''])[0]; return String(loc).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2) || 'GEEN'; };
-const ZONENAAM = { MIDDEN:'Midden (Katerina)', GEEN:'Zonder locatie' };
+const zoneVan = c => { if(isMidden(c)) return 'MIDDEN'; if(isOpMaat(c)) return 'OPMAAT'; const l = locaties(c), loc = (l.pick[0] || l.bulk[0] || [''])[0]; return String(loc).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2) || 'GEEN'; };
+const ZONENAAM = { MIDDEN:'Midden (Katerina)', OPMAAT:'Ribbel 40/50 op maat (stellingkast)', GEEN:'Zonder locatie' };
+const LATER = { MIDDEN:'Van Katerina, slaan we nu over', OPMAAT:'Concept nog in ontwikkeling, slaan we nu over' };
 const STOPW = new Set('voor met zonder van per set incl inclusief stuks stuk rand design nieuw'.split(' '));
 function zoneLabel(zone, codes){
   if(ZONENAAM[zone]) return ZONENAAM[zone];
@@ -1682,7 +1686,7 @@ function afdelingen(sc){
       });
     });
     return { zone, codes, label:zoneLabel(zone, codes), klaar, auto, open:codes.length - klaar - auto, pct:velden ? Math.round(100 * gevuld / velden) : 100, mist, geschat };
-  }).sort((a, b) => (a.zone === 'MIDDEN') - (b.zone === 'MIDDEN') || (a.zone === 'GEEN') - (b.zone === 'GEEN') || b.codes.length - a.codes.length);
+  }).sort((a, b) => !!LATER[a.zone] - !!LATER[b.zone] || (a.zone === 'GEEN') - (b.zone === 'GEEN') || b.codes.length - a.codes.length);
 }
 function viewAfdelingen(){
   const sc = UI.afdScope || 'belangrijk', afd = afdelingen(sc);
@@ -1691,13 +1695,13 @@ function viewAfdelingen(){
     <div class="small muted">Kies een afdeling. Je krijgt per leverancier een tabel: één regel per product, alles al voorgevuld. Tab door de regel, verbeter wat niet klopt; verlaat je de regel, dan is hij opgeslagen.</div>
     <div class="pd-chips">Openen als: <button class="pd-chip ${UI.afdModus !== 'kaart' ? 'on' : ''}" data-pd="afdmodus" data-v="tabel">Tabel (invullen)</button><button class="pd-chip ${UI.afdModus === 'kaart' ? 'on' : ''}" data-pd="afdmodus" data-v="kaart">Kaartjes (bekijken)</button></div>
     <div>${[['belangrijk', 'Belangrijk'], ['beweegt', 'Alles dat beweegt'], ['voorraad', 'Alles met voorraad']].map(([k, t]) => `<button class="pd-chip ${sc === k ? 'on' : ''}" data-pd="afdscope" data-v="${k}" style="margin:0 6px 6px 0">${esc(t)}<span class="n">${nf(lijst(k, false).length)}</span></button>`).join('')}</div></div></section>
-  <div class="pd-afds">${afd.map(a => { const mid = a.zone === 'MIDDEN';
+  <div class="pd-afds">${afd.map(a => { const mid = !!LATER[a.zone];
     const mist = Object.entries(a.mist).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, n]) => nf(n) + ' ' + KORT[k].toLowerCase()).join(' · ');
-    return `<a class="pd-afd${mid ? ' mid' : ''}" href="#/productdata/afd/${a.zone}${UI.afdModus === 'kaart' ? '/kaart' : ''}"><div class="row between" style="align-items:baseline"><b class="z">${esc(a.zone === 'MIDDEN' || a.zone === 'GEEN' ? '' : a.zone)}</b><span class="small muted">${plural(a.codes.length, 'product', 'producten')}</span></div>
+    return `<a class="pd-afd${mid ? ' mid' : ''}" href="#/productdata/afd/${a.zone}${UI.afdModus === 'kaart' ? '/kaart' : ''}"><div class="row between" style="align-items:baseline"><b class="z">${esc(LATER[a.zone] || a.zone === 'GEEN' ? '' : a.zone)}</b><span class="small muted">${plural(a.codes.length, 'product', 'producten')}</span></div>
       <div class="lbl">${esc(a.label)}</div>
       <div class="pd-bar mt8"><i style="width:${a.pct}%"></i></div>
       <div class="small mt4"><b>${a.pct}%</b> ingevuld · <span style="color:var(--ok)">${nf(a.klaar)} klaar</span>${a.auto ? ' · <span style="color:#0f6a58">' + nf(a.auto) + ' na te kijken</span>' : ''}${a.open ? ' · ' + nf(a.open) + ' open' : ''}</div>
-      ${a.geschat ? `<div class="tiny mt4" style="color:#8a4b00">${nf(a.geschat)} waarden geschat, na te kijken</div>` : ''}${mist ? `<div class="tiny muted mt4">Nergens te vinden: ${esc(mist)}</div>` : ''}${mid ? '<div class="tiny muted mt4">Van Katerina, slaan we nu over</div>' : ''}</a>`; }).join('')}</div>`;
+      ${a.geschat ? `<div class="tiny mt4" style="color:#8a4b00">${nf(a.geschat)} waarden geschat, na te kijken</div>` : ''}${mist ? `<div class="tiny muted mt4">Nergens te vinden: ${esc(mist)}</div>` : ''}${mid ? '<div class="tiny muted mt4">' + esc(LATER[a.zone]) + '</div>' : ''}</a>`; }).join('')}</div>`;
 }
 function bronRegel(c){
   const p = D.P[c] || {}, x = S.extra[c] || {}, pq = D.PQ[c] || [], l = locaties(c), d = [];
