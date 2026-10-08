@@ -1,0 +1,20 @@
+# Door Claude verwerkte productdata wegschrijven (alleen tabel productdata, nooit eigen invoer overschrijven).
+# Start door een bestand in .github/claude/ (*.json) toe te voegen of te wijzigen.
+name: Productdata door Claude
+on:
+  push:
+    branches: [main]
+    paths: ['.github/claude/*.json']
+permissions:
+  contents: read
+jobs:
+  schrijf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - name: Gewijzigde bestanden wegschrijven
+        run: |
+          f=$(git diff --name-only HEAD~1 HEAD -- '.github/claude/*.json' | tr '\n' ' ')
+          echo "bestanden: $f"
+          [ -n "$f" ] && python3 .github/claude/schrijf.py $f || echo "niets te doen"

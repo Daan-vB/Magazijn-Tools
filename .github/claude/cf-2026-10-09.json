@@ -1,0 +1,922 @@
+{
+ "naam": "CF afronden",
+ "datum": "2026-10-09",
+ "regels": [
+  {
+   "code": "01061203",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 6×, meestal 310 m, max 500 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "vn",
+     "Noppen 3mm - Breedte 120 cm",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.6",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 12×, meestal 250 m, max 250 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     "200"
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0-1.2",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 4×, meestal 275 m, max 660 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     "150"
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.2",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 7×, meestal 250 m, max 250 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "vn",
+     "Ribbel 3mm - Breedte 20 cm",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.3",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 10×, meestal 250 m, max 250 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "vn",
+     "Ribbel 3mm - Breedte 30 cm",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "ELS30000B3-0-1",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 37×, meestal 30 m, max 220 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "vn",
+     "VDE 30 kV 3mm - Breedte 100 cm - Zwart",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "CS65SX-3-0-1.0",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 10×, meestal 50 m, max 100 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "vn",
+     "Noppen 3mm - Breedte 100 cm",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0-0.7",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 2×, meestal 250 m, max 250 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "vn",
+     "Fijne ribbel 3mm - Breedte 70 cm",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "CS65SX-3-0-150",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 12×, meestal 40 m, max 70 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "vn",
+     "Noppen 3mm - Breedte 150 cm",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "ELS30000G3-0-1",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 21×, meestal 40 m, max 280 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "vn",
+     "VDE 30 kV 3mm - Breedte 100 cm - Grijs",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "RM-021200010",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 22×, meestal 20 m, max 60 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "vn",
+     "Gerecycled vlak 2mm - Breedte 120 cm",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0-1.4",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 20×, meestal 25 m, max 90 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "vn",
+     "Fijne ribbel 3mm - Breedte 140 cm",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "SI60120TP-1-0",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 16×, meestal 10 m, max 20 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "vn",
+     "Siliconen FDA transparant 1mm - Breedte 120 cm",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "ELS1000V",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 11×, meestal 20 m, max 50 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "vn",
+     "VDE 1 kV 1,6mm - Breedte 100 cm",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "CD65SX3-0-0.8",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 8×, meestal 20 m, max 40 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "vn",
+     "Traanplaat 3mm - Breedte 80,5 cm",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "2066000050100",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 11×, meestal 400 m, max 1200 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "claude",
+     "Rol aanbreken; rest op mixpallet (zoals de rubberrollen)",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "2066000105100",
+   "zet": [
+    [
+     "spp",
+     "nvt",
+     "claude",
+     "Geen eigen pallet: inkoop 12 mnd: 8×, meestal 250 m, max 800 m. Extra rollen gaan op een mixpallet met rollen die bij elkaar passen.",
+     null
+    ],
+    [
+     "opm",
+     "Extra rollen op mixpallet",
+     "claude",
+     "Mixpallet-afspraak 9-10",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "25",
+     "claude",
+     "Afgeleid van 50 cm (47 → 250 m): 105 cm verkoopt ongeveer de helft (±290 m per maand)",
+     null
+    ],
+    [
+     "maxpick",
+     "200",
+     "claude",
+     "2 rollen van 100 m",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "claude",
+     "Rol aanbreken; rest op mixpallet",
+     null
+    ],
+    [
+     "vn",
+     "Anti-worteldoek op rol - 105 cm breed",
+     "claude",
+     "Korte vloernaam in dezelfde stijl als de rest van CF",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "01010300",
+   "zet": [
+    [
+     "maxlig",
+     "2",
+     "claude",
+     "Zoals de andere 100x150-pallets in CF: 2 per ligger",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "regel",
+     "picklocatie in Picqer",
+     null
+    ],
+    [
+     "lvl",
+     "10",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ],
+    [
+     "maxpick",
+     "40",
+     "regel",
+     "aanvulregel: onder 10 m aanvullen tot 40 m (bevestigd door Daan 9-10)",
+     null
+    ]
+   ]
+  }
+ ]
+}
