@@ -273,7 +273,7 @@ const KANS = {
   'met:genoot':[1, 18], 'met:som':[1, 33], 'met:geenpallet':[1, 2],
   'maat:genoot':[1, 35], 'maat:afm':[.94, 17], 'maat:fam':[.64, 33],
   'hoogte:genoot':[1, 35], 'hoogte:fam':[.86, 14], 'hoogte:cbm':[.64, 14], 'hoogte:afm':[.36, 14],
-  'gewicht:genoot':[.94, 35], 'gewicht:pakbon':[.89, 19], 'gewicht:picqer':[.82, 39], 'gewicht:fam':[.5, 2],
+  'gewicht:genoot':[.94, 35], 'gewicht:pakbon':[.89, 19], 'gewicht:picqer':[.82, 39], 'gewicht:picqerm':[.35, 4], 'gewicht:eigen':[.9, 0], 'gewicht:fam':[.5, 2],
   'plaatsen:maat':[1, 98], 'maxlig:genoot':[1, 23], 'spd:genoot':[.85, 0], 'doos:genoot':[.85, 0], 'opm:genoot':[.85, 0], 'maxlig:fam':[.91, 22], 'vn:genoot':[.92, 142], 'vn:picqer':[.13, 571]
 };
 function uit(r, v, bron, extra){
@@ -394,8 +394,8 @@ function voorstel(code, k, w){
       if(genoot) return genoot;
       const r = pbRegels(code).find(r => r.soort === 'pallet' && num(r.bruto_per));
       if(r) return uit('gewicht:pakbon', Math.ceil(num(r.bruto_per)), 'pakbon: bruto per pallet');
-      const spp = num(w('spp')), g = num(x.gewicht_product_g);
-      if(spp && g && eh.e === 'st') return uit('gewicht:picqer', Math.ceil(spp * g / 1000 + 15), nf(spp) + ' × ' + nf(g / 1000, 2) + ' kg (Picqer) + 15 kg pallet');
+      const spp = num(w('spp')), kgE = num(w('kgst')), g = kgE || (num(x.gewicht_product_g) ? num(x.gewicht_product_g) / 1000 : null);
+      if(spp && g) return uit(kgE ? 'gewicht:eigen' : eh.e === 'st' ? 'gewicht:picqer' : 'gewicht:picqerm', Math.ceil(spp * g + 15), nf(spp) + ' ' + eh.mv + ' × ' + nf(g, 3) + ' kg' + (kgE ? '' : ' (Picqer)') + ' + 15 kg pallet');
       return fam();
     }
     case 'plaatsen': {
@@ -792,6 +792,7 @@ function stijl(){
   .pd-tg tr.r-klaar .prod{box-shadow:inset 4px 0 0 var(--ok)}
   .t-ok{background:#fff} .t-auto{background:#e9f6f3} .t-voor{background:#fff8d6} .t-schat{background:#fff1e0} .t-dub{background:#fdebd8}
   .t-mist{background:#fff;box-shadow:inset 0 0 0 1px #efc2be} .t-nieuw{background:#eef4fc} .t-fout{background:#fde2e1;box-shadow:inset 0 0 0 2px var(--bad)} .t-nvt{background:#f3f5f8}
+  .t-info{background:#f7f9fb} .t-info input::placeholder{color:#7a8795;opacity:1}
   .t-st{width:28px;text-align:center;font-weight:800;color:var(--ok)} .t-st.t-err{color:var(--bad);cursor:help}
   .pd-tl{display:inline-block;padding:1px 6px;border-radius:4px;border:1px solid #e3e8ee}
   @media (max-width:760px){
@@ -1594,7 +1595,7 @@ function autoPlan(codes){
   });
   return { rijen, tel };
 }
-const REGELNAAM = { regel:'aanvulregel', 'maxpick:picqer':'Picqer-instelling', 'lvl:picqer':'Picqer-instelling', 'hoogte:genoot':'kleurgenoot', 'vn:genoot':'naam kleurgenoot', 'spp:mvvst':'verplaatst naar VST', 'spp:vst2':'VST-pallets', 'spp:bulk2':'bulkpallets', oud:'palletlabels / containers', 'pick:picqer':'Picqer-locatie', 'maxpick:aanvulbase':'aanvulbase', 'lvl:aanvulbase':'aanvulbase', 'maxpick:som':'bij + volle pallet', 'met:som':'uit bij en max', 'met:geenpallet':'komt niet op pallet', 'maat:afm':'Picqer-afmetingen', 'hoogte:fam':'familie', 'gewicht:pakbon':'pakbon', 'gewicht:picqer':'Picqer-gewicht', 'plaatsen:maat':'uit palletmaat', 'maxlig:fam':'familie' };
+const REGELNAAM = { regel:'aanvulregel', 'maxpick:picqer':'Picqer-instelling', 'lvl:picqer':'Picqer-instelling', 'hoogte:genoot':'kleurgenoot', 'vn:genoot':'naam kleurgenoot', 'spp:mvvst':'verplaatst naar VST', 'spp:vst2':'VST-pallets', 'spp:bulk2':'bulkpallets', oud:'palletlabels / containers', 'pick:picqer':'Picqer-locatie', 'maxpick:aanvulbase':'aanvulbase', 'lvl:aanvulbase':'aanvulbase', 'maxpick:som':'bij + volle pallet', 'met:som':'uit bij en max', 'met:geenpallet':'komt niet op pallet', 'maat:afm':'Picqer-afmetingen', 'hoogte:fam':'familie', 'gewicht:pakbon':'pakbon', 'gewicht:picqer':'Picqer-gewicht', 'gewicht:picqerm':'Picqer-gewicht per m/cm/rol', 'gewicht:eigen':'jouw kg per stuk/m', 'plaatsen:maat':'uit palletmaat', 'maxlig:fam':'familie' };
 const regelNaam = r => REGELNAAM[r] || (/:genoot$/.test(r) ? 'kleurgenoot' : r);
 function viewAuto(){
   const sc = UI.autoScope || 'belangrijk', codes = lijst(sc, false);
@@ -1784,7 +1785,7 @@ function sheetHtml(c){
 /* ---------- invullen als tabel: per afdeling, per leverancier, één regel per product ----------
    Alles staat al voorgevuld (vast, automatisch, voorstel, schatting). Tab = volgende cel, Enter = cel eronder.
    Verlaat je een regel, dan wordt die regel opgeslagen: zo heb je hem gezien. */
-const TAB_KOL = [['spp', 'Per pallet', 80], ['maat', 'Palletmaat', 92], ['hoogte', 'Hoogte cm', 70], ['gewicht', 'Gewicht kg', 76], ['plaatsen', 'Plaatsen', 62], ['maxlig', 'Max/ligger', 62],
+const TAB_KOL = [['spp', 'Per pallet', 80], ['maat', 'Palletmaat', 92], ['hoogte', 'Hoogte cm', 70], ['kgst', 'kg per st/m', 72], ['gewicht', 'Gewicht kg', 76], ['plaatsen', 'Plaatsen', 62], ['maxlig', 'Max/ligger', 62],
   ['pick', 'Pick j/n', 56], ['lvl', 'Bij', 62], ['met', 'Met p/d/o', 70], ['maxpick', 'Max pick', 70], ['spd', 'Per doos', 62], ['vn', 'Vloernaam', 230]];
 const TAB_UIT = { ja:'ja', nee:'nee', pallet:'pallet', deel:'deel', doos:'doos' };
 function tabNorm(k, v){
@@ -1797,7 +1798,12 @@ function tabNorm(k, v){
   if(k === 'maat'){ const m = l.match(/(\d{2,3})\D+(\d{2,3})/); return m ? m[1] + 'x' + m[2] : v; }
   return v;
 }
+const kgPicqer = c => { const g = num((S.extra[c] || {}).gewicht_product_g); return g ? g / 1000 : null; };
 function tabCel(c, k, f){
+  if(k === 'kgst'){
+    const st = staat(c, k), pq = kgPicqer(c), eh = ENKEL[eenheid(c).mv] || eenheid(c).mv;
+    return `<td class="${st.s === 'ok' ? 't-ok' : 't-info'}"><input data-pdt="kgst" data-code="${esc(c)}" value="${esc(st.s === 'ok' ? String(st.v).replace('.', ',') : '')}" data-was="${esc(st.s === 'ok' ? st.v : '')}" placeholder="${pq ? esc(nf(pq, 3)) : '?'}" title="${pq ? 'Picqer: ' + esc(nf(pq, 3)) + ' kg per ' + esc(eh) + '. Alleen invullen als dat niet klopt.' : 'Picqer heeft geen gewicht: vul kg per ' + esc(eh) + ' in'}" inputmode="decimal" autocomplete="off"></td>`;
+  }
   const d = VELDEN[k], i = f.info(k), st = staat(c, k), m = S.pd[c] && S.pd[c].meta && S.pd[c].meta[k];
   const uit = !nodig(c, k, f);
   let cls = 't-mist', ph = '', titel = '';
@@ -1840,6 +1846,7 @@ async function tabBewaarRij(tr){
     let v; try{ v = check(k, ruw); }catch(e){ fouten.push(e.message); inp.parentNode.className = 't-fout'; return; }
     const st = staat(c, k), m = S.pd[c] && S.pd[c].meta && S.pd[c].meta[k];
     if(!v){ if(inp.dataset.was && st.s === 'ok') wijz[k] = ''; return; }
+    if(k === 'kgst' && st.s !== 'ok' && kgPicqer(c) && Math.abs(num(v) - kgPicqer(c)) < 0.0005) return;   // zelfde als Picqer: niets apart bewaren
     if(st.s === 'ok' && st.v === v && !(m && m.bron === 'auto')) return;
     wijz[k] = v;
   });
@@ -1864,7 +1871,11 @@ function tabAfhankelijk(inp){
   inp.value = tabNorm(k, inp.value);
   const vorig = kk => kk === k ? tabNorm(kk, voor) : val(kk);
   if(k === 'maat'){ const pl = plaatsenUitMaat(val('maat')); if(pl) zet('plaatsen', pl, plaatsenUitMaat(vorig('maat'))); }
-  if(k === 'spp'){ const g = num((S.extra[c] || {}).gewicht_product_g), n = num(val('spp')), o = num(vorig('spp')); if(g && n && eenheid(c).e === 'st') zet('gewicht', String(Math.ceil(n * g / 1000 + 15)), o ? Math.ceil(o * g / 1000 + 15) : null); }
+  if(k === 'spp' || k === 'kgst'){
+    // gewicht volle pallet = aantal × kg per stuk/meter (eigen waarde, anders Picqer) + 15 kg pallet
+    const kg = num(val('kgst')) || kgPicqer(c), kgOud = num(vorig('kgst')) || kgPicqer(c), n = num(val('spp')), o = num(vorig('spp'));
+    if(kg && n) zet('gewicht', String(Math.ceil(n * kg + 15)), o && kgOud ? Math.ceil(o * kgOud + 15) : null);
+  }
   if(['spp', 'lvl', 'met'].includes(k) && val('met') === 'pallet'){ const a = num(val('lvl')), n = num(val('spp')), oa = num(vorig('lvl')), on = num(vorig('spp')); if(a !== null && n) zet('maxpick', String(a + n), oa !== null && on ? oa + on : null); }
   inp.dataset.voor = inp.value;
   // n.v.t. aan/uit
