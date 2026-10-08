@@ -20,11 +20,13 @@
 
    Alles wat uit Picqer komt wordt alleen gelezen. Wat de app zelf onthoudt
    (verdeling, afgevinkte stappen, koppeling aan een container) staat in de
-   catalog-rij "wh-leveringen".
+   catalog-rij "wh-leveringen". Staat de bron op TEST (Picqer-testomgeving),
+   dan in een eigen rij "wh-leveringen-test", zodat test en echt nooit mengen.
    ===================================================================== */
 window.WHLEV = (function(){
 'use strict';
-const { $, esc, nf, num, D, isoDag, toast, catPatch } = WH;
+const { $, esc, nf, num, D, isoDag, toast, catPatch, catHaal } = WH;
+const TEST = () => window.WH_BRON === 'test';
 const app = () => $('app');
 
 /* ---------- geheugen in dit tabblad ---------- */
@@ -32,10 +34,15 @@ const S = {
   bezig:false, stap:'', fout:'', data:null, klaar:null, auto:false,
   dagen:30, tab:'binnen', open:null, demo:false
 };
-const BEWAARD = () => D.LEV || {};
+const BEWAARD = () => (!S.demo && TEST() ? D.LEVTEST : D.LEV) || {};
 const vanLev = k => BEWAARD()[k] || {};
 async function onthoud(k, patch){
   const cur = Object.assign({}, vanLev(k), patch);
+  if(!S.demo && TEST()){
+    D.LEVTEST = Object.assign({}, BEWAARD(), { [k]:cur });
+    D.LEVTEST = await catPatch('wh-leveringen-test', { [k]:cur });
+    return cur;
+  }
   D.LEV = Object.assign({}, BEWAARD(), { [k]:cur });
   if(S.demo){ try{ localStorage.setItem('ivol-lev-demo', JSON.stringify(D.LEV)); }catch(e){} return cur; }
   await catPatch('wh-leveringen', { [k]:cur });
@@ -657,6 +664,10 @@ async function klik(a, b){
 
 function view(delen){
   if(!S.demo){ try{ S.demo = localStorage.getItem('ivol-lev-demo-aan') === '1'; }catch(e){} }
+  if(!S.demo && TEST() && D.LEVTEST === undefined){
+    D.LEVTEST = {};
+    catHaal('wh-leveringen-test').then(r => { D.LEVTEST = (r && r.data) || {}; teken(); }).catch(() => {});
+  }
   if(S.demo && D.LEVECHT === undefined) D.LEVECHT = D.LEV || {};
   if(S.demo && !D.LEV){ try{ D.LEV = JSON.parse(localStorage.getItem('ivol-lev-demo') || '{}'); }catch(e){ D.LEV = {}; } }
   if(!S.auto && !S.data && !S.bezig && (S.demo ? !!window.WHDEMO : !!(window.WHLIVE && WHLIVE.status().code))){ S.auto = true; setTimeout(laad, 0); }

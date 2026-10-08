@@ -15,6 +15,7 @@ const LS = 'ivol-test-bron';
 const FN = WH.URL_ + '/functions/v1/picqer';
 let test = false;
 try{ test = localStorage.getItem(LS) === 'test'; }catch(e){}
+window.WH_BRON = test ? 'test' : 'live';   // andere schermen in Test kunnen zo hun eigen opslag kiezen
 
 // alleen aanroepen naar het tussenstation omleiden, de rest blijft gelijk
 const echt = window.fetch.bind(window);
