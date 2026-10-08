@@ -573,7 +573,7 @@ const genotenActief = code => kleurgenoten(code).filter(actief);
 const ehVan = (code, k) => VELDEN[k].eh ? eenheid(code).mv : (VELDEN[k].eh2 || '');
 const ENKEL = { 'st.':'stuk', rollen:'rol', m:'m', cm:'cm', 'm²':'m²' };
 const datumKort = t => { try{ return new Date(t).toLocaleDateString('nl-NL', { day:'numeric', month:'short' }); }catch(e){ return ''; } };
-const BRONNAAM = { overgezet:'overgezet', invul:'ingevuld', familie:'ingevuld voor de familie', samen:'samen ingevuld', basisregel:'basisregel aanvullen', regel:'aanvulregel', kleuren:'via een kleurgenoot' };
+const BRONNAAM = { overgezet:'overgezet', invul:'ingevuld', familie:'ingevuld voor de familie', samen:'samen ingevuld', basisregel:'basisregel aanvullen', regel:'aanvulregel', spraak:'ingesproken', kleuren:'via een kleurgenoot' };
 const idVan = s => String(s).replace(/[^a-zA-Z0-9_-]/g, '_');
 function toonWaarde(code, k, v){
   if(leeg(v)) return '';
@@ -1016,6 +1016,7 @@ function viewStart(){
     <div class="row wrap mt12"><button class="btn pri" data-pd="mig">Zet ${nf(migN)} waarden over</button></div></div>` : ''}
   ${UI.mig ? `<div class="card" style="border-left:4px solid var(--ok)"><h3>Overgezet</h3><div class="small mt8">${Object.keys(UI.mig.voor).map(k => esc(VELDEN[k].t) + ': vóór <b>' + nf(UI.mig.voor[k]) + '</b>, na <b>' + nf(UI.mig.na[k] || 0) + '</b>' + ((UI.mig.na[k] || 0) === UI.mig.voor[k] ? ' ✓' : ' <span class="badge b-bad">verschil</span>')).join('<br>')}</div></div>` : ''}
   <a class="card" href="#/productdata/afd" style="display:block;text-decoration:none;color:inherit;border-left:6px solid var(--orange)"><div class="row between wrap"><div><h2 style="font-size:18px">Afdelingen doorlopen</h2><div class="small muted mt4">Per afdeling een lijst: per product wat we weten, wat mist en wat geschat is. Tik, nakijken, Opslaan en door naar de volgende.</div></div><span class="btn acc">Begin →</span></div></a>
+  <a class="card" href="#/productdata/import" style="display:block;text-decoration:none;color:inherit;border-left:4px solid #5a3e8f"><div class="row between wrap"><div><h3>Importeren</h3><div class="small muted mt4">Een lijst van Claude plakken (bijvoorbeeld uit je ingesproken opname), nakijken en in één klik opslaan.</div></div><span class="btn">Openen →</span></div></a>
   <a class="card" href="#/productdata/auto" style="display:block;text-decoration:none;color:inherit;border-left:4px solid var(--ok)"><div class="row between wrap"><div><h3>Automatisch invullen uit alle bronnen</h3><div class="small muted mt4">Palletlabels, containers, pakbonnen, VST, bulk, verplaatsingen, Picqer en kleurgenoten naast elkaar. Alleen wat getoetst zeker genoeg is, jouw invoer blijft staan.</div></div><span class="btn ok">Bekijken →</span></div></a>
   ${poortKaart()}
   ${opschonenKaart()}
@@ -1765,6 +1766,61 @@ function sheetHtml(c){
     </div></div></div>`;
 }
 
+/* ---------- importeren: een lijst plakken (bijv. uit een ingesproken opname, verwerkt door Claude) ----------
+   Per regel:  PRODUCTCODE: spp=67; maat=100x100; hoogte=110; gewicht=800; pick=ja; lvl=10; met=pallet; maxpick=77; spd=2
+   # aan het begin = opmerking. Alles achter " # " op een regel = toelichting (bijv. wat je zei). */
+const IMP_ALIAS = { stuks:'spp', perpallet:'spp', pallet:'spp', bij:'lvl', aanvullenbij:'lvl', max:'maxpick', maxoppick:'maxpick', aanvullenmet:'met', perdoos:'spd', doosaantal:'spd', ligger:'maxlig', maxligger:'maxlig', naam:'vn', vloernaam:'vn', palletmaat:'maat', kg:'gewicht', opmerking:'opm', doosmaat:'doos' };
+function impLees(tekst){
+  const rijen = [];
+  String(tekst || '').split(/\r?\n/).forEach((regel, n) => {
+    regel = regel.trim(); if(!regel || regel[0] === '#') return;
+    let noot = ''; const h = regel.indexOf(' # '); if(h > 0){ noot = regel.slice(h + 3).trim(); regel = regel.slice(0, h).trim(); }
+    const d = regel.indexOf(':'); if(d < 1){ rijen.push({ n:n + 1, fout:'geen productcode gevonden (zet een dubbele punt na de code)', regel }); return; }
+    const ruw = regel.slice(0, d).trim(), code = D.PLOW[ruw.toLowerCase()];
+    const r = { n:n + 1, ruw, code, w:{}, fouten:[], noot };
+    if(!code) r.fouten.push('productcode ' + ruw + ' bestaat niet in Picqer');
+    regel.slice(d + 1).split(';').map(x => x.trim()).filter(Boolean).forEach(kv => {
+      const i = kv.indexOf('='); if(i < 1){ r.fouten.push('"' + kv + '" mist een ='); return; }
+      let k = kv.slice(0, i).trim().toLowerCase().replace(/[\s_-]/g, ''); const v = kv.slice(i + 1).trim();
+      k = VELDEN[k] ? k : IMP_ALIAS[k]; if(!k){ r.fouten.push('onbekend veld in "' + kv + '"'); return; }
+      try{ const nv = check(k, v); if(nv) r.w[k] = nv; }catch(e){ r.fouten.push(e.message); }
+    });
+    rijen.push(r);
+  });
+  return rijen;
+}
+function viewImport(){
+  const tekst = UI.imp ?? (bewaard('imp') || ''), rijen = impLees(tekst);
+  if(!UI.impUit) UI.impUit = new Set();
+  const goed = rijen.filter(r => r.code && !r.fouten.length && !UI.impUit.has(r.n));
+  const nW = goed.reduce((s, r) => s + Object.entries(r.w).filter(([k, v]) => staat(r.code, k).v !== v || staat(r.code, k).s !== 'ok').length, 0);
+  const cel = r => Object.entries(r.w).map(([k, v]) => { const st = staat(r.code, k), oud = st.s === 'ok' ? st.v : '';
+    const cls = oud === v ? 'f-ok' : oud ? 'f-dub' : 'f-voor';
+    return `<span class="pd-f ${cls}"><span>${esc(KORT[k] || VELDEN[k].t)}</span> ${oud && oud !== v ? esc(toonWaarde(r.code, k, oud)) + ' → ' : ''}${esc(toonWaarde(r.code, k, v))}</span>`; }).join(' ');
+  app.innerHTML = `<a class="small" href="#/productdata">← Productdata</a>
+  <section class="pd-sec mt8"><div class="pd-kopsec"><h2 style="font-size:20px">Importeren</h2>
+    <div class="small muted">Plak hier de lijst die Claude je geeft (bijvoorbeeld uit je ingesproken opname). Je ziet per product wat er verandert. Niets wordt opgeslagen voordat je op de knop drukt.</div>
+    <textarea id="pd-imp" data-pd="imp" rows="8" style="font-family:ui-monospace,Consolas,monospace;font-size:13px" placeholder="FTS-010915920: spp=67; maat=100x100; hoogte=110; gewicht=800; pick=ja; lvl=10; met=pallet; maxpick=77; spd=2">${esc(tekst)}</textarea>
+    <div class="row wrap"><button class="btn" data-pd="impbekijk">Bekijken</button>${tekst ? '<button class="btn ghost" data-pd="impleeg">Leegmaken</button>' : ''}</div></div></section>
+  ${rijen.length ? `<section class="pd-sec"><div class="pd-sec-kop"><div><h3>${plural(rijen.length, 'regel', 'regels')} · ${plural(goed.length, 'product', 'producten')} klaar om op te slaan</h3><div class="small muted mt4">Geel = nieuw, oranje = overschrijft wat er stond, groen = stond er al zo.${rijen.some(r => r.fouten.length) ? ' Rood = klopt niet, wordt overgeslagen.' : ''}</div></div></div>
+    <div class="pd-tab"><table class="pd-t"><thead><tr><th></th><th>Product</th><th>Wat er verandert</th></tr></thead><tbody>
+    ${rijen.map(r => `<tr style="${r.fouten.length ? 'background:#fff6f5' : UI.impUit.has(r.n) ? 'opacity:.5' : ''}"><td>${r.code && !r.fouten.length ? `<input type="checkbox" data-pd="impinc" data-n="${r.n}" ${UI.impUit.has(r.n) ? '' : 'checked'} aria-label="Meenemen regel ${r.n}">` : ''}</td>
+      <td style="white-space:normal;min-width:220px">${r.code ? `<a class="code" href="#/productdata/p/${encodeURIComponent(r.code)}">${esc(r.code)}</a> ${abcBadge(r.code)}<div class="tiny muted">${esc(naamVan(r.code).slice(0, 70))}</div>` : `<span class="code">${esc(r.ruw || '')}</span>`}${r.noot ? `<div class="tiny" style="color:#5a3e8f">“${esc(r.noot)}”</div>` : ''}</td>
+      <td style="white-space:normal">${cel(r)}${r.fouten.length ? `<div class="small" style="color:var(--bad)">${esc(r.fouten.join(' · '))}</div>` : ''}</td></tr>`).join('')}
+    </tbody></table></div></section>
+  <div class="pd-voet"><div class="grow"><b>${nW ? nW + ' waarden voor ' + plural(goed.length, 'product', 'producten') : 'Niets te bewaren'}</b><div class="small muted">Bron wordt "ingesproken". Wat je zelf al had vastgelegd wordt overschreven als het anders is (oranje).</div></div>
+    <div class="row wrap"><button class="btn acc" data-pd="impsave" ${nW ? '' : 'disabled'}>Opslaan voor ${plural(goed.length, 'product', 'producten')}</button></div></div>` : ''}`;
+}
+async function bewaarImport(){
+  const rijen = impLees(UI.imp ?? (bewaard('imp') || '')), wijz = {};
+  rijen.filter(r => r.code && !r.fouten.length && !UI.impUit.has(r.n)).forEach(r => {
+    Object.entries(r.w).forEach(([k, v]) => { const st = staat(r.code, k); if(st.s === 'ok' && st.v === v) return; (wijz[r.code] = wijz[r.code] || {})[k] = r.noot ? { v, uit:'ingesproken: ' + r.noot.slice(0, 160) } : v; });
+  });
+  const nW = Object.values(wijz).reduce((s, w) => s + Object.keys(w).length, 0);
+  const n = await opslaan(wijz, 'spraak');
+  return { n, nW };
+}
+
 /* ---------- scherm: één voor één ---------- */
 function rij1(){ return zoekFilter(lijst()).filter(c => open(c, UI.laag).length && !UI.over.has(c)); }
 function viewEen(){
@@ -1827,6 +1883,9 @@ app.addEventListener('click', async ev => {
   if(a === 'regelalles'){ const bs = regelSt(); bs.uit[bs.r] = b.dataset.v === '1' ? new Set() : new Set(regelIndeling().per[bs.r] || []); rerender(); return; }
   if(a === 'regelsamen'){ const bs = regelSt(), R = REGELS.find(R => R.id === bs.r); const kl = new Set(regelPlan(R, regelIndeling().per[R.id], Object.assign({}, bs, { hand:false })).filter(r => !Object.keys(r.w).length && !r.geenMax).map(r => r.code)); UI.sel = new Set(regelIndeling().per[R.id].filter(c => !kl.has(c))); bewaarSel(); UI.samen = null; location.hash = '#/productdata/samen'; return; }
   if(a === 'autoscope'){ UI.autoScope = b.dataset.v; rerender(); return; }
+  if(a === 'impbekijk'){ const t = $('pd-imp'); UI.imp = t ? t.value : ''; bewaar('imp', UI.imp); UI.impUit = new Set(); rerender(); return; }
+  if(a === 'impleeg'){ UI.imp = ''; bewaar('imp', ''); UI.impUit = new Set(); rerender(); return; }
+  if(a === 'imp' || a === 'impinc') return;
   if(a === 'afdscope'){ UI.afdScope = b.dataset.v; rerender(); return; }
   if(a === 'afdfilter'){ UI.afdFilter = b.dataset.v; UI.afdN = 40; rerender(); return; }
   if(a === 'afdlev'){ UI.afdLev = b.dataset.v; UI.afdN = 40; rerender(); return; }
@@ -1852,6 +1911,7 @@ app.addEventListener('click', async ev => {
       toast(r.n || r.nAnder ? code + ': ' + plural(r.n, 'waarde', 'waarden') + ' vastgelegd' + (r.nAnder ? ' + ' + plural(r.nAnder, 'kleur', 'kleuren') : '') : code + ': alles stond er al');
       if(volgende){ UI.sheet = volgende; rerender(); const n = $('pd-sheet-in'); if(n) n.scrollTop = 0; } else sluitSheet();
     }
+    if(a === 'impsave'){ b.textContent = 'Bezig…'; const r = await bewaarImport(); toast(plural(r.nW, 'waarde', 'waarden') + ' opgeslagen voor ' + plural(r.n, 'product', 'producten'), 5000); UI.imp = ''; bewaar('imp', ''); UI.impUit = new Set(); rerender(); }
     if(a === 'regelsave'){ b.textContent = 'Bezig…'; const r = await bewaarRegel(); toast(plural(r.nW, 'waarde', 'waarden') + ' opgeslagen voor ' + plural(r.n, 'product', 'producten'), 4000); rerender(); }
     if(a === 'autosave'){ b.textContent = 'Bezig…'; const r = await bewaarAuto(); toast(plural(r.nW, 'waarde', 'waarden') + ' automatisch ingevuld bij ' + plural(r.n, 'product', 'producten'), 5000); rerender(); }
     if(a === 'autoweg'){ b.textContent = 'Bezig…'; const n = await autoWeg(); toast('Automatische waarden weggehaald bij ' + plural(n, 'product', 'producten'), 5000); rerender(); }
@@ -1863,6 +1923,7 @@ app.addEventListener('click', async ev => {
 });
 app.addEventListener('input', ev => {
   const el = ev.target; if(!el.dataset) return;
+  if(el.dataset.pd === 'imp'){ UI.imp = el.value; bewaar('imp', UI.imp); return; }
   if(el.dataset.pdr === 'in'){ const bs = regelSt(); bs.in[el.dataset.code] = el.value; bewaar('regelin', JSON.stringify(bs.in)); return; }
   if(el.dataset.pdc){ (UI.concept[el.dataset.pdc] = UI.concept[el.dataset.pdc] || {})[el.dataset.pdk] = el.value; el.classList.remove('voor'); bewaarConcept(); return; }
   if(el.dataset.pds && el.type !== 'checkbox'){ samenInvoer(el); return; }
@@ -1873,6 +1934,8 @@ app.addEventListener('change', ev => {
   if(el.dataset.pd === 'lev'){ UI.lev = el.value; bewaar('lev', UI.lev); UI.i = 0; rerender(); return; }
   if(el.dataset.pdr && el.dataset.pdr !== 'in'){ const bs = regelSt(); if(el.dataset.pdr === 'hand') bs.hand = el.checked; if(el.dataset.pdr === 'inc'){ const u = bs.uit[bs.r] = bs.uit[bs.r] || new Set(); if(el.checked) u.delete(el.dataset.code); else u.add(el.dataset.code); } clearTimeout(UI.rt); UI.rt = setTimeout(rerender, 0); return; }
   if(el.dataset.pd === 'sheetalle'){ UI.sheetAlle = el.checked; return; }
+  if(el.dataset.pd === 'impinc'){ const n = +el.dataset.n; if(el.checked) UI.impUit.delete(n); else UI.impUit.add(n); rerender(); return; }
+  if(el.dataset.pd === 'imp'){ UI.imp = el.value; bewaar('imp', UI.imp); UI.impUit = new Set(); if(!knopOmlaag) rerender(); return; }
   if(el.dataset.pd === 'sel'){ const c = el.dataset.code; if(el.checked) UI.sel.add(c); else UI.sel.delete(c); bewaarSel(); rerender(); return; }
   if(el.dataset.pds === 'aan'){ if(UI.samen){ UI.samen.aan[el.dataset.k] = el.checked; bewaarSamen(); } rerender(); return; }
   if(el.dataset.pds === 'perProduct'){ if(UI.samen){ UI.samen.perProduct = el.checked; bewaarSamen(); } rerender(); return; }
@@ -1922,6 +1985,7 @@ async function view(delen){
   if(sub === 'samen') return viewSamen();
   if(sub === 'basis' || sub === 'regels') return viewRegels();
   if(sub === 'auto') return viewAuto();
+  if(sub === 'import') return viewImport();
   if(sub === 'een') return viewEen();
   if(sub === 'p' && arg) return viewProduct(arg);
   if(sub === 'dubbel') return viewDubbel();
