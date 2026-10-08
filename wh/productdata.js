@@ -1276,7 +1276,10 @@ function basisPlan(codes, b){
   return { rijen, fouten };
 }
 function viewBasis(){
-  const b = basisSt(), alle = basisKandidaten(), codes = alle.filter(c => !b.uit.has(c));
+  const b = basisSt(), kand = basisKandidaten();
+  // al verwerkt = er valt niets meer te schrijven en alles is bekend: die verdwijnen uit de lijst
+  const klaar = new Set(basisPlan(kand, Object.assign({}, b, { hand:false })).rijen.filter(r => !Object.keys(r.w).length && !r.geenSpp).map(r => r.code));
+  const alle = kand.filter(c => !klaar.has(c)), codes = alle.filter(c => !b.uit.has(c));
   const { rijen, fouten } = basisPlan(codes, b);
   const rij = Object.fromEntries(rijen.map(r => [r.code, r]));
   const nW = rijen.reduce((s, r) => s + Object.keys(r.w).length, 0), nP = rijen.filter(r => Object.keys(r.w).length).length;
@@ -1296,8 +1299,9 @@ function viewBasis(){
       <label class="row small" style="gap:6px;cursor:pointer"><input type="checkbox" id="pdb-hand" data-pdb="hand" ${b.hand ? 'checked' : ''}> Ook handmatig vastgelegde waarden overschrijven</label></div>
     ${fouten.length ? `<div class="small" style="color:var(--bad);font-weight:700">${esc(fouten[0])}</div>` : ''}
   </div></section>
-  <section class="pd-sec"><div class="pd-sec-kop"><div style="min-width:0"><h3>${plural(alle.length, 'product', 'producten')} gevonden · ${codes.length} aangevinkt</h3><div class="small muted mt4">Blauw = komt erbij, oranje = wordt overschreven, grijs = blijft zoals het is${nVast ? ' (🔒 = handmatig vastgelegd)' : ''}. Vink uit wat niet bij de regel hoort.</div></div>
-    <div class="row wrap"><button class="btn sm" data-pd="basisalles" data-v="1">Alles aan</button><button class="btn sm" data-pd="basisalles" data-v="0">Alles uit</button></div></div>
+  <section class="pd-sec"><div class="pd-sec-kop"><div style="min-width:0"><h3>${klaar.size ? plural(klaar.size, 'product', 'producten') + ' klaar · ' : ''}${alle.length ? plural(alle.length, 'product', 'producten') + ' nog over · ' + codes.length + ' aangevinkt' : 'alles verwerkt'}</h3><div class="small muted mt4">Blauw = komt erbij, oranje = wordt overschreven, grijs = blijft zoals het is${nVast ? ' (🔒 = handmatig vastgelegd)' : ''}. Vink uit wat niet bij de regel hoort.</div></div>
+    <div class="row wrap"><button class="btn sm" data-pd="basisalles" data-v="1">Alles aan</button><button class="btn sm" data-pd="basisalles" data-v="0">Alles uit</button>${alle.length ? `<button class="btn sm acc" data-pd="basissamen">Deze ${alle.length} zelf invullen →</button>` : ''}</div></div>
+    ${!alle.length ? '<div class="empty">Alle producten zijn verwerkt.</div>' : ''}
     ${nGeen ? `<div class="small" style="padding:10px 16px;background:#fff8dc;border-bottom:1px solid #eef1f4"><b>${nGeen} zonder bekende stuks per pallet.</b> Voor die producten komen alleen aanvullen bij en volle pallet erbij, max op pick niet. Vul eerst hun stuks per pallet in via Samen invullen en draai de basisregel daarna opnieuw.</div>` : ''}
     <div class="pd-tab"><table class="pd-t"><thead><tr><th></th><th>Product</th><th>Per pallet</th><th>Picklocatie</th><th>Picklocatie ja</th><th>Aanvullen bij</th><th>Aanvullen met</th><th>Max op pick</th></tr></thead><tbody>
     ${alle.map(c => { const on = !b.uit.has(c), r = rij[c];
@@ -1315,6 +1319,8 @@ async function bewaarBasis(){
   const wijz = {}; rijen.forEach(r => { if(Object.keys(r.w).length) wijz[r.code] = r.w; });
   const nW = Object.values(wijz).reduce((s, w) => s + Object.keys(w).length, 0);
   const n = await opslaan(wijz, 'basisregel');
+  // wat je uitvinkte was bewust: laat dat uitgevinkt, zodat een volgende keer niets per ongeluk meegaat
+  b.uit = new Set(basisKandidaten());   // alles wat nog overblijft staat uit; wat klaar is verdwijnt uit de lijst
   return { n, nW };
 }
 
@@ -1377,6 +1383,7 @@ app.addEventListener('click', async ev => {
   if(a === 'samenkleur'){ const c = b.dataset.code; UI.sel = new Set([c].concat(genotenActief(c))); bewaarSel(); UI.samen = null; location.hash = '#/productdata/samen'; return; }
   if(a === 'samenstop'){ UI.samen = null; bewaarSamen(); location.hash = '#/productdata/kies'; return; }
   if(a === 'basisalles'){ const bs = basisSt(); bs.uit = b.dataset.v === '1' ? new Set() : new Set(basisKandidaten()); rerender(); return; }
+  if(a === 'basissamen'){ const bs = basisSt(); const kl = new Set(basisPlan(basisKandidaten(), Object.assign({}, bs, { hand:false })).rijen.filter(r => !Object.keys(r.w).length && !r.geenSpp).map(r => r.code)); UI.sel = new Set(basisKandidaten().filter(c => !kl.has(c))); bewaarSel(); UI.samen = null; location.hash = '#/productdata/samen'; return; }
   if(a === 'meer'){ UI.kiesN = (UI.kiesN || 40) + 40; rerender(); return; }
   if(busy) return;
   busy = true; b.disabled = true;
