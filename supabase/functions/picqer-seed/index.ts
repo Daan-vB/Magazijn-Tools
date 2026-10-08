@@ -536,12 +536,14 @@ async function analyse() {
   const abcLijst = lijst.filter((p: any) => p.analysis_abc_classification).length;
   // vijf losse producten apart ophalen en vergelijken
   const steek = lijst.slice(0, 5).map((p: any) => p.idproduct);
-  const los = await perStuk(steek, 3, async (id: number) => {
-    const p = await pq("GET", "products/" + id);
+  const los: unknown[] = [];
+  for (const id of steek) {
+    const p = await pq("GET", "products/" + id).catch(() => null);
+    if (!p) continue;
     const velden: Record<string, unknown> = {};
-    Object.keys(p || {}).filter((k) => /analysis|stock_level|picking_stock|abc/i.test(k)).forEach((k) => { velden[k] = p[k]; });
-    return { code: p.productcode, velden };
-  });
+    Object.keys(p).filter((k) => /analysis|stock_level|picking_stock|abc/i.test(k)).forEach((k) => { velden[k] = p[k]; });
+    los.push({ code: p.productcode, velden });
+  }
   // hebben die producten uberhaupt picklijstregels?
   let picks = 0;
   try { const pl = await pq("GET", "picklists?limit=1"); picks = Array.isArray(pl) ? pl.length : 0; } catch (_e) { /* mag */ }
