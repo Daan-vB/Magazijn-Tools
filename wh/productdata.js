@@ -1862,8 +1862,7 @@ function viewTabel(zone){
     <div class="pd-tab"><table class="pd-tg" data-g="${gi}"><thead>${kop}</thead><tbody>${cs.map(tabRij).join('')}</tbody></table></div></section>`).join('') || '<div class="card empty">Niets meer te doen in deze afdeling. Kies "Alles" om alles te zien.</div>'}`;
 }
 // één regel opslaan: alles wat er staat (ook voorgevulde schattingen) wordt vastgelegd
-async function tabBewaarRij(tr){
-  if(!tr || tr.dataset.bezig) return;
+function tabWijz(tr){
   const c = tr.dataset.code, wijz = {}, fouten = [];
   tr.querySelectorAll('input[data-pdt]:not([disabled])').forEach(inp => {
     const k = inp.dataset.pdt, ruw = tabNorm(k, inp.value);
@@ -1875,14 +1874,19 @@ async function tabBewaarRij(tr){
     if(st.s === 'ok' && st.v === v && !(m && m.bron === 'auto')) return;
     wijz[k] = v;
   });
+  return { c, wijz, fouten };
+}
+async function tabBewaarRij(tr){
+  if(!tr || tr.dataset.bezig) return;
+  const { c, wijz, fouten } = tabWijz(tr);
   const status = tr.querySelector('.t-st');
   if(fouten.length){ status.textContent = '!'; status.title = fouten.join(' · '); status.className = 't-st t-err'; return; }
-  if(!Object.keys(wijz).length){ status.textContent = '✓'; status.className = 't-st'; tr.classList.add('r-klaar'); return; }
+  if(!Object.keys(wijz).length){ status.textContent = '✓'; status.className = 't-st'; tr.classList.add('r-klaar'); delete tr.dataset.vuil; delete tr.dataset.gezien; return; }
   tr.dataset.bezig = '1'; status.textContent = '…';
   try{
     await opslaan({ [c]:wijz }, 'tabel');
     tr.querySelectorAll('input[data-pdt]:not([disabled])').forEach(inp => { if(inp.value.trim()){ const v = tabNorm(inp.dataset.pdt, inp.value); inp.parentNode.className = v === 'onb' ? 't-dub' : 't-ok'; if(v === 'onb') inp.value = 'x'; inp.dataset.was = v; } else if(inp.dataset.pdt === 'kgst') inp.parentNode.className = 't-info'; });
-    status.textContent = '✓'; status.title = ''; status.className = 't-st'; tr.classList.add('r-klaar');
+    status.textContent = '✓'; status.title = ''; status.className = 't-st'; tr.classList.add('r-klaar'); delete tr.dataset.vuil; delete tr.dataset.gezien;
   }catch(e){ status.textContent = '!'; status.title = e.message; status.className = 't-st t-err'; toast(c + ': ' + e.message, 6000); }
   finally{ delete tr.dataset.bezig; }
 }
@@ -2146,6 +2150,24 @@ app.addEventListener('focusout', ev => {
   if(naar && tr.contains(naar)) return;          // nog in dezelfde regel
   if(tr.dataset.gezien) tabBewaarRij(tr);
 });
+// vangnet: ook opslaan als je de pagina ververst, sluit of naar een andere app gaat terwijl je nog in een regel zit
+const tabOpen = () => [...document.querySelectorAll('table.pd-tg tbody tr[data-vuil], table.pd-tg tbody tr[data-gezien]')].filter(tr => !tr.dataset.bezig);
+// in één verzoek dat doorloopt als de pagina weg is (keepalive), op basis van wat de app al weet
+function noodOpslaan(){
+  const nu = new Date().toISOString(), rijen = [];
+  tabOpen().forEach(tr => {
+    const { c, wijz, fouten } = tabWijz(tr); if(fouten.length || !Object.keys(wijz).length) return;
+    const r = S.pd[c] || { data:{}, meta:{} }, data = Object.assign({}, r.data || {}), meta = Object.assign({}, r.meta || {});
+    Object.entries(wijz).forEach(([k, v]) => { if(!v){ delete data[k]; delete meta[k]; } else { data[k] = v; meta[k] = { op:nu, bron:'tabel' }; } });
+    rijen.push({ productcode:c, data, meta, updated_at:nu });
+    S.pd[c] = { data, meta, t:nu }; delete tr.dataset.vuil; delete tr.dataset.gezien;
+  });
+  if(!rijen.length) return;
+  try{ fetch(WH.URL_ + '/rest/v1/productdata?on_conflict=productcode', { method:'POST', keepalive:true, headers:{ apikey:WH.KEY, Authorization:'Bearer ' + WH.KEY, 'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=minimal' }, body:JSON.stringify(rijen) }); }catch(e){}
+}
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') noodOpslaan(); });
+window.addEventListener('pagehide', noodOpslaan);
+window.addEventListener('beforeunload', noodOpslaan);
 function sluitSheet(){
   const c = UI.sheet; UI.sheet = null; rerender();
   // terug naar het kaartje waar je was
