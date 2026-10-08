@@ -36,6 +36,7 @@
 <div class="card"><h2>Stap 4 · Levering met verkoopgeschiedenis</h2>
   <div class="muted">De DEMO-producten bestaan pas sinds vandaag, dus Picqer kent daar geen verkoop van. Deze knop maakt één extra inkooporder met ontvangst (DEMO-PO-007) van de vijf producten uit Picqers eigen demodata die de meeste picks per dag hebben. Daarmee kan stap 4 van Ontvangsten met echte verkoopcijfers getest worden.</div>
   <button class="p" data-a="historie">Maak de levering met verkoopcijfers</button>
+  <button data-a="analyse">Waarom lukt dit niet? (kijkt alleen)</button>
 </div>
 <div class="card"><h2>Resultaat</h2><div id="uit" class="muted">Nog niets uitgevoerd.</div><pre id="raw" hidden></pre></div>
 <script>
@@ -88,6 +89,16 @@ const taken = {
     }
     const fouten = log.reduce((t, x) => t + (x.aantalFouten || 0), 0);
     toon(fouten ? 'Klaar, met ' + fouten + ' fout(en): stuur een screenshot' : 'Testomgeving opgebouwd', regels, log, !fouten);
+  },
+  async analyse(){
+    const j = await vraag('analyse');
+    const los = (j.losOpgehaald || []).map(x => esc(x.code) + ': ' + (Object.keys(x.velden || {}).length ? Object.entries(x.velden).map(([k, v]) => esc(k) + '=' + esc(v === null ? 'leeg' : v)).join(', ') : 'geen analysevelden'));
+    toon(j.uitleg, [
+      j.producten + ' producten in de testomgeving',
+      j.metPicksPerDagInLijst + ' daarvan met picks per dag in de lijst, ' + j.metAbcInLijst + ' met een ABC-klasse',
+      'Picklijsten aanwezig: ' + (j.picklijstenAanwezig ? 'ja' : 'nee'),
+      '<b>Losse producten apart opgehaald:</b>'
+    ].concat(los), j, j.metPicksPerDagInLijst > 0);
   },
   async historie(){
     const j = await vraag('historie');

@@ -528,6 +528,35 @@ const BLOKKEN: Record<string, () => Promise<unknown>> = {
   voorraad: blokVoorraad, inkoop: blokInkoop, orders: blokOrders, historie: blokHistorie,
 };
 
+// Kijkt of Picqer de analysevelden (picks per dag, ABC) wel invult. Die staan soms
+// alleen op het losse product en niet in de lijst. Schrijft niets.
+async function analyse() {
+  const lijst = await alles("products", 6000);
+  const telLijst = lijst.filter((p: any) => Number(p.analysis_pick_amount_per_day) > 0).length;
+  const abcLijst = lijst.filter((p: any) => p.analysis_abc_classification).length;
+  // vijf losse producten apart ophalen en vergelijken
+  const steek = lijst.slice(0, 5).map((p: any) => p.idproduct);
+  const los = await perStuk(steek, 3, async (id: number) => {
+    const p = await pq("GET", "products/" + id);
+    const velden: Record<string, unknown> = {};
+    Object.keys(p || {}).filter((k) => /analysis|stock_level|picking_stock|abc/i.test(k)).forEach((k) => { velden[k] = p[k]; });
+    return { code: p.productcode, velden };
+  });
+  // hebben die producten uberhaupt picklijstregels?
+  let picks = 0;
+  try { const pl = await pq("GET", "picklists?limit=1"); picks = Array.isArray(pl) ? pl.length : 0; } catch (_e) { /* mag */ }
+  return {
+    producten: lijst.length,
+    metPicksPerDagInLijst: telLijst,
+    metAbcInLijst: abcLijst,
+    losOpgehaald: los,
+    picklijstenAanwezig: picks > 0,
+    uitleg: telLijst === 0
+      ? "Picqer vult de analysevelden in deze testomgeving niet. Verkoopsnelheid valt hier dus niet te testen."
+      : "Er zijn producten met picks per dag.",
+  };
+}
+
 // ---------- ingang ----------
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
@@ -543,6 +572,7 @@ Deno.serve(async (req: Request) => {
   try {
     if (actie === "status") return antwoord(await status(), 200, origin);
     if (actie === "inventaris") return antwoord(await inventaris(), 200, origin);
+    if (actie === "analyse") return antwoord(await analyse(), 200, origin);
     if (BLOKKEN[actie]) {
       if (req.method !== "POST") return antwoord({ fout: "Deze actie schrijft en werkt alleen met POST (gebruik de knop op testdata.html)." }, 405, origin);
       return antwoord(await BLOKKEN[actie](), 200, origin);
