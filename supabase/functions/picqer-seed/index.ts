@@ -480,9 +480,52 @@ async function blokOrders() {
   return { blok: "orders", totaalPlan: alle.length, ...r };
 }
 
+// ---- levering met producten die Picqer zelf al verkoopgeschiedenis heeft gegeven ----
+// De DEMO-producten bestaan pas sinds vandaag, dus "picks per dag" is daar 0. De 101
+// producten uit Picqers eigen demodata hebben wel historie (603 orders, 419 picklijsten).
+// Met deze levering kan stap 4 van Ontvangsten mét verkoopcijfers getest worden.
+async function blokHistorie() {
+  const alleProd = await alles("products", 6000);
+  const metHistorie = alleProd
+    .filter((p: any) => !String(p.productcode || "").startsWith(DEMO) && p.active !== false)
+    .map((p: any) => ({ p, pd: Number(p.analysis_pick_amount_per_day) || 0 }))
+    .filter((x: any) => x.pd > 0)
+    .sort((a: any, b: any) => b.pd - a.pd)
+    .slice(0, 5);
+  if (!metHistorie.length) {
+    return { blok: "historie", gedaan: 0, overgeslagen: 0, aantalFouten: 0, fouten: [],
+      rest: 0, opmerking: "Geen enkel product in de testomgeving heeft picks per dag. Dan valt dit niet te testen." };
+  }
+  const REF = "DEMO-PO-007";
+  const alleInk = await alles("purchaseorders", 2000);
+  if (alleInk.some((o: any) => o.supplier_orderid === REF)) {
+    return { blok: "historie", gedaan: 0, overgeslagen: 1, aantalFouten: 0, fouten: [], rest: 0,
+      producten: metHistorie.map((x: any) => x.p.productcode + " (" + x.pd.toFixed(2) + "/dag)") };
+  }
+  // leverancier van het eerste product, anders de eerste uit de lijst
+  const levs = await alles("suppliers", 500);
+  const idsupplier = metHistorie[0].p.idsupplier || (levs[0] && levs[0].idsupplier);
+  if (!idsupplier) throw new Fout("Geen leverancier gevonden voor deze levering.");
+  const regels = metHistorie.map((x: any) => ({ idproduct: x.p.idproduct, amount: 240, price: Number(x.p.price) || 10 }));
+  const po = await pq("POST", "purchaseorders", {
+    idsupplier, idwarehouse: MAGAZIJN, supplier_orderid: REF, delivery_date: overDagen(-1),
+    remarks: "DEMO levering met producten die verkoopgeschiedenis hebben", products: regels,
+  });
+  await pq("POST", "purchaseorders/" + po.idpurchaseorder + "/mark-as-purchased");
+  const vol = await pq("GET", "purchaseorders/" + po.idpurchaseorder);
+  const rc = await pq("POST", "receipts", { idpurchaseorder: po.idpurchaseorder, idwarehouse: MAGAZIJN, version: 2 });
+  for (const l of (vol.products || [])) {
+    await pq("POST", "receipts/" + rc.idreceipt + "/products",
+      { idproduct: l.idproduct, idpurchaseorder_product: l.idpurchaseorder_product, amount: 240 });
+  }
+  await pq("PUT", "receipts/" + rc.idreceipt, { status: "completed" });
+  return { blok: "historie", gedaan: 1, overgeslagen: 0, aantalFouten: 0, fouten: [], rest: 0,
+    inkooporder: REF, producten: metHistorie.map((x: any) => x.p.productcode + " (" + x.pd.toFixed(2) + "/dag)") };
+}
+
 const BLOKKEN: Record<string, () => Promise<unknown>> = {
   locaties: blokLocaties, leveranciers: blokLeveranciers, producten: blokProducten,
-  voorraad: blokVoorraad, inkoop: blokInkoop, orders: blokOrders,
+  voorraad: blokVoorraad, inkoop: blokInkoop, orders: blokOrders, historie: blokHistorie,
 };
 
 // ---------- ingang ----------

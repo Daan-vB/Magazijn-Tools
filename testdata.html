@@ -33,6 +33,10 @@
   <button class="p" data-a="bouw">Bouw de volledige testomgeving</button>
   <div id="voortgang" class="muted" style="margin-top:8px"></div>
 </div>
+<div class="card"><h2>Stap 4 · Levering met verkoopgeschiedenis</h2>
+  <div class="muted">De DEMO-producten bestaan pas sinds vandaag, dus Picqer kent daar geen verkoop van. Deze knop maakt één extra inkooporder met ontvangst (DEMO-PO-007) van de vijf producten uit Picqers eigen demodata die de meeste picks per dag hebben. Daarmee kan stap 4 van Ontvangsten met echte verkoopcijfers getest worden.</div>
+  <button class="p" data-a="historie">Maak de levering met verkoopcijfers</button>
+</div>
 <div class="card"><h2>Resultaat</h2><div id="uit" class="muted">Nog niets uitgevoerd.</div><pre id="raw" hidden></pre></div>
 <script>
 'use strict';
@@ -84,6 +88,13 @@ const taken = {
     }
     const fouten = log.reduce((t, x) => t + (x.aantalFouten || 0), 0);
     toon(fouten ? 'Klaar, met ' + fouten + ' fout(en): stuur een screenshot' : 'Testomgeving opgebouwd', regels, log, !fouten);
+  },
+  async historie(){
+    const j = await vraag('historie');
+    const pr = (j.producten || []).map(x => esc(x));
+    if(j.opmerking) return toon(j.opmerking, [], j, false);
+    toon(j.gedaan ? 'Levering ' + esc(j.inkooporder) + ' aangemaakt en ontvangen' : 'Stond er al',
+      [pr.length ? 'Producten (picks per dag): ' + pr.join(', ') : ''].filter(Boolean), j);
   },
   async inventaris(){
     const j = await vraag('inventaris');
