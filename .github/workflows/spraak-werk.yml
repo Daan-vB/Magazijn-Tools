@@ -34,6 +34,11 @@ jobs:
         i: [0, 1, 2, 3, 4, 5, 6, 7]
     steps:
       - uses: actions/checkout@v4
+      - name: Gereedschap
+        run: |
+          sudo apt-get -qq update >/dev/null
+          sudo apt-get -qq install -y ffmpeg espeak-ng >/dev/null
+          which ffmpeg ffprobe espeak-ng
       - name: Privesleutel uit de cache
         if: needs.plan.outputs.test == '0'
         uses: actions/cache/restore@v4
@@ -51,7 +56,6 @@ jobs:
       - name: Testopname maken (alleen bij TEST)
         if: needs.plan.outputs.test == '1'
         run: |
-          sudo apt-get -qq update >/dev/null && sudo apt-get -qq install -y espeak-ng >/dev/null
           espeak-ng -v nl -s 150 -w test.wav -f .github/spraak/testtekst.txt
           ffmpeg -loglevel error -y -i test.wav -ac 1 -ar 16000 -c:a libopus -b:a 32k audio.ogg
       - name: Whisper installeren
