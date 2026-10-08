@@ -53,6 +53,17 @@ async function locaties(){
   return loc;
 }
 
+// Rubber ringmat op rol: komt per pallet binnen, wordt per meter verkocht (van de rol
+// gesneden). Een rol is 10 meter. Op een pallet passen 6 plekken bij 1 meter breed, dus
+// 12 bij 50 cm. Picqer telt deze producten in meters, dus "per pallet" is hier in meters.
+const ROL_METER = 10, ROL_PLEKKEN = 6;
+function metersPerPallet(breedteCm){
+  const br = (Number(breedteCm) || 0) / 100;
+  if(!(br > 0)) return null;
+  const rollen = Math.floor(ROL_PLEKKEN / br);
+  return rollen > 0 ? rollen * ROL_METER : null;
+}
+
 // stuks per pallet uit de maten: europallet 120 x 80, stapelen tot 180 cm, maximaal 1000 kg.
 // Beide liggingen proberen (lang/breed gedraaid) en de beste nemen.
 function sppUitMaten(l, b, h, kg){
@@ -91,8 +102,10 @@ async function producten(loc){
       if(isFinite(pd) && pd > 0) VK[c] = { productcode:c, per_maand:Math.round(pd * 30), bron:'picqer 28 dagen' };
       // stuks per pallet: alleen voor DEMO-producten, geschat uit de maten (zie boven)
       if(/^DEMO-/i.test(c)){
-        const spp = sppUitMaten(p.lengte_cm, p.breedte_cm, p.hoogte_cm, p.gewicht_kg);
-        if(spp) GEH[c.toLowerCase()] = [{ sub:c, qty:spp, naam:p.naam || '', bron:'geschat uit maten (test)' }];
+        const rol = /rol/i.test(c) || /rol/i.test(p.naam || '');
+        const spp = rol ? metersPerPallet(p.breedte_cm) : sppUitMaten(p.lengte_cm, p.breedte_cm, p.hoogte_cm, p.gewicht_kg);
+        if(spp) GEH[c.toLowerCase()] = [{ sub:c, qty:spp, naam:p.naam || '',
+          bron:rol ? 'meter per pallet: ' + Math.round(spp / ROL_METER) + ' rollen van ' + ROL_METER + ' m (test)' : 'geschat uit maten (test)' }];
       }
       const v = VR[c] = { locs:{}, geen:p.zonder_locatie || 0, cont:{} };
       locs.forEach(l => {

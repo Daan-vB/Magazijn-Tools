@@ -291,9 +291,13 @@ function productPlan(): Prod[] {
       ...verdeel(sc, locNaam("BY", 1 + (i % 4), "ABCD"[Math.floor(i / 4) % 4], "00"), locNaam("BY", 1 + (i % 4), "ABCD"[Math.floor(i / 4) % 4], i % 2 ? "30" : "15"), locNaam("CC", 1 + (i % 6), "ABCD"[(i + 1) % 4], "10"), { pick: st.pick, bulk: st.bulk }),
       ...niveau(i, sc, true) };
   });
-  // rollen per meter: alleen bulk (de backorder-val)
-  ["ring-rol-50", "ring-rol-80-16", "ring-rol-120-16"].forEach((c, i) => {
-    P.push({ code: "DEMO-" + c, naam: "Demo rubber rol per meter " + (i + 1), sup: 1, prijs: 3.5 + i, gewicht: 800, l: 100, b: 100, h: 100, groep: "Rollen", sc: 3,
+  // Rubber ringmat op rol: komt op een pallet binnen, wordt per meter verkocht (van de rol
+  // gesneden). Een rol is 10 meter. Het eerste getal in de code is de breedte in cm.
+  // Op een pallet passen 6 plekken bij 1 meter breed, dus 12 bij 50 cm.
+  [["ring-rol-50", 50], ["ring-rol-80-16", 80], ["ring-rol-120-16", 120]].forEach(([c, br], i) => {
+    const breedte = Number(br);
+    P.push({ code: "DEMO-" + c, naam: "Demo rubber ringmat op rol " + breedte + " cm (per meter)", sup: 1, prijs: 3.5 + i,
+      gewicht: breedte * 160, l: 40, b: breedte, h: 40, groep: "Rollen", sc: 3,
       pick: null, bulk: [locNaam("CF", 1 + i, "A", "10")], pickStuks: 0, bulkStuks: [300 + i * 150], zonder: 0 });
   });
   voeg("Klein spul", 15, (i, sc) => {
