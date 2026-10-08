@@ -17,7 +17,7 @@
    ===================================================================== */
 window.WHPD = (function(){
 'use strict';
-const { $, esc, leeg, num, nf, plural, toast, api, upsert, D } = WH;
+const { $, esc, leeg, num, nf, plural, toast, api, upsert, D, isoDag, fdate } = WH;
 const app = $('app');
 const V = () => window.WHV;
 
@@ -68,7 +68,7 @@ async function laad(vers){
       const [rows, extra, cat] = await Promise.all([
         T('productdata', 'select=*', ['updated_at']).catch(e => { if(isMissing(e)){ S.mist = true; return []; } throw e; }),
         T('producten', 'select=productcode,gewicht_product_g,lengte_product_cm,breedte_product_cm,hoogte_product_cm,leverancier_code&order=productcode', ['picqer_datum', 'updated_at']).catch(() => []),
-        (window.WHC ? WHC.catalog(['wh-pq-cat', 'catalog-ean', 'wh-verplaatsingen']) : api('GET', 'catalog?key=in.(%22wh-pq-cat%22,%22catalog-ean%22,%22wh-verplaatsingen%22)&select=key,data,updated_at')).catch(() => [])
+        (window.WHC ? WHC.catalog(['wh-pq-cat', 'catalog-ean', 'wh-verplaatsingen', 'wh-inkoop']) : api('GET', 'catalog?key=in.(%22wh-pq-cat%22,%22catalog-ean%22,%22wh-verplaatsingen%22,%22wh-inkoop%22)&select=key,data,updated_at')).catch(() => [])
       ]);
       S.pd = {}; rows.forEach(r => { S.pd[r.productcode] = { data:r.data || {}, meta:r.meta || {}, t:r.updated_at }; });
       S.extra = {}; extra.forEach(r => { S.extra[r.productcode] = r; });
@@ -76,6 +76,7 @@ async function laad(vers){
       S.labels = ((cat || []).find(r => r.key === 'catalog-ean') || {}).data || {};
       // verplaatsingen uit Picqer: [id, tijd, wie, code, aantal, van, naar, magazijn]
       S.mv = {}; (((cat || []).find(r => r.key === 'wh-verplaatsingen') || {}).data || {}).rows?.forEach(r => { const c = D.PLOW[String(r[3] || '').toLowerCase()] || r[3]; (S.mv[c] = S.mv[c] || []).push({ n:num(r[4]) || 0, van:r[5] || '', naar:r[6] || '', vst:/spreuwel/i.test(r[7] || '') }); });
+      S.ink = ((cat || []).find(r => r.key === 'wh-inkoop') || {}).data || null;
       S.idx = null; S.klaar = true; S.fout = null;
     }catch(e){ S.fout = e; }
   })();
@@ -1036,6 +1037,7 @@ function viewStart(){
   ${UI.mig ? `<div class="card" style="border-left:4px solid var(--ok)"><h3>Overgezet</h3><div class="small mt8">${Object.keys(UI.mig.voor).map(k => esc(VELDEN[k].t) + ': vóór <b>' + nf(UI.mig.voor[k]) + '</b>, na <b>' + nf(UI.mig.na[k] || 0) + '</b>' + ((UI.mig.na[k] || 0) === UI.mig.voor[k] ? ' ✓' : ' <span class="badge b-bad">verschil</span>')).join('<br>')}</div></div>` : ''}
   <a class="card" href="#/productdata/afd" style="display:block;text-decoration:none;color:inherit;border-left:6px solid var(--orange)"><div class="row between wrap"><div><h2 style="font-size:18px">Afdelingen doorlopen</h2><div class="small muted mt4">Per afdeling een lijst: per product wat we weten, wat mist en wat geschat is. Tik, nakijken, Opslaan en door naar de volgende.</div></div><span class="btn acc">Begin →</span></div></a>
   ${kgKaart()}
+  ${inkKaart()}
   <a class="card" href="#/productdata/import" style="display:block;text-decoration:none;color:inherit;border-left:4px solid #5a3e8f"><div class="row between wrap"><div><h3>Importeren</h3><div class="small muted mt4">Een lijst van Claude plakken (bijvoorbeeld uit je ingesproken opname), nakijken en in één klik opslaan.</div></div><span class="btn">Openen →</span></div></a>
   <a class="card" href="#/productdata/auto" style="display:block;text-decoration:none;color:inherit;border-left:4px solid var(--ok)"><div class="row between wrap"><div><h3>Automatisch invullen uit alle bronnen</h3><div class="small muted mt4">Palletlabels, containers, pakbonnen, VST, bulk, verplaatsingen, Picqer en kleurgenoten naast elkaar. Alleen wat getoetst zeker genoeg is, jouw invoer blijft staan.</div></div><span class="btn ok">Bekijken →</span></div></a>
   ${poortKaart()}
@@ -1082,6 +1084,50 @@ function poort(){
   const groen = items.every(x => x.ok);
   const pct = lagen.reduce((s, v) => s + v.gevuld, 0) / Math.max(1, lagen.reduce((s, v) => s + v.velden, 0));
   return { bel, items, groen, dataKlaar, code:groen ? poortCode(bel.length) : null, pct:Math.floor(pct * 100), sp };
+}
+/* ---------- inkoophistorie uit Picqer (alleen lezen): in welke hoeveelheden kopen we in? ----------
+   Opgeslagen als catalog "wh-inkoop": { t, sinds, n, p:{ code:[[datum, besteld, ontvangen], ...] } } */
+const FN_INK = WH.URL_ + '/functions/v1/picqer-inkoop';
+async function inkVraag(qs){
+  let code = ''; try{ code = localStorage.getItem('ivol-koppelcode') || ''; }catch(e){}
+  if(!code) throw new Error('Geen koppelcode op dit apparaat. Open eerst Vandaag en vul de koppelcode in.');
+  const r = await fetch(FN_INK + '?' + qs, { headers:{ apikey:WH.KEY, 'x-ivol-code':code }, cache:'no-store' });
+  const t = await r.text(); let j = null; try{ j = JSON.parse(t); }catch(e){}
+  if(!r.ok) throw new Error((j && j.fout) || ('Tussenstation gaf status ' + r.status + (r.status === 404 ? ': functie picqer-inkoop staat nog niet live' : '')));
+  return j;
+}
+async function haalInkoop(){
+  if(UI.inkBezig) return; UI.inkBezig = 'lijst ophalen…'; rerender();
+  try{
+    const sinds = isoDag(new Date(Date.now() - 365 * 864e5));
+    const l = await inkVraag('stap=lijst&sinds=' + sinds);
+    const orders = (l.orders || []).filter(o => !/cancel/i.test(o[2] || ''));
+    const zonder = orders.filter(o => !Array.isArray(o[4])).map(o => o[0]);
+    const regels = {}; orders.forEach(o => { if(Array.isArray(o[4])) regels[o[0]] = o[4]; });
+    for(let i = 0; i < zonder.length; i += 60){
+      UI.inkBezig = 'regels ophalen ' + nf(Math.min(i + 60, zonder.length)) + ' van ' + nf(zonder.length) + '…'; rerender();
+      const d = await inkVraag('stap=detail&ids=' + zonder.slice(i, i + 60).join(','));
+      (d.orders || []).forEach(o => { regels[o[0]] = o[4] || []; });
+    }
+    const per = {};
+    orders.forEach(o => (regels[o[0]] || []).forEach(([c, b, g]) => { const k = D.PLOW[String(c).toLowerCase()] || c; (per[k] = per[k] || []).push([o[1], b, g, o[2] === 'completed' ? 1 : 0]); }));
+    const data = { t:new Date().toISOString(), sinds, n:orders.length, p:per };
+    await WH.catZet('wh-inkoop', data);
+    S.ink = data; S.idx = null; toast(plural(orders.length, 'inkooporder', 'inkooporders') + ' opgehaald, ' + plural(Object.keys(per).length, 'product', 'producten'), 5000);
+  }catch(e){ toast('Inkoophistorie: ' + e.message, 8000); }
+  finally{ UI.inkBezig = null; rerender(); }
+}
+// samenvatting per product: hoe vaak, meestal hoeveel, maximaal
+function inkVan(c){
+  const r = S.ink && S.ink.p && S.ink.p[c]; if(!r || !r.length) return null;
+  const b = r.map(x => num(x[1]) || 0).filter(x => x > 0).sort((x, y) => x - y); if(!b.length) return null;
+  return { n:b.length, med:b[Math.floor((b.length - 1) / 2)], max:b[b.length - 1], min:b[0], tot:b.reduce((s, x) => s + x, 0) };
+}
+function inkKaart(){
+  const i = S.ink;
+  return `<div class="card" style="border-left:4px solid #5a3e8f"><div class="row between wrap"><div><h3>Inkoophistorie (12 maanden)</h3>
+    <div class="small muted mt4">${i ? 'Opgehaald ' + esc(fdate(i.t, { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })) + ': ' + plural(i.n, 'inkooporder', 'inkooporders') + ' voor ' + plural(Object.keys(i.p || {}).length, 'product', 'producten') + '. In de tabel zie je per product hoe vaak en hoeveel er is besteld.' : 'Haalt uit Picqer op in welke hoeveelheden we per product inkopen (alleen lezen). Daarmee zien we welke producten nooit als volle pallet komen.'}</div></div>
+    <button class="btn" data-pd="inkhaal" ${UI.inkBezig ? 'disabled' : ''}>${UI.inkBezig ? esc(UI.inkBezig) : i ? 'Opnieuw ophalen' : 'Ophalen uit Picqer'}</button></div></div>`;
 }
 function poortKaart(){
   const p = poort(), n = p.items.filter(x => x.ok).length;
@@ -1851,7 +1897,7 @@ function tabCel(c, k, f){
 function tabRij(c){
   const p = D.P[c] || {}, f = kaartFn(c, { schat:true }), l = locaties(c), eh = eenheid(c), st = feedStatus(c, f);
   return `<tr data-code="${esc(c)}" class="${st.s === 'klaar' ? 'r-klaar' : ''}"><td class="prod"><div class="row" style="gap:6px;align-items:baseline"><a class="code" href="#/productdata/p/${encodeURIComponent(c)}" tabindex="-1" style="font-size:12px">${esc(c)}</a>${abcBadge(c)}</div>
-    <div class="tiny" style="line-height:1.25">${esc(String(p.naam || '').slice(0, 64))}</div><div class="tiny muted">${esc(l.pick.map(a => a[0]).slice(0, 1).join('') || l.bulk.map(a => a[0]).slice(0, 1).join('') || '–')} · telt ${esc(eh.mv)}</div></td>
+    <div class="tiny" style="line-height:1.25">${esc(String(p.naam || '').slice(0, 64))}</div><div class="tiny muted">${esc(l.pick.map(a => a[0]).slice(0, 1).join('') || l.bulk.map(a => a[0]).slice(0, 1).join('') || '–')} · telt ${esc(eh.mv)}</div>${(ik => ik ? `<div class="tiny" style="color:#5a3e8f" title="Inkooporders afgelopen 12 maanden: ${ik.n}×, totaal ${nf(ik.tot)}, kleinste ${nf(ik.min)}, grootste ${nf(ik.max)}">inkoop ${ik.n}× · meestal ${nf(ik.med)} · max ${nf(ik.max)}</div>` : '')(inkVan(c))}</td>
     ${TAB_KOL.map(([k]) => tabCel(c, k, f)).join('')}<td class="t-st" aria-live="polite">${st.s === 'klaar' ? '✓' : ''}</td></tr>`;
 }
 function viewTabel(zone){
@@ -2073,6 +2119,7 @@ app.addEventListener('click', async ev => {
   if(a === 'impleeg'){ UI.imp = ''; bewaar('imp', ''); UI.impUit = new Set(); rerender(); return; }
   if(a === 'imp' || a === 'impinc') return;
   if(a === 'afdmodus'){ UI.afdModus = b.dataset.v; bewaar('afdmodus', UI.afdModus); rerender(); return; }
+  if(a === 'inkhaal'){ haalInkoop(); return; }
   if(a === 'kggebruik'){
     const tr = b.closest('tr'), inp = tr && tr.querySelector('input[data-pdt=kgst]'); if(!inp) return;
     inp.dataset.voor = inp.value; inp.value = String(b.dataset.v).replace('.', ','); inp.parentNode.className = 't-nieuw'; tr.dataset.gezien = '1';
