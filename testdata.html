@@ -28,6 +28,11 @@
   <div class="muted">Alleen tellen en kijken, er wordt niets aangemaakt of gewijzigd.</div>
   <button class="p" data-a="inventaris">Toon wat er al staat</button>
 </div>
+<div class="card"><h2>Stap 3 · Bouw de IVOL-testomgeving</h2>
+  <div class="muted">Zelfde opzet als de echte Picqer, kleiner: 354 locaties in IVOL-naamgeving (AD/AE legborden + bulk, CC en BY vloer + bulk, CF rollen, AH), 6 Europese leveranciers, 60 producten met EAN (accessoires, tegels, transportpallets, rollen per meter, klein spul, nieuw), beginvoorraad met bewust dezelfde problemen als live (bulk in andere gang, alleen bulk, voorraad zonder locatie, lege pick), 6 inkooporders (ontvangen, deels ontvangen, open, te laat) en 40 klantorders. Bestaande Picqer-demodata blijft staan. Veilig om opnieuw te draaien: wat er al is wordt overgeslagen.</div>
+  <button class="p" data-a="bouw">Bouw de volledige testomgeving</button>
+  <div id="voortgang" class="muted" style="margin-top:8px"></div>
+</div>
 <div class="card"><h2>Resultaat</h2><div id="uit" class="muted">Nog niets uitgevoerd.</div><pre id="raw" hidden></pre></div>
 <script>
 'use strict';
@@ -59,6 +64,26 @@ const taken = {
   async status(){
     const j = await vraag('status');
     toon('Verbinding met ' + j.domein, j.magazijnen.map(m => esc(m.naam) + ' (id ' + m.id + ')' + (m.id === j.magazijn ? ' ← ingesteld' : '')), j);
+  },
+  async bouw(){
+    const blokken = [['locaties','Locaties'],['leveranciers','Leveranciers'],['producten','Producten'],['voorraad','Voorraad en aanvulniveaus'],['inkoop','Inkooporders en ontvangsten'],['orders','Klantorders']];
+    const regels = [], log = [];
+    const v = $('voortgang');
+    for(const [a, naam] of blokken){
+      let tot = { gedaan:0, overgeslagen:0, fouten:[] }, ronde = 0, j;
+      do{
+        ronde++;
+        v.innerHTML = regels.join('<br>') + (regels.length ? '<br>' : '') + '⏳ ' + naam + (ronde > 1 ? ' (deel ' + ronde + ')' : '') + '…';
+        j = await vraag(a);
+        tot.gedaan += j.gedaan || 0; tot.overgeslagen += j.overgeslagen || 0; tot.fouten = tot.fouten.concat(j.fouten || []);
+        log.push(j);
+      }while(j.rest > 0 && ronde < 10);
+      const fout = tot.fouten.length ? ' <span class="bad">· ' + tot.fouten.length + ' fout(en): ' + esc(tot.fouten[0]) + '</span>' : '';
+      regels.push((tot.fouten.length ? '⚠️ ' : '✓ ') + '<b>' + naam + '</b>: ' + tot.gedaan + ' aangemaakt' + (tot.overgeslagen ? ', ' + tot.overgeslagen + ' al aanwezig' : '') + (j.rest > 0 ? ', <span class="bad">' + j.rest + ' nog te doen: klik nogmaals</span>' : '') + fout);
+      v.innerHTML = regels.join('<br>');
+    }
+    const fouten = log.reduce((t, x) => t + (x.aantalFouten || 0), 0);
+    toon(fouten ? 'Klaar, met ' + fouten + ' fout(en): stuur een screenshot' : 'Testomgeving opgebouwd', regels, log, !fouten);
   },
   async inventaris(){
     const j = await vraag('inventaris');
