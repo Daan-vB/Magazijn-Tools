@@ -787,7 +787,7 @@ function stijl(){
   .pd-tg th.prod{background:#fbfcfd;z-index:2}
   .pd-tg input{border:0;border-radius:0;width:100%;height:36px;padding:4px 6px;font-size:14px;background:transparent;color:var(--ink);min-width:0}
   .pd-tg input:focus{outline:2px solid var(--blue);outline-offset:-2px;background:#fff}
-  .pd-tg input:disabled{background:transparent}
+  .pd-tg input:disabled{background:transparent;pointer-events:none}
   .pd-tg tr:focus-within .prod{background:#f3f7fd}
   .pd-tg tr.r-klaar .prod{box-shadow:inset 4px 0 0 var(--ok)}
   .t-ok{background:#fff} .t-auto{background:#e9f6f3} .t-voor{background:#fff8d6} .t-schat{background:#fff1e0} .t-dub{background:#fdebd8}
@@ -795,6 +795,10 @@ function stijl(){
   .t-info{background:#f7f9fb} .t-info input::placeholder{color:#7a8795;opacity:1}
   .t-st{width:28px;text-align:center;font-weight:800;color:var(--ok)} .t-st.t-err{color:var(--bad);cursor:help}
   .pd-tl{display:inline-block;padding:1px 6px;border-radius:4px;border:1px solid #e3e8ee}
+  .pd-tg td{position:relative}
+  .pd-tg input.sel{background:rgba(37,99,235,.16)} .pd-tg input.sel:focus{background:#fff}
+  .pd-fh{position:absolute;right:-4px;bottom:-4px;width:8px;height:8px;background:var(--blue);border:1px solid #fff;cursor:crosshair;z-index:3}
+  .pd-tg.slepen, .pd-tg.slepen input{cursor:crosshair;user-select:none}
   @media (max-width:760px){
     .pd-sheet .pd-rij{grid-template-columns:1fr} .pd-sheet .pd-st{grid-column:1}
     .pd-bron > div{grid-template-columns:1fr;gap:0}
@@ -1856,7 +1860,7 @@ function viewTabel(zone){
   app.innerHTML = `<div class="pd-feedkop"><div class="row between wrap" style="gap:8px"><div><a class="small" href="#/productdata/afd">← Afdelingen</a> <b style="font-size:18px;margin-left:6px">${esc(ZONENAAM[zone] || zone)}</b> <span class="small muted">${esc(zoneLabel(zone, alle))}</span></div>
       <div class="pd-chips"><button class="pd-chip ${filt === 'open' ? 'on' : ''}" data-pd="afdfilter" data-v="open">Nog te doen<span class="n">${nf(nOpen)}</span></button><button class="pd-chip ${filt === 'alles' ? 'on' : ''}" data-pd="afdfilter" data-v="alles">Alles<span class="n">${nf(alle.length)}</span></button><a class="pd-chip" href="#/productdata/afd/${zone}/kaart" style="text-decoration:none">Kaartjes</a></div></div>
     <div class="pd-chips mt8"><button class="pd-chip ${!lev ? 'on' : ''}" data-pd="afdlev" data-v="">Alle leveranciers</button>${Object.entries(levs).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([l, k]) => `<button class="pd-chip ${lev === l ? 'on' : ''}" data-pd="afdlev" data-v="${esc(l)}">${esc(l.length > 26 ? l.slice(0, 24) + '…' : l)}<span class="n">${k}</span></button>`).join('')}</div>
-    <div class="tiny muted mt8"><span class="pd-tl t-ok">vast</span> <span class="pd-tl t-auto">automatisch</span> <span class="pd-tl t-voor">voorstel</span> <span class="pd-tl t-schat">schatting</span> <span class="pd-tl t-dub">dubbel, typ de juiste</span> <span class="pd-tl t-mist">mist</span> · Tab = volgende cel · Enter = cel eronder · regel verlaten = opgeslagen · pick j/n · met p(allet)/d(eel)/o (doos) · nvt = komt niet op pallet · <b>x</b> bij kg = Picqer-gewicht klopt niet, uitzoeken${kgLijst().length ? ` (<a href="#/productdata/kg">${nf(kgLijst().length)} op de lijst</a>)` : ''}</div></div>
+    <div class="tiny muted mt8"><span class="pd-tl t-ok">vast</span> <span class="pd-tl t-auto">automatisch</span> <span class="pd-tl t-voor">voorstel</span> <span class="pd-tl t-schat">schatting</span> <span class="pd-tl t-dub">dubbel, typ de juiste</span> <span class="pd-tl t-mist">mist</span> · Tab = volgende cel · Enter = cel eronder · regel verlaten = opgeslagen · <b>meer cellen</b>: slepen, Shift+klik of Shift+pijl · Ctrl+Enter = selectie vullen met wat je typte · Ctrl+D = naar beneden vullen · blauw vierkantje slepen = doortrekken · Ctrl+C / Ctrl+V ook uit Excel · Delete = selectie leeg · pick j/n · met p(allet)/d(eel)/o (doos) · nvt = komt niet op pallet · <b>x</b> bij kg = Picqer-gewicht klopt niet, uitzoeken${kgLijst().length ? ` (<a href="#/productdata/kg">${nf(kgLijst().length)} op de lijst</a>)` : ''}</div></div>
   ${lijst.map(([l, cs], gi) => `<section class="pd-sec" id="tg-${gi}"><div class="pd-sec-kop"><div class="l"><h3>${esc(l)}</h3><span class="small muted">${plural(cs.length, 'product', 'producten')}</span></div>
       <div class="row wrap"><button class="btn sm" tabindex="-1" data-pd="tabgroep" data-g="${gi}">Hele groep klopt, opslaan</button>${gi < lijst.length - 1 ? `<button class="btn sm ghost" tabindex="-1" data-pd="tabnaar" data-g="${gi + 1}">Volgende groep ↓</button>` : ''}</div></div>
     <div class="pd-tab"><table class="pd-tg" data-g="${gi}"><thead>${kop}</thead><tbody>${cs.map(tabRij).join('')}</tbody></table></div></section>`).join('') || '<div class="card empty">Niets meer te doen in deze afdeling. Kies "Alles" om alles te zien.</div>'}`;
@@ -2131,6 +2135,12 @@ app.addEventListener('change', ev => {
 // tabel: Enter = cel eronder, pijl op/neer = rij erboven/eronder, regel verlaten = opslaan
 app.addEventListener('keydown', ev => {
   const inp = ev.target; if(!inp.dataset || !inp.dataset.pdt) return;
+  const ctrl = ev.ctrlKey || ev.metaKey;
+  if(ev.shiftKey && (ev.key === 'ArrowDown' || ev.key === 'ArrowUp')){ ev.preventDefault(); tsUitbreiden(inp, ev.key === 'ArrowDown' ? 1 : -1); return; }
+  if(ctrl && ev.key === 'Enter'){ ev.preventDefault(); tsVulSelectie(inp); return; }
+  if(ctrl && (ev.key === 'd' || ev.key === 'D')){ ev.preventDefault(); tsVulOmlaag(inp); return; }
+  if(ev.key === 'Delete' && tsAantal() > 1){ ev.preventDefault(); tsZetVeel(tsCellen().map(i => [i, ''])); return; }
+  if(ev.key === 'Escape' && tsAantal() > 1){ tsZet(inp, inp); return; }
   if(ev.key === 'Enter' || ev.key === 'ArrowDown' || ev.key === 'ArrowUp'){
     ev.preventDefault();
     // ook over de grens van een leveranciersgroep heen
@@ -2143,13 +2153,123 @@ app.addEventListener('keydown', ev => {
 }, true);
 app.addEventListener('input', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt){ inp.parentNode.className = 't-nieuw'; inp.closest('tr').dataset.vuil = '1'; } }, true);
 app.addEventListener('change', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt) tabAfhankelijk(inp); }, true);
-app.addEventListener('focusin', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt){ inp.closest('tr').dataset.gezien = '1'; inp.dataset.voor = inp.value; try{ inp.select(); }catch(e){} } });
+app.addEventListener('focusin', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt){ inp.closest('tr').dataset.gezien = '1'; inp.dataset.voor = inp.value; try{ inp.select(); }catch(e){} if(!TS.houd) tsZet(inp, inp); else tsHandvat(); } });
 app.addEventListener('focusout', ev => {
   const inp = ev.target; if(!inp.dataset || !inp.dataset.pdt) return;
   const tr = inp.closest('tr'), naar = ev.relatedTarget;
   if(naar && tr.contains(naar)) return;          // nog in dezelfde regel
   if(tr.dataset.gezien) tabBewaarRij(tr);
 });
+/* ---------- tabel als spreadsheet: cellen selecteren, vullen, doortrekken, kopiëren en plakken ----------
+   Rooster = alle regels van het scherm (over leveranciersgroepen heen) × de invulcellen van een regel. */
+const TS = { a:null, b:null, houd:false, sleep:false, trek:null };
+const tsRijen = () => [...app.querySelectorAll('table.pd-tg tbody tr')];
+const tsCel = (rijen, r, c) => { const tr = rijen[r]; return tr ? tr.querySelectorAll('input[data-pdt]')[c] || null : null; };
+function tsPos(inp){ const tr = inp && inp.closest('tr'); if(!tr) return null; const r = tsRijen().indexOf(tr), c = [...tr.querySelectorAll('input[data-pdt]')].indexOf(inp); return r < 0 || c < 0 ? null : { r, c }; }
+function tsVak(){ if(!TS.a || !TS.b) return null; return { r1:Math.min(TS.a.r, TS.b.r), r2:Math.max(TS.a.r, TS.b.r), c1:Math.min(TS.a.c, TS.b.c), c2:Math.max(TS.a.c, TS.b.c) }; }
+function tsCellen(alleen){
+  const v = tsVak(); if(!v) return []; const rijen = tsRijen(), uit = [];
+  for(let r = v.r1; r <= v.r2; r++) for(let c = v.c1; c <= v.c2; c++){ const i = tsCel(rijen, r, c); if(i && (!alleen || !i.disabled)) uit.push(i); }
+  return uit;
+}
+const tsAantal = () => { const v = tsVak(); return v ? (v.r2 - v.r1 + 1) * (v.c2 - v.c1 + 1) : 0; };
+function tsVerf(){
+  app.querySelectorAll('table.pd-tg input.sel').forEach(i => i.classList.remove('sel'));
+  if(tsAantal() > 1) tsCellen().forEach(i => i.classList.add('sel'));
+  tsHandvat();
+}
+function tsHandvat(){
+  let h = document.querySelector('.pd-fh'); const v = tsVak();
+  const doel = v && tsCel(tsRijen(), v.r2, v.c2);
+  if(!doel){ if(h) h.remove(); return; }
+  if(!h){ h = document.createElement('div'); h.className = 'pd-fh'; h.title = 'Slepen = doortrekken naar beneden'; }
+  if(h.parentNode !== doel.parentNode) doel.parentNode.appendChild(h);
+}
+function tsZet(a, b){ const pa = tsPos(a), pb = tsPos(b || a); if(!pa || !pb) return; TS.a = pa; TS.b = pb; tsVerf(); }
+function tsUitbreiden(inp, stap){
+  if(!TS.a) tsZet(inp, inp);
+  const n = tsRijen().length; TS.b = { r:Math.max(0, Math.min(n - 1, TS.b.r + stap)), c:TS.b.c };
+  tsVerf(); const e = tsCel(tsRijen(), TS.b.r, TS.b.c); if(e) e.scrollIntoView({ block:'nearest' });
+}
+// waarden in cellen zetten zoals bij typen (afgeleide cellen rekenen mee), daarna de geraakte regels opslaan
+async function tsZetVeel(paren){
+  const rijen = new Set();
+  paren.forEach(([inp, v]) => {
+    if(!inp || inp.disabled) return; v = String(v ?? '').trim();
+    if(inp.value === v) return;
+    inp.dataset.voor = inp.value; inp.value = v; inp.parentNode.className = 't-nieuw';
+    const tr = inp.closest('tr'); tr.dataset.vuil = '1'; tr.dataset.gezien = '1'; tabAfhankelijk(inp); rijen.add(tr);
+  });
+  tsVerf();
+  if(!rijen.size) return;
+  const actief = document.activeElement, ar = actief && actief.closest && actief.closest('tr');
+  let n = 0; for(const tr of rijen){ if(tr === ar) continue; await tabBewaarRij(tr); n++; }   // de regel waar je nog in staat volgt als je hem verlaat
+  if(n > 1) toast(plural(n, 'regel', 'regels') + ' opgeslagen', 2500);
+}
+function tsVulSelectie(inp){ const v = inp.value; tsZetVeel(tsCellen(true).filter(i => i !== inp).map(i => [i, v])); }
+function tsVulOmlaag(inp){
+  const v = tsVak(), rijen = tsRijen(); if(!v) return;
+  if(v.r1 === v.r2){ const boven = tsCel(rijen, v.r1 - 1, v.c1); if(boven) tsZetVeel([[inp, boven.value]]); return; }   // één cel: van de cel erboven
+  const paren = []; for(let c = v.c1; c <= v.c2; c++){ const bron = tsCel(rijen, v.r1, c); for(let r = v.r1 + 1; r <= v.r2; r++) paren.push([tsCel(rijen, r, c), bron ? bron.value : '']); }
+  tsZetVeel(paren);
+}
+const tsTekst = vak => { const rijen = tsRijen(), uit = []; for(let r = vak.r1; r <= vak.r2; r++){ const rij = []; for(let c = vak.c1; c <= vak.c2; c++){ const i = tsCel(rijen, r, c); rij.push(i && !i.disabled ? i.value : ''); } uit.push(rij.join('\t')); } return uit.join('\n'); };
+app.addEventListener('copy', ev => { if(!ev.target.dataset || !ev.target.dataset.pdt || tsAantal() < 2) return; ev.preventDefault(); ev.clipboardData.setData('text/plain', tsTekst(tsVak())); toast(plural(tsAantal(), 'cel', 'cellen') + ' gekopieerd', 1800); });
+app.addEventListener('cut', ev => { if(!ev.target.dataset || !ev.target.dataset.pdt || tsAantal() < 2) return; ev.preventDefault(); ev.clipboardData.setData('text/plain', tsTekst(tsVak())); tsZetVeel(tsCellen().map(i => [i, ''])); });
+app.addEventListener('paste', ev => {
+  const inp = ev.target; if(!inp.dataset || !inp.dataset.pdt) return;
+  const t = (ev.clipboardData && ev.clipboardData.getData('text/plain') || '').replace(/\r/g, '').replace(/\n+$/, '');
+  const blok = t.split('\n').map(r => r.split('\t')), een = blok.length === 1 && blok[0].length === 1;
+  if(een && tsAantal() < 2) return;   // gewoon plakken in deze cel
+  ev.preventDefault();
+  const v = tsVak() || { r1:tsPos(inp).r, c1:tsPos(inp).c, r2:tsPos(inp).r, c2:tsPos(inp).c }, rijen = tsRijen(), paren = [];
+  if(een){ tsCellen().forEach(i => paren.push([i, blok[0][0]])); }   // één waarde in een selectie: overal
+  else {
+    // blok vanaf linksboven; is de selectie groter, dan wordt het blok herhaald (zoals Excel)
+    const h = Math.max(blok.length, v.r2 - v.r1 + 1), b = Math.max(...blok.map(r => r.length), v.c2 - v.c1 + 1);
+    for(let r = 0; r < h; r++) for(let c = 0; c < b; c++){ const rij = blok[r % blok.length]; paren.push([tsCel(rijen, v.r1 + r, v.c1 + c), rij[c % rij.length] ?? '']); }
+    TS.a = { r:v.r1, c:v.c1 }; TS.b = { r:Math.min(rijen.length - 1, v.r1 + h - 1), c:v.c1 + b - 1 };
+  }
+  tsZetVeel(paren);
+});
+// slepen: met de muis een vak kiezen, of het blauwe vierkantje doortrekken
+app.addEventListener('mousedown', ev => {
+  if(ev.target.classList && ev.target.classList.contains('pd-fh')){ ev.preventDefault(); const v = tsVak(); if(v){ TS.trek = v; TS.my = null; ev.target.closest('table').classList.add('slepen'); tsAutoScroll(); } return; }
+  const inp = ev.target; if(!inp.dataset || !inp.dataset.pdt || ev.button !== 0) return;
+  if(ev.shiftKey && TS.a){ ev.preventDefault(); TS.b = tsPos(inp); tsVerf(); return; }
+  TS.sleep = true; TS.my = null; TS.a = tsPos(inp); TS.b = TS.a; TS.houd = false; tsVerf(); tsAutoScroll();
+}, true);
+document.addEventListener('mousemove', ev => {
+  if(!(ev.buttons & 1) || (!TS.sleep && !TS.trek)) return;
+  TS.mx = ev.clientX; TS.my = ev.clientY; tsOnder();
+});
+// bij de rand van het scherm vanzelf doorscrollen tijdens het slepen
+function tsAutoScroll(){
+  clearInterval(TS.auto);
+  TS.auto = setInterval(() => {
+    if(!TS.sleep && !TS.trek){ clearInterval(TS.auto); return; }
+    if(TS.my == null) return;
+    const d = TS.my > innerHeight - 50 ? 24 : TS.my < 90 ? -24 : 0;
+    if(d){ scrollBy(0, d); tsOnder(); }
+  }, 40);
+}
+function tsOnder(){
+  // via de cel onder de muis, want uitgeschakelde (n.v.t.) velden krijgen zelf geen muis-events
+  const el = document.elementFromPoint(TS.mx, Math.min(TS.my, innerHeight - 2)), td = el && el.closest && el.closest('table.pd-tg td');
+  const inp = td && td.querySelector('input[data-pdt]'); if(!inp) return;
+  const p = tsPos(inp); if(!p) return;
+  if(TS.trek){ TS.a = { r:TS.trek.r1, c:TS.trek.c1 }; TS.b = { r:Math.max(p.r, TS.trek.r2), c:TS.trek.c2 }; tsVerf(); return; }
+  if(TS.sleep && (p.r !== TS.b.r || p.c !== TS.b.c)){ TS.b = p; TS.houd = true; tsVerf(); const a = tsCel(tsRijen(), TS.a.r, TS.a.c); if(a && document.activeElement !== a) a.focus({ preventScroll:true }); TS.houd = false; }
+}
+document.addEventListener('mouseup', () => {
+  TS.sleep = false; clearInterval(TS.auto); app.querySelectorAll('table.slepen').forEach(t => t.classList.remove('slepen'));
+  if(!TS.trek) return;
+  const bron = TS.trek, v = tsVak(); TS.trek = null; if(!v || v.r2 <= bron.r2) return;
+  const rijen = tsRijen(), paren = [], hoog = bron.r2 - bron.r1 + 1;
+  for(let r = bron.r2 + 1; r <= v.r2; r++) for(let c = bron.c1; c <= bron.c2; c++){ const b = tsCel(rijen, bron.r1 + ((r - bron.r1) % hoog), c); paren.push([tsCel(rijen, r, c), b ? b.value : '']); }
+  tsZetVeel(paren);
+});
+
 // vangnet: ook opslaan als je de pagina ververst, sluit of naar een andere app gaat terwijl je nog in een regel zit
 const tabOpen = () => [...document.querySelectorAll('table.pd-tg tbody tr[data-vuil], table.pd-tg tbody tr[data-gezien]')].filter(tr => !tr.dataset.bezig);
 // in één verzoek dat doorloopt als de pagina weg is (keepalive), op basis van wat de app al weet
