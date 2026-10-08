@@ -20,7 +20,8 @@
 //   - elk antwoord bevat "omgeving":"test", zodat de app kan laten zien
 //     dat het echt de testomgeving is.
 //  Acties (?actie=…): status, vandaag, producten, picklijst, catalogus,
-//  locaties, mutaties, verplaatsingen (zelfde als "picqer").
+//  locaties, mutaties, verplaatsingen, keten (zelfde als "picqer") en
+//  basis (alleen hier: producten, locaties en backorders voor de Test-app).
 //  Wordt automatisch live gezet door GitHub (workflow supabase-functies).
 // =====================================================================
 
@@ -418,6 +419,76 @@ async function picklijst(idTxt: string) {
   });
 }
 
+// =====================================================================
+//  "basis": alles wat de app normaal uit de exports in Supabase haalt, maar dan
+//  rechtstreeks uit de testomgeving. Alleen lezen. In delen, zodat het binnen de tijd past.
+//    ?actie=basis&deel=locaties                 alle locaties van het magazijn
+//    ?actie=basis&deel=producten&van=0          producten met voorraad per locatie, 40 per keer
+//    ?actie=basis&deel=backorders               openstaande backorders
+// =====================================================================
+async function basisLocaties() {
+  const l = await alles("locations", 6000);
+  const rijen = l.filter((x: any) => Number(x.idwarehouse) === MAGAZIJN)
+    .map((x: any) => [x.name, x.is_bulk_location ? 1 : 0, x.unlink_on_empty ? 1 : 0, x.is_exclusive_location ? 1 : 0]);
+  return { deel: "locaties", magazijn: MAGAZIJN, aantal: rijen.length, rijen };
+}
+
+async function basisProducten(vanTxt: string) {
+  const van = Math.max(0, parseInt(vanTxt || "0", 10) || 0);
+  const PER = 40;
+  const alleProd = await bewaard("basis:prod", 300, () => alles("products", 6000));
+  const deel = alleProd.slice(van, van + PER);
+  const st = (p: any, w: number) => (Array.isArray(p.stock) ? p.stock : []).find((s: any) => Number(s.idwarehouse) === w) || {};
+  const rijen = await perStuk(deel, 4, async (p: any) => {
+    const hm = st(p, MAGAZIJN), vst = st(p, VST);
+    const locs = await pq("products/" + p.idproduct + "/locations").catch(() => []);
+    const perLoc = (Array.isArray(locs) ? locs : [])
+      .filter((l: any) => l.idwarehouse === undefined || l.idwarehouse === null || Number(l.idwarehouse) === MAGAZIJN)
+      .map((l: any) => {
+        const sv = l.stock_for_product || {};
+        return { naam: l.name || "", bulk: l.is_bulk_location ? 1 : 0, kar: l.type === "container" ? 1 : 0,
+          aantal: Number(sv.stock ?? l.stock ?? 0) || 0 };
+      });
+    const opLoc = perLoc.reduce((t: number, x: any) => t + x.aantal, 0);
+    return {
+      code: tekstVan(p, ["productcode", "product_code"]),
+      naam: tekstVan(p, ["name", "productname"]),
+      ean: tekstVan(p, ["barcode"]),
+      leverancier: tekstVan(p, ["supplier", "supplier_name"]),
+      leverancier_code: tekstVan(p, ["productcode_supplier"]),
+      abc: tekstVan(p, ["analysis_abc_classification"]),
+      actief: p.active === false ? 0 : 1,
+      gewicht_kg: (Number(p.weight) || 0) / 1000,
+      voorraad_hm: Number(hm.stock) || 0,
+      gereserveerd_hm: Number(hm.reserved) || 0,
+      vrij_hm: hm.freestock === undefined || hm.freestock === null ? null : Number(hm.freestock) || 0,
+      voorraad_vst: Number(vst.stock) || 0,
+      picks_per_dag: p.analysis_pick_amount_per_day ?? null,
+      locaties: perLoc,
+      zonder_locatie: Math.max(0, (Number(hm.stock) || 0) - opLoc),
+    };
+  });
+  return { deel: "producten", van, volgende: van + PER, klaar: van + PER >= alleProd.length, totaal: alleProd.length, rijen };
+}
+
+async function basisBackorders() {
+  const bo = await alles("backorders", 8000);
+  const rijen = bo.map((b: any) => ({
+    productcode: tekstVan(b, ["productcode", "product_code"]),
+    aantal: getalVan(b, ["amount", "amount_backordered", "quantity"]),
+    order: tekstVan(b, ["orderid", "reference"]),
+    aangemaakt: tekstVan(b, ["created", "created_at"]) || null,
+  })).filter((x: any) => x.productcode);
+  return { deel: "backorders", aantal: rijen.length, rijen };
+}
+
+async function basis(deel: string, van: string) {
+  if (deel === "locaties") return await basisLocaties();
+  if (deel === "producten") return await basisProducten(van);
+  if (deel === "backorders") return await basisBackorders();
+  throw new Fout("Onbekend deel: " + deel + " (kies locaties, producten of backorders)", 400);
+}
+
 // ---------- ingang ----------
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
@@ -441,6 +512,7 @@ Deno.serve(async (req: Request) => {
     if (actie === "catalogus") return antwoord(await catalogus(url.searchParams.get("van") || "0"), 200, origin);
     if (actie === "locaties") return antwoord(await locaties(url.searchParams.get("ids") || ""), 200, origin);
     if (actie === "ontvangsten") return antwoord(await ontvangsten(url.searchParams.get("refs") || ""), 200, origin);
+    if (actie === "basis") return antwoord(await basis(url.searchParams.get("deel") || "", url.searchParams.get("van") || "0"), 200, origin);
     if (actie === "keten") return antwoord(await keten(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "ontvangstenlijst") return antwoord(await ontvangstenLijst(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "verplaatsingen") return antwoord(await verplaatsingen(url.searchParams.get("sinds") || ""), 200, origin);

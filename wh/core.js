@@ -54,7 +54,18 @@ function setSync(t, cls){ const s = $('sync'); if(s){ s.textContent = t; s.class
 function setSaved(t){ const s = $('saved'); if(s) s.textContent = t || ''; }
 
 /* ---------- database ---------- */
+// Grendel: staat de bron op TEST (Picqer-testomgeving), dan werkt de app met DEMO-gegevens.
+// Er mag dan niets de echte database in, behalve rijen die zelf op "-test" eindigen.
+function testSlot(method, path){
+  if(window.WH_BRON !== 'test') return;
+  if(method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return;
+  const key = decodeURIComponent(String(path || ''));
+  if(/^catalog\b/.test(key)) return;                       // catZet bewaakt zelf welke rij (alleen "…-test")
+  if(/-test(\b|["'&%])/.test(key)) return;
+  throw new Error('Bron staat op TEST: de app schrijft dan niets naar de echte database. Zet de bron bovenin op LIVE.');
+}
 async function api(method, path, body, extra){
+  testSlot(method, path);
   const headers = Object.assign({}, H, extra || {});
   if(body !== undefined) headers['Content-Type'] = 'application/json';
   const res = await fetch(URL_ + '/rest/v1/' + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -81,6 +92,7 @@ const isMissing = e => !!e && (e.status === 404 || /PGRST205|42P01|does not exis
 
 let MODE = 'wh';
 async function catZet(key, data){
+  if(window.WH_BRON === 'test' && !/-test$/.test(String(key))) throw new Error('Bron staat op TEST: "' + key + '" wordt niet opgeslagen in de echte database.');
   const rij = m => [{ key, mode:m, data, updated_at:new Date().toISOString() }];
   try{ await api('POST', 'catalog?on_conflict=key', rij(MODE), { Prefer:'resolution=merge-duplicates,return=minimal' }); }
   catch(e){
