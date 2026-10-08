@@ -91,7 +91,8 @@ async function pq(methode: "GET" | "POST" | "PUT" | "DELETE", pad: string, body?
       if (methode === "GET" && poging < 3) { await wacht(1000 * poging); continue; }
       throw new Fout("Picqer niet bereikbaar (" + pad.split("?")[0] + ")");
     }
-    if (r.status === 429 && poging < 4) { await wacht(1000 * Math.min(20, Number(r.headers.get("Retry-After")) || 5)); continue; }
+    // 429 = Picqer heeft niets uitgevoerd, opnieuw proberen is dus veilig (ook bij schrijven)
+    if (r.status === 429 && poging < 10) { await wacht(1000 * Math.min(30, Number(r.headers.get("Retry-After")) || 5 * poging)); continue; }
     if (r.status >= 500 && methode === "GET" && poging < 3) { await wacht(1500 * poging); continue; }
     const t = await r.text();
     if (r.status === 401) throw new Fout("Picqer weigert de API-sleutel (status 401)", 502);
@@ -378,24 +379,30 @@ async function blokVoorraad() {
   const loc = await locatieIds();
   const prods = await demoProducten();
   const plan = productPlan().filter((p) => prods.has(p.code));
-  const r = await werk(plan, 3, async (p) => {
+  // vergelijkt per product wat er moet staan met wat er staat, en vult alleen het verschil aan
+  // (zo herstelt een tweede keer draaien een product dat halverwege bleef steken)
+  const r = await werk(plan, 2, async (p) => {
     const id = prods.get(p.code)!;
-    // al ingedeeld of al voorraad (ook zonder locatie): niet nog eens
-    const al = await pq("GET", "products/" + id + "/locations").catch(() => []);
-    if (Array.isArray(al) && al.length) return "overslaan";
-    const pr = await pq("GET", "products/" + id);
-    const voorraad = (pr && Array.isArray(pr.stock) ? pr.stock : []).reduce((t: number, w: any) => t + (Number(w.stock) || 0), 0);
-    if (voorraad > 0) return "overslaan";
+    const links = await pq("GET", "products/" + id + "/locations").catch(() => []);
+    const gekoppeld = new Set((Array.isArray(links) ? links : []).map((l: any) => Number(l.idlocation)));
+    const st = await pq("GET", "products/" + id + "/stock/" + MAGAZIJN);
+    const perLoc = new Map<number, number>();
+    (st && Array.isArray(st.locations) ? st.locations : []).forEach((l: any) => { perLoc.set(Number(l.idlocation), Number(l.stock) || 0); gekoppeld.add(Number(l.idlocation)); });
+    const opLoc = [...perLoc.values()].reduce((t, x) => t + x, 0);
+    const zonderNu = Math.max(0, (Number(st && st.stock) || 0) - opLoc);
+    let iets = false;
     const stel = async (naam: string, aantal: number, voorkeur: boolean) => {
       const idl = loc.get(naam);
       if (!idl) throw new Fout("Locatie " + naam + " bestaat niet: draai eerst Locaties.");
-      await pq("POST", "products/" + id + "/locations", voorkeur ? { idlocation: idl, is_preferred: true } : { idlocation: idl }).catch(() => null);
-      if (aantal > 0) await pq("POST", "products/" + id + "/stock/" + MAGAZIJN, { idlocation: idl, change: aantal, reason: "DEMO beginvoorraad" });
+      if (!gekoppeld.has(idl)) { await pq("POST", "products/" + id + "/locations", voorkeur ? { idlocation: idl, is_preferred: true } : { idlocation: idl }); iets = true; }
+      const tekort = aantal - (perLoc.get(idl) || 0);
+      if (tekort > 0) { await pq("POST", "products/" + id + "/stock/" + MAGAZIJN, { idlocation: idl, change: tekort, reason: "DEMO beginvoorraad" }); iets = true; }
     };
     if (p.pick) await stel(p.pick, p.pickStuks, true);
     for (let k = 0; k < p.bulk.length; k++) await stel(p.bulk[k], p.bulkStuks[k] || 0, false);
-    if (p.zonder > 0) await pq("POST", "products/" + id + "/stock/" + MAGAZIJN, { idlocation: null, change: p.zonder, reason: "DEMO beginvoorraad zonder locatie" });
+    if (p.zonder > zonderNu) { await pq("POST", "products/" + id + "/stock/" + MAGAZIJN, { idlocation: null, change: p.zonder - zonderNu, reason: "DEMO beginvoorraad zonder locatie" }); iets = true; }
     if (p.trigger !== undefined) await pq("PUT", "products/" + id + "/warehouses/" + MAGAZIJN, { picking_stock_replenish_trigger: p.trigger, picking_stock_replenish_to: p.tot });
+    return iets ? "gedaan" : "overslaan";
   });
   return { blok: "voorraad", totaalPlan: plan.length, ...r };
 }
