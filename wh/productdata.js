@@ -319,14 +319,22 @@ function voorstel(code, k, w){
       return null;
     }
     case 'hoogte': {
-      return genoot || fam();
+      if(genoot) return genoot;
+      // uit de Picqer-afmetingen: hoeveel passen er per laag op de palletmaat, aantal lagen × hoogte + 15 cm pallet.
+      // Getoetst op 19 bekende pallets: maar 37% binnen 10%. Daarom alleen een schatting, nooit vooraf ingevuld.
+      const m = String(w('maat') || '').match(/(\d+)\s*x\s*(\d+)/), spp = num(w('spp')), L = num(x.lengte_product_cm), B = num(x.breedte_product_cm), H = num(x.hoogte_product_cm);
+      if(m && spp && L && B && H && eh.e === 'st'){
+        const PL = +m[1], PB = +m[2], per = Math.max(Math.floor(PL / L) * Math.floor(PB / B), Math.floor(PL / B) * Math.floor(PB / L), 1), lagen = Math.ceil(spp / per);
+        return { v:String(Math.round(lagen * H + 15)), bron:'Picqer-afmetingen: ' + nf(spp) + ' stuks, ' + per + ' per laag op ' + m[1] + 'x' + m[2] + ' = ' + lagen + ' lagen × ' + nf(H) + ' cm + 15 cm pallet (klopte maar bij 37% van de bekende pallets)', z:'laag' };
+      }
+      return fam();
     }
     case 'gewicht': {
       if(genoot) return genoot;
       const r = pbRegels(code).find(r => r.soort === 'pallet' && num(r.bruto_per));
       if(r) return { v:String(Math.ceil(num(r.bruto_per))), bron:'pakbon: bruto per pallet', z:'mid' };
       const spp = num(w('spp')), g = num(x.gewicht_product_g);
-      if(spp && g && eh.e === 'st') return { v:String(Math.ceil(spp * g / 1000 + 15)), bron:nf(spp) + ' × ' + nf(g / 1000, 2) + ' kg (Picqer-gewicht) + 15 kg pallet', z:'laag' };
+      if(spp && g && eh.e === 'st') return { v:String(Math.ceil(spp * g / 1000 + 15)), bron:nf(spp) + ' × ' + nf(g / 1000, 2) + ' kg (Picqer-gewicht) + 15 kg pallet (klopte bij 79% van de bekende pallets, binnen 10%)', z:'mid' };
       return fam();
     }
     case 'plaatsen': {
