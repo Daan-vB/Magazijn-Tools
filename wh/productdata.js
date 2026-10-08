@@ -53,7 +53,7 @@ const LEEGWAARDE = v => leeg(v) || String(v).trim().toLowerCase() === 'onb';
 const NVT = v => String(v ?? '').trim().toLowerCase() === 'nvt';
 
 /* ---------- toestand ---------- */
-const S = { pd:{}, extra:{}, cat:null, labels:{}, klaar:false, laden:null, mist:false, fout:null, idx:null };
+const S = { pd:{}, extra:{}, cat:null, labels:{}, mv:{}, toets:null, klaar:false, laden:null, mist:false, fout:null, idx:null };
 const bewaard = k => { try{ return localStorage.getItem('wh-pd-' + k); }catch(e){ return null; } };
 const bewaar = (k, v) => { try{ localStorage.setItem('wh-pd-' + k, v); }catch(e){} };
 const UI = { scope:bewaard('scope2') || 'belangrijk', laag:+(bewaard('laag') || 1), lev:bewaard('lev') || '', zoek:'', over:new Set(), i:0, concept:{}, alles:{}, mig:null };
@@ -68,12 +68,14 @@ async function laad(vers){
       const [rows, extra, cat] = await Promise.all([
         T('productdata', 'select=*', ['updated_at']).catch(e => { if(isMissing(e)){ S.mist = true; return []; } throw e; }),
         T('producten', 'select=productcode,gewicht_product_g,lengte_product_cm,breedte_product_cm,hoogte_product_cm,leverancier_code&order=productcode', ['picqer_datum', 'updated_at']).catch(() => []),
-        (window.WHC ? WHC.catalog(['wh-pq-cat', 'catalog-ean']) : api('GET', 'catalog?key=in.(%22wh-pq-cat%22,%22catalog-ean%22)&select=key,data,updated_at')).catch(() => [])
+        (window.WHC ? WHC.catalog(['wh-pq-cat', 'catalog-ean', 'wh-verplaatsingen']) : api('GET', 'catalog?key=in.(%22wh-pq-cat%22,%22catalog-ean%22,%22wh-verplaatsingen%22)&select=key,data,updated_at')).catch(() => [])
       ]);
       S.pd = {}; rows.forEach(r => { S.pd[r.productcode] = { data:r.data || {}, meta:r.meta || {}, t:r.updated_at }; });
       S.extra = {}; extra.forEach(r => { S.extra[r.productcode] = r; });
       S.cat = ((cat || []).find(r => r.key === 'wh-pq-cat') || {}).data || null;
       S.labels = ((cat || []).find(r => r.key === 'catalog-ean') || {}).data || {};
+      // verplaatsingen uit Picqer: [id, tijd, wie, code, aantal, van, naar, magazijn]
+      S.mv = {}; (((cat || []).find(r => r.key === 'wh-verplaatsingen') || {}).data || {}).rows?.forEach(r => { const c = D.PLOW[String(r[3] || '').toLowerCase()] || r[3]; (S.mv[c] = S.mv[c] || []).push({ n:num(r[4]) || 0, van:r[5] || '', naar:r[6] || '', vst:/spreuwel/i.test(r[7] || '') }); });
       S.idx = null; S.klaar = true; S.fout = null;
     }catch(e){ S.fout = e; }
   })();
@@ -169,6 +171,7 @@ function labelSpp(code){
 }
 function labelNamen(code){ return [...new Set(labelRegels(code).map(g => String(g.name || '').replace(/\s+/g, ' ').trim()).filter(Boolean))]; }
 function oudeWaarde(code, k){
+  if(S.toets && S.toets.code === code && S.toets.k === k) return null;
   const g = geh1(code), p = D.P[code] || {}, a = D.AANVUL[code], lr = labelRegels(code);
   switch(k){
     case 'spp': { const m = labelSpp(code), ks = [...m.keys()]; if(!ks.length) return null; if(ks.length > 1) return { conflict:ks.map(v => ({ v, waar:m.get(v) })), bron:'palletlabels' }; return { v:ks[0], bron:'palletlabels' }; }
@@ -186,7 +189,7 @@ function oudeWaarde(code, k){
   }
   return null;
 }
-const pdWaarde = (code, k) => { const r = S.pd[code]; return r && r.data && !leeg(r.data[k]) ? String(r.data[k]) : null; };
+const pdWaarde = (code, k) => { if(S.toets && S.toets.code === code && S.toets.k === k) return null; const r = S.pd[code]; return r && r.data && !leeg(r.data[k]) ? String(r.data[k]) : null; };
 function plaatsOpt(v){
   const n = num(v); if(n === null) return String(v);
   return PLAATSEN.reduce((b, x) => Math.abs(num(x) - n) < Math.abs(num(b) - n) ? x : b, PLAATSEN[0]);
@@ -255,109 +258,188 @@ function vanGenoten(lijst, k, bron){
   return { v:best[0], bron:bron + ' ' + best[1].slice(0, 2).join(', ') + (best[1].length > 2 ? ' +' + (best[1].length - 2) : ''), z:'hoog' };
 }
 function pbRegels(code){ return index().pb[code] || []; }
+/* Hoe vaak klopte een regel? Gemeten op 8-10-2026 tegen alles wat al vastlag (palletlabels, containers, jouw invoer):
+   per regel het deel dat precies gelijk was. Zie toets(). Vanaf ZEKER wordt een waarde automatisch ingevuld. */
+const ZEKER = 0.75;
+// [kans, aantal getoetst] · gemeten met toets() op de export van 8-10-2026 03:53
+const KANS = {
+  'spp:mvvst':[1, 11], 'spp:vst2':[.83, 179], 'spp:bulk2':[.84, 63], 'spp:genoot':[.85, 205], 'spp:eens':[.65, 20], 'spp:vst1':[.66, 29], 'spp:bulk1':[.30, 125], 'spp:pakbon':[.43, 7], 'spp:mvontv':[.22, 9], 'spp:fam':[.51, 55],
+  'pick:picqer':[1, 46], 'pick:genoot':[1, 5], 'pick:bulk':[0, 2],
+  // Picqer-aanvulinstelling (alleen als die bewust is gezet, dus > 1): de huidige instelling, overgenomen tot jij iets anders kiest
+  'maxpick:picqer':[.8, 0], 'lvl:picqer':[.8, 0],
+  'maxpick:aanvulbase':[1, 3], 'maxpick:genoot':[1, 11], 'maxpick:som':[1, 26], 'maxpick:nu':[0, 0],
+  'lvl:aanvulbase':[1, 2], 'lvl:genoot':[1, 11], 'lvl:verkoop':[.07, 30],
+  'met:genoot':[1, 18], 'met:som':[1, 33], 'met:geenpallet':[1, 2],
+  'maat:genoot':[1, 35], 'maat:afm':[.94, 17], 'maat:fam':[.64, 33],
+  'hoogte:genoot':[1, 35], 'hoogte:fam':[.86, 14], 'hoogte:cbm':[.64, 14], 'hoogte:afm':[.36, 14],
+  'gewicht:genoot':[.94, 35], 'gewicht:pakbon':[.89, 19], 'gewicht:picqer':[.82, 39], 'gewicht:fam':[.5, 2],
+  'plaatsen:maat':[1, 98], 'maxlig:genoot':[1, 23], 'spd:genoot':[.85, 0], 'doos:genoot':[.85, 0], 'opm:genoot':[.85, 0], 'maxlig:fam':[.91, 22], 'vn:genoot':[.92, 142], 'vn:picqer':[.13, 571]
+};
+function uit(r, v, bron, extra){
+  const k = KANS[r], p = k ? k[0] : null;
+  return Object.assign({ v:String(v), bron:bron + (k && k[1] ? ' · klopte bij ' + Math.round(p * 100) + '% van ' + k[1] + ' getoetst' : ''), r, p, z:p === null ? 'mid' : p >= ZEKER ? 'hoog' : 'laag' }, extra || {});
+}
+function vanGenoten(lijst, k, bron, r){
+  const vals = {};
+  lijst.forEach(x => { const st = staat(x, k); if(st.s !== 'open' && !NVT(st.v)) (vals[st.v] = vals[st.v] || []).push(x); });
+  const best = Object.entries(vals).sort((a, b) => b[1].length - a[1].length)[0];
+  if(!best) return null;
+  return uit(r, best[0], bron + ' ' + best[1].slice(0, 2).join(', ') + (best[1].length > 2 ? ' +' + (best[1].length - 2) : ''));
+}
+// alle aanwijzingen voor stuks per pallet, per bron
+function sppBronnen(code){
+  const b = {};
+  const vst = modus((D.VSTVR[code] || []).map(a => num(a[1]) || 0));
+  if(vst) b[vst.n >= 2 ? 'vst2' : 'vst1'] = { v:vst.v, t:'VST: ' + vst.n + ' van ' + vst.van + ' pallets hebben ' + nf(vst.v) };
+  const vmax = Math.max(0, ...(D.VSTVR[code] || []).map(a => num(a[1]) || 0)); if(vmax && (!vst || vmax !== vst.v)) b.vstmax = { v:vmax, t:'VST: grootste pallet ' + nf(vmax) };
+  const bl = modus(locaties(code).bulk.map(a => num(a[1]) || 0));
+  if(bl) b[bl.n >= 2 ? 'bulk2' : 'bulk1'] = { v:bl.v, t:'bulk: ' + bl.n + ' pallet' + (bl.n > 1 ? 's' : '') + ' van ' + nf(bl.v) };
+  const mv = S.mv[code] || [];
+  const naarVst = modus(mv.filter(m => m.vst).map(m => m.n)); if(naarVst) b.mvvst = { v:naarVst.v, t:'verplaatst naar VST in pallets van ' + nf(naarVst.v) };
+  const ontv = modus(mv.filter(m => !m.vst && !m.van && D.LOC[m.naar] && D.LOC[m.naar].bulk).map(m => m.n)); if(ontv) b.mvontv = { v:ontv.v, t:'binnengeboekt op bulk in pallets van ' + nf(ontv.v) };
+  const r = pbRegels(code).find(r => r.soort === 'pallet' && num(r.per)); if(r) b.pakbon = { v:num(r.per) * (num(r.factor) || 1), t:'pakbon: ' + nf(num(r.per)) + ' per pallet' };
+  return b;
+}
 function voorstel(code, k, w){
   const p = D.P[code] || {}, x = S.extra[code] || {}, eh = eenheid(code), kg = kleurgenoten(code);
   const oud = oudeWaarde(code, k);
   if(oud && oud.conflict){
     const st = staat(code, k);
-    if(st.s === 'open') return { v:oud.conflict[0].v, bron:'palletlabels heeft ' + oud.conflict.length + ' verschillende: ' + oud.conflict.map(c => c.v + (c.waar && c.waar.length && k === 'spp' ? ' (' + c.waar.join(', ') + ')' : '')).join(' / ') + ' · eerste = laatst gebruikt, kies de juiste', z:'laag' };
+    if(st.s === 'open') return { v:oud.conflict[0].v, bron:'palletlabels heeft ' + oud.conflict.length + ' verschillende: ' + oud.conflict.map(c => c.v + (c.waar && c.waar.length && k === 'spp' ? ' (' + c.waar.join(', ') + ')' : '')).join(' / ') + ' · eerste = laatst gebruikt, kies de juiste', z:'laag', r:'conflict' };
   }
-  if(oud && !LEEGWAARDE(oud.v) && pdWaarde(code, k) === null) return { v:oud.v, bron:'stond al in ' + oud.bron, z:'hoog' };
-  const genoot = kg.length ? vanGenoten(kg, k, 'zelfde als') : null;
-  const fam = () => { const f = vanGenoten(famLeden(code).filter(c => !kg.includes(c)), k, 'familie:'); if(f) f.z = 'laag'; return f; };
+  if(oud && !LEEGWAARDE(oud.v) && pdWaarde(code, k) === null) return { v:oud.v, bron:'stond al in ' + oud.bron, z:'hoog', r:'oud', p:1 };
+  const genoot = kg.length ? vanGenoten(kg, k, 'zelfde als', k + ':genoot') : null;
+  const fam = () => vanGenoten(famLeden(code).filter(c => !kg.includes(c)), k, 'familie:', k + ':fam');
   switch(k){
     case 'spp': {
-      const vst = modus((D.VSTVR[code] || []).map(a => num(a[1]) || 0));
-      if(vst && vst.n >= 2) return { v:String(vst.v), bron:'VST: ' + vst.n + ' van ' + vst.van + ' pallets hebben ' + nf(vst.v), z:'hoog' };
-      const bl = modus(locaties(code).bulk.map(a => num(a[1]) || 0));
-      if(bl && bl.n >= 2) return { v:String(bl.v), bron:'bulk: ' + bl.n + ' pallets van ' + nf(bl.v), z:'hoog' };
+      const b = sppBronnen(code);
+      for(const r of ['mvvst', 'vst2', 'bulk2']) if(b[r]) return uit('spp:' + r, b[r].v, b[r].t);
       if(genoot) return genoot;
-      const r = pbRegels(code).find(r => r.soort === 'pallet' && num(r.per));
-      if(r) return { v:String(num(r.per) * (num(r.factor) || 1)), bron:'pakbon: ' + nf(num(r.per)) + ' per pallet', z:'mid' };
-      if(vst) return { v:String(vst.v), bron:'VST: 1 pallet van ' + nf(vst.v) + ' (kan een restpallet zijn)', z:'laag' };
+      // twee losse bronnen die hetzelfde zeggen
+      const los = ['vstmax', 'vst1', 'bulk1', 'mvontv', 'pakbon'].filter(r => b[r]), tel = {};
+      los.forEach(r => (tel[b[r].v] = tel[b[r].v] || []).push(r));
+      const eens = Object.entries(tel).filter(([, rs]) => rs.length >= 2).sort((a, z) => z[1].length - a[1].length)[0];
+      if(eens) return uit('spp:eens', eens[0], eens[1].map(r => b[r].t).join(' + '));
+      for(const r of ['pakbon', 'vstmax', 'vst1', 'mvontv', 'bulk1']) if(b[r]) return uit('spp:' + r, b[r].v, b[r].t + (r === 'vst1' || r === 'bulk1' ? ' (kan een restpallet zijn)' : ''));
       return fam();
     }
     case 'pick': {
       const l = locaties(code);
-      if(l.pick.length) return { v:'ja', bron:'Picqer: ' + l.pick.map(a => a[0]).slice(0, 3).join(', '), z:'hoog' };
-      if(l.bulk.length) return { v:'nee', bron:'Picqer: alleen bulk (' + l.bulk.map(a => a[0]).slice(0, 2).join(', ') + ')', z:'mid' };
+      if(l.pick.length) return uit('pick:picqer', 'ja', 'Picqer: picklocatie ' + l.pick.map(a => a[0]).slice(0, 3).join(', '));
+      if(l.bulk.length) return uit('pick:bulk', 'nee', 'Picqer: alleen bulk (' + l.bulk.map(a => a[0]).slice(0, 2).join(', ') + ')');
       return genoot;
     }
     case 'maxpick': {
-      const pq = D.PQ[code];
-      if(pq && num(pq[1]) > 1) return { v:String(num(pq[1])), bron:'Picqer: vul aan tot ' + nf(num(pq[1])), z:'mid' };
-      if(genoot) return Object.assign(genoot, { z:'mid' });
+      const pq = D.PQ[code], a = D.AANVUL[code];
+      if(a && a.ok && num(a.max ?? a.tot) > 1) return uit('maxpick:aanvulbase', num(a.max ?? a.tot), 'aanvulbase: max ' + nf(num(a.max ?? a.tot)));
+      if(pq && num(pq[1]) > 1) return uit('maxpick:picqer', num(pq[1]), 'Picqer: vul aan tot ' + nf(num(pq[1])));
+      // afspraak: max op pick = aanvullen bij + wat je bijvult (bij aanvullen met volle pallet: + stuks per pallet)
+      const lv = num(w('lvl')), spp = num(w('spp'));
+      if(lv !== null && spp && w('met') === 'pallet') return uit('maxpick:som', lv + spp, 'aanvullen bij ' + nf(lv) + ' + volle pallet ' + nf(spp));
+      if(genoot) return genoot;
       const l = locaties(code), m = Math.max(0, ...l.pick.map(a => num(a[1]) || 0));
-      if(m > 0) return { v:String(m), bron:'nu ' + nf(m) + ' op pick', z:'laag' };
+      if(m > 0) return uit('maxpick:nu', m, 'nu ' + nf(m) + ' op pick');
       return null;
     }
     case 'lvl': {
-      const pq = D.PQ[code];
-      if(pq && num(pq[0]) > 1) return { v:String(num(pq[0])), bron:'Picqer: aanvulniveau ' + nf(num(pq[0])), z:'mid' };
-      if(genoot) return Object.assign(genoot, { z:'mid' });
+      const pq = D.PQ[code], a = D.AANVUL[code];
+      if(a && a.ok && num(a.lvl) > 1) return uit('lvl:aanvulbase', num(a.lvl), 'aanvulbase: aanvullen bij ' + nf(num(a.lvl)));
+      if(pq && num(pq[0]) > 1) return uit('lvl:picqer', num(pq[0]), 'Picqer: aanvulniveau ' + nf(num(pq[0])));
+      if(genoot) return genoot;
       // ± 2 dagen picken, nooit meer dan de helft van wat er op pick past
       const pd = pdVan(code), vk = vkmVan(code), mx = num(w('maxpick'));
       let v = pd > 0 ? Math.ceil(pd * 2) : vk > 0 ? Math.ceil(vk / 10) : null;
       if(v === null) return null;
       if(mx) v = Math.max(1, Math.min(v, Math.floor(mx / 2)));
-      return { v:String(v), bron:'± 2 dagen picken' + (mx ? ', max de helft van max op pick' : '') + (pq && num(pq[0]) === 1 ? ' · Picqer staat op standaard 1' : ''), z:'laag' };
+      return uit('lvl:verkoop', v, '± 2 dagen picken' + (mx ? ', max de helft van max op pick' : '') + (pq && num(pq[0]) === 1 ? ' · Picqer staat op standaard 1' : ''));
     }
     case 'met': {
       if(genoot) return genoot;
+      if(NVT(w('spp'))) return uit('met:geenpallet', 'doos', 'komt niet op pallet');
       const spp = num(w('spp')), mx = num(w('maxpick')), lv = num(w('lvl')) || 0, bij = mx ? mx - lv : 0;
-      if(NVT(w('spp'))) return { v:'doos', bron:'komt niet op pallet', z:'mid' };
-      if(spp && mx) return bij >= spp ? { v:'pallet', bron:'bijvullen (' + nf(bij) + ') ≥ 1 pallet', z:'mid' } : { v:'deel', bron:'bijvullen (' + nf(bij) + ') < 1 pallet (' + nf(spp) + ')', z:'mid' };
+      if(spp && mx) return bij >= spp ? uit('met:som', 'pallet', 'bijvullen (' + nf(bij) + ') ≥ 1 pallet') : uit('met:som', 'deel', 'bijvullen (' + nf(bij) + ') < 1 pallet (' + nf(spp) + ')');
+      // wat er in Picqer van bulk naar pick ging
+      const mv = (S.mv[code] || []).filter(m => D.LOC[m.van] && D.LOC[m.van].bulk && m.naar && !(D.LOC[m.naar] && D.LOC[m.naar].bulk));
+      if(spp && mv.length) return mv.every(m => m.n >= spp) ? uit('met:mv', 'pallet', 'aangevuld met ' + mv.map(m => nf(m.n)).join(', ') + ' (≥ 1 pallet)') : uit('met:mv', 'deel', 'aangevuld met ' + mv.map(m => nf(m.n)).join(', ') + ' (minder dan 1 pallet)');
       return null;
     }
     case 'maat': {
       if(genoot) return genoot;
       const r = pbRegels(code).find(r => r.palletmaat || r.maat);
-      if(r) return { v:String(r.palletmaat || r.maat), bron:'pakbon', z:'mid' };
+      if(r) return uit('maat:pakbon', String(r.palletmaat || r.maat), 'pakbon');
       const f = fam(); if(f) return f;
       const L = num(x.lengte_product_cm), B = num(x.breedte_product_cm);
-      if(L >= 60 && B >= 60){ const m = passendeMaat(L, B); if(m) return { v:m, bron:'productmaat ' + nf(L) + '×' + nf(B) + ' cm (Picqer)', z:'laag' }; }
+      if(L >= 60 && B >= 60){ const m = passendeMaat(L, B); if(m) return uit('maat:afm', m, 'productmaat ' + nf(L) + '×' + nf(B) + ' cm (Picqer)'); }
       return null;
     }
     case 'hoogte': {
       if(genoot) return genoot;
-      // uit de Picqer-afmetingen: hoeveel passen er per laag op de palletmaat, aantal lagen × hoogte + 15 cm pallet.
-      // Getoetst op 19 bekende pallets: maar 37% binnen 10%. Daarom alleen een schatting, nooit vooraf ingevuld.
-      const m = String(w('maat') || '').match(/(\d+)\s*x\s*(\d+)/), spp = num(w('spp')), L = num(x.lengte_product_cm), B = num(x.breedte_product_cm), H = num(x.hoogte_product_cm);
+      // pakbon: m³ per pallet gedeeld door de palletvloer
+      const m = String(w('maat') || '').match(/(\d+)\s*x\s*(\d+)/);
+      const r = pbRegels(code).find(r => r.soort === 'pallet' && num(r.cbm) && num(r.aantal));
+      if(m && r){ const h = num(r.cbm) / num(r.aantal) / (m[1] * m[2] / 1e4) * 100; if(h > 20 && h < 260) return uit('hoogte:cbm', Math.round(h / 5) * 5, 'pakbon: ' + nf(num(r.cbm) / num(r.aantal), 2) + ' m³ per pallet op ' + m[1] + 'x' + m[2]); }
+      const spp = num(w('spp')), L = num(x.lengte_product_cm), B = num(x.breedte_product_cm), H = num(x.hoogte_product_cm);
       if(m && spp && L && B && H && eh.e === 'st'){
         const PL = +m[1], PB = +m[2], per = Math.max(Math.floor(PL / L) * Math.floor(PB / B), Math.floor(PL / B) * Math.floor(PB / L), 1), lagen = Math.ceil(spp / per);
-        return { v:String(Math.round(lagen * H + 15)), bron:'Picqer-afmetingen: ' + nf(spp) + ' stuks, ' + per + ' per laag op ' + m[1] + 'x' + m[2] + ' = ' + lagen + ' lagen × ' + nf(H) + ' cm + 15 cm pallet (klopte maar bij 37% van de bekende pallets)', z:'laag' };
+        return uit('hoogte:afm', Math.round(lagen * H + 15), 'Picqer-afmetingen: ' + per + ' per laag, ' + lagen + ' lagen × ' + nf(H) + ' cm + 15 cm pallet');
       }
       return fam();
     }
     case 'gewicht': {
       if(genoot) return genoot;
       const r = pbRegels(code).find(r => r.soort === 'pallet' && num(r.bruto_per));
-      if(r) return { v:String(Math.ceil(num(r.bruto_per))), bron:'pakbon: bruto per pallet', z:'mid' };
+      if(r) return uit('gewicht:pakbon', Math.ceil(num(r.bruto_per)), 'pakbon: bruto per pallet');
       const spp = num(w('spp')), g = num(x.gewicht_product_g);
-      if(spp && g && eh.e === 'st') return { v:String(Math.ceil(spp * g / 1000 + 15)), bron:nf(spp) + ' × ' + nf(g / 1000, 2) + ' kg (Picqer-gewicht) + 15 kg pallet (klopte bij 79% van de bekende pallets, binnen 10%)', z:'mid' };
+      if(spp && g && eh.e === 'st') return uit('gewicht:picqer', Math.ceil(spp * g / 1000 + 15), nf(spp) + ' × ' + nf(g / 1000, 2) + ' kg (Picqer) + 15 kg pallet');
       return fam();
     }
     case 'plaatsen': {
       const m = w('maat');
-      if(m && /\d+\s*x\s*\d+/.test(m)) return { v:plaatsenUitMaat(m), bron:'uit palletmaat ' + m + ' (plaats = 90 cm)', z:'hoog' };
+      if(m && /\d+\s*x\s*\d+/.test(m)) return uit('plaatsen:maat', plaatsenUitMaat(m), 'uit palletmaat ' + m + ' (plaats = 90 cm)');
       return genoot;
     }
     case 'vn': {
       const kg2 = vnVanGenoot(code); if(kg2) return kg2;
-      const s = vnVoorstel(p.naam); return s ? { v:s, bron:'uit Picqer-naam', z:'mid' } : null;
+      const s = vnVoorstel(p.naam); return s ? uit('vn:picqer', s, 'uit Picqer-naam') : null;
     }
     case 'spd': {
       if(genoot) return genoot;
       const r = pbRegels(code).find(r => r.soort !== 'pallet' && num(r.per) > 1);
-      if(r) return { v:String(num(r.per) * (num(r.factor) || 1)), bron:'pakbon: ' + nf(num(r.per)) + ' per pak', z:'mid' };
+      if(r) return uit('spd:pakbon', num(r.per) * (num(r.factor) || 1), 'pakbon: ' + nf(num(r.per)) + ' per pak');
       return fam();
     }
     case 'maxlig': return genoot || fam();
-    case 'kgst': { const g = num(x.gewicht_product_g); return g ? { v:String(g / 1000), bron:'Picqer', z:'mid' } : genoot; }
+    case 'kgst': { const g = num(x.gewicht_product_g); return g ? { v:String(g / 1000), bron:'Picqer', z:'mid', r:'kgst' } : genoot; }
     case 'doos': return genoot;
     case 'opm': return genoot;
   }
   return null;
+}
+// Toets: doe per vastgelegde waarde alsof die er niet is en kijk wat de regels dan voorstellen. Per regel: hoe vaak gelijk.
+function gelijk(k, a, b){
+  if(leeg(a) || leeg(b)) return false;
+  a = String(a).trim().toLowerCase(); b = String(b).trim().toLowerCase();
+  if(k === 'maat'){ const s = v => v.replace(/\s/g, '').split('x').map(Number).sort((p, q) => p - q).join('x'); return s(a) === s(b); }
+  const x = num(a), y = num(b);
+  if(k === 'gewicht' && x && y) return Math.abs(x - y) / y <= 0.10;
+  if(k === 'hoogte' && x && y) return Math.abs(x - y) <= 10;
+  if(x !== null && y !== null) return Math.abs(x - y) < 1e-6;
+  return a === b;
+}
+function toets(velden){
+  const uitk = {};
+  (velden || VOLG).forEach(k => Object.keys(S.pd).forEach(code => {
+    if(!D.P[code]) return;
+    const m = (S.pd[code].meta || {})[k], v = (S.pd[code].data || {})[k];
+    if(leeg(v) || LEEGWAARDE(v) || NVT(v) || !m || /^auto/.test(m.bron || '')) return;
+    S.toets = { code, k };
+    let vs = null; try{ vs = voorstel(code, k, waardeFn(code)); }catch(e){}
+    S.toets = null;
+    const r = vs && vs.r ? vs.r : k + ':geen';
+    const u = uitk[r] = uitk[r] || { goed:0, tot:0, fout:[] };
+    u.tot++; if(vs && gelijk(k, vs.v, v)) u.goed++; else if(u.fout.length < 4 && vs) u.fout.push(code + ': ' + vs.v + ' ≠ ' + v);
+  }));
+  return uitk;
 }
 // "Sportvloer 6 mm oranje volle rol" bij de oranje kleurgenoot → "Sportvloer 6 mm geel volle rol" voor geel
 function vnVanGenoot(code){
@@ -370,13 +452,14 @@ function vnVanGenoot(code){
     const re = new RegExp('\\b' + van[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i'), m = st.v.match(re);
     if(!m) continue;
     const nw = m[0] === m[0].toLowerCase() ? naar[0].toLowerCase() : m[0] === m[0].toUpperCase() ? naar[0].toUpperCase() : naar[0].charAt(0).toUpperCase() + naar[0].slice(1).toLowerCase();
-    return { v:st.v.replace(re, nw), bron:'zoals ' + g + ' (' + st.v + ')', z:'mid' };
+    return uit('vn:genoot', st.v.replace(re, nw), 'zoals ' + g + ' (' + st.v + ')');
   }
   return null;
 }
 function passendeMaat(L, B){
   const a = Math.max(L, B), b = Math.min(L, B);
-  const kand = MATEN.map(m => m.split('x').map(Number)).map(([x, y]) => [Math.max(x, y), Math.min(x, y)]).filter(([x, y]) => x >= a && y >= b).sort((p, q) => p[0] * p[1] - q[0] * q[1]);
+  // tot 7 cm overstek is gewoon (een bord van 104x184 staat op 100x200)
+  const kand = MATEN.map(m => m.split('x').map(Number)).map(([x, y]) => [Math.max(x, y), Math.min(x, y)]).filter(([x, y]) => x >= a - 7 && y >= b - 7).sort((p, q) => p[0] * p[1] - q[0] * q[1]);
   return kand.length ? kand[0][1] + 'x' + kand[0][0] : null;
 }
 function vnVoorstel(naam){
@@ -427,9 +510,10 @@ async function opslaan(wijz, bron){
       const r = m[code] || { productcode:code, data:{}, meta:{} };
       const data = Object.assign({}, r.data || {}), meta = Object.assign({}, r.meta || {});
       Object.entries(wijz[code]).forEach(([k, v]) => {
-        v = String(v ?? '').trim();
+        const extra = v && typeof v === 'object' ? v : null;
+        v = String((extra ? extra.v : v) ?? '').trim();
         if(!v){ delete data[k]; delete meta[k]; }
-        else { data[k] = v; meta[k] = { op:nu, bron:bron || 'invul' }; }
+        else { data[k] = v; meta[k] = Object.assign({ op:nu, bron:bron || 'invul' }, extra && extra.uit ? { uit:extra.uit, r:extra.r } : {}); }
       });
       rijen.push({ productcode:code, data, meta, updated_at:nu });
     });
@@ -579,7 +663,7 @@ function stijl(){
   .pd-c{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap}
   .c-ok{background:#e3f1e8;color:#1c6b3f} .c-voor{background:#fff3c4;color:#6b4f00} .c-dub{background:#fdebd8;color:#9a4205}
   .c-nodig{background:#eef1f5;color:#3f4d5b} .c-nvt{color:#6b7a89;border:1px solid #d6dde5;background:#fff} .c-fout{background:#fde2e1;color:#a1251b}
-  .c-nieuw{background:#e3ecf9;color:var(--blue)}
+  .c-nieuw{background:#e3ecf9;color:var(--blue)} .c-auto{background:#e0f2ee;color:#0f6a58}
   .pd-bereik{display:inline-block;align-self:flex-start;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px}
   .pd-bereik.groep{background:#e8eef7;color:var(--blue)} .pd-bereik.prod{background:#f1eef7;color:#5a3e8f}
   .pd-pq{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px 18px;padding:14px 16px}
@@ -725,6 +809,7 @@ function okBron(code, k){
   const m = S.pd[code] && S.pd[code].meta && S.pd[code].meta[k];
   if(!m) return '';
   const o = m.bron === 'overgezet' ? oudeWaarde(code, k) : null;
+  if(m.bron === 'auto') return 'Automatisch uit ' + (m.uit || 'de bronnen') + (m.op ? ' · ' + datumKort(m.op) : '') + '. Klopt het niet? Pas aan en druk Klopt.';
   return (m.bron === 'overgezet' ? 'Overgezet' + (o && o.bron ? ' uit ' + o.bron : '') : 'Vastgelegd: ' + (BRONNAAM[m.bron] || m.bron)) + (m.op ? ' · ' + datumKort(m.op) : '');
 }
 function veldCtrl(code, k, i){
@@ -752,7 +837,7 @@ function veldRij(code, k, f, o = {}){
   const i = f.info(k);
   let ch, br = '';
   switch(i.s){
-    case 'ok': ch = chip('Vastgelegd', 'c-ok'); br = esc(okBron(code, k)); break;
+    case 'ok': { const m = S.pd[code] && S.pd[code].meta && S.pd[code].meta[k]; ch = m && m.bron === 'auto' && !i.invoer ? chip('Automatisch', 'c-auto') : chip('Vastgelegd', 'c-ok'); br = esc(okBron(code, k)); break; }
     case 'nieuw': ch = chip('Ingevuld', 'c-nieuw'); br = 'Wordt opgeslagen bij Klopt' + (i.was ? ' (was ' + esc(toonWaarde(code, k, i.was)) + ')' : ''); break;
     case 'wis': ch = chip('Wordt gewist', 'c-fout'); br = 'Leeg gemaakt: bij Klopt gaat de waarde eruit'; break;
     case 'fout': ch = chip('Klopt niet', 'c-fout'); br = esc(i.fout); break;
@@ -885,6 +970,7 @@ function viewStart(){
     <p class="small mt8">Van ${nf(mig.prod)} producten staan gegevens nog verspreid over palletlabels, containers en de aanvulbase: ${Object.entries(mig.t).map(([k, n]) => nf(n) + ' × ' + esc(VELDEN[k].t.toLowerCase())).join(', ')}. Eén klik zet ze over naar productdata. De oude plekken blijven ongemoeid. Wat dubbel en verschillend in palletlabels staat, gaat niet mee: dat kies je zelf.</p>
     <div class="row wrap mt12"><button class="btn pri" data-pd="mig">Zet ${nf(migN)} waarden over</button></div></div>` : ''}
   ${UI.mig ? `<div class="card" style="border-left:4px solid var(--ok)"><h3>Overgezet</h3><div class="small mt8">${Object.keys(UI.mig.voor).map(k => esc(VELDEN[k].t) + ': vóór <b>' + nf(UI.mig.voor[k]) + '</b>, na <b>' + nf(UI.mig.na[k] || 0) + '</b>' + ((UI.mig.na[k] || 0) === UI.mig.voor[k] ? ' ✓' : ' <span class="badge b-bad">verschil</span>')).join('<br>')}</div></div>` : ''}
+  <a class="card" href="#/productdata/auto" style="display:block;text-decoration:none;color:inherit;border-left:4px solid var(--ok)"><div class="row between wrap"><div><h3>Automatisch invullen uit alle bronnen</h3><div class="small muted mt4">Palletlabels, containers, pakbonnen, VST, bulk, verplaatsingen, Picqer en kleurgenoten naast elkaar. Alleen wat getoetst zeker genoeg is, jouw invoer blijft staan.</div></div><span class="btn ok">Bekijken →</span></div></a>
   ${poortKaart()}
   ${opschonenKaart()}
   <div class="card">
@@ -1332,6 +1418,77 @@ async function bewaarBasis(){
   return { n, nW };
 }
 
+/* ---------- automatisch invullen: alles wat zeker genoeg is, in één keer ----------
+   Per product en veld: alleen als het veld nog leeg is (jouw invoer en wat al vastlag blijven staan),
+   niet dubbel in palletlabels, en de regel klopte bij minstens 75% van de bekende waarden.
+   Bron = "auto", met per waarde waar hij vandaan komt. Terugdraaien haalt alleen deze waarden weg. */
+const AUTO_VOLG = ['spp', 'pick', 'maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig', 'spd', 'doos', 'opm', 'vn', 'lvl', 'met', 'maxpick', 'met', 'maxpick'];
+function autoPlan(codes){
+  const rijen = [], tel = {};
+  VOLG.forEach(k => tel[k] = { al:0, nieuw:0, schat:0, dub:0, geen:0, nvt:0, regels:{} });
+  codes.forEach(code => {
+    const nieuw = {}, basis = waardeFn(code);
+    const w = k => nieuw[k] ? nieuw[k].v : basis(k);
+    for(const k of AUTO_VOLG){
+      if(nieuw[k]) continue;
+      const st = staat(code, k);
+      if(st.s === 'ok' || st.conflict || !nodig(code, k, w)) continue;
+      const vs = voorstel(code, k, w);
+      if(!vs || leeg(vs.v) || vs.p == null || vs.p < ZEKER) continue;
+      let v = null; try{ v = check(k, vs.v); }catch(e){}
+      if(v) nieuw[k] = { v, uit:vs.bron, r:vs.r };
+    }
+    VOLG.forEach(k => {
+      if(k === 'kgst') return;
+      const t = tel[k];
+      if(!nodig(code, k, w)){ t.nvt++; return; }
+      const st = staat(code, k);
+      if(st.s === 'ok') t.al++;
+      else if(nieuw[k]){ t.nieuw++; t.regels[nieuw[k].r] = (t.regels[nieuw[k].r] || 0) + 1; }
+      else if(st.conflict) t.dub++;
+      else { const vs = voorstel(code, k, w); if(vs && !leeg(vs.v)) t.schat++; else t.geen++; }
+    });
+    if(Object.keys(nieuw).length) rijen.push({ code, nieuw });
+  });
+  return { rijen, tel };
+}
+const REGELNAAM = { 'maxpick:picqer':'Picqer-instelling', 'lvl:picqer':'Picqer-instelling', 'hoogte:genoot':'kleurgenoot', 'vn:genoot':'naam kleurgenoot', 'spp:mvvst':'verplaatst naar VST', 'spp:vst2':'VST-pallets', 'spp:bulk2':'bulkpallets', oud:'palletlabels / containers', 'pick:picqer':'Picqer-locatie', 'maxpick:aanvulbase':'aanvulbase', 'lvl:aanvulbase':'aanvulbase', 'maxpick:som':'bij + volle pallet', 'met:som':'uit bij en max', 'met:geenpallet':'komt niet op pallet', 'maat:afm':'Picqer-afmetingen', 'hoogte:fam':'familie', 'gewicht:pakbon':'pakbon', 'gewicht:picqer':'Picqer-gewicht', 'plaatsen:maat':'uit palletmaat', 'maxlig:fam':'familie' };
+const regelNaam = r => REGELNAAM[r] || (/:genoot$/.test(r) ? 'kleurgenoot' : r);
+function viewAuto(){
+  const sc = UI.autoScope || 'belangrijk', codes = lijst(sc, false);
+  const { rijen, tel } = autoPlan(codes);
+  const nW = rijen.reduce((s, r) => s + Object.keys(r.nieuw).length, 0);
+  const nAuto = Object.values(S.pd).reduce((s, r) => s + Object.values(r.meta || {}).filter(m => m && m.bron === 'auto').length, 0);
+  const rij = k => { const t = tel[k], nodigN = t.al + t.nieuw + t.schat + t.dub + t.geen, na = nodigN ? Math.round(100 * (t.al + t.nieuw) / nodigN) : 100;
+    return `<tr><td><b>${esc(VELDEN[k].t)}</b><div class="tiny muted">laag ${VELDEN[k].laag}</div></td><td>${nf(t.al)}</td><td class="${t.nieuw ? 'nieuw' : 'blijft'}">${t.nieuw ? '+' + nf(t.nieuw) : '–'}${t.nieuw ? `<div class="tiny muted">${Object.entries(t.regels).sort((a, b) => b[1] - a[1]).map(([r, n]) => esc(regelNaam(r)) + ' ' + n).join(' · ')}</div>` : ''}</td><td>${t.schat ? nf(t.schat) : '–'}</td><td>${t.dub ? nf(t.dub) : '–'}</td><td>${t.geen ? nf(t.geen) : '–'}</td><td><b>${na}%</b></td></tr>`; };
+  app.innerHTML = `<a class="small" href="#/productdata">← Productdata</a>
+  <section class="pd-sec mt8"><div class="pd-kopsec"><h2 style="font-size:20px">Automatisch invullen uit alle bronnen</h2>
+    <div class="small muted">Per product en per veld naast elkaar gelegd: palletlabels, containers en pakbonnen, VST-voorraad per pallet, bulkvoorraad per locatie, verplaatsingen in Picqer, Picqer-locaties, -gewicht en -afmetingen, aanvulbase, Picqer-aanvulniveaus en kleurgenoten. Elke regel is getoetst tegen wat al vastlag. Alleen regels die bij minstens ${Math.round(ZEKER * 100)}% klopten vullen automatisch. Wat jij hebt ingevuld en wat dubbel staat in palletlabels blijft staan.</div>
+    <div class="mt4">${SCOPES.map(([k, t]) => `<button class="pd-chip ${sc === k ? 'on' : ''}" data-pd="autoscope" data-v="${k}" style="margin:0 6px 6px 0">${esc(t)}<span class="n">${nf(lijst(k, false).length)}</span></button>`).join('')}</div>
+  </div></section>
+  <section class="pd-sec"><div class="pd-sec-kop"><div style="min-width:0"><h3>${plural(codes.length, 'product', 'producten')} · ${nW ? nf(nW) + ' waarden kunnen er automatisch bij, bij ' + plural(rijen.length, 'product', 'producten') : 'niets meer automatisch in te vullen'}</h3>
+      <div class="small muted mt4">Schatting = er is een aanwijzing, maar die klopte te vaak niet: zie de productkaart, knop Gebruik. Geen bron = nergens te vinden, dat weet alleen de vloer.</div></div></div>
+    <div class="pd-tab"><table class="pd-t"><thead><tr><th>Veld</th><th>Al ingevuld</th><th>Nu automatisch</th><th>Alleen schatting</th><th>Dubbel, kies</th><th>Geen bron</th><th>Daarna gevuld</th></tr></thead><tbody>
+      ${VOLG.filter(k => k !== 'kgst').map(rij).join('')}
+    </tbody></table></div></section>
+  ${rijen.length ? `<section class="pd-sec"><div class="pd-sec-kop"><h3>Voorbeeld: eerste ${Math.min(25, rijen.length)} producten</h3></div><div class="pd-tab"><table class="pd-t"><thead><tr><th>Product</th><th>Wat erbij komt</th></tr></thead><tbody>
+    ${rijen.slice(0, 25).map(r => `<tr><td><a class="code" href="#/productdata/p/${encodeURIComponent(r.code)}">${esc(r.code)}</a> ${abcBadge(r.code)}<div class="tiny muted">${esc(String((D.P[r.code] || {}).naam || '').slice(0, 50))}</div></td><td style="white-space:normal">${Object.entries(r.nieuw).map(([k, x]) => `<span title="${esc(x.uit)}"><b>${esc(VELDEN[k].t)}</b> ${esc(toonWaarde(r.code, k, x.v))} <span class="muted">(${esc(regelNaam(x.r))})</span></span>`).join(' · ')}</td></tr>`).join('')}
+  </tbody></table></div></section>` : ''}
+  <div class="pd-voet"><div class="grow"><b>${nW ? nf(nW) + ' waarden voor ' + plural(rijen.length, 'product', 'producten') : 'Alles wat zeker is, staat er al in'}</b><div class="small muted">Bron per waarde zie je op de productkaart (groen label Automatisch). ${nAuto ? nf(nAuto) + ' waarden staan er nu automatisch in.' : ''}</div></div>
+    <div class="row wrap">${nAuto ? `<button class="btn" data-pd="autoweg">Automatische waarden weghalen</button>` : ''}<button class="btn acc" data-pd="autosave" ${nW ? '' : 'disabled'}>Vul ${nf(nW)} waarden in</button></div></div>`;
+}
+async function bewaarAuto(){
+  const { rijen } = autoPlan(lijst(UI.autoScope || 'belangrijk', false));
+  const wijz = {}; rijen.forEach(r => { wijz[r.code] = r.nieuw; });
+  const n = await opslaan(wijz, 'auto');
+  return { n, nW:rijen.reduce((s, r) => s + Object.keys(r.nieuw).length, 0) };
+}
+async function autoWeg(){
+  const wijz = {};
+  Object.entries(S.pd).forEach(([code, r]) => Object.entries(r.meta || {}).forEach(([k, m]) => { if(m && m.bron === 'auto') (wijz[code] = wijz[code] || {})[k] = ''; }));
+  return opslaan(wijz, 'auto');
+}
+
 /* ---------- scherm: één voor één ---------- */
 function rij1(){ return zoekFilter(lijst()).filter(c => open(c, UI.laag).length && !UI.over.has(c)); }
 function viewEen(){
@@ -1392,6 +1549,7 @@ app.addEventListener('click', async ev => {
   if(a === 'samenstop'){ UI.samen = null; bewaarSamen(); location.hash = '#/productdata/kies'; return; }
   if(a === 'basisalles'){ const bs = basisSt(); bs.uit = b.dataset.v === '1' ? new Set() : new Set(basisKandidaten()); rerender(); return; }
   if(a === 'basissamen'){ const bs = basisSt(); const kl = new Set(basisPlan(basisKandidaten(), Object.assign({}, bs, { hand:false })).rijen.filter(r => !Object.keys(r.w).length && !r.geenSpp).map(r => r.code)); UI.sel = new Set(basisKandidaten().filter(c => !kl.has(c))); bewaarSel(); UI.samen = null; location.hash = '#/productdata/samen'; return; }
+  if(a === 'autoscope'){ UI.autoScope = b.dataset.v; rerender(); return; }
   if(a === 'meer'){ UI.kiesN = (UI.kiesN || 40) + 40; rerender(); return; }
   if(busy) return;
   busy = true; b.disabled = true;
@@ -1405,6 +1563,8 @@ app.addEventListener('click', async ev => {
     }
     if(a === 'samensave'){ b.textContent = 'Bezig…'; const r = await bewaarSamenNu(); toast(plural(r.nW, 'waarde', 'waarden') + ' opgeslagen voor ' + plural(r.n, 'product', 'producten'), 4000); location.hash = '#/productdata/kies'; }
     if(a === 'basissave'){ b.textContent = 'Bezig…'; const r = await bewaarBasis(); toast(plural(r.nW, 'waarde', 'waarden') + ' opgeslagen voor ' + plural(r.n, 'product', 'producten'), 4000); rerender(); }
+    if(a === 'autosave'){ b.textContent = 'Bezig…'; const r = await bewaarAuto(); toast(plural(r.nW, 'waarde', 'waarden') + ' automatisch ingevuld bij ' + plural(r.n, 'product', 'producten'), 5000); rerender(); }
+    if(a === 'autoweg'){ b.textContent = 'Bezig…'; const n = await autoWeg(); toast('Automatische waarden weggehaald bij ' + plural(n, 'product', 'producten'), 5000); rerender(); }
     if(a === 'trek'){ await trekSteekproef(); rerender(); }
     if(a === 'steek'){ await steekUitslag(b.dataset.code, b.dataset.v); rerender(); }
     if(a === 'mig'){ b.textContent = 'Bezig…'; const m = await overzetten(); toast(plural(m.n, 'product', 'producten') + ' overgezet'); rerender(); }
@@ -1455,6 +1615,7 @@ async function view(delen){
   if(sub === 'kies' || sub === 'fam') return viewKies();
   if(sub === 'samen') return viewSamen();
   if(sub === 'basis') return viewBasis();
+  if(sub === 'auto') return viewAuto();
   if(sub === 'een') return viewEen();
   if(sub === 'p' && arg) return viewProduct(arg);
   if(sub === 'dubbel') return viewDubbel();
@@ -1464,5 +1625,5 @@ async function view(delen){
 // na het opnieuw laden van de app (WH.load) ook de index vernieuwen
 const herlaad = async () => { S.idx = null; await laad(true); };
 
-return { view, herlaad, S, UI, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes };
+return { view, herlaad, S, UI, KANS, toets, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes };
 })();
