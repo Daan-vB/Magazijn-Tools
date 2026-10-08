@@ -476,7 +476,7 @@ const genotenActief = code => kleurgenoten(code).filter(actief);
 const ehVan = (code, k) => VELDEN[k].eh ? eenheid(code).mv : (VELDEN[k].eh2 || '');
 const ENKEL = { 'st.':'stuk', rollen:'rol', m:'m', cm:'cm', 'm²':'m²' };
 const datumKort = t => { try{ return new Date(t).toLocaleDateString('nl-NL', { day:'numeric', month:'short' }); }catch(e){ return ''; } };
-const BRONNAAM = { overgezet:'overgezet', invul:'ingevuld', familie:'ingevuld voor de familie', samen:'samen ingevuld', kleuren:'via een kleurgenoot' };
+const BRONNAAM = { overgezet:'overgezet', invul:'ingevuld', familie:'ingevuld voor de familie', samen:'samen ingevuld', basisregel:'basisregel aanvullen', kleuren:'via een kleurgenoot' };
 const idVan = s => String(s).replace(/[^a-zA-Z0-9_-]/g, '_');
 function toonWaarde(code, k, v){
   if(leeg(v)) return '';
@@ -883,6 +883,7 @@ function viewStart(){
     <h3>Hoe ver ben je</h3><div class="small muted mt4">${nf(codes.length)} producten in deze selectie. Kies een laag en vul die eerst helemaal.</div>
     <div class="pd-lagen mt12">${LAGEN.map(l => { const v = voortgang(codes, l.n); const pct = v.velden ? Math.round(100 * v.gevuld / v.velden) : 100; return `<button class="pd-laag ${UI.laag === l.n ? 'on' : ''}" data-pd="laag" data-v="${l.n}"><div><b>${l.n}. ${esc(l.t)}</b><div class="u">${esc(l.u)}</div></div><div class="pd-bar"><i style="width:${pct}%"></i></div><div class="pct">${pct}%<small>${nf(v.vol)} / ${nf(v.tot)} compleet</small></div></button>`; }).join('')}</div>
   </div>
+  <a class="card" href="#/productdata/basis" style="display:block;text-decoration:none;color:inherit;border-left:4px solid var(--blue)"><div class="row between wrap"><div><h3>Basisregel aanvullen per volle pallet</h3><div class="small muted mt4">${nf(basisKandidaten().length)} rubber stukproducten (A/B, met picklocatie): aanvullen bij 10 met een volle pallet, in één keer voor allemaal.</div></div><span class="btn">Instellen →</span></div></a>
   <div class="pd-start">
     <a href="#/productdata/kies"><b>Selecteren en samen invullen →</b><span>${nf(fams.filter(f => f.open).length)} families met open velden in ${esc(LAGEN[UI.laag - 1].t)}. Vink alle kleuren van één soort aan en vul ze in één keer in.${UI.sel.size ? ' Nu ' + nf(UI.sel.size) + ' geselecteerd.' : ''}</span></a>
     <a href="#/productdata/een"><b>Eén voor één →</b><span>${nf(openLaag)} producten met open velden in ${esc(LAGEN[UI.laag - 1].t)}. Lopers eerst, de hele kaart per product.</span></a>
@@ -1231,6 +1232,92 @@ async function bewaarSamenNu(){
   return { n, nW };
 }
 
+/* ---------- basisregel: aanvullen per volle pallet ----------
+   Rubber stukproducten (ringmat, sportvloer tegel/mat, stalmat, tegels) die A of B lopen en een picklocatie hebben:
+   aanvullen bij X, aanvullen met een volle pallet, max op pick = X + stuks per pallet. Eén keer instellen voor allemaal. */
+const BASIS_NAAM = /ringmat|sportvloer|stalmat|rubber|tegel|werkplaatsmat|beschermmat|fitness/i;
+const BASIS_NIET = /\brol\b|op rol|per meter|per cm|strekkende|borstel|connector|trap ?strip|deurmat|kokos/i;
+function basisKandidaten(){
+  return Object.keys(D.P).filter(c => {
+    const p = D.P[c]; if(!actief(c)) return false;
+    const a = abcVan(c); if(a !== 'A' && a !== 'B') return false;
+    if(eenheid(c).e !== 'st' || /batch/i.test(p.tags || '')) return false;
+    if(!BASIS_NAAM.test(p.naam || '') || BASIS_NIET.test(p.naam || '')) return false;
+    return locaties(c).pick.length > 0;
+  }).sort((a, b) => String(index().famVan[a]).localeCompare(String(index().famVan[b])) || rang(a) - rang(b));
+}
+const basisSt = () => UI.basis = UI.basis || { bij:'10', hand:false, uit:new Set() };
+function sppVoor(c){
+  const st = staat(c, 'spp');
+  if(st.s === 'ok') return { v:st.v, bron:'vastgelegd' };
+  if(st.conflict) return { v:'', bron:'dubbel in palletlabels' };
+  const v = nuWaarde(c, 'spp'); return v ? { v, bron:'voorstel' } : { v:'', bron:'' };
+}
+function basisPlan(codes, b){
+  const bij = num(b.bij), rijen = [], fouten = [];
+  if(bij === null || bij < 0) fouten.push('Aanvullen bij: vul een getal in');
+  codes.forEach(c => {
+    const w = {}, over = {}, vast = {}, sp = sppVoor(c), spp = NVT(sp.v) ? null : num(sp.v);
+    const zet = (k, v) => {
+      const st = staat(c, k);
+      if(st.s === 'ok'){
+        if(st.v === v) return;
+        const m = S.pd[c] && S.pd[c].meta && S.pd[c].meta[k];
+        if(b.hand || (m && m.bron === 'overgezet')) over[k] = st.v; else { vast[k] = st.v; return; }
+      }
+      w[k] = v;
+    };
+    if(bij !== null){
+      zet('pick', 'ja'); zet('lvl', String(bij)); zet('met', 'pallet');
+      if(spp) zet('maxpick', String(bij + spp));
+    }
+    rijen.push({ code:c, w, over, vast, spp:sp, geenSpp:!spp });
+  });
+  return { rijen, fouten };
+}
+function viewBasis(){
+  const b = basisSt(), alle = basisKandidaten(), codes = alle.filter(c => !b.uit.has(c));
+  const { rijen, fouten } = basisPlan(codes, b);
+  const rij = Object.fromEntries(rijen.map(r => [r.code, r]));
+  const nW = rijen.reduce((s, r) => s + Object.keys(r.w).length, 0), nP = rijen.filter(r => Object.keys(r.w).length).length;
+  const nGeen = rijen.filter(r => r.geenSpp).length, nOver = rijen.reduce((s, r) => s + Object.keys(r.over).length, 0), nVast = rijen.reduce((s, r) => s + Object.keys(r.vast).length, 0);
+  const lab = labels(alle);
+  const nu = (c, k) => { const st = staat(c, k); return st.s === 'ok' ? esc(toonWaarde(c, k, st.v)) : '–'; };
+  const cel = (r, k) => {
+    if(r.w[k] !== undefined) return r.over[k] !== undefined ? `<td class="over">${esc(toonWaarde(r.code, k, r.over[k]))} → ${esc(toonWaarde(r.code, k, r.w[k]))}</td>` : `<td class="nieuw">${esc(toonWaarde(r.code, k, r.w[k]))}</td>`;
+    if(r.vast[k] !== undefined) return `<td class="blijft">${esc(toonWaarde(r.code, k, r.vast[k]))} <span title="Handmatig vastgelegd, blijft staan">🔒</span></td>`;
+    return `<td class="blijft">${nu(r.code, k)}</td>`;
+  };
+  app.innerHTML = `<a class="small" href="#/productdata">← Productdata</a>
+  <section class="pd-sec mt8"><div class="pd-kopsec"><h2 style="font-size:20px">Basisregel aanvullen per volle pallet</h2>
+    <div class="small muted">Rubber producten per stuk (ringmat, sportvloer tegel en mat, stalmat, tegels) die A of B lopen en een picklocatie hebben. Rollen, per meter en per cm horen er niet bij. Zakt de picklocatie tot het aanvulniveau of lager, dan vul je aan met één volle pallet. Max op pick wordt aanvullen bij + stuks per pallet.</div>
+    <div class="row wrap" style="gap:14px;align-items:flex-end"><div><div class="small" style="font-weight:700;margin-bottom:4px">Aanvullen bij</div><span class="pd-inv klein"><input id="pdb-bij" data-pdb="bij" value="${esc(b.bij)}" inputmode="decimal" autocomplete="off"><span class="eh">stuks of minder</span></span></div>
+      <div><div class="small" style="font-weight:700;margin-bottom:4px">Aanvullen met</div><span class="pd-pill on" style="display:inline-block;cursor:default">Volle pallet</span></div>
+      <label class="row small" style="gap:6px;cursor:pointer"><input type="checkbox" id="pdb-hand" data-pdb="hand" ${b.hand ? 'checked' : ''}> Ook handmatig vastgelegde waarden overschrijven</label></div>
+    ${fouten.length ? `<div class="small" style="color:var(--bad);font-weight:700">${esc(fouten[0])}</div>` : ''}
+  </div></section>
+  <section class="pd-sec"><div class="pd-sec-kop"><div style="min-width:0"><h3>${plural(alle.length, 'product', 'producten')} gevonden · ${codes.length} aangevinkt</h3><div class="small muted mt4">Blauw = komt erbij, oranje = wordt overschreven, grijs = blijft zoals het is${nVast ? ' (🔒 = handmatig vastgelegd)' : ''}. Vink uit wat niet bij de regel hoort.</div></div>
+    <div class="row wrap"><button class="btn sm" data-pd="basisalles" data-v="1">Alles aan</button><button class="btn sm" data-pd="basisalles" data-v="0">Alles uit</button></div></div>
+    ${nGeen ? `<div class="small" style="padding:10px 16px;background:#fff8dc;border-bottom:1px solid #eef1f4"><b>${nGeen} zonder bekende stuks per pallet.</b> Voor die producten komen alleen aanvullen bij en volle pallet erbij, max op pick niet. Vul eerst hun stuks per pallet in via Samen invullen en draai de basisregel daarna opnieuw.</div>` : ''}
+    <div class="pd-tab"><table class="pd-t"><thead><tr><th></th><th>Product</th><th>Per pallet</th><th>Picklocatie</th><th>Picklocatie ja</th><th>Aanvullen bij</th><th>Aanvullen met</th><th>Max op pick</th></tr></thead><tbody>
+    ${alle.map(c => { const on = !b.uit.has(c), r = rij[c];
+      if(!on) return `<tr style="opacity:.5"><td><input type="checkbox" data-pdb="inc" data-code="${esc(c)}" aria-label="Meenemen ${esc(c)}"></td><td><b>${esc(lab[c].kort.slice(0, 50))}</b><div class="code" style="font-size:11.5px;font-weight:600">${esc(c)}</div></td><td colspan="6" class="blijft">niet meegenomen</td></tr>`;
+      const pl = locaties(c).pick.slice(0, 2).map(a => a[0]).join(', ');
+      return `<tr><td><input type="checkbox" data-pdb="inc" data-code="${esc(c)}" checked aria-label="Meenemen ${esc(c)}"></td><td><b>${esc(lab[c].kort.slice(0, 50))}</b><div class="code" style="font-size:11.5px;font-weight:600"><a href="#/productdata/p/${encodeURIComponent(c)}">${esc(c)}</a></div></td>
+        <td>${r.spp.v ? esc(toonWaarde(c, 'spp', r.spp.v)) + (r.spp.bron === 'voorstel' ? ' <span class="muted">(voorstel)</span>' : '') : `<span class="c-dub pd-c">${esc(r.spp.bron || 'onbekend')}</span>`}</td><td class="code">${esc(pl)}</td>${cel(r, 'pick')}${cel(r, 'lvl')}${cel(r, 'met')}${r.geenSpp && r.w.maxpick === undefined ? '<td class="dub">stuks per pallet nodig</td>' : cel(r, 'maxpick')}</tr>`; }).join('')}
+    </tbody></table></div></section>
+  <div class="pd-voet"><div class="grow"><b>${nW ? nW + ' waarden voor ' + plural(nP, 'product', 'producten') : 'Niets te bewaren'}</b><div class="small muted">${nOver ? nOver + ' vastgelegde waarden worden overschreven (oranje). ' : ''}Wordt bewaard in productdata, met bron "basisregel".</div></div>
+    <div class="row wrap"><button class="btn acc" data-pd="basissave" ${!nW || fouten.length ? 'disabled' : ''}>Basisregel toepassen op ${plural(nP, 'product', 'producten')}</button></div></div>`;
+}
+async function bewaarBasis(){
+  const b = basisSt(), codes = basisKandidaten().filter(c => !b.uit.has(c)), { rijen, fouten } = basisPlan(codes, b);
+  if(fouten.length) throw new Error(fouten[0]);
+  const wijz = {}; rijen.forEach(r => { if(Object.keys(r.w).length) wijz[r.code] = r.w; });
+  const nW = Object.values(wijz).reduce((s, w) => s + Object.keys(w).length, 0);
+  const n = await opslaan(wijz, 'basisregel');
+  return { n, nW };
+}
+
 /* ---------- scherm: één voor één ---------- */
 function rij1(){ return zoekFilter(lijst()).filter(c => open(c, UI.laag).length && !UI.over.has(c)); }
 function viewEen(){
@@ -1289,6 +1376,7 @@ app.addEventListener('click', async ev => {
   if(a === 'samen'){ location.hash = '#/productdata/samen'; return; }
   if(a === 'samenkleur'){ const c = b.dataset.code; UI.sel = new Set([c].concat(genotenActief(c))); bewaarSel(); UI.samen = null; location.hash = '#/productdata/samen'; return; }
   if(a === 'samenstop'){ UI.samen = null; bewaarSamen(); location.hash = '#/productdata/kies'; return; }
+  if(a === 'basisalles'){ const bs = basisSt(); bs.uit = b.dataset.v === '1' ? new Set() : new Set(basisKandidaten()); rerender(); return; }
   if(a === 'meer'){ UI.kiesN = (UI.kiesN || 40) + 40; rerender(); return; }
   if(busy) return;
   busy = true; b.disabled = true;
@@ -1301,6 +1389,7 @@ app.addEventListener('click', async ev => {
       rerender(); if(/\/een/.test(location.hash)) window.scrollTo(0, 0);
     }
     if(a === 'samensave'){ b.textContent = 'Bezig…'; const r = await bewaarSamenNu(); toast(plural(r.nW, 'waarde', 'waarden') + ' opgeslagen voor ' + plural(r.n, 'product', 'producten'), 4000); location.hash = '#/productdata/kies'; }
+    if(a === 'basissave'){ b.textContent = 'Bezig…'; const r = await bewaarBasis(); toast(plural(r.nW, 'waarde', 'waarden') + ' opgeslagen voor ' + plural(r.n, 'product', 'producten'), 4000); rerender(); }
     if(a === 'trek'){ await trekSteekproef(); rerender(); }
     if(a === 'steek'){ await steekUitslag(b.dataset.code, b.dataset.v); rerender(); }
     if(a === 'mig'){ b.textContent = 'Bezig…'; const m = await overzetten(); toast(plural(m.n, 'product', 'producten') + ' overgezet'); rerender(); }
@@ -1309,6 +1398,7 @@ app.addEventListener('click', async ev => {
 });
 app.addEventListener('input', ev => {
   const el = ev.target; if(!el.dataset) return;
+  if(el.dataset.pdb === 'bij'){ basisSt().bij = el.value; return; }
   if(el.dataset.pdc){ (UI.concept[el.dataset.pdc] = UI.concept[el.dataset.pdc] || {})[el.dataset.pdk] = el.value; el.classList.remove('voor'); bewaarConcept(); return; }
   if(el.dataset.pds && el.type !== 'checkbox'){ samenInvoer(el); return; }
   if(el.dataset.pd === 'zoek'){ UI.zoek = el.value; UI.i = 0; clearTimeout(UI.t); UI.t = setTimeout(() => rerender(), 300); }
@@ -1316,6 +1406,7 @@ app.addEventListener('input', ev => {
 app.addEventListener('change', ev => {
   const el = ev.target; if(!el.dataset) return;
   if(el.dataset.pd === 'lev'){ UI.lev = el.value; bewaar('lev', UI.lev); UI.i = 0; rerender(); return; }
+  if(el.dataset.pdb){ const bs = basisSt(); if(el.dataset.pdb === 'hand') bs.hand = el.checked; if(el.dataset.pdb === 'inc'){ if(el.checked) bs.uit.delete(el.dataset.code); else bs.uit.add(el.dataset.code); } clearTimeout(UI.rt); UI.rt = setTimeout(rerender, 0); return; }
   if(el.dataset.pd === 'sel'){ const c = el.dataset.code; if(el.checked) UI.sel.add(c); else UI.sel.delete(c); bewaarSel(); rerender(); return; }
   if(el.dataset.pds === 'aan'){ if(UI.samen){ UI.samen.aan[el.dataset.k] = el.checked; bewaarSamen(); } rerender(); return; }
   if(el.dataset.pds === 'perProduct'){ if(UI.samen){ UI.samen.perProduct = el.checked; bewaarSamen(); } rerender(); return; }
@@ -1348,6 +1439,7 @@ async function view(delen){
   const [sub, arg] = huidig.delen;
   if(sub === 'kies' || sub === 'fam') return viewKies();
   if(sub === 'samen') return viewSamen();
+  if(sub === 'basis') return viewBasis();
   if(sub === 'een') return viewEen();
   if(sub === 'p' && arg) return viewProduct(arg);
   if(sub === 'dubbel') return viewDubbel();
