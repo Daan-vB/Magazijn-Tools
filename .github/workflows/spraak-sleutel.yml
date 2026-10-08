@@ -1,0 +1,33 @@
+# Spraak naar tekst, stap 1: een tijdelijk sleutelpaar.
+# De privesleutel blijft in de Actions-cache van deze repository (niet openbaar te downloaden).
+# De publieke sleutel komt op tak spraak-sleutel: daarmee versleutelt Claude de opname voordat die hier komt.
+name: Spraak sleutel
+on:
+  push:
+    branches: [main]
+    paths: ['.github/spraak/sleutel.txt']
+permissions:
+  contents: write
+jobs:
+  sleutel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: id
+        run: echo "id=$(head -n1 .github/spraak/sleutel.txt | tr -cd 'a-zA-Z0-9-' | head -c 40)" >> "$GITHUB_OUTPUT"
+      - name: Sleutelpaar maken
+        run: |
+          mkdir -p sleutel
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out sleutel/priv.pem 2>/dev/null
+          openssl pkey -in sleutel/priv.pem -pubout -out pub.pem
+      - uses: actions/cache/save@v4
+        with:
+          path: sleutel
+          key: spraak-${{ steps.id.outputs.id }}
+      - name: Publieke sleutel klaarzetten
+        run: |
+          mkdir uit && mv pub.pem uit/ && echo "${{ steps.id.outputs.id }}" > uit/id.txt && cd uit
+          git init -q -b spraak-sleutel
+          git config user.name "ivol-spraak"; git config user.email "spraak@users.noreply.github.com"
+          git add . && git commit -qm "publieke sleutel"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" spraak-sleutel

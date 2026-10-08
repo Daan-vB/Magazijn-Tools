@@ -1,0 +1,77 @@
+# Spraak naar tekst, stap 2: de versleutelde opname (tak spraak-in) wordt hier ontsleuteld met de privesleutel uit
+# de cache, in delen tegelijk omgezet naar tekst (Whisper, Nederlands) en per deel versleuteld teruggezet op tak
+# spraak-uit-N, met de publieke sleutel van Claude. Geen opname of tekst leesbaar in repository of logs.
+# TEST in werk.txt: gebruikt een kunstmatige Nederlandse testopname in plaats van een echte.
+name: Spraak naar tekst
+on:
+  push:
+    branches: [main]
+    paths: ['.github/spraak/werk.txt']
+permissions:
+  contents: write
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      id: ${{ steps.p.outputs.id }}
+      model: ${{ steps.p.outputs.model }}
+      test: ${{ steps.p.outputs.test }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: p
+        run: |
+          f=.github/spraak/werk.txt
+          echo "id=$(grep -m1 '^id=' $f | cut -d= -f2 | tr -cd 'a-zA-Z0-9-')" >> "$GITHUB_OUTPUT"
+          echo "model=$(grep -m1 '^model=' $f | cut -d= -f2 | tr -cd 'a-zA-Z0-9.-')" >> "$GITHUB_OUTPUT"
+          echo "test=$(grep -qx 'TEST' $f && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
+  deel:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        i: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Privesleutel uit de cache
+        if: needs.plan.outputs.test == '0'
+        uses: actions/cache/restore@v4
+        with:
+          path: sleutel
+          key: spraak-${{ needs.plan.outputs.id }}
+          fail-on-cache-miss: true
+      - name: Opname ophalen en ontsleutelen
+        if: needs.plan.outputs.test == '0'
+        run: |
+          git clone -q --depth 1 -b spraak-in "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" in
+          openssl pkeyutl -decrypt -inkey sleutel/priv.pem -pkeyopt rsa_padding_mode:oaep -in in/k.enc -out k.bin
+          openssl enc -d -aes-256-cbc -pbkdf2 -in in/audio.enc -out audio.ogg -pass file:k.bin
+          rm -rf k.bin in sleutel
+      - name: Testopname maken (alleen bij TEST)
+        if: needs.plan.outputs.test == '1'
+        run: |
+          sudo apt-get -qq update >/dev/null && sudo apt-get -qq install -y espeak-ng >/dev/null
+          espeak-ng -v nl -s 150 -w test.wav -f .github/spraak/testtekst.txt
+          ffmpeg -loglevel error -y -i test.wav -ac 1 -ar 16000 -c:a libopus -b:a 32k audio.ogg
+      - name: Whisper installeren
+        run: pip install -q faster-whisper==1.1.1
+      - name: Omzetten naar tekst
+        env:
+          DEEL: ${{ matrix.i }}
+          DELEN: 8
+          MODEL: ${{ needs.plan.outputs.model }}
+        run: python3 .github/spraak/omzetten.py audio.ogg uit.json
+      - name: Versleuteld terugzetten
+        run: |
+          mkdir pakket
+          openssl rand -out k.bin 32
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in uit.json -out pakket/tekst.enc -pass file:k.bin
+          openssl pkeyutl -encrypt -pubin -inkey .github/export/sleutel-publiek.pem -pkeyopt rsa_padding_mode:oaep -in k.bin -out pakket/k.enc
+          rm -f k.bin uit.json audio.ogg
+          if [ "${{ needs.plan.outputs.test }}" = "1" ] && [ "${{ matrix.i }}" = "0" ]; then cp test.wav pakket/ 2>/dev/null || true; fi
+          cd pakket
+          git init -q -b spraak-uit-${{ matrix.i }}
+          git config user.name "ivol-spraak"; git config user.email "spraak@users.noreply.github.com"
+          git add . && git commit -qm "tekst deel ${{ matrix.i }}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" spraak-uit-${{ matrix.i }}

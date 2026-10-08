@@ -1,0 +1,22 @@
+# Spraak naar tekst, stap 3: tijdelijke takken en de sleutel in de cache weghalen.
+name: Spraak opruimen
+on:
+  push:
+    branches: [main]
+    paths: ['.github/spraak/opruimen.txt']
+permissions:
+  contents: write
+  actions: write
+jobs:
+  opruimen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          for t in spraak-sleutel spraak-in spraak-uit-0 spraak-uit-1 spraak-uit-2 spraak-uit-3 spraak-uit-4 spraak-uit-5 spraak-uit-6 spraak-uit-7; do
+            gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$t" >/dev/null 2>&1 && echo "::notice::tak $t weg" || true
+          done
+          for k in $(gh api "repos/${{ github.repository }}/actions/caches?per_page=100" --jq '.actions_caches[].key' | grep '^spraak-' || true); do
+            gh api -X DELETE "repos/${{ github.repository }}/actions/caches?key=$k" >/dev/null && echo "::notice::cache $k weg"
+          done
