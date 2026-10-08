@@ -341,7 +341,11 @@ async function keten(sinds: string) {
     alles("purchaseorders", 1500).catch(() => [] as any[]),
     alles("receipts", 1500).catch(() => [] as any[]),
   ]);
-  const datumVan = (o: any) => String(tekstVan(o, ["completed_at", "created_at", "updated_at", "purchased_at"]) || "").slice(0, 10);
+  const datumVan = (o: any) => String(tekstVan(o, ["completed_at", "created_at", "created", "updated_at", "updated", "purchased_at"]) || "").slice(0, 10);
+  // Picqer hangt de inkooporder bij een ontvangst onder "purchaseorder" (en per regel), niet bovenin
+  const poIdVan = (r: any) => r.idpurchaseorder || (r.purchaseorder && r.purchaseorder.idpurchaseorder) ||
+    ((Array.isArray(r.products) ? r.products : []).find((x: any) => x && x.idpurchaseorder) || {}).idpurchaseorder || null;
+  const poNrVan = (r: any) => tekstVan(r, ["purchaseorderid"]) || (r.purchaseorder ? tekstVan(r.purchaseorder, ["purchaseorderid"]) : "");
   const open = (p: any) => !/completed|cancelled|canceled/i.test(String(p.status || ""));
   // inkooporders: alles wat nog open staat + wat sinds de gevraagde datum is afgerond
   const inkSel = ruweInk.filter((p: any) => open(p) || datumVan(p) >= sinds)
@@ -377,14 +381,15 @@ async function keten(sinds: string) {
     })),
     ontvangsten: ontv.map((r: any) => ({
       id: r.idreceipt, nummer: tekstVan(r, ["receiptid"]), status: String(r.status || ""),
-      inkooporder: tekstVan(r, ["purchaseorderid"]), idinkooporder: r.idpurchaseorder || null,
+      inkooporder: poNrVan(r), idinkooporder: poIdVan(r),
       leverancier: levNaam(r), wie: gebr.get(r.iduser) || gebr.get(r.idpicker) || gebr.get(r.completed_by_iduser) || "",
-      aangemaakt: tekstVan(r, ["created_at"]) || null, klaar: tekstVan(r, ["completed_at"]) || null,
+      aangemaakt: tekstVan(r, ["created_at", "created"]) || null, klaar: tekstVan(r, ["completed_at"]) || null,
       producten: (Array.isArray(r.products) ? r.products : []).map((p: any) => ({
         idproduct: p.idproduct || null,
         code: tekstVan(p, ["productcode", "product_code"]),
         naam: tekstVan(p, ["name", "productname"]),
         aantal: getalVan(p, ["amount_received", "amountreceived", "received", "amount"]),
+        besteld: getalVan(p, ["amount_ordered", "amountordered"]),
       })),
     })),
   };

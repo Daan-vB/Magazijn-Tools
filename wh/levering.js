@@ -137,13 +137,17 @@ function regelsVan(o, po){
   const per = {};
   (o.producten || []).forEach(p => {
     const k = code(p.code); if(!k) return;
-    (per[k] = per[k] || { code:k, naam:p.naam || '', besteld:0, ontvangen:0, prijs:0 }).ontvangen += num(p.aantal) || 0;
+    const x = per[k] = per[k] || { code:k, naam:p.naam || '', besteld:0, ontvangen:0, prijs:0 };
+    x.ontvangen += num(p.aantal) || 0;
+    x.besteldRegel = (x.besteldRegel || 0) + (num(p.besteld) || 0);   // Picqer zet "besteld" ook op de ontvangstregel
   });
   (po && po.regels || []).forEach(r => {
     const k = code(r.code); if(!k) return;
     const x = per[k] = per[k] || { code:k, naam:r.naam || '', besteld:0, ontvangen:0, prijs:0 };
     x.besteld += num(r.besteld) || 0; x.prijs = num(r.prijs) || x.prijs; if(!x.naam) x.naam = r.naam || '';
   });
+  // staat de inkooporder niet in de opgehaalde periode, dan telt wat Picqer per ontvangstregel meegaf
+  Object.values(per).forEach(x => { if(!x.besteld && x.besteldRegel) x.besteld = x.besteldRegel; delete x.besteldRegel; });
   return Object.values(per).sort((a, b) => (b.ontvangen || b.besteld) - (a.ontvangen || a.besteld));
 }
 
