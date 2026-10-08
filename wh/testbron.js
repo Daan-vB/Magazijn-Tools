@@ -15,6 +15,11 @@
 
    Niet uit Picqer te halen: stuks per pallet. Dat is eigen gegeven van IVOL
    (palletlabel-generator), tenzij het ooit een eigen productveld in Picqer wordt.
+   Voor de DEMO-producten rekent dit bestand een stuks per pallet uit op basis van
+   de maten en het gewicht die wél in Picqer staan (zie sppUitMaten). Dat is een
+   schatting om de verdeling te kunnen testen, geen vervanging van het echte getal:
+   in het echte magazijn bepaalt de palletlabel-generator dat. Alleen voor codes
+   die met DEMO- beginnen, zodat het nooit met echte producten verward kan worden.
 
    Alleen lezen, en alleen in het geheugen van dit tabblad. Er gaat niets naar
    de database; core.js weigert bij bron TEST elk schrijven behalve rijen die
@@ -48,8 +53,21 @@ async function locaties(){
   return loc;
 }
 
+// stuks per pallet uit de maten: europallet 120 x 80, stapelen tot 180 cm, maximaal 1000 kg.
+// Beide liggingen proberen (lang/breed gedraaid) en de beste nemen.
+function sppUitMaten(l, b, h, kg){
+  l = Number(l) || 0; b = Number(b) || 0; h = Number(h) || 0; kg = Number(kg) || 0;
+  if(!(l > 0 && b > 0 && h > 0)) return null;
+  const perLaag = Math.max(Math.floor(120 / l) * Math.floor(80 / b), Math.floor(120 / b) * Math.floor(80 / l));
+  const lagen = Math.floor(180 / h);
+  if(!(perLaag > 0 && lagen > 0)) return null;
+  let n = perLaag * lagen;
+  if(kg > 0) n = Math.min(n, Math.floor(1000 / kg));
+  return n > 0 ? n : null;
+}
+
 async function producten(loc){
-  const P = {}, PLOW = {}, VR = {}, VK = {};
+  const P = {}, PLOW = {}, VR = {}, VK = {}, GEH = {};
   const nu = new Date().toISOString();
   let van = 0, klaar = false, ronde = 0;
   while(!klaar && ronde++ < 60){
@@ -71,6 +89,11 @@ async function producten(loc){
       // verkoopsnelheid uit Picqer: stuks per dag (28 dagen) → per maand
       const pd = Number(p.picks_per_dag);
       if(isFinite(pd) && pd > 0) VK[c] = { productcode:c, per_maand:Math.round(pd * 30), bron:'picqer 28 dagen' };
+      // stuks per pallet: alleen voor DEMO-producten, geschat uit de maten (zie boven)
+      if(/^DEMO-/i.test(c)){
+        const spp = sppUitMaten(p.lengte_cm, p.breedte_cm, p.hoogte_cm, p.gewicht_kg);
+        if(spp) GEH[c.toLowerCase()] = [{ sub:c, qty:spp, naam:p.naam || '', bron:'geschat uit maten (test)' }];
+      }
       const v = VR[c] = { locs:{}, geen:p.zonder_locatie || 0, cont:{} };
       locs.forEach(l => {
         if(l.kar) v.cont[l.naam] = (v.cont[l.naam] || 0) + (l.aantal || 0);
@@ -81,7 +104,7 @@ async function producten(loc){
     klaar = !!r.klaar; van = r.volgende;
     melden('test: ' + Object.keys(P).length + (r.totaal ? ' / ' + r.totaal : '') + ' producten…');
   }
-  return { P, PLOW, VR, VK };
+  return { P, PLOW, VR, VK, GEH };
 }
 
 async function laadTest(){
@@ -91,7 +114,7 @@ async function laadTest(){
   }
   melden('test: locaties…');
   const loc = await locaties();
-  const { P, PLOW, VR, VK } = await producten(loc);
+  const { P, PLOW, VR, VK, GEH } = await producten(loc);
   melden('test: backorders…');
   const bo = await vraag('backorders');
   const nu = new Date().toISOString();
@@ -101,9 +124,9 @@ async function laadTest(){
   D.P = P; D.PLOW = PLOW;
   D.VR = VR; D.VRDATUM = nu;
   D.BO = (bo.rijen || []).map(b => ({ productcode:b.productcode, aantal:b.aantal, orderid:b.order, geimporteerd_op:b.aangemaakt }));
-  D.VK = VK;
+  D.VK = VK; D.GEH = GEH;
   // dit komt niet uit Picqer: leeg laten in plaats van de echte cijfers tonen
-  // (stuks per pallet, de maandstaten, het vorige backorderbestand en de VST-pallets)
+  // (de maandstaten, het vorige backorderbestand en de VST-pallets)
   D.VKM = null; D.BOVORIG = null; D.ADV = null;
   D.VSTLOC = {}; D.VSTLOCVORIG = {}; D.VSTVR = {}; D.PQ = {};
   if(window.WHL) WHL.reset();

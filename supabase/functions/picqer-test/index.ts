@@ -459,6 +459,7 @@ async function basisProducten(vanTxt: string) {
       abc: tekstVan(p, ["analysis_abc_classification"]),
       actief: p.active === false ? 0 : 1,
       gewicht_kg: (Number(p.weight) || 0) / 1000,
+      lengte_cm: Number(p.length) || 0, breedte_cm: Number(p.width) || 0, hoogte_cm: Number(p.height) || 0,
       voorraad_hm: Number(hm.stock) || 0,
       gereserveerd_hm: Number(hm.reserved) || 0,
       vrij_hm: hm.freestock === undefined || hm.freestock === null ? null : Number(hm.freestock) || 0,
