@@ -56,7 +56,7 @@ const NVT = v => String(v ?? '').trim().toLowerCase() === 'nvt';
 const S = { pd:{}, extra:{}, cat:null, labels:{}, mv:{}, toets:null, klaar:false, laden:null, mist:false, fout:null, idx:null };
 const bewaard = k => { try{ return localStorage.getItem('wh-pd-' + k); }catch(e){ return null; } };
 const bewaar = (k, v) => { try{ localStorage.setItem('wh-pd-' + k, v); }catch(e){} };
-const UI = { scope:bewaard('scope2') || 'belangrijk', laag:+(bewaard('laag') || 1), lev:bewaard('lev') || '', zoek:'', over:new Set(), i:0, concept:{}, alles:{}, mig:null };
+const UI = { afdModus:bewaard('afdmodus') || 'tabel', scope:bewaard('scope2') || 'belangrijk', laag:+(bewaard('laag') || 1), lev:bewaard('lev') || '', zoek:'', over:new Set(), i:0, concept:{}, alles:{}, mig:null };
 
 /* ---------- laden ---------- */
 const isMissing = e => !!e && (e.status === 404 || /PGRST205|42P01|does not exist|Could not find the table/i.test(e.body || ''));
@@ -780,6 +780,20 @@ function stijl(){
   .pd-bron > div{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px}
   .pd-bron span{color:var(--muted);font-weight:700}
   body.pd-lock{overflow:hidden}
+  .pd-tg{border-collapse:separate;border-spacing:0;font-size:13px;width:100%;min-width:1160px}
+  .pd-tg th{text-align:left;padding:6px 6px;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:700;border-bottom:1px solid #d6dde5;background:#fbfcfd;white-space:nowrap}
+  .pd-tg td{padding:0;border-bottom:1px solid #e3e8ee;border-right:1px solid #eef1f4;vertical-align:middle;white-space:nowrap}
+  .pd-tg .prod{position:sticky;left:0;z-index:1;background:#fff;padding:5px 8px;min-width:240px;max-width:270px;white-space:normal;border-right:1px solid #d6dde5}
+  .pd-tg th.prod{background:#fbfcfd;z-index:2}
+  .pd-tg input{border:0;border-radius:0;width:100%;height:36px;padding:4px 6px;font-size:14px;background:transparent;color:var(--ink);min-width:0}
+  .pd-tg input:focus{outline:2px solid var(--blue);outline-offset:-2px;background:#fff}
+  .pd-tg input:disabled{background:transparent}
+  .pd-tg tr:focus-within .prod{background:#f3f7fd}
+  .pd-tg tr.r-klaar .prod{box-shadow:inset 4px 0 0 var(--ok)}
+  .t-ok{background:#fff} .t-auto{background:#e9f6f3} .t-voor{background:#fff8d6} .t-schat{background:#fff1e0} .t-dub{background:#fdebd8}
+  .t-mist{background:#fff;box-shadow:inset 0 0 0 1px #efc2be} .t-nieuw{background:#eef4fc} .t-fout{background:#fde2e1;box-shadow:inset 0 0 0 2px var(--bad)} .t-nvt{background:#f3f5f8}
+  .t-st{width:28px;text-align:center;font-weight:800;color:var(--ok)} .t-st.t-err{color:var(--bad);cursor:help}
+  .pd-tl{display:inline-block;padding:1px 6px;border-radius:4px;border:1px solid #e3e8ee}
   @media (max-width:760px){
     .pd-sheet .pd-rij{grid-template-columns:1fr} .pd-sheet .pd-st{grid-column:1}
     .pd-bron > div{grid-template-columns:1fr;gap:0}
@@ -1668,11 +1682,12 @@ function viewAfdelingen(){
   const sc = UI.afdScope || 'belangrijk', afd = afdelingen(sc);
   app.innerHTML = `<a class="small" href="#/productdata">← Productdata</a>
   <section class="pd-sec mt8"><div class="pd-kopsec"><h2 style="font-size:20px">Afdelingen doorlopen</h2>
-    <div class="small muted">Kies een afdeling. Je ziet per product wat we weten, wat er mist en wat al geschat is. Tik op een product, kijk het na, Opslaan en door naar de volgende.</div>
+    <div class="small muted">Kies een afdeling. Je krijgt per leverancier een tabel: één regel per product, alles al voorgevuld. Tab door de regel, verbeter wat niet klopt; verlaat je de regel, dan is hij opgeslagen.</div>
+    <div class="pd-chips">Openen als: <button class="pd-chip ${UI.afdModus !== 'kaart' ? 'on' : ''}" data-pd="afdmodus" data-v="tabel">Tabel (invullen)</button><button class="pd-chip ${UI.afdModus === 'kaart' ? 'on' : ''}" data-pd="afdmodus" data-v="kaart">Kaartjes (bekijken)</button></div>
     <div>${[['belangrijk', 'Belangrijk'], ['beweegt', 'Alles dat beweegt'], ['voorraad', 'Alles met voorraad']].map(([k, t]) => `<button class="pd-chip ${sc === k ? 'on' : ''}" data-pd="afdscope" data-v="${k}" style="margin:0 6px 6px 0">${esc(t)}<span class="n">${nf(lijst(k, false).length)}</span></button>`).join('')}</div></div></section>
   <div class="pd-afds">${afd.map(a => { const mid = a.zone === 'MIDDEN';
     const mist = Object.entries(a.mist).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([k, n]) => nf(n) + ' ' + KORT[k].toLowerCase()).join(' · ');
-    return `<a class="pd-afd${mid ? ' mid' : ''}" href="#/productdata/afd/${a.zone}"><div class="row between" style="align-items:baseline"><b class="z">${esc(a.zone === 'MIDDEN' || a.zone === 'GEEN' ? '' : a.zone)}</b><span class="small muted">${plural(a.codes.length, 'product', 'producten')}</span></div>
+    return `<a class="pd-afd${mid ? ' mid' : ''}" href="#/productdata/afd/${a.zone}${UI.afdModus === 'kaart' ? '/kaart' : ''}"><div class="row between" style="align-items:baseline"><b class="z">${esc(a.zone === 'MIDDEN' || a.zone === 'GEEN' ? '' : a.zone)}</b><span class="small muted">${plural(a.codes.length, 'product', 'producten')}</span></div>
       <div class="lbl">${esc(a.label)}</div>
       <div class="pd-bar mt8"><i style="width:${a.pct}%"></i></div>
       <div class="small mt4"><b>${a.pct}%</b> ingevuld · <span style="color:var(--ok)">${nf(a.klaar)} klaar</span>${a.auto ? ' · <span style="color:#0f6a58">' + nf(a.auto) + ' na te kijken</span>' : ''}${a.open ? ' · ' + nf(a.open) + ' open' : ''}</div>
@@ -1723,7 +1738,7 @@ function viewAfdeling(zone){
   let vorige = null;
   const kaarten = codes.slice(0, n).map(c => { const l = (D.P[c] || {}).leverancier || '–'; const kop = l !== vorige ? `<div class="pd-levkop">${esc(l)} <span class="muted">· ${plural(codes.filter(x => ((D.P[x] || {}).leverancier || '–') === l).length, 'product', 'producten')}</span></div>` : ''; vorige = l; return kop + feedKaart(c); }).join('');
   app.innerHTML = `<div class="pd-feedkop"><div class="row between wrap" style="gap:8px"><div><a class="small" href="#/productdata/afd">← Afdelingen</a> <b style="font-size:18px;margin-left:6px">${esc(ZONENAAM[zone] || zone)}</b> <span class="small muted">${esc(zoneLabel(zone, alle))}</span></div>
-      <div class="pd-chips"><button class="pd-chip ${filt === 'open' ? 'on' : ''}" data-pd="afdfilter" data-v="open">Nog te doen<span class="n">${nf(nOpen)}</span></button><button class="pd-chip ${filt === 'alles' ? 'on' : ''}" data-pd="afdfilter" data-v="alles">Alles<span class="n">${nf(alle.length)}</span></button></div></div>
+      <div class="pd-chips"><button class="pd-chip ${filt === 'open' ? 'on' : ''}" data-pd="afdfilter" data-v="open">Nog te doen<span class="n">${nf(nOpen)}</span></button><button class="pd-chip ${filt === 'alles' ? 'on' : ''}" data-pd="afdfilter" data-v="alles">Alles<span class="n">${nf(alle.length)}</span></button><a class="pd-chip" href="#/productdata/afd/${zone}" style="text-decoration:none">Tabel</a></div></div>
     <div class="pd-chips mt8"><button class="pd-chip ${!lev ? 'on' : ''}" data-pd="afdlev" data-v="">Alle leveranciers</button>${Object.entries(levs).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([l, k]) => `<button class="pd-chip ${lev === l ? 'on' : ''}" data-pd="afdlev" data-v="${esc(l)}">${esc(l.length > 26 ? l.slice(0, 24) + '…' : l)}<span class="n">${k}</span></button>`).join('')}</div>
     <div class="tiny muted mt8"><span class="pd-f f-ok"><span>vastgelegd</span></span> <span class="pd-f f-auto"><span>automatisch</span></span> <span class="pd-f f-voor"><span>voorstel</span></span> <span class="pd-f f-schat"><span>schatting</span> ~</span> <span class="pd-f f-dub"><span>dubbel</span> kies</span> <span class="pd-f f-mist"><span>mist</span> ?</span></div></div>
   <div class="pd-feeds">${kaarten || '<div class="card empty">Niets meer te doen in deze afdeling. Kies "Alles" om alles te zien.</div>'}</div>
@@ -1764,6 +1779,98 @@ function sheetHtml(c){
       <button class="btn" data-pd="sheetsave" data-code="${esc(c)}" ${fout ? 'disabled' : ''}>Opslaan</button>
       <button class="btn acc" data-pd="sheetsave" data-code="${esc(c)}" data-next="1" ${fout ? 'disabled' : ''}>Opslaan, volgende →</button>
     </div></div></div>`;
+}
+
+/* ---------- invullen als tabel: per afdeling, per leverancier, één regel per product ----------
+   Alles staat al voorgevuld (vast, automatisch, voorstel, schatting). Tab = volgende cel, Enter = cel eronder.
+   Verlaat je een regel, dan wordt die regel opgeslagen: zo heb je hem gezien. */
+const TAB_KOL = [['spp', 'Per pallet', 80], ['maat', 'Palletmaat', 92], ['hoogte', 'Hoogte cm', 70], ['gewicht', 'Gewicht kg', 76], ['plaatsen', 'Plaatsen', 62], ['maxlig', 'Max/ligger', 62],
+  ['pick', 'Pick j/n', 56], ['lvl', 'Bij', 62], ['met', 'Met p/d/o', 70], ['maxpick', 'Max pick', 70], ['spd', 'Per doos', 62], ['vn', 'Vloernaam', 230]];
+const TAB_UIT = { ja:'ja', nee:'nee', pallet:'pallet', deel:'deel', doos:'doos' };
+function tabNorm(k, v){
+  v = String(v ?? '').trim(); if(!v) return '';
+  const l = v.toLowerCase();
+  if(NVT(l) || l === 'onb') return l;
+  if(k === 'pick') return /^j/.test(l) ? 'ja' : /^n/.test(l) ? 'nee' : v;
+  if(k === 'met') return /^(p|v)/.test(l) ? 'pallet' : /^d/.test(l) ? 'deel' : /^(o|l|doos)/.test(l) ? 'doos' : v;
+  if(k === 'plaatsen') return l.replace('.', ',').replace(/^13$/, '1,3');
+  if(k === 'maat'){ const m = l.match(/(\d{2,3})\D+(\d{2,3})/); return m ? m[1] + 'x' + m[2] : v; }
+  return v;
+}
+function tabCel(c, k, f){
+  const d = VELDEN[k], i = f.info(k), st = staat(c, k), m = S.pd[c] && S.pd[c].meta && S.pd[c].meta[k];
+  const uit = !nodig(c, k, f);
+  let cls = 't-mist', ph = '', titel = '';
+  if(i.s === 'ok') cls = m && m.bron === 'auto' ? 't-auto' : 't-ok';
+  else if(i.s === 'voorstel') cls = 't-voor';
+  else if(i.s === 'schatting') cls = 't-schat';
+  else if(i.s === 'dubbel'){ cls = 't-dub'; ph = i.conflict.map(x => x.v).join(' / '); titel = 'Dubbel in palletlabels: ' + ph; }
+  else if(i.s === 'nieuw') cls = 't-nieuw';
+  if(i.bron) titel = i.bron; else if(st.s === 'ok' && m) titel = okBron(c, k);
+  const v = i.s === 'dubbel' ? '' : (d.type === 'keus' && i.v ? i.v : i.v);
+  return `<td class="${uit ? 't-nvt' : cls}"><input data-pdt="${k}" data-code="${esc(c)}" value="${esc(uit ? '' : v)}" data-was="${esc(st.s === 'ok' ? st.v : '')}" ${uit ? 'disabled placeholder="–"' : `placeholder="${esc(ph)}"`} title="${esc(titel)}" autocomplete="off" ${d.type === 'num' ? 'inputmode="decimal"' : ''}></td>`;
+}
+function tabRij(c){
+  const p = D.P[c] || {}, f = kaartFn(c, { schat:true }), l = locaties(c), eh = eenheid(c), st = feedStatus(c, f);
+  return `<tr data-code="${esc(c)}" class="${st.s === 'klaar' ? 'r-klaar' : ''}"><td class="prod"><div class="row" style="gap:6px;align-items:baseline"><a class="code" href="#/productdata/p/${encodeURIComponent(c)}" tabindex="-1" style="font-size:12px">${esc(c)}</a>${abcBadge(c)}</div>
+    <div class="tiny" style="line-height:1.25">${esc(String(p.naam || '').slice(0, 64))}</div><div class="tiny muted">${esc(l.pick.map(a => a[0]).slice(0, 1).join('') || l.bulk.map(a => a[0]).slice(0, 1).join('') || '–')} · telt ${esc(eh.mv)}</div></td>
+    ${TAB_KOL.map(([k]) => tabCel(c, k, f)).join('')}<td class="t-st" aria-live="polite">${st.s === 'klaar' ? '✓' : ''}</td></tr>`;
+}
+function viewTabel(zone){
+  const { alle, codes, st } = feedLijst(zone), filt = UI.afdFilter || 'open', lev = UI.afdLev || '';
+  const groepen = {}; codes.forEach(c => { const l = (D.P[c] || {}).leverancier || '–'; (groepen[l] = groepen[l] || []).push(c); });
+  const nOpen = alle.filter(c => st[c].s !== 'klaar').length;
+  const levs = {}; alle.forEach(c => { const l = (D.P[c] || {}).leverancier || '–'; levs[l] = (levs[l] || 0) + 1; });
+  const kop = `<tr><th class="prod">Product</th>${TAB_KOL.map(([, t, w]) => `<th style="min-width:${w}px">${esc(t)}</th>`).join('')}<th></th></tr>`;
+  const lijst = Object.entries(groepen);
+  app.innerHTML = `<div class="pd-feedkop"><div class="row between wrap" style="gap:8px"><div><a class="small" href="#/productdata/afd">← Afdelingen</a> <b style="font-size:18px;margin-left:6px">${esc(ZONENAAM[zone] || zone)}</b> <span class="small muted">${esc(zoneLabel(zone, alle))}</span></div>
+      <div class="pd-chips"><button class="pd-chip ${filt === 'open' ? 'on' : ''}" data-pd="afdfilter" data-v="open">Nog te doen<span class="n">${nf(nOpen)}</span></button><button class="pd-chip ${filt === 'alles' ? 'on' : ''}" data-pd="afdfilter" data-v="alles">Alles<span class="n">${nf(alle.length)}</span></button><a class="pd-chip" href="#/productdata/afd/${zone}/kaart" style="text-decoration:none">Kaartjes</a></div></div>
+    <div class="pd-chips mt8"><button class="pd-chip ${!lev ? 'on' : ''}" data-pd="afdlev" data-v="">Alle leveranciers</button>${Object.entries(levs).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([l, k]) => `<button class="pd-chip ${lev === l ? 'on' : ''}" data-pd="afdlev" data-v="${esc(l)}">${esc(l.length > 26 ? l.slice(0, 24) + '…' : l)}<span class="n">${k}</span></button>`).join('')}</div>
+    <div class="tiny muted mt8"><span class="pd-tl t-ok">vast</span> <span class="pd-tl t-auto">automatisch</span> <span class="pd-tl t-voor">voorstel</span> <span class="pd-tl t-schat">schatting</span> <span class="pd-tl t-dub">dubbel, typ de juiste</span> <span class="pd-tl t-mist">mist</span> · Tab = volgende cel · Enter = cel eronder · regel verlaten = opgeslagen · pick j/n · met p(allet)/d(eel)/o (doos) · nvt = komt niet op pallet</div></div>
+  ${lijst.map(([l, cs], gi) => `<section class="pd-sec" id="tg-${gi}"><div class="pd-sec-kop"><div class="l"><h3>${esc(l)}</h3><span class="small muted">${plural(cs.length, 'product', 'producten')}</span></div>
+      <div class="row wrap"><button class="btn sm" tabindex="-1" data-pd="tabgroep" data-g="${gi}">Hele groep klopt, opslaan</button>${gi < lijst.length - 1 ? `<button class="btn sm ghost" tabindex="-1" data-pd="tabnaar" data-g="${gi + 1}">Volgende groep ↓</button>` : ''}</div></div>
+    <div class="pd-tab"><table class="pd-tg" data-g="${gi}"><thead>${kop}</thead><tbody>${cs.map(tabRij).join('')}</tbody></table></div></section>`).join('') || '<div class="card empty">Niets meer te doen in deze afdeling. Kies "Alles" om alles te zien.</div>'}`;
+}
+// één regel opslaan: alles wat er staat (ook voorgevulde schattingen) wordt vastgelegd
+async function tabBewaarRij(tr){
+  if(!tr || tr.dataset.bezig) return;
+  const c = tr.dataset.code, wijz = {}, fouten = [];
+  tr.querySelectorAll('input[data-pdt]:not([disabled])').forEach(inp => {
+    const k = inp.dataset.pdt, ruw = tabNorm(k, inp.value);
+    let v; try{ v = check(k, ruw); }catch(e){ fouten.push(e.message); inp.parentNode.className = 't-fout'; return; }
+    const st = staat(c, k), m = S.pd[c] && S.pd[c].meta && S.pd[c].meta[k];
+    if(!v){ if(inp.dataset.was && st.s === 'ok') wijz[k] = ''; return; }
+    if(st.s === 'ok' && st.v === v && !(m && m.bron === 'auto')) return;
+    wijz[k] = v;
+  });
+  const status = tr.querySelector('.t-st');
+  if(fouten.length){ status.textContent = '!'; status.title = fouten.join(' · '); status.className = 't-st t-err'; return; }
+  if(!Object.keys(wijz).length){ status.textContent = '✓'; status.className = 't-st'; tr.classList.add('r-klaar'); return; }
+  tr.dataset.bezig = '1'; status.textContent = '…';
+  try{
+    await opslaan({ [c]:wijz }, 'tabel');
+    tr.querySelectorAll('input[data-pdt]:not([disabled])').forEach(inp => { if(inp.value.trim()){ inp.parentNode.className = 't-ok'; inp.dataset.was = tabNorm(inp.dataset.pdt, inp.value); } });
+    status.textContent = '✓'; status.title = ''; status.className = 't-st'; tr.classList.add('r-klaar');
+  }catch(e){ status.textContent = '!'; status.title = e.message; status.className = 't-st t-err'; toast(c + ': ' + e.message, 6000); }
+  finally{ delete tr.dataset.bezig; }
+}
+// afhankelijke cellen bijwerken als je iets verandert (alleen cellen die nog niet vastliggen)
+function tabAfhankelijk(inp){
+  const tr = inp.closest('tr'), c = tr.dataset.code, k = inp.dataset.pdt, cel = kk => tr.querySelector(`input[data-pdt="${kk}"]`);
+  const val = kk => tabNorm(kk, (cel(kk) || {}).value), vrij = kk => { const td = cel(kk) && cel(kk).parentNode; return td && !/t-ok|t-nieuw/.test(td.className); };
+  // afgeleide cel bijwerken als die leeg/geschat is, of precies hoorde bij de oude waarde
+  const zet = (kk, v, oudeAfleiding) => { const e = cel(kk); if(!e || e.disabled || leeg(v)) return; if(!vrij(kk) && !(oudeAfleiding != null && tabNorm(kk, e.value) === String(oudeAfleiding))) return; if(e.value === v) return; e.value = v; e.parentNode.className = 't-voor'; tr.dataset.gezien = '1'; };
+  const voor = inp.dataset.voor ?? '';
+  inp.value = tabNorm(k, inp.value);
+  const vorig = kk => kk === k ? tabNorm(kk, voor) : val(kk);
+  if(k === 'maat'){ const pl = plaatsenUitMaat(val('maat')); if(pl) zet('plaatsen', pl, plaatsenUitMaat(vorig('maat'))); }
+  if(k === 'spp'){ const g = num((S.extra[c] || {}).gewicht_product_g), n = num(val('spp')), o = num(vorig('spp')); if(g && n && eenheid(c).e === 'st') zet('gewicht', String(Math.ceil(n * g / 1000 + 15)), o ? Math.ceil(o * g / 1000 + 15) : null); }
+  if(['spp', 'lvl', 'met'].includes(k) && val('met') === 'pallet'){ const a = num(val('lvl')), n = num(val('spp')), oa = num(vorig('lvl')), on = num(vorig('spp')); if(a !== null && n) zet('maxpick', String(a + n), oa !== null && on ? oa + on : null); }
+  inp.dataset.voor = inp.value;
+  // n.v.t. aan/uit
+  const pal = !NVT(val('spp')), pick = val('pick') !== 'nee';
+  ['maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig'].forEach(kk => { const e = cel(kk); if(e){ e.disabled = !pal; if(!pal) e.parentNode.className = 't-nvt'; } });
+  ['lvl', 'met', 'maxpick'].forEach(kk => { const e = cel(kk); if(e){ e.disabled = !pick; if(!pick) e.parentNode.className = 't-nvt'; } });
 }
 
 /* ---------- importeren: een lijst plakken (bijv. uit een ingesproken opname, verwerkt door Claude) ----------
@@ -1886,6 +1993,8 @@ app.addEventListener('click', async ev => {
   if(a === 'impbekijk'){ const t = $('pd-imp'); UI.imp = t ? t.value : ''; bewaar('imp', UI.imp); UI.impUit = new Set(); rerender(); return; }
   if(a === 'impleeg'){ UI.imp = ''; bewaar('imp', ''); UI.impUit = new Set(); rerender(); return; }
   if(a === 'imp' || a === 'impinc') return;
+  if(a === 'afdmodus'){ UI.afdModus = b.dataset.v; bewaar('afdmodus', UI.afdModus); rerender(); return; }
+  if(a === 'tabnaar'){ const sec = $('tg-' + b.dataset.g); if(sec){ sec.scrollIntoView({ block:'start' }); const i = sec.querySelector('input[data-pdt]:not([disabled])'); if(i) i.focus({ preventScroll:true }); } return; }
   if(a === 'afdscope'){ UI.afdScope = b.dataset.v; rerender(); return; }
   if(a === 'afdfilter'){ UI.afdFilter = b.dataset.v; UI.afdN = 40; rerender(); return; }
   if(a === 'afdlev'){ UI.afdLev = b.dataset.v; UI.afdN = 40; rerender(); return; }
@@ -1912,6 +2021,7 @@ app.addEventListener('click', async ev => {
       if(volgende){ UI.sheet = volgende; rerender(); const n = $('pd-sheet-in'); if(n) n.scrollTop = 0; } else sluitSheet();
     }
     if(a === 'impsave'){ b.textContent = 'Bezig…'; const r = await bewaarImport(); toast(plural(r.nW, 'waarde', 'waarden') + ' opgeslagen voor ' + plural(r.n, 'product', 'producten'), 5000); UI.imp = ''; bewaar('imp', ''); UI.impUit = new Set(); rerender(); }
+    if(a === 'tabgroep'){ const rijen = [...document.querySelectorAll(`table.pd-tg[data-g="${b.dataset.g}"] tbody tr`)]; for(const tr of rijen) await tabBewaarRij(tr); toast(plural(rijen.length, 'product', 'producten') + ' opgeslagen', 3000); }
     if(a === 'regelsave'){ b.textContent = 'Bezig…'; const r = await bewaarRegel(); toast(plural(r.nW, 'waarde', 'waarden') + ' opgeslagen voor ' + plural(r.n, 'product', 'producten'), 4000); rerender(); }
     if(a === 'autosave'){ b.textContent = 'Bezig…'; const r = await bewaarAuto(); toast(plural(r.nW, 'waarde', 'waarden') + ' automatisch ingevuld bij ' + plural(r.n, 'product', 'producten'), 5000); rerender(); }
     if(a === 'autoweg'){ b.textContent = 'Bezig…'; const n = await autoWeg(); toast('Automatische waarden weggehaald bij ' + plural(n, 'product', 'producten'), 5000); rerender(); }
@@ -1942,12 +2052,34 @@ app.addEventListener('change', ev => {
   // status, voorstellen en tabel bijwerken, pas als de cursor in het volgende veld staat (Tab of klik), zodat die focus blijft
   if((el.dataset.pdc || el.dataset.pds || el.dataset.pdr === 'in') && !knopOmlaag){ clearTimeout(UI.rt); UI.rt = setTimeout(() => { if(!knopOmlaag) rerender(); }, 0); }
 });
+// tabel: Enter = cel eronder, pijl op/neer = rij erboven/eronder, regel verlaten = opslaan
+app.addEventListener('keydown', ev => {
+  const inp = ev.target; if(!inp.dataset || !inp.dataset.pdt) return;
+  if(ev.key === 'Enter' || ev.key === 'ArrowDown' || ev.key === 'ArrowUp'){
+    ev.preventDefault();
+    // ook over de grens van een leveranciersgroep heen
+    const rijen = [...app.querySelectorAll('table.pd-tg tbody tr')], i = rijen.indexOf(inp.closest('tr')), stap = (ev.key === 'ArrowUp' || (ev.key === 'Enter' && ev.shiftKey)) ? -1 : 1;
+    for(let j = i + stap; j >= 0 && j < rijen.length; j += stap){
+      const doel = rijen[j].querySelector(`input[data-pdt="${inp.dataset.pdt}"]`);
+      if(doel && !doel.disabled){ doel.focus(); doel.select(); doel.scrollIntoView({ block:'nearest' }); break; }
+    }
+  }
+}, true);
+app.addEventListener('input', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt){ inp.parentNode.className = 't-nieuw'; inp.closest('tr').dataset.vuil = '1'; } }, true);
+app.addEventListener('change', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt) tabAfhankelijk(inp); }, true);
+app.addEventListener('focusin', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt){ inp.closest('tr').dataset.gezien = '1'; inp.dataset.voor = inp.value; try{ inp.select(); }catch(e){} } });
+app.addEventListener('focusout', ev => {
+  const inp = ev.target; if(!inp.dataset || !inp.dataset.pdt) return;
+  const tr = inp.closest('tr'), naar = ev.relatedTarget;
+  if(naar && tr.contains(naar)) return;          // nog in dezelfde regel
+  if(tr.dataset.gezien) tabBewaarRij(tr);
+});
 function sluitSheet(){
   const c = UI.sheet; UI.sheet = null; rerender();
   // terug naar het kaartje waar je was
   const el = c && document.querySelector('.pd-feed[data-code="' + CSS.escape(c) + '"]'); if(el){ const r = el.getBoundingClientRect(); if(r.top < 80 || r.bottom > innerHeight) el.scrollIntoView({ block:'center' }); el.focus({ preventScroll:true }); }
 }
-window.addEventListener('hashchange', () => { if(location.hash.indexOf('#/productdata/afd/') !== 0){ UI.sheet = null; document.body.classList.remove('pd-lock'); } });
+window.addEventListener('hashchange', () => { if(!/^#\/productdata\/afd\/[^/]+\/kaart/.test(location.hash)){ UI.sheet = null; document.body.classList.remove('pd-lock'); } });
 document.addEventListener('keydown', ev => { if(ev.key === 'Escape' && UI.sheet && location.hash.indexOf('#/productdata') === 0){ ev.preventDefault(); sluitSheet(); } });
 app.addEventListener('keydown', ev => {
   if(ev.key === 'Enter' && ev.target.classList && ev.target.classList.contains('pd-feed')){ ev.preventDefault(); ev.target.click(); return; }
@@ -1977,9 +2109,9 @@ async function view(delen){
   if(S.fout){ app.innerHTML = `<div class="card"><h2>Productdata laden mislukt</h2><p class="mt8 small">${esc(S.fout.message)}</p></div>`; return; }
   if(location.hash.indexOf('#/productdata') !== 0) return;     // intussen weggeklikt
   const [sub, arg] = huidig.delen;
-  if(sub !== 'afd' || !arg) UI.sheet = null;
+  if(sub !== 'afd' || !arg || huidig.delen[2] !== 'kaart') UI.sheet = null;
   document.body.classList.toggle('pd-lock', !!UI.sheet);
-  if(sub === 'afd' && arg) return viewAfdeling(arg);
+  if(sub === 'afd' && arg) return huidig.delen[2] === 'kaart' ? viewAfdeling(arg) : viewTabel(arg);
   if(sub === 'afd') return viewAfdelingen();
   if(sub === 'kies' || sub === 'fam') return viewKies();
   if(sub === 'samen') return viewSamen();
