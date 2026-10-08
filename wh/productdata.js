@@ -113,7 +113,7 @@ function index(){
   });
   // pakbonregels per product (alle containers, ook afgeronde)
   const pb = {};
-  (D.CONT || []).forEach(c => ((c.regels || (c.data && c.data.regels)) || []).forEach(r => { if(r && r.productcode){ const k = D.PLOW[String(r.productcode).toLowerCase()] || r.productcode; (pb[k] = pb[k] || []).push(r); } }));
+  (D.CONT || []).forEach(c => ((c.regels || (c.data && c.data.regels)) || []).forEach(r => { if(r && r.productcode){ const k = D.PLOW[String(r.productcode).toLowerCase()] || r.productcode; (pb[k] = pb[k] || []).push(Object.assign({ _lev:c.leverancier || (c.data && c.data.pakbon && c.data.pakbon.leverancier) || '', _ref:c.pakbon_ref || c.containernummer || '', _dat:c.losdatum || '' }, r)); } }));
   // producten op een open container (komt binnen)
   const binnen = new Set();
   (D.CONT || []).filter(c => c.status !== 'afgerond').forEach(c => ((c.regels || (c.data && c.data.regels)) || []).forEach(r => { if(r && r.productcode) binnen.add(D.PLOW[String(r.productcode).toLowerCase()] || r.productcode); }));
@@ -394,9 +394,9 @@ function voorstel(code, k, w){
       if(genoot) return genoot;
       const r = pbRegels(code).find(r => r.soort === 'pallet' && num(r.bruto_per));
       if(r) return uit('gewicht:pakbon', Math.ceil(num(r.bruto_per)), 'pakbon: bruto per pallet');
-      const spp = num(w('spp')), kgE = num(w('kgst')), g = kgE || (num(x.gewicht_product_g) ? num(x.gewicht_product_g) / 1000 : null);
+      const spp = num(w('spp')), kgE = num(w('kgst')), g = kgE || (!kgOnb(code) && num(x.gewicht_product_g) ? num(x.gewicht_product_g) / 1000 : null);
       if(spp && g) return uit(kgE ? 'gewicht:eigen' : eh.e === 'st' ? 'gewicht:picqer' : 'gewicht:picqerm', Math.ceil(spp * g + 15), nf(spp) + ' ' + eh.mv + ' × ' + nf(g, 3) + ' kg' + (kgE ? '' : ' (Picqer)') + ' + 15 kg pallet');
-      return fam();
+      return kgOnb(code) ? null : fam();   // gewicht staat op uitzoeken: geen gok uit een ander product
     }
     case 'plaatsen': {
       const m = w('maat');
@@ -1031,6 +1031,7 @@ function viewStart(){
     <div class="row wrap mt12"><button class="btn pri" data-pd="mig">Zet ${nf(migN)} waarden over</button></div></div>` : ''}
   ${UI.mig ? `<div class="card" style="border-left:4px solid var(--ok)"><h3>Overgezet</h3><div class="small mt8">${Object.keys(UI.mig.voor).map(k => esc(VELDEN[k].t) + ': vóór <b>' + nf(UI.mig.voor[k]) + '</b>, na <b>' + nf(UI.mig.na[k] || 0) + '</b>' + ((UI.mig.na[k] || 0) === UI.mig.voor[k] ? ' ✓' : ' <span class="badge b-bad">verschil</span>')).join('<br>')}</div></div>` : ''}
   <a class="card" href="#/productdata/afd" style="display:block;text-decoration:none;color:inherit;border-left:6px solid var(--orange)"><div class="row between wrap"><div><h2 style="font-size:18px">Afdelingen doorlopen</h2><div class="small muted mt4">Per afdeling een lijst: per product wat we weten, wat mist en wat geschat is. Tik, nakijken, Opslaan en door naar de volgende.</div></div><span class="btn acc">Begin →</span></div></a>
+  ${kgKaart()}
   <a class="card" href="#/productdata/import" style="display:block;text-decoration:none;color:inherit;border-left:4px solid #5a3e8f"><div class="row between wrap"><div><h3>Importeren</h3><div class="small muted mt4">Een lijst van Claude plakken (bijvoorbeeld uit je ingesproken opname), nakijken en in één klik opslaan.</div></div><span class="btn">Openen →</span></div></a>
   <a class="card" href="#/productdata/auto" style="display:block;text-decoration:none;color:inherit;border-left:4px solid var(--ok)"><div class="row between wrap"><div><h3>Automatisch invullen uit alle bronnen</h3><div class="small muted mt4">Palletlabels, containers, pakbonnen, VST, bulk, verplaatsingen, Picqer en kleurgenoten naast elkaar. Alleen wat getoetst zeker genoeg is, jouw invoer blijft staan.</div></div><span class="btn ok">Bekijken →</span></div></a>
   ${poortKaart()}
@@ -1207,7 +1208,7 @@ function nuWaarde(c, k){
 }
 function zelfde(codes, k){ const vals = [...new Set(codes.map(c => nuWaarde(c, k)).filter(v => v !== ''))]; return vals.length === 1 ? vals[0] : ''; }
 function eenheden(codes){ const m = {}; codes.forEach(c => { const u = eenheid(c).mv; (m[u] = m[u] || []).push(c); }); return m; }
-const kgVan = c => { const st = staat(c, 'kgst'); if(st.s === 'ok' && num(st.v)) return st.v; const g = num((S.extra[c] || {}).gewicht_product_g); return g ? String(Math.round(g) / 1000) : ''; };
+const kgVan = c => { const st = staat(c, 'kgst'); if(st.s === 'ok' && num(st.v)) return st.v; if(kgOnb(c)) return ''; const g = num((S.extra[c] || {}).gewicht_product_g); return g ? String(Math.round(g) / 1000) : ''; };
 const spdNodig = c => nodig(c, 'spd', waardeFn(c));
 function startSamen(codes){
   const per = eenheden(codes);
@@ -1791,6 +1792,7 @@ const TAB_UIT = { ja:'ja', nee:'nee', pallet:'pallet', deel:'deel', doos:'doos' 
 function tabNorm(k, v){
   v = String(v ?? '').trim(); if(!v) return '';
   const l = v.toLowerCase();
+  if(k === 'kgst' && (l === 'x' || l === '?')) return 'onb';
   if(NVT(l) || l === 'onb') return l;
   if(k === 'pick') return /^j/.test(l) ? 'ja' : /^n/.test(l) ? 'nee' : v;
   if(k === 'met') return /^(p|v)/.test(l) ? 'pallet' : /^d/.test(l) ? 'deel' : /^(o|l|doos)/.test(l) ? 'doos' : v;
@@ -1799,9 +1801,31 @@ function tabNorm(k, v){
   return v;
 }
 const kgPicqer = c => { const g = num((S.extra[c] || {}).gewicht_product_g); return g ? g / 1000 : null; };
+// x bij kg per st/m = "Picqer-gewicht klopt niet, nog uitzoeken" (opgeslagen als onb)
+function kgOnb(c){ return String(pdWaarde(c, 'kgst') || '').trim().toLowerCase() === 'onb'; }
+const rondKg = v => v >= 10 ? Math.round(v * 10) / 10 : v >= 1 ? Math.round(v * 100) / 100 : Math.round(v * 1000) / 1000;
+// waar het echte gewicht per stuk/meter nog te vinden is: pakbonnen, een bekend palletgewicht, kleurgenoten
+function kgOnderzoek(c){
+  const uit = [], eh = ENKEL[eenheid(c).mv] || eenheid(c).mv, pq = kgPicqer(c);
+  pbRegels(c).forEach(r => {
+    const b = num(r.bruto_per), per = num(r.per), f = num(r.factor) || 1; if(!b || !per) return;
+    const pal = r.soort === 'pallet', kg = (b - (pal ? 15 : 0)) / (per * f); if(!(kg > 0)) return;
+    uit.push({ v:rondKg(kg), bron:'pakbon' + (r._lev ? ' ' + String(r._lev).split(/[ ,]/)[0] : '') + (r._ref ? ' ' + r._ref : ''), uitleg:nf(b, 1) + ' kg bruto per ' + (pal ? 'pallet, min 15 kg pallet' : 'pak') + ', gedeeld door ' + nf(per * f) + ' ' + eh });
+  });
+  const g = staat(c, 'gewicht'), sp = staat(c, 'spp'), m = (S.pd[c] && S.pd[c].meta && S.pd[c].meta.gewicht) || {};
+  const gv = num(g.v), sv = num(sp.v);
+  // alleen een palletgewicht dat echt gewogen/ingevuld is, niet een dat uit het foute Picqer-gewicht is uitgerekend
+  if(gv && sv && (g.s === 'oud' || (g.s === 'ok' && !['auto', 'tabel'].includes(m.bron)))){
+    const kg = (gv - 15) / sv; if(kg > 0 && !(pq && Math.abs(kg - pq) / pq < 0.02)) uit.push({ v:rondKg(kg), bron:'palletgewicht', uitleg:nf(gv) + ' kg per pallet, min 15 kg pallet, gedeeld door ' + nf(sv) + ' ' + eh });
+  }
+  kleurgenoten(c).forEach(x => { const v = num(pdWaarde(x, 'kgst')); if(v) uit.push({ v:rondKg(v), bron:'kleurgenoot ' + x, uitleg:'zelf ingevuld bij ' + x }); });
+  const gezien = new Set(); return uit.filter(o => { const k = o.v + '|' + o.bron; if(gezien.has(k)) return false; gezien.add(k); return true; });
+}
 function tabCel(c, k, f){
   if(k === 'kgst'){
     const st = staat(c, k), pq = kgPicqer(c), eh = ENKEL[eenheid(c).mv] || eenheid(c).mv;
+    if(kgOnb(c)){ const o = kgOnderzoek(c);
+      return `<td class="t-dub"><input data-pdt="kgst" data-code="${esc(c)}" value="x" data-was="onb" title="${esc('Picqer (' + (pq ? nf(pq, 3) + ' kg' : 'leeg') + ') klopt niet: nog uitzoeken.' + (o.length ? ' Gevonden: ' + o.map(x => nf(x.v, 3) + ' kg (' + x.bron + ')').join(', ') : ' Nog niets gevonden.') + ' Typ het juiste gewicht als je het weet.')}" inputmode="decimal" autocomplete="off"></td>`; }
     return `<td class="${st.s === 'ok' ? 't-ok' : 't-info'}"><input data-pdt="kgst" data-code="${esc(c)}" value="${esc(st.s === 'ok' ? String(st.v).replace('.', ',') : '')}" data-was="${esc(st.s === 'ok' ? st.v : '')}" placeholder="${pq ? esc(nf(pq, 3)) : '?'}" title="${pq ? 'Picqer: ' + esc(nf(pq, 3)) + ' kg per ' + esc(eh) + '. Alleen invullen als dat niet klopt.' : 'Picqer heeft geen gewicht: vul kg per ' + esc(eh) + ' in'}" inputmode="decimal" autocomplete="off"></td>`;
   }
   const d = VELDEN[k], i = f.info(k), st = staat(c, k), m = S.pd[c] && S.pd[c].meta && S.pd[c].meta[k];
@@ -1832,7 +1856,7 @@ function viewTabel(zone){
   app.innerHTML = `<div class="pd-feedkop"><div class="row between wrap" style="gap:8px"><div><a class="small" href="#/productdata/afd">← Afdelingen</a> <b style="font-size:18px;margin-left:6px">${esc(ZONENAAM[zone] || zone)}</b> <span class="small muted">${esc(zoneLabel(zone, alle))}</span></div>
       <div class="pd-chips"><button class="pd-chip ${filt === 'open' ? 'on' : ''}" data-pd="afdfilter" data-v="open">Nog te doen<span class="n">${nf(nOpen)}</span></button><button class="pd-chip ${filt === 'alles' ? 'on' : ''}" data-pd="afdfilter" data-v="alles">Alles<span class="n">${nf(alle.length)}</span></button><a class="pd-chip" href="#/productdata/afd/${zone}/kaart" style="text-decoration:none">Kaartjes</a></div></div>
     <div class="pd-chips mt8"><button class="pd-chip ${!lev ? 'on' : ''}" data-pd="afdlev" data-v="">Alle leveranciers</button>${Object.entries(levs).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([l, k]) => `<button class="pd-chip ${lev === l ? 'on' : ''}" data-pd="afdlev" data-v="${esc(l)}">${esc(l.length > 26 ? l.slice(0, 24) + '…' : l)}<span class="n">${k}</span></button>`).join('')}</div>
-    <div class="tiny muted mt8"><span class="pd-tl t-ok">vast</span> <span class="pd-tl t-auto">automatisch</span> <span class="pd-tl t-voor">voorstel</span> <span class="pd-tl t-schat">schatting</span> <span class="pd-tl t-dub">dubbel, typ de juiste</span> <span class="pd-tl t-mist">mist</span> · Tab = volgende cel · Enter = cel eronder · regel verlaten = opgeslagen · pick j/n · met p(allet)/d(eel)/o (doos) · nvt = komt niet op pallet</div></div>
+    <div class="tiny muted mt8"><span class="pd-tl t-ok">vast</span> <span class="pd-tl t-auto">automatisch</span> <span class="pd-tl t-voor">voorstel</span> <span class="pd-tl t-schat">schatting</span> <span class="pd-tl t-dub">dubbel, typ de juiste</span> <span class="pd-tl t-mist">mist</span> · Tab = volgende cel · Enter = cel eronder · regel verlaten = opgeslagen · pick j/n · met p(allet)/d(eel)/o (doos) · nvt = komt niet op pallet · <b>x</b> bij kg = Picqer-gewicht klopt niet, uitzoeken${kgLijst().length ? ` (<a href="#/productdata/kg">${nf(kgLijst().length)} op de lijst</a>)` : ''}</div></div>
   ${lijst.map(([l, cs], gi) => `<section class="pd-sec" id="tg-${gi}"><div class="pd-sec-kop"><div class="l"><h3>${esc(l)}</h3><span class="small muted">${plural(cs.length, 'product', 'producten')}</span></div>
       <div class="row wrap"><button class="btn sm" tabindex="-1" data-pd="tabgroep" data-g="${gi}">Hele groep klopt, opslaan</button>${gi < lijst.length - 1 ? `<button class="btn sm ghost" tabindex="-1" data-pd="tabnaar" data-g="${gi + 1}">Volgende groep ↓</button>` : ''}</div></div>
     <div class="pd-tab"><table class="pd-tg" data-g="${gi}"><thead>${kop}</thead><tbody>${cs.map(tabRij).join('')}</tbody></table></div></section>`).join('') || '<div class="card empty">Niets meer te doen in deze afdeling. Kies "Alles" om alles te zien.</div>'}`;
@@ -1845,7 +1869,8 @@ async function tabBewaarRij(tr){
     const k = inp.dataset.pdt, ruw = tabNorm(k, inp.value);
     let v; try{ v = check(k, ruw); }catch(e){ fouten.push(e.message); inp.parentNode.className = 't-fout'; return; }
     const st = staat(c, k), m = S.pd[c] && S.pd[c].meta && S.pd[c].meta[k];
-    if(!v){ if(inp.dataset.was && st.s === 'ok') wijz[k] = ''; return; }
+    if(!v){ if(inp.dataset.was && (st.s === 'ok' || pdWaarde(c, k) !== null)) wijz[k] = ''; return; }
+    if(k === 'kgst' && v === 'onb'){ if(!kgOnb(c)) wijz[k] = v; return; }
     if(k === 'kgst' && st.s !== 'ok' && kgPicqer(c) && Math.abs(num(v) - kgPicqer(c)) < 0.0005) return;   // zelfde als Picqer: niets apart bewaren
     if(st.s === 'ok' && st.v === v && !(m && m.bron === 'auto')) return;
     wijz[k] = v;
@@ -1856,7 +1881,7 @@ async function tabBewaarRij(tr){
   tr.dataset.bezig = '1'; status.textContent = '…';
   try{
     await opslaan({ [c]:wijz }, 'tabel');
-    tr.querySelectorAll('input[data-pdt]:not([disabled])').forEach(inp => { if(inp.value.trim()){ inp.parentNode.className = 't-ok'; inp.dataset.was = tabNorm(inp.dataset.pdt, inp.value); } });
+    tr.querySelectorAll('input[data-pdt]:not([disabled])').forEach(inp => { if(inp.value.trim()){ const v = tabNorm(inp.dataset.pdt, inp.value); inp.parentNode.className = v === 'onb' ? 't-dub' : 't-ok'; if(v === 'onb') inp.value = 'x'; inp.dataset.was = v; } else if(inp.dataset.pdt === 'kgst') inp.parentNode.className = 't-info'; });
     status.textContent = '✓'; status.title = ''; status.className = 't-st'; tr.classList.add('r-klaar');
   }catch(e){ status.textContent = '!'; status.title = e.message; status.className = 't-st t-err'; toast(c + ': ' + e.message, 6000); }
   finally{ delete tr.dataset.bezig; }
@@ -1869,12 +1894,18 @@ function tabAfhankelijk(inp){
   const zet = (kk, v, oudeAfleiding) => { const e = cel(kk); if(!e || e.disabled || leeg(v)) return; if(!vrij(kk) && !(oudeAfleiding != null && tabNorm(kk, e.value) === String(oudeAfleiding))) return; if(e.value === v) return; e.value = v; e.parentNode.className = 't-voor'; tr.dataset.gezien = '1'; };
   const voor = inp.dataset.voor ?? '';
   inp.value = tabNorm(k, inp.value);
+  if(k === 'kgst' && inp.value === 'onb') inp.value = 'x';
   const vorig = kk => kk === k ? tabNorm(kk, voor) : val(kk);
   if(k === 'maat'){ const pl = plaatsenUitMaat(val('maat')); if(pl) zet('plaatsen', pl, plaatsenUitMaat(vorig('maat'))); }
   if(k === 'spp' || k === 'kgst'){
     // gewicht volle pallet = aantal × kg per stuk/meter (eigen waarde, anders Picqer) + 15 kg pallet
-    const kg = num(val('kgst')) || kgPicqer(c), kgOud = num(vorig('kgst')) || kgPicqer(c), n = num(val('spp')), o = num(vorig('spp'));
+    const kgUit = v => v === 'onb' ? null : num(v) || kgPicqer(c);
+    const kg = kgUit(val('kgst')), kgOud = kgUit(vorig('kgst')), n = num(val('spp')), o = num(vorig('spp'));
     if(kg && n) zet('gewicht', String(Math.ceil(n * kg + 15)), o && kgOud ? Math.ceil(o * kgOud + 15) : null);
+    else if(!kg && kgOud && o){   // x gezet: palletgewicht dat uit het foute gewicht kwam weghalen
+      const e = cel('gewicht'); if(e && !e.disabled && tabNorm('gewicht', e.value) === String(Math.ceil(o * kgOud + 15))){ e.value = ''; e.parentNode.className = 't-mist'; tr.dataset.gezien = '1'; }
+    }
+    if(k === 'kgst' && val('kgst') === 'onb'){ inp.value = 'x'; inp.parentNode.className = 't-dub'; }
   }
   if(['spp', 'lvl', 'met'].includes(k) && val('met') === 'pallet'){ const a = num(val('lvl')), n = num(val('spp')), oa = num(vorig('lvl')), on = num(vorig('spp')); if(a !== null && n) zet('maxpick', String(a + n), oa !== null && on ? oa + on : null); }
   inp.dataset.voor = inp.value;
@@ -1882,6 +1913,31 @@ function tabAfhankelijk(inp){
   const pal = !NVT(val('spp')), pick = val('pick') !== 'nee';
   ['maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig'].forEach(kk => { const e = cel(kk); if(e){ e.disabled = !pal; if(!pal) e.parentNode.className = 't-nvt'; } });
   ['lvl', 'met', 'maxpick'].forEach(kk => { const e = cel(kk); if(e){ e.disabled = !pick; if(!pick) e.parentNode.className = 't-nvt'; } });
+}
+
+/* ---------- gewicht uitzoeken: producten waar je x hebt gezet bij kg per st/m ---------- */
+const kgLijst = () => Object.keys(S.pd).filter(c => D.P[c] && kgOnb(c));
+function kgKaart(){
+  const l = kgLijst(); if(!l.length) return '';
+  const spoor = l.filter(c => kgOnderzoek(c).length).length;
+  return `<a class="card" href="#/productdata/kg" style="display:block;text-decoration:none;color:inherit;border-left:4px solid var(--orange)"><div class="row between wrap"><div><h3>Gewicht uitzoeken <span class="badge b-grey">${nf(l.length)}</span></h3><div class="small muted mt4">Hier heb je een x gezet: het Picqer-gewicht klopt niet. ${spoor ? nf(spoor) + ' met een spoor in pakbonnen of palletgewichten, ' : ''}${nf(l.length - spoor)} nog voor jou of voor Claude.</div></div><span class="btn">Openen →</span></div></a>`;
+}
+function kgRij(c){
+  const p = D.P[c] || {}, f = kaartFn(c, { schat:true }), pq = kgPicqer(c), o = kgOnderzoek(c), eh = ENKEL[eenheid(c).mv] || eenheid(c).mv;
+  return `<tr data-code="${esc(c)}"><td class="prod"><div class="row" style="gap:6px;align-items:baseline"><a class="code" href="#/productdata/p/${encodeURIComponent(c)}" tabindex="-1" style="font-size:12px">${esc(c)}</a>${abcBadge(c)}</div><div class="tiny" style="line-height:1.25">${esc(String(p.naam || '').slice(0, 64))}</div><div class="tiny muted">telt ${esc(eenheid(c).mv)}</div></td>
+    <td class="t-nvt" style="padding:6px 8px;white-space:nowrap">${pq ? esc(nf(pq, 3)) + ' kg' : '–'}</td>
+    <td style="padding:6px 8px;min-width:220px">${o.length ? `<div class="pd-chips">${o.map(x => `<button class="pd-chip" tabindex="-1" data-pd="kggebruik" data-v="${x.v}" title="${esc(x.uitleg)}">${esc(nf(x.v, 3))} kg<span class="n">${esc(x.bron)}</span></button>`).join('')}</div>` : `<span class="small muted">Niets gevonden: wegen, navragen of laat Claude zoeken</span>`}</td>
+    ${tabCel(c, 'kgst', f)}${tabCel(c, 'spp', f)}${tabCel(c, 'gewicht', f)}<td class="t-st" aria-live="polite"></td></tr>`;
+}
+function viewKg(){
+  const l = kgLijst(), groepen = {};
+  l.sort((a, b) => String((D.P[a] || {}).leverancier || '').localeCompare(String((D.P[b] || {}).leverancier || '')) || a.localeCompare(b))
+   .forEach(c => { const g = (D.P[c] || {}).leverancier || '–'; (groepen[g] = groepen[g] || []).push(c); });
+  const kop = `<tr><th class="prod">Product</th><th>Picqer</th><th>Gevonden (tik = gebruiken)</th><th style="min-width:72px">kg per st/m</th><th style="min-width:80px">Per pallet</th><th style="min-width:76px">Gewicht kg</th><th></th></tr>`;
+  app.innerHTML = `<div class="pd-feedkop"><a class="small" href="#/productdata">← Productdata</a> <b style="font-size:18px;margin-left:6px">Gewicht uitzoeken</b> <span class="small muted">${plural(l.length, 'product', 'producten')}</span>
+    <div class="small muted mt8" style="max-width:820px">Hier heb je bij <b>kg per st/m</b> een x gezet: het Picqer-gewicht klopt niet. Bij Gevonden staat wat in pakbonnen, palletgewichten of kleurgenoten zit: tik om het te gebruiken, het palletgewicht rekent mee. Niets gevonden? Dan is hij voor jou (wegen of navragen), of vraag Claude om in je mail en bij de leverancier te zoeken. Typ je het juiste gewicht in, dan gaat hij van de lijst.</div></div>
+  ${Object.entries(groepen).map(([g, cs]) => `<section class="pd-sec"><div class="pd-sec-kop"><div class="l"><h3>${esc(g)}</h3><span class="small muted">${plural(cs.length, 'product', 'producten')}</span></div></div>
+    <div class="pd-tab"><table class="pd-tg"><thead>${kop}</thead><tbody>${cs.map(kgRij).join('')}</tbody></table></div></section>`).join('') || '<div class="card empty">Niets uit te zoeken. Zet een x bij kg per st/m in de tabel van een afdeling als het Picqer-gewicht niet klopt.</div>'}`;
 }
 
 /* ---------- importeren: een lijst plakken (bijv. uit een ingesproken opname, verwerkt door Claude) ----------
@@ -1901,7 +1957,7 @@ function impLees(tekst){
       const i = kv.indexOf('='); if(i < 1){ r.fouten.push('"' + kv + '" mist een ='); return; }
       let k = kv.slice(0, i).trim().toLowerCase().replace(/[\s_-]/g, ''); const v = kv.slice(i + 1).trim();
       k = VELDEN[k] ? k : IMP_ALIAS[k]; if(!k){ r.fouten.push('onbekend veld in "' + kv + '"'); return; }
-      try{ const nv = check(k, v); if(nv) r.w[k] = nv; }catch(e){ r.fouten.push(e.message); }
+      try{ const nv = check(k, k === 'kgst' && /^(x|\?)$/i.test(v) ? 'onb' : v); if(nv) r.w[k] = nv; }catch(e){ r.fouten.push(e.message); }
     });
     rijen.push(r);
   });
@@ -2005,6 +2061,11 @@ app.addEventListener('click', async ev => {
   if(a === 'impleeg'){ UI.imp = ''; bewaar('imp', ''); UI.impUit = new Set(); rerender(); return; }
   if(a === 'imp' || a === 'impinc') return;
   if(a === 'afdmodus'){ UI.afdModus = b.dataset.v; bewaar('afdmodus', UI.afdModus); rerender(); return; }
+  if(a === 'kggebruik'){
+    const tr = b.closest('tr'), inp = tr && tr.querySelector('input[data-pdt=kgst]'); if(!inp) return;
+    inp.dataset.voor = inp.value; inp.value = String(b.dataset.v).replace('.', ','); inp.parentNode.className = 't-nieuw'; tr.dataset.gezien = '1';
+    tabAfhankelijk(inp); await tabBewaarRij(tr); return;
+  }
   if(a === 'tabnaar'){ const sec = $('tg-' + b.dataset.g); if(sec){ sec.scrollIntoView({ block:'start' }); const i = sec.querySelector('input[data-pdt]:not([disabled])'); if(i) i.focus({ preventScroll:true }); } return; }
   if(a === 'afdscope'){ UI.afdScope = b.dataset.v; rerender(); return; }
   if(a === 'afdfilter'){ UI.afdFilter = b.dataset.v; UI.afdN = 40; rerender(); return; }
@@ -2129,6 +2190,7 @@ async function view(delen){
   if(sub === 'basis' || sub === 'regels') return viewRegels();
   if(sub === 'auto') return viewAuto();
   if(sub === 'import') return viewImport();
+  if(sub === 'kg') return viewKg();
   if(sub === 'een') return viewEen();
   if(sub === 'p' && arg) return viewProduct(arg);
   if(sub === 'dubbel') return viewDubbel();
