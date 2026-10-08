@@ -33,8 +33,8 @@ const MATEN = ['80x120', '100x100', '100x120', '110x110', '90x120', '100x150', '
 const VELDEN = {
   spp:     { t:'Stuks per pallet', laag:1, type:'num', eh:true, hint:'nvt = komt niet op pallet · onb = weet ik niet' },
   pick:    { t:'Picklocatie', laag:1, type:'keus', opt:[['ja', 'Ja'], ['nee', 'Nee, alleen bulk']] },
-  maxpick: { t:'Max op pick', laag:1, type:'num', eh:true, hint:'zoveel past er op de picklocatie' },
-  lvl:     { t:'Aanvullen bij', laag:1, type:'num', eh:true, hint:'aanvullen als er minder ligt dan dit' },
+  maxpick: { t:'Max op pick', laag:1, type:'num', eh:true, hint:'Aanvullen bij + wat je bijvult. Bij 10 en een pallet van 67: 77' },
+  lvl:     { t:'Aanvullen bij', laag:1, type:'num', eh:true, hint:'aanvullen als er dit of minder ligt' },
   met:     { t:'Aanvullen met', laag:1, type:'keus', opt:[['pallet', 'Volle pallet'], ['deel', 'Deel van pallet'], ['doos', 'Doos / los']] },
   maat:    { t:'Palletmaat', laag:2, type:'maat', eh2:'cm' },
   hoogte:  { t:'Hoogte incl. pallet', laag:2, type:'num', eh2:'cm' },
@@ -304,9 +304,9 @@ function voorstel(code, k, w){
     }
     case 'met': {
       if(genoot) return genoot;
-      const spp = num(w('spp')), mx = num(w('maxpick'));
+      const spp = num(w('spp')), mx = num(w('maxpick')), lv = num(w('lvl')) || 0, bij = mx ? mx - lv : 0;
       if(NVT(w('spp'))) return { v:'doos', bron:'komt niet op pallet', z:'mid' };
-      if(spp && mx) return mx >= spp ? { v:'pallet', bron:'max op pick ≥ 1 pallet', z:'mid' } : { v:'deel', bron:'max op pick (' + nf(mx) + ') < 1 pallet (' + nf(spp) + ')', z:'mid' };
+      if(spp && mx) return bij >= spp ? { v:'pallet', bron:'bijvullen (' + nf(bij) + ') ≥ 1 pallet', z:'mid' } : { v:'deel', bron:'bijvullen (' + nf(bij) + ') < 1 pallet (' + nf(spp) + ')', z:'mid' };
       return null;
     }
     case 'maat': {
@@ -1160,7 +1160,7 @@ function viewSamen(){
   const jaUnits = Object.keys(perJa);
   const aanvul = !ja.length ? '<div class="small muted" style="padding:14px 16px">Geen van de gekozen producten heeft een picklocatie: niets aan te vullen.</div>' : `
     <div class="pd-srij"><div class="pd-saan"><b>Aanvullen bij</b></div><div class="pd-sctl">${perUnit('bij', b.bij, jaUnits, { dis:b.perProduct, ph:'bijv. 2' })}</div><div class="pd-shint">Aanvullen als er minder dan dit op de picklocatie ligt</div></div>
-    <div class="pd-srij"><div class="pd-saan"><b>Max op pick</b></div><div class="pd-sctl">${perUnit('max', b.max, jaUnits, { dis:b.perProduct, ph:'bijv. 6' })}</div><div class="pd-shint">Zoveel past er op de picklocatie</div></div>
+    <div class="pd-srij"><div class="pd-saan"><b>Max op pick</b></div><div class="pd-sctl">${perUnit('max', b.max, jaUnits, { dis:b.perProduct, ph:'bijv. 77' })}</div><div class="pd-shint">Aanvullen bij + wat je bijvult. Bij 10 en een pallet van 67: 77</div></div>
     <div class="pd-srij"><div class="pd-saan"><b>Aanvullen met</b></div><div class="pd-sctl"><div class="pd-pills">${VELDEN.met.opt.map(([v, t]) => pill('met', v, t, b.met === v)).join('')}</div></div><div class="pd-shint">Nog een keer klikken = niet aanpassen</div></div>
     <label class="pd-srij" style="cursor:pointer;display:flex;gap:10px;align-items:center"><input type="checkbox" id="s-perproduct" data-pds="perProduct" ${b.perProduct ? 'checked' : ''} style="transform:scale(1.3);accent-color:var(--blue);margin:0 4px;width:auto"><span><b>Verschilt per product</b> <span class="muted">· vul aanvullen bij en max op pick per product in</span></span></label>
     ${b.perProduct ? ja.map(c => `<div class="pd-prij">${naam(c)}<div class="row wrap" style="gap:10px"><span class="small muted">bij</span>${inp('bijP', b.bijP[c], { code:c, num:true, klein:true, lab:'Aanvullen bij ' + c })}<span class="small muted">max</span>${inp('maxP', b.maxP[c], { code:c, num:true, klein:true, eh:eenheid(c).mv, lab:'Max op pick ' + c })}</div></div>`).join('') : ''}
