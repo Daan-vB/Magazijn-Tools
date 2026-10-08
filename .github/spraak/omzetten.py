@@ -11,6 +11,10 @@ try:
     bron, uit = sys.argv[1], sys.argv[2]
     deel, delen = int(os.environ.get('DEEL', 0)), int(os.environ.get('DELEN', 1))
     duur = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', bron]).decode().strip() or 0)
+    if duur / delen < 120:   # korte opname: alles in deel 0
+        delen = 1
+        if deel > 0:
+            json.dump({'deel': deel, 'delen': 1, 'model': '', 'duur': duur, 'van': 0, 'tot': 0, 'zinnen': []}, open(uit, 'w')); sys.exit(0)
     stuk = duur / delen
     van, tot = deel * stuk, (deel + 1) * stuk
     start = max(0.0, van - 3)
@@ -29,13 +33,13 @@ try:
     import numpy as np
     pcm = subprocess.check_output(['ffmpeg', '-loglevel', 'error', '-i', 'stuk.wav', '-f', 's16le', '-ac', '1', '-ar', '16000', '-'])
     geluid = np.frombuffer(pcm, np.int16).astype(np.float32) / 32768.0
-    segs, info = model.transcribe(geluid, language='nl', vad_filter=True, beam_size=5, initial_prompt=woorden, condition_on_previous_text=False)
+    segs, info = model.transcribe(geluid, language='nl', vad_filter=True, beam_size=5, initial_prompt=woorden, condition_on_previous_text=False, word_timestamps=True)
+    # per woord bepalen bij welk deel het hoort (overlap aan beide kanten), zodat niets dubbel of kwijt is
     rijen = []
     for s in segs:
-        a = start + s.start
-        if deel < delen - 1 and a >= tot: continue
-        if deel > 0 and a < van: continue
-        rijen.append({'van': round(a, 1), 'tot': round(start + s.end, 1), 'tekst': s.text.strip()})
+        ws = [w for w in (s.words or []) if (deel == 0 or start + w.start >= van) and (deel == delen - 1 or start + w.start < tot)]
+        if not ws: continue
+        rijen.append({'van': round(start + ws[0].start, 1), 'tot': round(start + ws[-1].end, 1), 'tekst': ''.join(w.word for w in ws).strip()})
     json.dump({'deel': deel, 'delen': delen, 'model': naam, 'duur': duur, 'van': van, 'tot': tot, 'zinnen': rijen}, open(uit, 'w'), ensure_ascii=False)
     print(f'deel {deel}: {len(rijen)} zinnen, model {naam}')
 except SystemExit:
