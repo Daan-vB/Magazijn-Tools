@@ -1975,7 +1975,7 @@ function viewTabel(zone){
   const kop = `<tr><th class="prod">Product</th>${TAB_KOL.map(([, t, w]) => `<th style="min-width:${w}px">${esc(t)}</th>`).join('')}<th></th></tr>`;
   const lijst = Object.entries(groepen);
   // zelfde telling als het klein-spul-scherm met deze afdeling en "nog te doen"
-  const nKlein = lijst(UI.afdScope || 'belangrijk', false).filter(c => kZone(c) === zone && !isOpMaat(c) && !isOutlet(c)).filter(c => { const k = kleinSoort(c, kleinFeit(c)); return k.v !== 'pallet' && !kleinKlaar(c, k); }).length;
+  const nKlein = kleinTelZone(zone);
   app.innerHTML = `<div class="pd-feedkop"><div class="row between wrap" style="gap:8px"><div><a class="small" href="#/productdata/afd">← Afdelingen</a> <b style="font-size:18px;margin-left:6px">${esc(ZONENAAM[zone] || zone)}</b> <span class="small muted">${esc(zoneLabel(zone, alle))}</span></div>
       <div class="pd-chips"><button class="pd-chip ${filt === 'open' ? 'on' : ''}" data-pd="afdfilter" data-v="open">Nog te doen<span class="n">${nf(nOpen)}</span></button><button class="pd-chip ${filt === 'alles' ? 'on' : ''}" data-pd="afdfilter" data-v="alles">Alles<span class="n">${nf(alle.length)}</span></button><a class="pd-chip" href="#/productdata/afd/${zone}/kaart" style="text-decoration:none">Kaartjes</a>${nKlein ? `<a class="pd-chip" href="#/productdata/klein/${encodeURIComponent(zone)}" style="text-decoration:none;border-color:#5a3e8f;color:#5a3e8f" title="Producten in deze afdeling die los of in dozen komen: daar zijn de palletvelden niet nodig">Klein spul hier<span class="n">${nf(nKlein)}</span></a>` : ''}</div></div>
     <div class="pd-chips mt8"><button class="pd-chip ${!lev ? 'on' : ''}" data-pd="afdlev" data-v="">Alle leveranciers</button>${Object.entries(levs).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([l, k]) => `<button class="pd-chip ${lev === l ? 'on' : ''}" data-pd="afdlev" data-v="${esc(l)}">${esc(l.length > 26 ? l.slice(0, 24) + '…' : l)}<span class="n">${k}</span></button>`).join('')}</div>
@@ -2131,6 +2131,7 @@ function kleinWaarden(c, f, ks){
   else { uit.lvl = { v:'', s:'mist' }; uit.metn = { v:'', s:'mist' }; }
   return uit;
 }
+function kleinTelZone(zone){ return lijst(UI.afdScope || 'belangrijk', false).filter(c => kZone(c) === zone && !isOpMaat(c) && !isOutlet(c)).filter(c => { const k = kleinSoort(c, kleinFeit(c)); return k.v !== 'pallet' && !kleinKlaar(c, k); }).length; }
 const kleinKlaar = (c, ks) => ks.s === 'ok' && (ks.v !== 'doos' || ['geleverd', 'maxpick', 'lvl'].every(k => staat(c, k).s === 'ok'));
 
 /* ---------- toestand en filters ---------- */
