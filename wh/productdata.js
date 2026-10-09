@@ -2139,15 +2139,15 @@ function kleinFeit(c){
 function soortVoorstel(c, f){
   const o = soortVan(c), st = staat(c, 'opslag');
   if(o && st.s === 'ok') return { v:o, s:'ok', why:okBron(c, 'opslag') };
-  const ja = (v, why) => ({ v, s:'voor', why }), tw = (v, why) => ({ v, s:'twijfel', why });
+  const ja = (v, why) => ({ v, s:'voor', why, b:'data' }), tw = (v, why) => ({ v, s:'twijfel', why, b:'twijfel' }), zeker = (v, why) => ({ v, s:'voor', why, b:'zeker' });
   const sp = staat(c, 'spp'), spp = sp.s === 'ok' ? sp.v : '', sppN = num(spp), met = staat(c, 'met'), e = eenheid(c);
   if(met.s === 'ok'){
-    if(met.v === 'pallet') return ja('pallet', 'aanvullen met volle pallet (stond al vast)');
-    if(met.v === 'doos') return ja('mix', 'aanvullen met doos/los (stond al vast)');
-    if(met.v === 'deel') return NVT(spp) ? ja('mix', 'aanvullen met deel, maar geen eigen pallet (per pallet nvt)') : ja('deel', 'aanvullen met deel van een pallet (stond al vast)');
+    if(met.v === 'pallet') return zeker('pallet', 'jouw invoer: aanvullen met volle pallet');
+    if(met.v === 'doos') return zeker('mix', 'jouw invoer: aanvullen met doos/los');
+    if(met.v === 'deel') return NVT(spp) ? zeker('mix', 'jouw invoer: aanvullen met deel, geen eigen pallet (per pallet nvt)') : zeker('deel', 'jouw invoer: aanvullen met deel van een pallet');
   }
   const R = REGELS.find(R => R.past(c));
-  if(R){ const d = R.doel(c); return ja(d.met === 'pallet' ? 'pallet' : 'deel', 'aanvulregel ' + R.t.toLowerCase()); }
+  if(R){ const d = R.doel(c); return zeker(d.met === 'pallet' ? 'pallet' : 'deel', 'jouw aanvulregel ' + R.t.toLowerCase()); }
   const lab = [...labelSpp(c).keys()].filter(v => num(v) > 0);
   const spoor = sppN > 0 ? 'per pallet ' + nf(sppN) : lab.length ? 'palletlabel ' + nf(num(lab[0])) + ' per pallet' : f.vst > 0 ? nf(f.vst) + ' ' + e.mv + ' op VST' : pbRegels(c).some(r => r.soort === 'pallet') ? 'pakbon met pallets' : '';
   if(spoor){
@@ -2214,10 +2214,10 @@ function kSt(){
   if(UI.k) return UI.k;
   const b = leesJson('klein', {});
   const s = b.soort === 'doos' ? 'mix' : b.soort || '';
-  UI.k = { soort:KSOORT[s] || s === 'twijfel' ? s : '', status:b.status || 'open', afd:new Set(b.afd || []), lev:b.lev || '', zp:!!b.zp, sort:b.sort || 'loc', zoek:'', n:120, sel:new Set(), laatste:null, b:LEEG_B(), lijst:[] };
+  UI.k = { bron:b.bron || '', soort:KSOORT[s] || s === 'twijfel' ? s : '', status:b.status || 'open', afd:new Set(b.afd || []), lev:b.lev || '', zp:!!b.zp, sort:b.sort || 'loc', zoek:'', n:120, sel:new Set(), laatste:null, b:LEEG_B(), lijst:[] };
   return UI.k;
 }
-const bewaarK = () => { const K = kSt(); bewaar('klein', JSON.stringify({ soort:K.soort, status:K.status, afd:[...K.afd], lev:K.lev, zp:K.zp, sort:K.sort })); };
+const bewaarK = () => { const K = kSt(); bewaar('klein', JSON.stringify({ bron:K.bron, soort:K.soort, status:K.status, afd:[...K.afd], lev:K.lev, zp:K.zp, sort:K.sort })); };
 // zoeken: spatie = alle woorden, komma = of ("magneet, marker" · "wit 20 mm")
 function zoekFn(q){
   const of = String(q || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean).map(s => s.split(/\s+/));
@@ -2233,6 +2233,7 @@ function kleinLijst(){
   const past = (c, sla) => {
     const i = info(c);
     if(sla !== 'soort' && !soortPast(i, K.soort)) return false;
+    if(sla !== 'bron' && K.bron && (i.s.s === 'ok' ? 'ok' : i.s.b) !== K.bron) return false;
     if(sla !== 'status' && K.status !== 'alles' && (K.status === 'klaar') !== i.klaar) return false;
     if(sla !== 'afd' && K.afd.size && !K.afd.has(i.z)) return false;
     if(sla !== 'lev' && K.lev && ((D.P[c] || {}).leverancier || '') !== K.lev) return false;
@@ -2242,6 +2243,7 @@ function kleinLijst(){
   };
   const tel = (sla, sleutel) => { const t = {}; basis.forEach(c => { if(!past(c, sla)) return; [].concat(sleutel(c, info(c))).forEach(x => t[x] = (t[x] || 0) + 1); }); return t; };
   const tSoort = tel('soort', (c, i) => ['', i.s.s === 'twijfel' ? 'twijfel' : i.s.v]);
+  const tBron = tel('bron', (c, i) => i.s.s === 'ok' ? 'ok' : i.s.b);
   const tStatus = tel('status', (c, i) => ['alles', i.klaar ? 'klaar' : 'open']);
   const tAfd = tel('afd', (c, i) => i.z), tLev = tel('lev', c => (D.P[c] || {}).leverancier || '–'), tZp = tel('zp', (c, i) => i.f.l.pick.length ? 'met' : 'zonder');
   const codes = basis.filter(c => past(c));
@@ -2251,7 +2253,7 @@ function kleinLijst(){
     : K.sort === 'lev' ? (a, b) => String((D.P[a] || {}).leverancier || '').localeCompare(String((D.P[b] || {}).leverancier || '')) || loc(a).localeCompare(loc(b))
     : K.sort === 'mg' ? (a, b) => (mg(b) ? 1 : 0) - (mg(a) ? 1 : 0) || mg(a).localeCompare(mg(b)) || String((D.P[a] || {}).leverancier || '').localeCompare(String((D.P[b] || {}).leverancier || '')) || String(index().famVan[a]).localeCompare(String(index().famVan[b]))
     : (a, b) => loc(a).localeCompare(loc(b)) || rang(a) - rang(b));
-  return { codes, info, basis, tSoort, tStatus, tAfd, tLev, tZp };
+  return { codes, info, basis, tBron, tSoort, tStatus, tAfd, tLev, tZp };
 }
 
 /* ---------- veel tegelijk ---------- */
@@ -2379,12 +2381,13 @@ function viewKlein(arg){
       <div class="pd-chips">${[['belangrijk', 'Belangrijk'], ['beweegt', 'Alles dat beweegt'], ['voorraad', 'Alles met voorraad']].map(([k, t]) => `<button class="pd-chip ${sc === k ? 'on' : ''}" data-pk="bereik" data-v="${k}">${esc(t)}</button>`).join('')}</div></div>
     <div class="k-filters mt8">
       <div class="k-frij"><span class="l">Soort</span>${chip('soort', '', 'Alle', L.tSoort[''], !K.soort)}${['pallet', 'deel', 'mix', 'pick'].map(s => chip('soort', s, KNR[s] + ' ' + KSOORT[s], L.tSoort[s], K.soort === s)).join('')}${chip('soort', 'twijfel', 'Twijfel', L.tSoort.twijfel, K.soort === 'twijfel')}</div>
+      <div class="k-frij"><span class="l">Voorstel</span>${chip('bron', '', 'Alle', (L.tBron.zeker || 0) + (L.tBron.data || 0) + (L.tBron.twijfel || 0) + (L.tBron.ok || 0), !K.bron)}${chip('bron', 'zeker', 'Uit jouw invoer', L.tBron.zeker, K.bron === 'zeker')}${chip('bron', 'data', 'Uit de data: nakijken', L.tBron.data, K.bron === 'data')}${chip('bron', 'twijfel', 'Twijfel', L.tBron.twijfel, K.bron === 'twijfel')}${chip('bron', 'ok', 'Vastgelegd', L.tBron.ok, K.bron === 'ok')}</div>
       <div class="k-frij"><span class="l">Status</span>${chip('status', 'open', 'Nog te doen', L.tStatus.open, K.status === 'open')}${chip('status', 'klaar', 'Klaar', L.tStatus.klaar, K.status === 'klaar')}${chip('status', 'alles', 'Alles', L.tStatus.alles, K.status === 'alles')}<span style="width:12px"></span>${chip('zp', '1', 'Zonder picklocatie', L.tZp.zonder, K.zp)}</div>
       <div class="k-frij"><span class="l">Afdeling</span>${chip('afd', '', 'Alle', Object.values(L.tAfd).reduce((a, b) => a + b, 0), !K.afd.size)}${afds.map(([z, n]) => chip('afd', z, KZNAAM[z] || z, n, K.afd.has(z))).join('')}${[...K.afd].filter(z => !L.tAfd[z]).map(z => chip('afd', z, KZNAAM[z] || z, 0, true)).join('')}</div>
       <div class="k-frij"><span class="l">Zoeken</span><input id="pk-zoek" data-pk="zoek" value="${esc(K.zoek)}" placeholder="magneet, marker · wit 20 mm" style="max-width:300px">
         <select data-pk="lev" style="width:auto;max-width:300px"><option value="">Alle leveranciers</option>${levs.map(([l, n]) => `<option value="${esc(l)}" ${l === K.lev ? 'selected' : ''}>${esc(l)} (${n})</option>`).join('')}${K.lev && !L.tLev[K.lev] ? `<option selected>${esc(K.lev)} (0)</option>` : ''}</select>
         <select data-pk="sort" style="width:auto"><option value="loc" ${K.sort === 'loc' ? 'selected' : ''}>Volgorde: afdeling en locatie</option><option value="vk" ${K.sort === 'vk' ? 'selected' : ''}>Volgorde: meest verkocht</option><option value="lev" ${K.sort === 'lev' ? 'selected' : ''}>Volgorde: leverancier</option><option value="mg" ${K.sort === 'mg' ? 'selected' : ''}>Volgorde: mixgroep</option></select>
-        ${K.afd.size || K.lev || K.zoek || K.zp || K.soort ? '<button class="btn sm ghost" data-pk="filterleeg">Filters wissen</button>' : ''}</div>
+        ${K.afd.size || K.lev || K.zoek || K.zp || K.soort || K.bron ? '<button class="btn sm ghost" data-pk="filterleeg">Filters wissen</button>' : ''}</div>
     </div>
     <div class="tiny muted mt8"><span class="pd-tl t-ok">vast</span> <span class="pd-tl t-voor">voorstel</span> <span class="pd-tl t-schat">schatting</span> <span class="pd-tl t-dub">twijfel</span> <span class="pd-tl t-mist">mist</span> · Soort: typ <b>1</b> pallet, <b>2</b> deel, <b>3</b> mix, <b>4</b> pick · Pallet en deel vul je verder in bij de afdelingen; mix hier: geleverd (per stuk, aantal per doos of wisselend), max op pick, aanvullen met (stuks of “1 doos”) en mixgroep · Bij = max − aanvullen met · regel verlaten = opgeslagen</div></div>
   <section class="pd-sec"><div class="pd-sec-kop"><div class="l"><label class="k-chk" title="Alle zichtbare regels"><input type="checkbox" data-pk="selzicht" ${zichtbaarAan ? 'checked' : ''} aria-label="Alle zichtbare regels selecteren"></label><h3>${plural(L.codes.length, 'product', 'producten')}</h3>${L.codes.length > rijen.length ? `<span class="small muted">eerste ${nf(rijen.length)} zichtbaar</span>` : ''}</div>
@@ -2457,10 +2460,11 @@ app.addEventListener('click', async ev => {
   if(a === 'selniets'){ K.sel.clear(); rerender(); return; }
   if(a === 'bereik'){ UI.afdScope = v; K.n = 120; rerender(); return; }
   if(a === 'soort'){ K.soort = K.soort === v ? '' : v; K.n = 120; bewaarK(); rerender(); return; }
+  if(a === 'bron'){ K.bron = K.bron === v ? '' : v; K.n = 120; bewaarK(); rerender(); return; }
   if(a === 'status'){ K.status = v; K.n = 120; bewaarK(); rerender(); return; }
   if(a === 'zp'){ K.zp = !K.zp; K.n = 120; bewaarK(); rerender(); return; }
   if(a === 'afd'){ if(!v) K.afd.clear(); else if(K.afd.has(v)) K.afd.delete(v); else K.afd.add(v); K.n = 120; bewaarK(); rerender(); return; }
-  if(a === 'filterleeg'){ K.afd.clear(); K.lev = ''; K.zoek = ''; K.zp = false; K.soort = ''; bewaarK(); rerender(); return; }
+  if(a === 'filterleeg'){ K.bron = ''; K.afd.clear(); K.lev = ''; K.zoek = ''; K.zp = false; K.soort = ''; bewaarK(); rerender(); return; }
   if(a === 'meer'){ K.n += 200; rerender(); return; }
   if(a === 'bk'){ const g = b.dataset.g; K.b[g] = K.b[g] === v ? '' : v; rerender(); const f = g === 'gel' && K.b.gel === 'n' ? 'pk-geln' : g === 'met' && K.b.met === 'stuks' ? 'pk-metn' : null; if(f && $(f)) $(f).focus(); return; }
   if(a === 'bkleeg'){ K.b = LEEG_B(); rerender(); return; }
