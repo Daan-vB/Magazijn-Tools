@@ -1,0 +1,42 @@
+{
+ "naam": "Per doos meters",
+ "datum": "2026-10-09",
+ "regels": [
+  {
+   "code": "SF-0109400241-per-meter",
+   "zet": [
+    [
+     "spd",
+     "3",
+     "spraak",
+     "Ingesproken door Daan 9-10: max 3 meter per doos",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "SF-0109402040-GREY-per-meter",
+   "zet": [
+    [
+     "spd",
+     "3",
+     "spraak",
+     "Ingesproken door Daan 9-10: max 3 meter per doos",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "SF-0109400243",
+   "zet": [
+    [
+     "spd",
+     "3",
+     "spraak",
+     "Ingesproken door Daan 9-10: max 3 meter per doos",
+     null
+    ]
+   ]
+  }
+ ]
+}

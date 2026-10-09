@@ -209,7 +209,6 @@ function nodig(code, k, w){
   const spp = w('spp'), pick = w('pick'), e = eenheid(code).e;
   if(['maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig'].includes(k) && NVT(spp)) return false;
   if(['maxpick', 'lvl', 'met'].includes(k) && pick === 'nee') return false;
-  if(['spd', 'doos'].includes(k) && (e === 'm' || e === 'cm' || e === 'rol')) return false;
   if(k === 'kgst') return false;   // optioneel: alleen invullen als het Picqer-gewicht niet klopt
   return true;
 }
@@ -795,6 +794,7 @@ function stijl(){
   .pd-tg tr:focus-within .prod{background:#f3f7fd}
   .pd-tg tr.r-klaar .prod{box-shadow:inset 4px 0 0 var(--ok)}
   .t-ok{background:#fff} .t-auto{background:#e9f6f3} .t-voor{background:#fff8d6} .t-schat{background:#fff1e0} .t-dub{background:#fdebd8}
+  .pd-alleenpal{display:block;margin-top:2px;font-size:10px;line-height:1.2;padding:1px 4px;border:1px solid #c9ced6;border-radius:4px;background:#f6f7f9;color:#445;cursor:pointer;white-space:nowrap}
   .t-mist{background:#fff;box-shadow:inset 0 0 0 1px #efc2be} .t-nieuw{background:#eef4fc} .t-fout{background:#fde2e1;box-shadow:inset 0 0 0 2px var(--bad)} .t-nvt{background:#f3f5f8}
   .t-info{background:#f7f9fb} .t-info input::placeholder{color:#7a8795;opacity:1}
   .t-st{width:28px;text-align:center;font-weight:800;color:var(--ok)} .t-st.t-err{color:var(--bad);cursor:help}
@@ -1854,7 +1854,7 @@ function sheetHtml(c){
    Alles staat al voorgevuld (vast, automatisch, voorstel, schatting). Tab = volgende cel, Enter = cel eronder.
    Verlaat je een regel, dan wordt die regel opgeslagen: zo heb je hem gezien. */
 const TAB_KOL = [['spp', 'Per pallet', 80], ['maat', 'Palletmaat', 92], ['hoogte', 'Hoogte cm', 70], ['kgst', 'kg per st/m', 72], ['gewicht', 'Gewicht kg', 76], ['plaatsen', 'Plaatsen', 62], ['maxlig', 'Max/ligger', 62],
-  ['pick', 'Pick j/n', 56], ['lvl', 'Bij', 62], ['met', 'Met p/d/o', 70], ['maxpick', 'Max pick', 70], ['spd', 'Per doos', 62], ['vn', 'Vloernaam', 230]];
+  ['pick', 'Pick j/n', 56], ['lvl', 'Bij', 62], ['met', 'Met p/d/o', 70], ['maxpick', 'Max pick', 70], ['spd', 'In doos: max aantal', 96], ['vn', 'Vloernaam', 230]];
 const TAB_UIT = { ja:'ja', nee:'nee', pallet:'pallet', deel:'deel', doos:'doos' };
 function tabNorm(k, v){
   v = String(v ?? '').trim(); if(!v) return '';
@@ -1905,7 +1905,7 @@ function tabCel(c, k, f){
   else if(i.s === 'nieuw') cls = 't-nieuw';
   if(i.bron) titel = i.bron; else if(st.s === 'ok' && m) titel = okBron(c, k);
   const v = i.s === 'dubbel' ? '' : (d.type === 'keus' && i.v ? i.v : i.v);
-  return `<td class="${uit ? 't-nvt' : cls}"><input data-pdt="${k}" data-code="${esc(c)}" value="${esc(uit ? '' : v)}" data-was="${esc(st.s === 'ok' ? st.v : '')}" ${uit ? 'disabled placeholder="–"' : `placeholder="${esc(ph)}"`} title="${esc(titel)}" autocomplete="off" ${d.type === 'num' ? 'inputmode="decimal"' : ''}></td>`;
+  return `<td class="${uit ? 't-nvt' : cls}"><input data-pdt="${k}" data-code="${esc(c)}" value="${esc(uit ? '' : v)}" data-was="${esc(st.s === 'ok' ? st.v : '')}" ${uit ? 'disabled placeholder="–"' : `placeholder="${esc(ph)}"`} title="${esc(titel)}" autocomplete="off" ${d.type === 'num' ? 'inputmode="decimal"' : ''}>${k === 'spd' && !uit ? `<button type="button" class="pd-alleenpal" data-pdal="1" tabindex="-1" title="Dit product wordt alleen als pallet verzonden, niet in een doos">${NVT(v) ? '✓ ' : ''}alleen pallet</button>` : ''}</td>`;
 }
 // gewicht van het product altijd zichtbaar: Picqer-gewicht per stuk/m/rol (en eigen waarde als die afwijkt)
 function gewichtRegel(c){
@@ -2109,6 +2109,8 @@ app.addEventListener('pointerdown', ev => { knopOmlaag = !!(ev.target.closest &&
 document.addEventListener('pointerup', () => { knopOmlaag = false; }, true);
 document.addEventListener('pointercancel', () => { knopOmlaag = false; }, true);
 app.addEventListener('click', async ev => {
+  const alb = ev.target.closest && ev.target.closest('[data-pdal]');
+  if(alb){ const inp = alb.parentNode.querySelector('input[data-pdt]'); if(inp){ inp.value = NVT(inp.value) ? '' : 'nvt'; inp.dispatchEvent(new Event('input', { bubbles:true })); inp.dispatchEvent(new Event('change', { bubbles:true })); alb.textContent = (NVT(inp.value) ? '✓ ' : '') + 'alleen pallet'; } return; }
   const s = ev.target.closest('button[data-pds]');
   if(s && app.contains(s)){ samenKlik(s); return; }
   const b = ev.target.closest('[data-pd],[data-pdv]'); if(!b || !app.contains(b)) return;
