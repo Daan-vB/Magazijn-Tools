@@ -1937,7 +1937,12 @@ function viewTabel(zone){
   app.innerHTML = `<div class="pd-feedkop"><div class="row between wrap" style="gap:8px"><div><a class="small" href="#/productdata/afd">← Afdelingen</a> <b style="font-size:18px;margin-left:6px">${esc(ZONENAAM[zone] || zone)}</b> <span class="small muted">${esc(zoneLabel(zone, alle))}</span></div>
       <div class="pd-chips"><button class="pd-chip ${filt === 'open' ? 'on' : ''}" data-pd="afdfilter" data-v="open">Nog te doen<span class="n">${nf(nOpen)}</span></button><button class="pd-chip ${filt === 'alles' ? 'on' : ''}" data-pd="afdfilter" data-v="alles">Alles<span class="n">${nf(alle.length)}</span></button><a class="pd-chip" href="#/productdata/afd/${zone}/kaart" style="text-decoration:none">Kaartjes</a></div></div>
     <div class="pd-chips mt8"><button class="pd-chip ${!lev ? 'on' : ''}" data-pd="afdlev" data-v="">Alle leveranciers</button>${Object.entries(levs).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([l, k]) => `<button class="pd-chip ${lev === l ? 'on' : ''}" data-pd="afdlev" data-v="${esc(l)}">${esc(l.length > 26 ? l.slice(0, 24) + '…' : l)}<span class="n">${k}</span></button>`).join('')}</div>
-    <div class="tiny muted mt8"><span class="pd-tl t-ok">vast</span> <span class="pd-tl t-auto">automatisch</span> <span class="pd-tl t-voor">voorstel</span> <span class="pd-tl t-schat">schatting</span> <span class="pd-tl t-dub">dubbel, typ de juiste</span> <span class="pd-tl t-mist">mist</span> · Tab = volgende cel · Enter = cel eronder · regel verlaten = opgeslagen · <b>meer cellen</b>: slepen, Shift+klik of Shift+pijl · Ctrl+Enter = selectie vullen met wat je typte · Ctrl+D = naar beneden vullen · blauw vierkantje slepen = doortrekken · Ctrl+C / Ctrl+V ook uit Excel · Delete = selectie leeg · pick j/n · met p(allet)/d(eel)/o (doos) · nvt = komt niet op pallet · <b>x</b> bij kg = Picqer-gewicht klopt niet, uitzoeken${kgLijst().length ? ` (<a href="#/productdata/kg">${nf(kgLijst().length)} op de lijst</a>)` : ''}</div></div>
+    <div class="tiny muted mt8"><span class="pd-tl t-ok">vast</span> <span class="pd-tl t-auto">automatisch</span> <span class="pd-tl t-voor">voorstel</span> <span class="pd-tl t-schat">schatting</span> <span class="pd-tl t-dub">dubbel, typ de juiste</span> <span class="pd-tl t-mist">mist</span> · Tab = volgende cel · Enter = cel eronder · regel verlaten = opgeslagen · <b>meer cellen</b>: slepen, Shift+klik of Shift+pijl · Ctrl+Enter = selectie vullen met wat je typte · Ctrl+D = naar beneden vullen · blauw vierkantje slepen = doortrekken · Ctrl+C / Ctrl+V ook uit Excel · Delete = selectie leeg · pick j/n · met p(allet)/d(eel)/o (doos) · nvt = komt niet op pallet · <b>x</b> bij kg = Picqer-gewicht klopt niet, uitzoeken${kgLijst().length ? ` (<a href="#/productdata/kg">${nf(kgLijst().length)} op de lijst</a>)` : ''}</div>
+    <div class="row wrap mt8" style="gap:6px;align-items:center"><span class="small"><b>Zelfde waarde vullen</b> (klik eerst in een cel met de waarde):</span>
+      <button type="button" class="btn sm" data-pdvul="omlaag" title="Neemt de waarde van de cel waar je staat en zet die in dezelfde kolom bij alle regels eronder, t/m het einde van deze leveranciersgroep">⬇ Omlaag in deze groep</button>
+      <button type="button" class="btn sm" data-pdvul="groep" title="Zet de waarde van deze cel in dezelfde kolom bij alle regels van deze leveranciersgroep">↕ Hele kolom van groep</button>
+      <button type="button" class="btn sm" data-pdvul="selectie" title="Zet de waarde van deze cel in alle geselecteerde cellen (blauw)">▦ Geselecteerde cellen</button>
+      <span class="tiny muted">Selecteren: klik de eerste cel, Shift+klik de laatste · op een Mac: Cmd+Enter = selectie vullen, Ctrl+D of Cmd+D = omlaag vullen</span></div></div>
   ${lijst.map(([l, cs], gi) => `<section class="pd-sec" id="tg-${gi}"><div class="pd-sec-kop"><div class="l"><h3>${esc(l)}</h3><span class="small muted">${plural(cs.length, 'product', 'producten')}</span></div>
       <div class="row wrap"><button class="btn sm" tabindex="-1" data-pd="tabgroep" data-g="${gi}">Hele groep klopt, opslaan</button>${gi < lijst.length - 1 ? `<button class="btn sm ghost" tabindex="-1" data-pd="tabnaar" data-g="${gi + 1}">Volgende groep ↓</button>` : ''}</div></div>
     <div class="pd-tab"><table class="pd-tg" data-g="${gi}"><thead>${kop}</thead><tbody>${cs.map(tabRij).join('')}</tbody></table></div></section>`).join('') || '<div class="card empty">Niets meer te doen in deze afdeling. Kies "Alles" om alles te zien.</div>'}`;
@@ -2233,7 +2238,7 @@ app.addEventListener('keydown', ev => {
 }, true);
 app.addEventListener('input', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt){ inp.parentNode.className = 't-nieuw'; inp.closest('tr').dataset.vuil = '1'; } }, true);
 app.addEventListener('change', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt) tabAfhankelijk(inp); }, true);
-app.addEventListener('focusin', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt){ inp.closest('tr').dataset.gezien = '1'; inp.dataset.voor = inp.value; try{ inp.select(); }catch(e){} if(!TS.houd) tsZet(inp, inp); else tsHandvat(); } });
+app.addEventListener('focusin', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt){ inp.closest('tr').dataset.gezien = '1'; inp.dataset.voor = inp.value; TS.laatste = inp; try{ inp.select(); }catch(e){} if(!TS.houd) tsZet(inp, inp); else tsHandvat(); } });
 app.addEventListener('focusout', ev => {
   const inp = ev.target; if(!inp.dataset || !inp.dataset.pdt) return;
   const tr = inp.closest('tr'), naar = ev.relatedTarget;
@@ -2311,6 +2316,18 @@ app.addEventListener('paste', ev => {
     TS.a = { r:v.r1, c:v.c1 }; TS.b = { r:Math.min(rijen.length - 1, v.r1 + h - 1), c:v.c1 + b - 1 };
   }
   tsZetVeel(paren);
+});
+// knoppen: dezelfde waarde vullen (werkt met alleen de muis)
+app.addEventListener('mousedown', ev => { if(ev.target.closest && ev.target.closest('[data-pdvul]')) ev.preventDefault(); }, true);
+app.addEventListener('click', ev => {
+  const kn = ev.target.closest && ev.target.closest('[data-pdvul]'); if(!kn) return;
+  const inp = TS.laatste && document.body.contains(TS.laatste) ? TS.laatste : null;
+  if(!inp){ toast('Klik eerst in de cel met de waarde die je wilt vullen', 3000); return; }
+  const wat = kn.dataset.pdvul, tabel = inp.closest('table'), k = inp.dataset.pdt, rijen = [...tabel.querySelectorAll('tbody tr')], i = rijen.indexOf(inp.closest('tr')), v = inp.value;
+  if(wat === 'selectie'){ if(tsAantal() < 2){ toast('Selecteer eerst meerdere cellen', 3000); return; } tsVulSelectie(inp); return; }
+  const doelen = rijen.filter((tr, j) => wat === 'groep' ? j !== i : j > i).map(tr => tr.querySelector(`input[data-pdt="${k}"]`)).filter(x => x && !x.disabled);
+  if(!doelen.length){ toast('Geen regels om te vullen', 2500); return; }
+  tsZetVeel(doelen.map(d => [d, v])); toast(plural(doelen.length, 'cel', 'cellen') + ' gevuld met ' + (v || 'leeg'), 2500);
 });
 // slepen: met de muis een vak kiezen, of het blauwe vierkantje doortrekken
 app.addEventListener('mousedown', ev => {
