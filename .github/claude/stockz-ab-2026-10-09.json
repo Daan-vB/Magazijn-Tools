@@ -1,0 +1,253 @@
+{
+ "naam": "Stockz A/B",
+ "datum": "2026-10-09",
+ "regels": [
+  {
+   "code": "ST-011020100100BE",
+   "zet": [
+    [
+     "maat",
+     "100x100",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "hoogte",
+     "120",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "1,2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "maxlig",
+     "2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "spd",
+     "1",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "FTS-010932920",
+   "zet": [
+    [
+     "maat",
+     "100x100",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "hoogte",
+     "120",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "1,2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "maxlig",
+     "2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "spd",
+     "1",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "FTSG-010920920",
+   "zet": [
+    [
+     "maat",
+     "100x100",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "hoogte",
+     "130",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "1,2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "maxlig",
+     "2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "spd",
+     "1",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "0109400337-100-mat",
+   "zet": [
+    [
+     "maat",
+     "110x110",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     "100x200"
+    ],
+    [
+     "hoogte",
+     "160",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "1,3",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     "3"
+    ],
+    [
+     "maxlig",
+     "2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "spd",
+     "1",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "0109400337-100-rol",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "hoogte",
+     "160",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "maxlig",
+     "3",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "spd",
+     "nvt",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "SF-0109400243",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "hoogte",
+     "140",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "gewicht",
+     "675",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "maxlig",
+     "3",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "opm",
+     "Max 3 meter per doos",
+     "spraak",
+     "Ingesproken door Daan 9-10 (chat), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  }
+ ]
+}
