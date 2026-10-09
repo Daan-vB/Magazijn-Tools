@@ -1,0 +1,66 @@
+{
+ "naam": "Plaatsen 100x100 = 1,3",
+ "datum": "2026-10-09",
+ "regels": [
+  {
+   "code": "ST-011020100100BE",
+   "zet": [
+    [
+     "plaatsen",
+     "1,3",
+     "spraak",
+     "Daan 9-10: 100x100 en 110x110 nemen 1,3 plaats in",
+     "1,2"
+    ]
+   ]
+  },
+  {
+   "code": "FTS-010932920",
+   "zet": [
+    [
+     "plaatsen",
+     "1,3",
+     "spraak",
+     "Daan 9-10: 100x100 en 110x110 nemen 1,3 plaats in",
+     "1,2"
+    ]
+   ]
+  },
+  {
+   "code": "FTSG-010920920",
+   "zet": [
+    [
+     "plaatsen",
+     "1,3",
+     "spraak",
+     "Daan 9-10: 100x100 en 110x110 nemen 1,3 plaats in",
+     "1,2"
+    ]
+   ]
+  },
+  {
+   "code": "SBMP-17-0",
+   "zet": [
+    [
+     "plaatsen",
+     "1,3",
+     "spraak",
+     "Daan 9-10: 100x100 en 110x110 nemen 1,3 plaats in",
+     "1,2"
+    ]
+   ]
+  },
+  {
+   "code": "01071010",
+   "zet": [
+    [
+     "plaatsen",
+     "1,3",
+     "spraak",
+     "Daan 9-10: 100x100 en 110x110 nemen 1,3 plaats in",
+     "1,2"
+    ]
+   ]
+  }
+ ]
+}
