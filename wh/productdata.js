@@ -28,7 +28,7 @@ const LAGEN = [
   { n:3, t:'Medium', u:'Labels, dozen en stapelen' },
   { n:4, t:'Extra', u:'Als de rest af is' }
 ];
-const PLAATSEN = ['1', '1,3', '2', '3'];
+const PLAATSEN = ['1', '1,2', '1,3', '2', '3'];
 const MATEN = ['80x120', '100x100', '100x120', '110x110', '90x120', '100x150', '120x150', '120x180', '100x200', '120x200', '120x240', '130x210', '130x250', '40x120', '40x200'];
 const VELDEN = {
   spp:     { t:'Stuks per pallet', laag:1, type:'num', eh:true, hint:'nvt = komt niet op pallet · onb = weet ik niet' },

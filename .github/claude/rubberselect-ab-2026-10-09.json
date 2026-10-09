@@ -1,0 +1,326 @@
+{
+ "naam": "Rubberselect A/B (opname 65)",
+ "datum": "2026-10-09",
+ "regels": [
+  {
+   "code": "SBMP-17-0",
+   "zet": [
+    [
+     "maat",
+     "100x100",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "hoogte",
+     "100",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "1,2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "maxlig",
+     "2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "spd",
+     "1",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "RH100x150",
+   "zet": [
+    [
+     "maat",
+     "100x150",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "hoogte",
+     "150",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "maxlig",
+     "2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "spd",
+     "2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "rh80x120",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "hoogte",
+     "150",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "maxlig",
+     "4",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "spd",
+     "4",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "01071010",
+   "zet": [
+    [
+     "maat",
+     "100x100",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "hoogte",
+     "150",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "1,2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     "1,3"
+    ],
+    [
+     "maxlig",
+     "3",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "spd",
+     "3",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "RH100x150HD",
+   "zet": [
+    [
+     "maat",
+     "100x150",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "hoogte",
+     "160",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "maxlig",
+     "2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "spd",
+     "1",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "RH80x120HD",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "hoogte",
+     "130",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "maxlig",
+     "4",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "spd",
+     "2",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "SF-0109400241-per-meter",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "hoogte",
+     "140",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "maxlig",
+     "3",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "opm",
+     "Max 3 meter per doos",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "SF-0109402040-GREY-per-meter",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "hoogte",
+     "140",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "maxlig",
+     "3",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "opm",
+     "Max 3 meter per doos",
+     "spraak",
+     "Ingesproken door Daan 9-10 (opname 65), hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  }
+ ]
+}
