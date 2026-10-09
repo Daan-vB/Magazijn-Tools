@@ -822,6 +822,8 @@ function stijl(){
   .t-mist{background:#fff;box-shadow:inset 0 0 0 1px #efc2be} .t-nieuw{background:#eef4fc} .t-fout{background:#fde2e1;box-shadow:inset 0 0 0 2px var(--bad)} .t-nvt{background:#f3f5f8}
   .t-info{background:#f7f9fb} .t-info input::placeholder{color:#7a8795;opacity:1}
   .t-st{width:28px;text-align:center;font-weight:800;color:var(--ok)} .t-st.t-err{color:var(--bad);cursor:help}
+  .pd-naarklein{margin-left:auto;font-size:11px;padding:1px 7px;border:1px solid #c9bde0;border-radius:4px;background:#f6f3fb;color:#5a3e8f;cursor:pointer;white-space:nowrap}
+  .pd-naarklein:hover{background:#5a3e8f;color:#fff}
   .k-tg{min-width:880px} .k-tg .prod{width:auto;max-width:560px}
   .k-chk{display:inline-flex;align-items:center;cursor:pointer;padding:2px 2px 2px 0} .k-chk input{width:17px;height:17px;accent-color:var(--blue);margin:0;cursor:pointer}
   .k-why{font-size:11px;line-height:1.3;margin-top:2px} .k-why.voor{color:#6b4f00} .k-why.twijfel{color:#9a4205;font-weight:700} .k-why.ok{color:#1c6b3f}
@@ -1962,7 +1964,7 @@ function tabRij(c){
   const p = D.P[c] || {}, f = kaartFn(c, { schat:true }), l = locaties(c), eh = eenheid(c), st = feedStatus(c, f);
   const plek = l.pick.map(a => a[0]).slice(0, 1).join('') || l.bulk.map(a => a[0]).slice(0, 1).join('') || '–';
   const ik = inkVan(c);
-  return `<tr data-code="${esc(c)}" class="${st.s === 'klaar' ? 'r-klaar' : ''}"><td class="prod"><div class="row" style="gap:6px;align-items:baseline"><a class="code" href="#/productdata/p/${encodeURIComponent(c)}" tabindex="-1" style="font-size:12px">${esc(c)}</a>${abcBadge(c)}<span class="tiny muted">${esc(plek)} · telt ${esc(eh.mv)}</span></div>
+  return `<tr data-code="${esc(c)}" class="${st.s === 'klaar' ? 'r-klaar' : ''}"><td class="prod"><div class="row" style="gap:6px;align-items:baseline"><a class="code" href="#/productdata/p/${encodeURIComponent(c)}" tabindex="-1" style="font-size:12px">${esc(c)}</a>${abcBadge(c)}<span class="tiny muted">${esc(plek)} · telt ${esc(eh.mv)}</span><button type="button" class="pd-naarklein" data-pd="naarklein" data-code="${esc(c)}" tabindex="-1" title="Dit is klein spul (los of in dozen): weg uit deze tabel, later uitwerken bij Klein spul">→ klein spul</button></div>
     <div class="tiny pn" title="${esc(String(p.naam || ''))}">${esc(String(p.naam || ''))}</div>
     <div class="pinfo"><span style="color:#0b5a8a;font-weight:600">${gewichtRegel(c)}</span>${ik ? `<span style="color:#5a3e8f" title="Inkooporders afgelopen 12 maanden: ${ik.n}×, totaal ${nf(ik.tot)}, kleinste ${nf(ik.min)}, grootste ${nf(ik.max)}">inkoop ${ik.n}× · meestal ${nf(ik.med)} · max ${nf(ik.max)}</span>` : ''}</div></td>
     ${TAB_KOL.map(([k]) => tabCel(c, k, f)).join('')}<td class="t-st" aria-live="polite">${st.s === 'klaar' ? '✓' : ''}</td></tr>`;
@@ -1984,6 +1986,7 @@ function viewTabel(zone){
       <button type="button" class="btn sm" data-pdvul="omlaag" title="Neemt de waarde van de cel waar je staat en zet die in dezelfde kolom bij alle regels eronder, t/m het einde van deze leveranciersgroep">⬇ Omlaag in deze groep</button>
       <button type="button" class="btn sm" data-pdvul="groep" title="Zet de waarde van deze cel in dezelfde kolom bij alle regels van deze leveranciersgroep">↕ Hele kolom van groep</button>
       <button type="button" class="btn sm" data-pdvul="selectie" title="Zet de waarde van deze cel in alle geselecteerde cellen (blauw)">▦ Geselecteerde cellen</button>
+      <button type="button" class="btn sm" data-pd="naarkleinsel" style="border-color:#5a3e8f;color:#5a3e8f" title="Alle regels waarin je cellen hebt geselecteerd (of de regel waar je staat) gaan naar Klein spul">→ Klein spul (geselecteerde regels)</button>
       <span class="tiny muted">Selecteren: klik de eerste cel, Shift+klik de laatste · op een Mac: Cmd+Enter = selectie vullen, Ctrl+D of Cmd+D = omlaag vullen</span></div></div>
   ${lijst.map(([l, cs], gi) => `<section class="pd-sec" id="tg-${gi}"><div class="pd-sec-kop"><div class="l"><h3>${esc(l)}</h3><span class="small muted">${plural(cs.length, 'product', 'producten')}</span></div>
       <div class="row wrap"><button class="btn sm" tabindex="-1" data-pd="tabgroep" data-g="${gi}">Hele groep klopt, opslaan</button>${gi < lijst.length - 1 ? `<button class="btn sm ghost" tabindex="-1" data-pd="tabnaar" data-g="${gi + 1}">Volgende groep ↓</button>` : ''}</div></div>
@@ -2049,6 +2052,17 @@ function tabAfhankelijk(inp){
   ['lvl', 'met', 'maxpick'].forEach(kk => { const e = cel(kk); if(e){ e.disabled = !pick; if(!pick) e.parentNode.className = 't-nvt'; } });
 }
 
+// vanuit een afdelingstabel: "dit is klein spul". Soort = het voorstel (alleen pick of dozen; bij twijfel dozen), later uitwerken bij Klein spul
+async function naarKlein(rijen){
+  const wijz = {};
+  rijen.forEach(tr => { const c = tr.dataset.code; if(!c) return; const k = kleinSoort(c, kleinFeit(c)); const v = k.v === 'pick' && k.s !== 'twijfel' ? 'pick' : 'doos'; wijz[c] = { opslag:{ v, uit:'vanuit afdelingstabel naar klein spul' }, pick:'ja' }; });
+  try{
+    await opslaan(wijz, 'klein');
+    rijen.forEach(tr => { delete tr.dataset.vuil; delete tr.dataset.gezien; tr.remove(); });
+    TS.a = TS.b = null; tsVerf();
+    toast(plural(Object.keys(wijz).length, 'product', 'producten') + ' naar Klein spul', 3000);
+  }catch(e){ toast(e.message, 6000); }
+}
 /* ---------- klein spul: los of in dozen, geen volle pallets hier (9-10-2026, Daan) ----------
    Klein spul komt los of in dozen binnen, vaak met wisselende aantallen per doos (behalve van containerleveranciers),
    en ligt in dozen op een mixpallet of helemaal op de picklocatie. Per product is weinig nodig:
@@ -2557,6 +2571,14 @@ app.addEventListener('click', async ev => {
     const tr = b.closest('tr'), inp = tr && tr.querySelector('input[data-pdt=kgst]'); if(!inp) return;
     inp.dataset.voor = inp.value; inp.value = String(b.dataset.v).replace('.', ','); inp.parentNode.className = 't-nieuw'; tr.dataset.gezien = '1';
     tabAfhankelijk(inp); await tabBewaarRij(tr); return;
+  }
+  if(a === 'naarklein' || a === 'naarkleinsel'){
+    let rijen = [];
+    if(a === 'naarklein') rijen = [b.closest('tr')];
+    else { const v = tsVak(), alle = tsRijen(); if(v) rijen = alle.slice(v.r1, v.r2 + 1); else if(TS.laatste && document.body.contains(TS.laatste)) rijen = [TS.laatste.closest('tr')]; }
+    rijen = rijen.filter(Boolean);
+    if(!rijen.length){ toast('Klik eerst in een regel, of selecteer cellen in meerdere regels', 3500); return; }
+    await naarKlein(rijen); return;
   }
   if(a === 'tabnaar'){ const sec = $('tg-' + b.dataset.g); if(sec){ sec.scrollIntoView({ block:'start' }); const i = sec.querySelector('input[data-pdt]:not([disabled])'); if(i) i.focus({ preventScroll:true }); } return; }
   if(a === 'afdscope'){ UI.afdScope = b.dataset.v; rerender(); return; }
