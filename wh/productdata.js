@@ -43,6 +43,7 @@ const VELDEN = {
   vn:      { t:'Vloernaam (label)', laag:3, type:'tekst', breed:true },
   spd:     { t:'Stuks per doos', laag:3, type:'num', eh:true, hint:'nvt = geen doos' },
   maxlig:  { t:'Max pallets per ligger', laag:3, type:'num', hint:'gewicht of hoogte' },
+  opslag:  { t:'Opslag', laag:4, type:'keus', opt:[['pallet', 'Pallets'], ['pick', 'Alleen pick']], hint:'Alleen pick = ligt op één plek, nooit pallets' },
   kgst:    { t:'Gewicht per stuk', laag:3, type:'num', eh2:'kg', hint:'alleen als Picqer niet klopt' },
   doos:    { t:'Doosmaat l×b×h', laag:4, type:'tekst', eh2:'cm', hint:'bijv. 60x40x30' },
   opm:     { t:'Opmerking opbouw / stapelen', laag:4, type:'tekst', breed:true }
@@ -203,6 +204,8 @@ function plaatsenUitMaat(maat){
 }
 // is dit veld nodig voor dit product? (n.v.t. door een ander antwoord)
 function nodig(code, k, w){
+  if(k === 'opslag') return false;   // optioneel
+  if(alleenPick(code) && !['pick', 'vn', 'kgst'].includes(k)) return false;
   const spp = w('spp'), pick = w('pick'), e = eenheid(code).e;
   if(['maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig'].includes(k) && NVT(spp)) return false;
   if(['maxpick', 'lvl', 'met'].includes(k) && pick === 'nee') return false;
@@ -486,7 +489,7 @@ function inScope(code, sc, metFilter = true){
   if(metFilter && UI.lev && p.leverancier !== UI.lev) return false;
   const abc = abcVan(code);
   switch(sc || UI.scope){
-    case 'belangrijk': return abc === 'A' || abc === 'B' || index().binnen.has(code);
+    case 'belangrijk': return (abc === 'A' || abc === 'B' || index().binnen.has(code)) && !isLater(code) && !alleenPick(code);
     case 'A': return abc === 'A';
     case 'AB': return abc === 'A' || abc === 'B';
     case 'beweegt': return !!(abc || pdVan(code) > 0 || vkmVan(code) > 0 || index().bo[code]);
@@ -862,6 +865,7 @@ function kaartFn(code, opt){
   return f;
 }
 function nvtReden(code, k){
+  if(alleenPick(code)) return 'Alleen pick: ligt op één plek, geen pallets of aanvullen';
   if(['maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig'].includes(k)) return 'Komt niet op een pallet (stuks per pallet is nvt)';
   if(['maxpick', 'lvl', 'met'].includes(k)) return 'Alleen bulk, geen picklocatie';
   if(['spd', 'doos'].includes(k)) return 'Picqer telt ' + eenheid(code).t + ', geen doos';
@@ -1452,6 +1456,15 @@ const isMidden = c => /batch midden/i.test(String((D.P[c] || {}).tags || ''));
 // ribbel 40 en 50 cm op maat (1 t/m 10 m) in de stellingkasten: concept nog in ontwikkeling, slaan we nu over (afspraak Daan 9-10-2026)
 const isOpMaat = c => /^MR65SX2\.7-0\.[45](-\d+)?$/i.test(c) || /stellingkast/i.test(String((D.P[c] || {}).locaties_hm || ''));
 const isLater = c => isMidden(c) || isOpMaat(c);
+// alleen pick: ligt op één picklocatie, nooit bulk/VST/pallets (bv. CONRRM). Zelf gekozen (opslag = pick) of afgeleid uit de data
+function alleenPick(c){
+  const o = pdWaarde(c, 'opslag');
+  if(o === 'pick') return true; if(o === 'pallet') return false;
+  const p = D.P[c]; if(!p) return false;
+  const l = locaties(c), spp = pdWaarde(c, 'spp');
+  const v = l.pick.length === 1 && !l.bulk.length && !(num(p.voorraad_vst) > 0) && !(S.mv[c] || []).length && !labelRegels(c).length && (spp === null || spp === undefined || String(spp).trim() === '') && !isOutlet(c);
+  return v;
+}
 const naamVan = c => String((D.P[c] || {}).naam || '');
 const tagsVan = c => String((D.P[c] || {}).tags || '').toLowerCase();
 function breedteCm(naam){
@@ -1503,7 +1516,7 @@ function regelIndeling(){
   const per = {}, zonderPick = {}, van = {};
   REGELS.forEach(R => { per[R.id] = []; zonderPick[R.id] = 0; });
   Object.keys(D.P).forEach(c => {
-    if(!actief(c) || isLater(c) || isOutlet(c)) return;
+    if(!actief(c) || isLater(c) || alleenPick(c) || isOutlet(c)) return;
     const R = REGELS.find(R => R.past(c)); if(!R) return;
     if(locaties(c).pick.length){ per[R.id].push(c); van[c] = R; } else zonderPick[R.id]++;
   });
@@ -1596,7 +1609,7 @@ async function bewaarRegel(){
 // tegels in CE: wat regelmatig gepickt wordt maar geen picklocatie heeft, of wel een picklocatie maar geen aanvuladvies
 function tegelOverzicht(){
   return Object.keys(D.P).filter(c => {
-    if(!actief(c) || isLater(c) || isOutlet(c)) return false;
+    if(!actief(c) || isLater(c) || alleenPick(c) || isOutlet(c)) return false;
     const p = D.P[c], tags = String(p.tags || '').toLowerCase();
     if(/kunststof pen|\bpin\b|pen voor|pennen/i.test(p.naam || '')) return false;
     const tegel = /tile5050|tile50100/.test(tags) || String(p.locaties_hm || '').split(',').some(l => /^\s*CE/i.test(l)) || /rubber tegel|puzzeltegel|vloertegel/i.test(p.naam || '');
@@ -1652,7 +1665,7 @@ function autoPlan(codes){
 const REGELNAAM = { regel:'aanvulregel', 'maxpick:picqer':'Picqer-instelling', 'lvl:picqer':'Picqer-instelling', 'hoogte:genoot':'kleurgenoot', 'vn:genoot':'naam kleurgenoot', 'spp:mvvst':'verplaatst naar VST', 'spp:vst2':'VST-pallets', 'spp:bulk2':'bulkpallets', oud:'palletlabels / containers', 'pick:picqer':'Picqer-locatie', 'maxpick:aanvulbase':'aanvulbase', 'lvl:aanvulbase':'aanvulbase', 'maxpick:som':'bij + volle pallet', 'met:som':'uit bij en max', 'met:geenpallet':'komt niet op pallet', 'maat:afm':'Picqer-afmetingen', 'hoogte:fam':'familie', 'gewicht:pakbon':'pakbon', 'gewicht:picqer':'Picqer-gewicht', 'gewicht:picqerm':'Picqer-gewicht per m/cm/rol', 'gewicht:eigen':'jouw kg per stuk/m', 'plaatsen:maat':'uit palletmaat', 'maxlig:fam':'familie' };
 const regelNaam = r => REGELNAAM[r] || (/:genoot$/.test(r) ? 'kleurgenoot' : r);
 function viewAuto(){
-  const sc = UI.autoScope || 'belangrijk', codes = lijst(sc, false).filter(c => !isLater(c));
+  const sc = UI.autoScope || 'belangrijk', codes = lijst(sc, false).filter(c => !isLater(c) && !alleenPick(c));
   const { rijen, tel } = autoPlan(codes);
   const nW = rijen.reduce((s, r) => s + Object.keys(r.nieuw).length, 0);
   const nAuto = Object.values(S.pd).reduce((s, r) => s + Object.values(r.meta || {}).filter(m => m && m.bron === 'auto').length, 0);
@@ -1675,7 +1688,7 @@ function viewAuto(){
     <div class="row wrap">${nAuto ? `<button class="btn" data-pd="autoweg">Automatische waarden weghalen</button>` : ''}<button class="btn acc" data-pd="autosave" ${nW ? '' : 'disabled'}>Vul ${nf(nW)} waarden in</button></div></div>`;
 }
 async function bewaarAuto(){
-  const { rijen } = autoPlan(lijst(UI.autoScope || 'belangrijk', false).filter(c => !isLater(c)));
+  const { rijen } = autoPlan(lijst(UI.autoScope || 'belangrijk', false).filter(c => !isLater(c) && !alleenPick(c)));
   const wijz = {}; rijen.forEach(r => { wijz[r.code] = r.nieuw; });
   const n = await opslaan(wijz, 'auto');
   return { n, nW:rijen.reduce((s, r) => s + Object.keys(r.nieuw).length, 0) };
@@ -2393,5 +2406,5 @@ async function view(delen){
 // na het opnieuw laden van de app (WH.load) ook de index vernieuwen
 const herlaad = async () => { S.idx = null; await laad(true); };
 
-return { view, herlaad, S, UI, KANS, toets, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater };
+return { view, herlaad, S, UI, KANS, toets, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();
