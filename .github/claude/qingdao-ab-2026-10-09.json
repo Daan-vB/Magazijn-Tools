@@ -1,0 +1,56 @@
+{
+ "naam": "Qingdao Todo A/B",
+ "datum": "2026-10-09",
+ "regels": [
+  {
+   "code": "FTS-010915920",
+   "zet": [
+    [
+     "hoogte",
+     "120",
+     "spraak",
+     "Daan 9-10: Qingdao Todo akkoord, hoogte naar boven afgerond op 10 cm",
+     "116"
+    ]
+   ]
+  },
+  {
+   "code": "FTS-010920920",
+   "zet": [
+    [
+     "hoogte",
+     "120",
+     "spraak",
+     "Daan 9-10: Qingdao Todo akkoord, hoogte naar boven afgerond op 10 cm",
+     "115"
+    ]
+   ]
+  },
+  {
+   "code": "FTSBEACH-010915",
+   "zet": [
+    [
+     "hoogte",
+     "120",
+     "spraak",
+     "Daan 9-10: Qingdao Todo akkoord, hoogte naar boven afgerond op 10 cm",
+     "116"
+    ],
+    [
+     "maxlig",
+     "2",
+     "spraak",
+     "Daan 9-10: Qingdao Todo akkoord, hoogte naar boven afgerond op 10 cm",
+     null
+    ],
+    [
+     "spd",
+     "2",
+     "spraak",
+     "Daan 9-10: Qingdao Todo akkoord, hoogte naar boven afgerond op 10 cm",
+     null
+    ]
+   ]
+  }
+ ]
+}
