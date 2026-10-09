@@ -822,6 +822,7 @@ function stijl(){
   .t-mist{background:#fff;box-shadow:inset 0 0 0 1px #efc2be} .t-nieuw{background:#eef4fc} .t-fout{background:#fde2e1;box-shadow:inset 0 0 0 2px var(--bad)} .t-nvt{background:#f3f5f8}
   .t-info{background:#f7f9fb} .t-info input::placeholder{color:#7a8795;opacity:1}
   .t-st{width:28px;text-align:center;font-weight:800;color:var(--ok)} .t-st.t-err{color:var(--bad);cursor:help}
+  .pd-naarklein + .pd-naarklein{margin-left:4px}
   .pd-naarklein{margin-left:auto;font-size:11px;padding:1px 7px;border:1px solid #c9bde0;border-radius:4px;background:#f6f3fb;color:#5a3e8f;cursor:pointer;white-space:nowrap}
   .pd-naarklein:hover{background:#5a3e8f;color:#fff}
   .k-tg{min-width:880px} .k-tg .prod{width:auto;max-width:560px}
@@ -1749,9 +1750,9 @@ async function autoWeg(){
 const KORT = { geleverd:'Geleverd', opslag:'Soort', spp:'Per pallet', pick:'Pick', lvl:'Bij', maxpick:'Max', met:'Met', maat:'Maat', hoogte:'Hoogte', gewicht:'Gewicht', plaatsen:'Plaatsen', maxlig:'Max/ligger', spd:'Per doos', vn:'Vloernaam' };
 const FEED_VELDEN = ['spp', 'pick', 'lvl', 'maxpick', 'met', 'geleverd', 'maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig', 'spd', 'vn'];
 const gangVan = c => { const l = locaties(c), loc = (l.pick[0] || l.bulk[0] || [''])[0]; return String(loc).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2) || 'GEEN'; };
-const zoneVan = c => { if(isMidden(c)) return 'MIDDEN'; if(isOpMaat(c)) return 'OPMAAT'; if(pdWaarde(c, 'opslag') === 'doos') return 'KLEIN'; if(alleenPick(c)) return 'PICK'; return gangVan(c); };
-const ZONENAAM = { KLEIN:'Klein spul in dozen', PICK:'Alleen pick (los van pallet en aanvullen)', MIDDEN:'Midden (Katerina)', OPMAAT:'Ribbel 40/50 op maat (stellingkast)', GEEN:'Zonder locatie' };
-const LATER = { KLEIN:'Instellen bij Klein spul', PICK:'Ligt op één plek: instellen bij Klein spul', MIDDEN:'Van Katerina, slaan we nu over', OPMAAT:'Concept nog in ontwikkeling, slaan we nu over' };
+const zoneVan = c => { if(pdWaarde(c, 'later')) return 'LATER'; if(isMidden(c)) return 'MIDDEN'; if(isOpMaat(c)) return 'OPMAAT'; if(pdWaarde(c, 'opslag') === 'doos') return 'KLEIN'; if(alleenPick(c)) return 'PICK'; return gangVan(c); };
+const ZONENAAM = { LATER:'Later: nieuw of nog onbekend', KLEIN:'Klein spul in dozen', PICK:'Alleen pick (los van pallet en aanvullen)', MIDDEN:'Midden (Katerina)', OPMAAT:'Ribbel 40/50 op maat (stellingkast)', GEEN:'Zonder locatie' };
+const LATER = { LATER:'Weggezet voor later. Open om terug te zetten', KLEIN:'Instellen bij Klein spul', PICK:'Ligt op één plek: instellen bij Klein spul', MIDDEN:'Van Katerina, slaan we nu over', OPMAAT:'Concept nog in ontwikkeling, slaan we nu over' };
 const STOPW = new Set('voor met zonder van per set incl inclusief stuks stuk rand design nieuw'.split(' '));
 function zoneLabel(zone, codes){
   if(ZONENAAM[zone]) return ZONENAAM[zone];
@@ -1964,7 +1965,7 @@ function tabRij(c){
   const p = D.P[c] || {}, f = kaartFn(c, { schat:true }), l = locaties(c), eh = eenheid(c), st = feedStatus(c, f);
   const plek = l.pick.map(a => a[0]).slice(0, 1).join('') || l.bulk.map(a => a[0]).slice(0, 1).join('') || '–';
   const ik = inkVan(c);
-  return `<tr data-code="${esc(c)}" class="${st.s === 'klaar' ? 'r-klaar' : ''}"><td class="prod"><div class="row" style="gap:6px;align-items:baseline"><a class="code" href="#/productdata/p/${encodeURIComponent(c)}" tabindex="-1" style="font-size:12px">${esc(c)}</a>${abcBadge(c)}<span class="tiny muted">${esc(plek)} · telt ${esc(eh.mv)}</span><button type="button" class="pd-naarklein" data-pd="naarklein" data-code="${esc(c)}" tabindex="-1" title="Dit is klein spul (los of in dozen): weg uit deze tabel, later uitwerken bij Klein spul">→ klein spul</button></div>
+  return `<tr data-code="${esc(c)}" class="${st.s === 'klaar' ? 'r-klaar' : ''}"><td class="prod"><div class="row" style="gap:6px;align-items:baseline"><a class="code" href="#/productdata/p/${encodeURIComponent(c)}" tabindex="-1" style="font-size:12px">${esc(c)}</a>${abcBadge(c)}<span class="tiny muted">${esc(plek)} · telt ${esc(eh.mv)}</span><button type="button" class="pd-naarklein" data-pd="naarklein" data-code="${esc(c)}" tabindex="-1" title="Dit is klein spul (los of in dozen): weg uit deze tabel, later uitwerken bij Klein spul">→ klein spul</button>${pdWaarde(c, 'later') ? `<button type="button" class="pd-naarklein" data-pd="laterterug" data-code="${esc(c)}" tabindex="-1" title="Terug naar de gewone afdeling">↩ terug</button>` : `<button type="button" class="pd-naarklein" data-pd="later" data-code="${esc(c)}" tabindex="-1" title="Nieuw of nog onbekend: weg uit deze tabel tot je het weet">⏸ later</button>`}</div>
     <div class="tiny pn" title="${esc(String(p.naam || ''))}">${esc(String(p.naam || ''))}</div>
     <div class="pinfo"><span style="color:#0b5a8a;font-weight:600">${gewichtRegel(c)}</span>${ik ? `<span style="color:#5a3e8f" title="Inkooporders afgelopen 12 maanden: ${ik.n}×, totaal ${nf(ik.tot)}, kleinste ${nf(ik.min)}, grootste ${nf(ik.max)}">inkoop ${ik.n}× · meestal ${nf(ik.med)} · max ${nf(ik.max)}</span>` : ''}</div></td>
     ${TAB_KOL.map(([k]) => tabCel(c, k, f)).join('')}<td class="t-st" aria-live="polite">${st.s === 'klaar' ? '✓' : ''}</td></tr>`;
@@ -1987,6 +1988,7 @@ function viewTabel(zone){
       <button type="button" class="btn sm" data-pdvul="groep" title="Zet de waarde van deze cel in dezelfde kolom bij alle regels van deze leveranciersgroep">↕ Hele kolom van groep</button>
       <button type="button" class="btn sm" data-pdvul="selectie" title="Zet de waarde van deze cel in alle geselecteerde cellen (blauw)">▦ Geselecteerde cellen</button>
       <button type="button" class="btn sm" data-pd="naarkleinsel" style="border-color:#5a3e8f;color:#5a3e8f" title="Alle regels waarin je cellen hebt geselecteerd (of de regel waar je staat) gaan naar Klein spul">→ Klein spul (geselecteerde regels)</button>
+      <button type="button" class="btn sm" data-pd="latersel" title="Nieuw of nog onbekend: de geselecteerde regels (of de regel waar je staat) gaan naar Later">⏸ Later (geselecteerde regels)</button>
       <span class="tiny muted">Selecteren: klik de eerste cel, Shift+klik de laatste · op een Mac: Cmd+Enter = selectie vullen, Ctrl+D of Cmd+D = omlaag vullen</span></div></div>
   ${lijst.map(([l, cs], gi) => `<section class="pd-sec" id="tg-${gi}"><div class="pd-sec-kop"><div class="l"><h3>${esc(l)}</h3><span class="small muted">${plural(cs.length, 'product', 'producten')}</span></div>
       <div class="row wrap"><button class="btn sm" tabindex="-1" data-pd="tabgroep" data-g="${gi}">Hele groep klopt, opslaan</button>${gi < lijst.length - 1 ? `<button class="btn sm ghost" tabindex="-1" data-pd="tabnaar" data-g="${gi + 1}">Volgende groep ↓</button>` : ''}</div></div>
@@ -2052,6 +2054,16 @@ function tabAfhankelijk(inp){
   ['lvl', 'met', 'maxpick'].forEach(kk => { const e = cel(kk); if(e){ e.disabled = !pick; if(!pick) e.parentNode.className = 't-nvt'; } });
 }
 
+// regels uit de tabel halen en per product iets vastleggen
+async function zetRijen(rijen, fn, tekst){
+  const wijz = {}; rijen.forEach(tr => { const c = tr.dataset.code; if(c) wijz[c] = fn(c); });
+  try{
+    await opslaan(wijz, 'invul');
+    rijen.forEach(tr => { delete tr.dataset.vuil; delete tr.dataset.gezien; tr.remove(); });
+    TS.a = TS.b = null; tsVerf();
+    toast(plural(Object.keys(wijz).length, 'product', 'producten') + ' ' + tekst, 3000);
+  }catch(e){ toast(e.message, 6000); }
+}
 // vanuit een afdelingstabel: "dit is klein spul". Soort = het voorstel (alleen pick of dozen; bij twijfel dozen), later uitwerken bij Klein spul
 async function naarKlein(rijen){
   const wijz = {};
@@ -2165,7 +2177,7 @@ function zoekFn(q){
 function kleinLijst(){
   const K = kSt(), sc = UI.afdScope || 'belangrijk', memo = new Map();
   const info = c => { let i = memo.get(c); if(!i){ const f = kleinFeit(c), s = kleinSoort(c, f); i = { f, s, klaar:kleinKlaar(c, s), z:kZone(c) }; memo.set(c, i); } return i; };
-  const basis = lijst(sc, false).filter(c => !isOpMaat(c) && !isOutlet(c));
+  const basis = lijst(sc, false).filter(c => !isOpMaat(c) && !isOutlet(c) && !pdWaarde(c, 'later'));
   const zk = zoekFn(K.zoek);
   const soortPast = (i, s) => s === 'pallet' ? i.s.v === 'pallet' : s === 'twijfel' ? i.s.s === 'twijfel' : s ? i.s.v === s && i.s.s !== 'twijfel' : i.s.v !== 'pallet';
   const past = (c, sla) => {
@@ -2572,12 +2584,13 @@ app.addEventListener('click', async ev => {
     inp.dataset.voor = inp.value; inp.value = String(b.dataset.v).replace('.', ','); inp.parentNode.className = 't-nieuw'; tr.dataset.gezien = '1';
     tabAfhankelijk(inp); await tabBewaarRij(tr); return;
   }
-  if(a === 'naarklein' || a === 'naarkleinsel'){
+  if(['naarklein', 'naarkleinsel', 'later', 'latersel', 'laterterug'].includes(a)){
     let rijen = [];
-    if(a === 'naarklein') rijen = [b.closest('tr')];
+    if(!/sel$/.test(a)) rijen = [b.closest('tr')];
     else { const v = tsVak(), alle = tsRijen(); if(v) rijen = alle.slice(v.r1, v.r2 + 1); else if(TS.laatste && document.body.contains(TS.laatste)) rijen = [TS.laatste.closest('tr')]; }
     rijen = rijen.filter(Boolean);
     if(!rijen.length){ toast('Klik eerst in een regel, of selecteer cellen in meerdere regels', 3500); return; }
+    if(/^later/.test(a)){ const terug = a === 'laterterug'; await zetRijen(rijen, () => ({ later:{ v:terug ? '' : 'ja', uit:terug ? '' : 'nieuw of nog onbekend' } }), terug ? 'terug in de afdeling' : 'naar Later'); return; }
     await naarKlein(rijen); return;
   }
   if(a === 'tabnaar'){ const sec = $('tg-' + b.dataset.g); if(sec){ sec.scrollIntoView({ block:'start' }); const i = sec.querySelector('input[data-pdt]:not([disabled])'); if(i) i.focus({ preventScroll:true }); } return; }
