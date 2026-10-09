@@ -2152,9 +2152,13 @@ function soortVoorstel(c, f){
   const spoor = sppN > 0 ? 'per pallet ' + nf(sppN) : lab.length ? 'palletlabel ' + nf(num(lab[0])) + ' per pallet' : f.vst > 0 ? nf(f.vst) + ' ' + e.mv + ' op VST' : pbRegels(c).some(r => r.soort === 'pallet') ? 'pakbon met pallets' : '';
   if(spoor){
     const pk = staat(c, 'pick'), lv = staat(c, 'lvl'), n = sppN || num(lab[0]);
-    if(pk.s === 'ok' && pk.v === 'nee') return ja('pallet', spoor + ', alleen bulk');
+    // alleen bulk: wordt per backorder van de pallet gehaald = deel van een pallet
+    if((pk.s === 'ok' && pk.v === 'nee') || !f.l.pick.length) return ja('deel', spoor + ', alleen bulk: per backorder een deel van de pallet');
     if(f.max && n && lv.s === 'ok'){ const bij = f.max - num(lv.v); return bij >= n ? ja('pallet', spoor + ', bijvullen ' + nf(bij) + ' ≥ 1 pallet') : ja('deel', spoor + ', bijvullen ' + nf(bij) + ' < 1 pallet'); }
-    if(f.l.pick.some(a => /00$/.test(a[0]))) return ja('pallet', spoor + ', picklocatie op de vloer');
+    // volle pallet alleen bij een echte vloerplek (niet Midden) en geen grote voorraad (VST of meerdere pallets op bulk)
+    const bpal = f.l.bulk.filter(a => num(a[1]) > 0).length;
+    if(f.l.pick.some(a => /00$/.test(a[0])) && !isMidden(c) && !f.vst && bpal <= 1) return ja('pallet', spoor + ', picklocatie op de vloer');
+    if(f.vst || bpal > 1) return ja('deel', spoor + (f.vst && !/VST/.test(spoor) ? ', ' + nf(f.vst) + ' op VST' : '') + (bpal > 1 ? ', ' + bpal + ' pallets op bulk' : '') + ': veel voorraad, pick krijgt een deel');
     const bp = f.l.bulk.filter(a => num(a[1]) > 0).length;
     return ja('deel', spoor + (bp ? ', ' + bp + ' op bulk' : '') + (f.l.pick.length ? ', picklocatie in de stelling' : ''));
   }
