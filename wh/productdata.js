@@ -348,7 +348,7 @@ function voorstel(code, k, w){
       const R = regelVan(code), dR = R && R.doel(code); if(dR && dR.max != null) return uit('regel', dR.max, 'aanvulregel: ' + R.t + (dR.uitleg ? ' (' + dR.uitleg + ')' : ''));
       const pq = D.PQ[code], a = D.AANVUL[code];
       if(a && a.ok && num(a.max ?? a.tot) > 1) return uit('maxpick:aanvulbase', num(a.max ?? a.tot), 'aanvulbase: max ' + nf(num(a.max ?? a.tot)));
-      if(pq && num(pq[1]) > 1) return uit('maxpick:picqer', num(pq[1]), 'Picqer: vul aan tot ' + nf(num(pq[1])));
+      if(pq && num(pq[1]) > 1 && !(num(pq[0]) === 1 && num(pq[1]) === 11)) return uit('maxpick:picqer', num(pq[1]), 'Picqer: vul aan tot ' + nf(num(pq[1])));   // 1/11 = Picqer-standaard, niemand heeft dat ingesteld
       // afspraak: max op pick = aanvullen bij + wat je bijvult (bij aanvullen met volle pallet: + stuks per pallet)
       const lv = num(w('lvl')), spp = num(w('spp'));
       if(lv !== null && spp && w('met') === 'pallet') return uit('maxpick:som', lv + spp, 'aanvullen bij ' + nf(lv) + ' + volle pallet ' + nf(spp));
@@ -2134,7 +2134,9 @@ function metStuks(v, gel){
 }
 function kleinFeit(c){
   const p = D.P[c] || {}, l = locaties(c), som = a => a.reduce((s, x) => s + (num(x[1]) || 0), 0), mx = staat(c, 'maxpick');
-  return { l, opPick:som(l.pick), buiten:som(l.bulk) + (num(l.geen) || 0), vst:num(p.voorraad_vst) || 0, ik:inkVan(c), vk:vkmVan(c), max:mx.s === 'ok' ? num(mx.v) : null };
+  // een max die automatisch uit de Picqer-standaard (vul aan tot 11) kwam telt niet als echte max
+  const mm = (S.pd[c] && S.pd[c].meta && S.pd[c].meta.maxpick) || {}, std = mm.bron === 'auto' && /picqer/.test(mm.r || '') && num(mx.v) === 11;
+  return { l, opPick:som(l.pick), buiten:som(l.bulk) + (num(l.geen) || 0), vst:num(p.voorraad_vst) || 0, ik:inkVan(c), vk:vkmVan(c), max:mx.s === 'ok' && !std ? num(mx.v) : null };
 }
 function soortVoorstel(c, f){
   const o = soortVan(c), st = staat(c, 'opslag');
@@ -2326,7 +2328,8 @@ function kleinCel(c, k, x, dis){
   let v = x && x.v ? String(x.v) : '';
   if(k === 'opslag') v = KDISP[v] || v; if(k === 'geleverd') v = gelDisp(v);
   const was = x && x.s === 'ok' ? v : '';
-  return `<td class="${cls}"><input data-pdt="${k}" data-code="${esc(c)}" value="${esc(dis ? '' : v)}" data-was="${esc(was)}" ${dis ? 'disabled placeholder="–"' : `placeholder="${esc(KPH[k])}"`} title="${esc(x && x.why || '')}" autocomplete="off" ${k === 'maxpick' ? 'inputmode="decimal"' : ''}></td>`;
+  const titel = x && x.why ? x.why : x && x.s === 'ok' && k !== 'metn' ? okBron(c, k) : '';
+  return `<td class="${cls}"><input data-pdt="${k}" data-code="${esc(c)}" value="${esc(dis ? '' : v)}" data-was="${esc(was)}" ${dis ? 'disabled placeholder="–"' : `placeholder="${esc(KPH[k])}"`} title="${esc(titel)}" autocomplete="off" ${k === 'maxpick' ? 'inputmode="decimal"' : ''}></td>`;
 }
 function kleinRij(c, i, aan){
   const p = D.P[c] || {}, f = i.f, W = kleinWaarden(c, f, i.s), mix = W.opslag.v === 'mix', eh = eenheid(c);
@@ -2337,7 +2340,7 @@ function kleinRij(c, i, aan){
   const mx = num(W.maxpick && W.maxpick.v), mt = num(W.metn && W.metn.v);
   const bij = mix && mx !== null && mt !== null && mt <= mx ? nf(mx - mt) : '–';
   const whyCls = W.opslag.s === 'ok' ? 'ok' : W.opslag.s === 'twijfel' ? 'twijfel' : 'voor';
-  return `<tr data-code="${esc(c)}" class="${i.klaar ? 'r-klaar' : ''}${aan ? ' k-aan' : ''}"><td class="prod"><div class="row" style="gap:6px;align-items:baseline"><label class="k-chk"><input type="checkbox" data-pk="sel" data-code="${esc(c)}" ${aan ? 'checked' : ''} aria-label="Selecteer ${esc(c)}"></label><a class="code" href="#/productdata/p/${encodeURIComponent(c)}" tabindex="-1" style="font-size:12px">${esc(c)}</a>${abcBadge(c)}<span class="tiny muted">${esc(KZNAAM[i.z] || i.z)} · ${esc(String(p.leverancier || '').slice(0, 28))}</span></div>
+  return `<tr data-code="${esc(c)}" data-ink="${f.ik ? f.ik.med : ''}" class="${i.klaar ? 'r-klaar' : ''}${aan ? ' k-aan' : ''}"><td class="prod"><div class="row" style="gap:6px;align-items:baseline"><label class="k-chk"><input type="checkbox" data-pk="sel" data-code="${esc(c)}" ${aan ? 'checked' : ''} aria-label="Selecteer ${esc(c)}"></label><a class="code" href="#/productdata/p/${encodeURIComponent(c)}" tabindex="-1" style="font-size:12px">${esc(c)}</a>${abcBadge(c)}<span class="tiny muted">${esc(KZNAAM[i.z] || i.z)} · ${esc(String(p.leverancier || '').slice(0, 28))}</span></div>
     <div class="tiny pn" title="${esc(p.naam || '')}">${esc(p.naam || '')}</div>
     <div class="pinfo">${info}</div>
     <div class="k-why ${whyCls}">${W.opslag.s === 'ok' ? '✓ ' : W.opslag.s === 'twijfel' ? 'Twijfel: ' : 'Voorstel: '}${esc(KDISP[W.opslag.v] || W.opslag.v || '')}${W.opslag.why ? ' · ' + esc(W.opslag.why) : ''}</div></td>
@@ -2443,6 +2446,8 @@ function kleinAfhankelijk(inp){
     const met = cel('metn'), n = num(g), mx = num((cel('maxpick') || {}).value);
     if(met && !met.disabled && n && mx && n < mx && !/t-ok|t-nieuw/.test(met.parentNode.className)){ met.value = String(n); met.parentNode.className = 't-voor'; tr.dataset.gezien = '1'; }
   }
+  // andere max → soortvoorstel opnieuw: inkoop past op pick = 4 pick, anders 3 mix (alleen als je de soort nog niet zelf koos)
+  if(k === 'maxpick' && tr.dataset.ink){ const so = cel('opslag'), mx = num(inp.value), ink = num(tr.dataset.ink); if(so && mx && ink && !/t-ok|t-nieuw/.test(so.parentNode.className)){ const nw = ink <= mx ? 'pick' : 'mix'; if(soortNorm(so.value) !== nw){ so.value = KDISP[nw]; so.parentNode.className = 't-voor'; so.title = 'inkoop meestal ' + nf(ink) + (nw === 'pick' ? ' past op pick (max ' : ' is meer dan max op pick (') + nf(mx) + ')'; kleinCellen(tr, nw); } } }
   if(k === 'metn'){ const g = gelNorm((cel('geleverd') || {}).value || ''), n = metStuks(inp.value, g); if(n !== null && /doos|dozen|ds/i.test(inp.value)) inp.value = String(n); }
   const bij = tr.querySelector('.k-bij');
   if(bij){ const mx = num((cel('maxpick') || {}).value), n = metStuks((cel('metn') || {}).value || '', gelNorm((cel('geleverd') || {}).value || '')); bij.textContent = mx !== null && n !== null && n <= mx && !(cel('maxpick') || {}).disabled ? nf(mx - n) : '–'; }
