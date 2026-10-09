@@ -1,0 +1,282 @@
+{
+ "naam": "Voorinvullen afgeleide waarden",
+ "datum": "2026-10-09",
+ "regels": [
+  {
+   "code": "ring-rol-100",
+   "zet": [
+    [
+     "gewicht",
+     "495",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 8 kg × 60 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "WPM-rol-91",
+   "zet": [
+    [
+     "gewicht",
+     "345",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 5.5 kg × 60 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "SM90X120CM",
+   "zet": [
+    [
+     "hoogte",
+     "190",
+     "auto",
+     "Afgeleid door Claude: 17 mm × 100 op een pallet van 90x120 + 15 cm, naar boven afgerond",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "RR0915-10",
+   "zet": [
+    [
+     "gewicht",
+     "405",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 6.5 kg × 60 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "STR-1010010000",
+   "zet": [
+    [
+     "gewicht",
+     "1131",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 7.75 kg × 144 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "6008000000004",
+   "zet": [
+    [
+     "gewicht",
+     "279",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 4.4 kg × 60 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "RING-Roll-heavy",
+   "zet": [
+    [
+     "gewicht",
+     "675",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 11 kg × 60 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "RR100-10",
+   "zet": [
+    [
+     "gewicht",
+     "212",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 3.28 kg × 60 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "RMR16-0-1000",
+   "zet": [
+    [
+     "gewicht",
+     "393",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 6.3 kg × 60 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "SMAT-120-GREY",
+   "zet": [
+    [
+     "gewicht",
+     "502",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 3.24 kg × 150 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "RMR16-0-500",
+   "zet": [
+    [
+     "gewicht",
+     "393",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 3.15 kg × 120 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "RMR22x1200",
+   "zet": [
+    [
+     "gewicht",
+     "591",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 9.6 kg × 60 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "Ring-rol-60",
+   "zet": [
+    [
+     "gewicht",
+     "548",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 4.435 kg × 120 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "STR-1005010000",
+   "zet": [
+    [
+     "gewicht",
+     "753",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 2.5 kg × 295 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "STR-1007010000",
+   "zet": [
+    [
+     "gewicht",
+     "729",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 3.5 kg × 204 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "SB-0109501006",
+   "zet": [
+    [
+     "gewicht",
+     "840",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 75 kg × 11 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "PM-0109400326",
+   "zet": [
+    [
+     "gewicht",
+     "567",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 46 kg × 12 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "ring-rol-80",
+   "zet": [
+    [
+     "gewicht",
+     "402",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 6.45 kg × 60 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "01080620",
+   "zet": [
+    [
+     "gewicht",
+     "765",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 15 kg × 50 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "0109400337-125-mat",
+   "zet": [
+    [
+     "hoogte",
+     "70",
+     "auto",
+     "Afgeleid door Claude: 10 mm × 48 op een pallet van 120x200 + 15 cm, naar boven afgerond",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "0109400337-100-rol",
+   "zet": [
+    [
+     "gewicht",
+     "703",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 86 kg × 8 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "DCD65-5-0-2",
+   "zet": [
+    [
+     "gewicht",
+     "740",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 14.5 kg × 50 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "PM-0109400328",
+   "zet": [
+    [
+     "gewicht",
+     "526",
+     "auto",
+     "Afgeleid door Claude: Picqer-gewicht 73 kg × 7 + 15 kg pallet",
+     null
+    ]
+   ]
+  }
+ ]
+}
