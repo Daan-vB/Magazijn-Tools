@@ -209,6 +209,7 @@ function nodig(code, k, w){
   const spp = w('spp'), pick = w('pick'), e = eenheid(code).e;
   if(['maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig'].includes(k) && NVT(spp)) return false;
   if(['maxpick', 'lvl', 'met'].includes(k) && pick === 'nee') return false;
+  if(['spd', 'doos'].includes(k) && (e === 'm' || e === 'cm' || e === 'rol') && leeg(w(k))) return false;   // per meter/rol: doos is optioneel, telt pas mee als er iets staat
   if(k === 'kgst') return false;   // optioneel: alleen invullen als het Picqer-gewicht niet klopt
   return true;
 }
@@ -1896,7 +1897,7 @@ function tabCel(c, k, f){
     return `<td class="${st.s === 'ok' ? 't-ok' : 't-info'}"><input data-pdt="kgst" data-code="${esc(c)}" value="${esc(st.s === 'ok' ? String(st.v).replace('.', ',') : '')}" data-was="${esc(st.s === 'ok' ? st.v : '')}" placeholder="${pq ? esc(nf(pq, 3)) : '?'}" title="${pq ? 'Picqer: ' + esc(nf(pq, 3)) + ' kg per ' + esc(eh) + '. Alleen invullen als dat niet klopt.' : 'Picqer heeft geen gewicht: vul kg per ' + esc(eh) + ' in'}" inputmode="decimal" autocomplete="off"></td>`;
   }
   const d = VELDEN[k], i = f.info(k), st = staat(c, k), m = S.pd[c] && S.pd[c].meta && S.pd[c].meta[k];
-  const uit = !nodig(c, k, f);
+  const uit = !nodig(c, k, f) && k !== 'spd';   // spd blijft invulbaar (max in doos of alleen pallet) ook als het niet verplicht is
   let cls = 't-mist', ph = '', titel = '';
   if(i.s === 'ok') cls = m && m.bron === 'auto' ? 't-auto' : 't-ok';
   else if(i.s === 'voorstel') cls = 't-voor';
