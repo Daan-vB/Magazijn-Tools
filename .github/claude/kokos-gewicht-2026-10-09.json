@@ -1,0 +1,405 @@
+{
+ "naam": "Kokos gewichten op maat en dikte",
+ "datum": "2026-10-09",
+ "regels": [
+  {
+   "code": "145-0-100-001",
+   "zet": [
+    [
+     "kgst",
+     "0.065",
+     "invul",
+     "Kokosrol 100 cm breed, 17 mm: 6.5 kg/m² (Wallace NL-300) = 65 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "249",
+     "invul",
+     "0.065 kg × 3600 + 15 kg pallet",
+     "267"
+    ]
+   ]
+  },
+  {
+   "code": "145-0-200-007",
+   "zet": [
+    [
+     "kgst",
+     "0.13",
+     "invul",
+     "Kokosrol 200 cm breed, 17 mm: 6.5 kg/m² (Wallace NL-300) = 130 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "483",
+     "invul",
+     "0.13 kg × 3600 + 15 kg pallet",
+     "550"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS200NAT-24",
+   "zet": [
+    [
+     "kgst",
+     "0.18",
+     "invul",
+     "Kokosrol 200 cm breed, 24 mm: 9.0 kg/m² (Wallace NL-300) = 180 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "663",
+     "invul",
+     "0.18 kg × 3600 + 15 kg pallet",
+     "559"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS80120BLK",
+   "zet": [
+    [
+     "kgst",
+     "6.24",
+     "invul",
+     "Kokosmat 80x120, 17 mm: 6,5 kg/m² × 0,96 m² (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "6.24 kg × 50 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS80120BLK-24",
+   "zet": [
+    [
+     "kgst",
+     "9",
+     "invul",
+     "Kokosmat 80x120, 24 mm: 9 kg netto per mat (Wallace NL-304) (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "465",
+     "invul",
+     "9 kg × 50 + 15 kg pallet",
+     "470"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS80120GREY-24",
+   "zet": [
+    [
+     "kgst",
+     "9",
+     "invul",
+     "Kokosmat 80x120, 24 mm: 9 kg netto per mat (Wallace NL-304) (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "465",
+     "invul",
+     "9 kg × 50 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS80120NAT",
+   "zet": [
+    [
+     "kgst",
+     "6.24",
+     "invul",
+     "Kokosmat 80x120, 17 mm: 6,5 kg/m² × 0,96 m² (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "6.24 kg × 50 + 15 kg pallet",
+     "115"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS80120NAT-24",
+   "zet": [
+    [
+     "kgst",
+     "9",
+     "invul",
+     "Kokosmat 80x120, 24 mm: 9 kg netto per mat (Wallace NL-304) (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "465",
+     "invul",
+     "9 kg × 50 + 15 kg pallet",
+     "65"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS100NAT",
+   "zet": [
+    [
+     "kgst",
+     "0.065",
+     "invul",
+     "Kokosrol 100 cm breed, 17 mm: 6.5 kg/m² (Wallace NL-300) = 65 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "249",
+     "invul",
+     "0.065 kg × 3600 + 15 kg pallet",
+     "267"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS100NAT-24",
+   "zet": [
+    [
+     "kgst",
+     "0.09",
+     "invul",
+     "Kokosrol 100 cm breed, 24 mm: 9.0 kg/m² (Wallace NL-300) = 90 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "339",
+     "invul",
+     "0.09 kg × 3600 + 15 kg pallet",
+     "344"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS200BLK-24",
+   "zet": [
+    [
+     "kgst",
+     "0.18",
+     "invul",
+     "Kokosrol 200 cm breed, 24 mm: 9.0 kg/m² (Wallace NL-300) = 180 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "663",
+     "invul",
+     "0.18 kg × 3600 + 15 kg pallet",
+     "559"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS200BROWN-17",
+   "zet": [
+    [
+     "kgst",
+     "0.13",
+     "invul",
+     "Kokosrol 200 cm breed, 17 mm: 6.5 kg/m² (Wallace NL-300) = 130 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "483",
+     "invul",
+     "0.13 kg × 3600 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS200GREEN-17",
+   "zet": [
+    [
+     "kgst",
+     "0.13",
+     "invul",
+     "Kokosrol 200 cm breed, 17 mm: 6.5 kg/m² (Wallace NL-300) = 130 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "405",
+     "invul",
+     "0.13 kg × 3000 + 15 kg pallet",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS200GREY-24",
+   "zet": [
+    [
+     "kgst",
+     "0.18",
+     "invul",
+     "Kokosrol 200 cm breed, 24 mm: 9.0 kg/m² (Wallace NL-300) = 180 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "663",
+     "invul",
+     "0.18 kg × 3600 + 15 kg pallet",
+     "559"
+    ]
+   ]
+  },
+  {
+   "code": "145-0-100-007",
+   "zet": [
+    [
+     "kgst",
+     "0.065",
+     "invul",
+     "Kokosrol 100 cm breed, 17 mm: 6.5 kg/m² (Wallace NL-300) = 65 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "249",
+     "invul",
+     "0.065 kg × 3600 + 15 kg pallet",
+     "267"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS100BLK-24",
+   "zet": [
+    [
+     "kgst",
+     "0.09",
+     "invul",
+     "Kokosrol 100 cm breed, 24 mm: 9.0 kg/m² (Wallace NL-300) = 90 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "339",
+     "invul",
+     "0.09 kg × 3600 + 15 kg pallet",
+     "344"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS100BROWN-17",
+   "zet": [
+    [
+     "kgst",
+     "0.065",
+     "invul",
+     "Kokosrol 100 cm breed, 17 mm: 6.5 kg/m² (Wallace NL-300) = 65 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "249",
+     "invul",
+     "0.065 kg × 3600 + 15 kg pallet",
+     "87"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS100GREEN-17",
+   "zet": [
+    [
+     "kgst",
+     "0.065",
+     "invul",
+     "Kokosrol 100 cm breed, 17 mm: 6.5 kg/m² (Wallace NL-300) = 65 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "249",
+     "invul",
+     "0.065 kg × 3600 + 15 kg pallet",
+     "87"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS100GREY-17",
+   "zet": [
+    [
+     "kgst",
+     "0.065",
+     "invul",
+     "Kokosrol 100 cm breed, 17 mm: 6.5 kg/m² (Wallace NL-300) = 65 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "249",
+     "invul",
+     "0.065 kg × 3600 + 15 kg pallet",
+     "267"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS100GREY-24",
+   "zet": [
+    [
+     "kgst",
+     "0.09",
+     "invul",
+     "Kokosrol 100 cm breed, 24 mm: 9.0 kg/m² (Wallace NL-300) = 90 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "339",
+     "invul",
+     "0.09 kg × 3600 + 15 kg pallet",
+     "344"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS200NAT",
+   "zet": [
+    [
+     "kgst",
+     "0.13",
+     "invul",
+     "Kokosrol 200 cm breed, 17 mm: 6.5 kg/m² (Wallace NL-300) = 130 g per cm (op verzoek Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "483",
+     "invul",
+     "0.13 kg × 3600 + 15 kg pallet",
+     "550"
+    ]
+   ]
+  }
+ ]
+}
