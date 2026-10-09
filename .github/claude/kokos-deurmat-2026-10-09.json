@@ -1,0 +1,574 @@
+{
+ "naam": "Kokos deurmatten 17 mm en 200 cm rollen 12 per pallet",
+ "datum": "2026-10-09",
+ "regels": [
+  {
+   "code": "AK2017(26)-40x60",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "215"
+    ]
+   ]
+  },
+  {
+   "code": "home01-50x80",
+   "zet": [
+    [
+     "kgst",
+     "2.6",
+     "invul",
+     "Deurmat 50x80 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "275",
+     "invul",
+     "2.6 kg × 100 + 15 kg pallet",
+     "115"
+    ]
+   ]
+  },
+  {
+   "code": "home08-50x80",
+   "zet": [
+    [
+     "kgst",
+     "2.6",
+     "invul",
+     "Deurmat 50x80 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "275",
+     "invul",
+     "2.6 kg × 100 + 15 kg pallet",
+     "115"
+    ]
+   ]
+  },
+  {
+   "code": "145-0-200-007",
+   "zet": [
+    [
+     "spp",
+     "7200",
+     "invul",
+     "12 rollen van 6 m per pallet (opgave Daan)",
+     "3600"
+    ],
+    [
+     "gewicht",
+     "951",
+     "invul",
+     "0,13 kg × 7200 + 15 kg pallet",
+     "483"
+    ]
+   ]
+  },
+  {
+   "code": "AK2017(26)-50x80",
+   "zet": [
+    [
+     "kgst",
+     "2.6",
+     "invul",
+     "Deurmat 50x80 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "275",
+     "invul",
+     "2.6 kg × 100 + 15 kg pallet",
+     "115"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS4060RED",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "home10-50x80",
+   "zet": [
+    [
+     "kgst",
+     "2.6",
+     "invul",
+     "Deurmat 50x80 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "275",
+     "invul",
+     "2.6 kg × 100 + 15 kg pallet",
+     "115"
+    ]
+   ]
+  },
+  {
+   "code": "Home5080",
+   "zet": [
+    [
+     "kgst",
+     "2.6",
+     "invul",
+     "Deurmat 50x80 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "275",
+     "invul",
+     "2.6 kg × 100 + 15 kg pallet",
+     "235"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS4060NAT",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "215"
+    ]
+   ]
+  },
+  {
+   "code": "Welcome4060",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "315"
+    ]
+   ]
+  },
+  {
+   "code": "Welcome5080",
+   "zet": [
+    [
+     "kgst",
+     "2.6",
+     "invul",
+     "Deurmat 50x80 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "275",
+     "invul",
+     "2.6 kg × 100 + 15 kg pallet",
+     "235"
+    ]
+   ]
+  },
+  {
+   "code": "specialkokosnat6080",
+   "zet": [
+    [
+     "kgst",
+     "3.12",
+     "invul",
+     "Deurmat 60x80 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "STAR4060",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "215"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS4060BLK",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "215"
+    ]
+   ]
+  },
+  {
+   "code": "Home50x80",
+   "zet": [
+    [
+     "kgst",
+     "2.6",
+     "invul",
+     "Deurmat 50x80 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS200BROWN-17",
+   "zet": [
+    [
+     "spp",
+     "7200",
+     "invul",
+     "12 rollen van 6 m per pallet (opgave Daan)",
+     "3600"
+    ],
+    [
+     "gewicht",
+     "951",
+     "invul",
+     "0,13 kg × 7200 + 15 kg pallet",
+     "483"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS200GREEN-17",
+   "zet": [
+    [
+     "spp",
+     "7200",
+     "invul",
+     "12 rollen van 6 m per pallet (opgave Daan)",
+     "3000"
+    ],
+    [
+     "gewicht",
+     "951",
+     "invul",
+     "0,13 kg × 7200 + 15 kg pallet",
+     "405"
+    ]
+   ]
+  },
+  {
+   "code": "AK2017(40)-40x60",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "215"
+    ]
+   ]
+  },
+  {
+   "code": "AK2017(40)-50x80",
+   "zet": [
+    [
+     "kgst",
+     "2.6",
+     "invul",
+     "Deurmat 50x80 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "275",
+     "invul",
+     "2.6 kg × 100 + 15 kg pallet",
+     "115"
+    ]
+   ]
+  },
+  {
+   "code": "AK2017(48)-40x60",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "215"
+    ]
+   ]
+  },
+  {
+   "code": "AK2017(48)-50x80",
+   "zet": [
+    [
+     "kgst",
+     "2.6",
+     "invul",
+     "Deurmat 50x80 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "275",
+     "invul",
+     "2.6 kg × 100 + 15 kg pallet",
+     "115"
+    ]
+   ]
+  },
+  {
+   "code": "AKWEL2017(1)-40x60",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "215"
+    ]
+   ]
+  },
+  {
+   "code": "AKWEL2017(1)-50x80",
+   "zet": [
+    [
+     "kgst",
+     "2.6",
+     "invul",
+     "Deurmat 50x80 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "275",
+     "invul",
+     "2.6 kg × 100 + 15 kg pallet",
+     "115"
+    ]
+   ]
+  },
+  {
+   "code": "home01-40x60",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "215"
+    ]
+   ]
+  },
+  {
+   "code": "home08-40x60",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "215"
+    ]
+   ]
+  },
+  {
+   "code": "home10-40x60",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "215"
+    ]
+   ]
+  },
+  {
+   "code": "Home4060",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "315"
+    ]
+   ]
+  },
+  {
+   "code": "KOKOS200NAT",
+   "zet": [
+    [
+     "spp",
+     "7200",
+     "invul",
+     "12 rollen van 6 m per pallet (opgave Daan)",
+     "3600"
+    ],
+    [
+     "gewicht",
+     "951",
+     "invul",
+     "0,13 kg × 7200 + 15 kg pallet",
+     "483"
+    ]
+   ]
+  },
+  {
+   "code": "LEAF4060",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "115"
+    ]
+   ]
+  },
+  {
+   "code": "LEAF5080",
+   "zet": [
+    [
+     "kgst",
+     "2.6",
+     "invul",
+     "Deurmat 50x80 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "275",
+     "invul",
+     "2.6 kg × 100 + 15 kg pallet",
+     "65"
+    ]
+   ]
+  },
+  {
+   "code": "PANTER4060",
+   "zet": [
+    [
+     "kgst",
+     "1.56",
+     "invul",
+     "Deurmat 40x60 cm, 17 mm: 6,5 kg/m² (opgave Daan)",
+     null
+    ],
+    [
+     "gewicht",
+     "327",
+     "invul",
+     "1.56 kg × 200 + 15 kg pallet",
+     "115"
+    ]
+   ]
+  }
+ ]
+}
