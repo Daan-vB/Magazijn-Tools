@@ -1907,10 +1907,17 @@ function tabCel(c, k, f){
   const v = i.s === 'dubbel' ? '' : (d.type === 'keus' && i.v ? i.v : i.v);
   return `<td class="${uit ? 't-nvt' : cls}"><input data-pdt="${k}" data-code="${esc(c)}" value="${esc(uit ? '' : v)}" data-was="${esc(st.s === 'ok' ? st.v : '')}" ${uit ? 'disabled placeholder="–"' : `placeholder="${esc(ph)}"`} title="${esc(titel)}" autocomplete="off" ${d.type === 'num' ? 'inputmode="decimal"' : ''}></td>`;
 }
+// gewicht van het product altijd zichtbaar: Picqer-gewicht per stuk/m/rol (en eigen waarde als die afwijkt)
+function gewichtRegel(c){
+  const pq = kgPicqer(c), eh = ENKEL[eenheid(c).mv] || eenheid(c).mv, st = staat(c, 'kgst'), eigen = st.s === 'ok' && num(st.v) ? num(st.v) : null;
+  if(kgOnb(c)) return 'kg per ' + esc(eh) + ': nog uitzoeken (x)' + (pq ? ' · Picqer ' + nf(pq, 3) : '');
+  if(eigen) return 'kg per ' + esc(eh) + ': ' + nf(eigen, 3) + (pq && Math.abs(pq - eigen) > 0.0005 ? ' (Picqer ' + nf(pq, 3) + ')' : '');
+  return pq ? 'kg per ' + esc(eh) + ': ' + nf(pq, 3) : 'kg per ' + esc(eh) + ': geen gewicht in Picqer';
+}
 function tabRij(c){
   const p = D.P[c] || {}, f = kaartFn(c, { schat:true }), l = locaties(c), eh = eenheid(c), st = feedStatus(c, f);
   return `<tr data-code="${esc(c)}" class="${st.s === 'klaar' ? 'r-klaar' : ''}"><td class="prod"><div class="row" style="gap:6px;align-items:baseline"><a class="code" href="#/productdata/p/${encodeURIComponent(c)}" tabindex="-1" style="font-size:12px">${esc(c)}</a>${abcBadge(c)}</div>
-    <div class="tiny" style="line-height:1.25">${esc(String(p.naam || '').slice(0, 64))}</div><div class="tiny muted">${esc(l.pick.map(a => a[0]).slice(0, 1).join('') || l.bulk.map(a => a[0]).slice(0, 1).join('') || '–')} · telt ${esc(eh.mv)}</div>${(ik => ik ? `<div class="tiny" style="color:#5a3e8f" title="Inkooporders afgelopen 12 maanden: ${ik.n}×, totaal ${nf(ik.tot)}, kleinste ${nf(ik.min)}, grootste ${nf(ik.max)}">inkoop ${ik.n}× · meestal ${nf(ik.med)} · max ${nf(ik.max)}</div>` : '')(inkVan(c))}</td>
+    <div class="tiny" style="line-height:1.25">${esc(String(p.naam || '').slice(0, 64))}</div><div class="tiny muted">${esc(l.pick.map(a => a[0]).slice(0, 1).join('') || l.bulk.map(a => a[0]).slice(0, 1).join('') || '–')} · telt ${esc(eh.mv)}</div><div class="tiny" style="color:#0b5a8a;font-weight:600">${gewichtRegel(c)}</div>${(ik => ik ? `<div class="tiny" style="color:#5a3e8f" title="Inkooporders afgelopen 12 maanden: ${ik.n}×, totaal ${nf(ik.tot)}, kleinste ${nf(ik.min)}, grootste ${nf(ik.max)}">inkoop ${ik.n}× · meestal ${nf(ik.med)} · max ${nf(ik.max)}</div>` : '')(inkVan(c))}</td>
     ${TAB_KOL.map(([k]) => tabCel(c, k, f)).join('')}<td class="t-st" aria-live="polite">${st.s === 'klaar' ? '✓' : ''}</td></tr>`;
 }
 function viewTabel(zone){
