@@ -2182,7 +2182,8 @@ const levKort = c => String((D.P[c] || {}).leverancier || '?').replace(/\b(b\.?v
 function mixgroepVoorstel(c){
   const g = vanGenoten(kleurgenoten(c), 'mixgroep', 'zelfde als', 'mixgroep:genoot'); if(g) return g;
   const f = vanGenoten(famLeden(c), 'mixgroep', 'familie:', 'mixgroep:fam'); if(f) return f;
-  const w = famNaam(naamVan(c)).split(' ').filter(x => x.length > 2).slice(0, 2).join(' ');
+  // grof: leverancier + eerste woord van het product ("Vica · trapmaantje"), zodat vergelijkbare producten samen komen
+  const w = famNaam(naamVan(c)).split(' ').filter(x => x.length > 2)[0] || '';
   return uit('mixgroep:naam', levKort(c) + (w ? ' · ' + w : ''), 'leverancier + soort product');
 }
 // wat de regel laat zien: vastgelegd, voorstel (geel), schatting (oranje) of mist
