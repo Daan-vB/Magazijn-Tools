@@ -784,23 +784,26 @@ function stijl(){
   .pd-bron > div{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px}
   .pd-bron span{color:var(--muted);font-weight:700}
   body.pd-lock{overflow:hidden}
-  .pd-tg{border-collapse:separate;border-spacing:0;font-size:13px;width:100%;min-width:1160px}
+  main:has(.pd-tg){max-width:none;padding-left:12px;padding-right:12px}
+  .pd-tg{border-collapse:separate;border-spacing:0;font-size:13px;width:100%;min-width:1100px}
   .pd-tg th{text-align:left;padding:6px 6px;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:700;border-bottom:1px solid #d6dde5;background:#fbfcfd;white-space:nowrap}
   .pd-tg td{padding:0;border-bottom:1px solid #e3e8ee;border-right:1px solid #eef1f4;vertical-align:middle;white-space:nowrap}
-  .pd-tg .prod{position:sticky;left:0;z-index:1;background:#fff;padding:5px 8px;min-width:240px;max-width:270px;white-space:normal;border-right:1px solid #d6dde5}
+  .pd-tg .prod{position:sticky;left:0;z-index:1;background:#fff;padding:5px 8px;min-width:300px;max-width:440px;width:32%;white-space:normal;border-right:1px solid #d6dde5}
+  .pd-tg .pn{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.25}
+  .pd-tg .pinfo{display:flex;flex-wrap:wrap;gap:0 10px;font-size:11px;line-height:1.35}
   .pd-tg th.prod{background:#fbfcfd;z-index:2}
-  .pd-tg input{border:0;border-radius:0;width:100%;height:36px;padding:4px 6px;font-size:14px;background:transparent;color:var(--ink);min-width:0}
+  .pd-tg input{border:0;border-radius:0;width:100%;height:32px;padding:3px 6px;font-size:13.5px;background:transparent;color:var(--ink);min-width:0}
   .pd-tg input:focus{outline:2px solid var(--blue);outline-offset:-2px;background:#fff}
   .pd-tg input:disabled{background:transparent;pointer-events:none}
   .pd-tg tr:focus-within .prod{background:#f3f7fd}
   .pd-tg tr.r-klaar .prod{box-shadow:inset 4px 0 0 var(--ok)}
   .t-ok{background:#fff} .t-auto{background:#e9f6f3} .t-voor{background:#fff8d6} .t-schat{background:#fff1e0} .t-dub{background:#fdebd8}
-  .pd-alleenpal{display:block;margin-top:2px;font-size:10px;line-height:1.2;padding:1px 4px;border:1px solid #c9ced6;border-radius:4px;background:#f6f7f9;color:#445;cursor:pointer;white-space:nowrap}
+  .pd-alleenpal{position:absolute;right:3px;top:50%;transform:translateY(-50%);font-size:10px;line-height:1.2;padding:2px 4px;border:1px solid #c9ced6;border-radius:4px;background:#f6f7f9;color:#445;cursor:pointer;white-space:nowrap}
   .t-mist{background:#fff;box-shadow:inset 0 0 0 1px #efc2be} .t-nieuw{background:#eef4fc} .t-fout{background:#fde2e1;box-shadow:inset 0 0 0 2px var(--bad)} .t-nvt{background:#f3f5f8}
   .t-info{background:#f7f9fb} .t-info input::placeholder{color:#7a8795;opacity:1}
   .t-st{width:28px;text-align:center;font-weight:800;color:var(--ok)} .t-st.t-err{color:var(--bad);cursor:help}
   .pd-tl{display:inline-block;padding:1px 6px;border-radius:4px;border:1px solid #e3e8ee}
-  .pd-tg td{position:relative}
+  .pd-tg td{position:relative} .pd-tg td:has(.pd-alleenpal) input{padding-right:78px}
   .pd-tg input.sel{background:rgba(37,99,235,.16)} .pd-tg input.sel:focus{background:#fff}
   .pd-fh{position:absolute;right:-4px;bottom:-4px;width:8px;height:8px;background:var(--blue);border:1px solid #fff;cursor:crosshair;z-index:3}
   .pd-tg.slepen, .pd-tg.slepen input{cursor:crosshair;user-select:none}
@@ -1917,8 +1920,11 @@ function gewichtRegel(c){
 }
 function tabRij(c){
   const p = D.P[c] || {}, f = kaartFn(c, { schat:true }), l = locaties(c), eh = eenheid(c), st = feedStatus(c, f);
-  return `<tr data-code="${esc(c)}" class="${st.s === 'klaar' ? 'r-klaar' : ''}"><td class="prod"><div class="row" style="gap:6px;align-items:baseline"><a class="code" href="#/productdata/p/${encodeURIComponent(c)}" tabindex="-1" style="font-size:12px">${esc(c)}</a>${abcBadge(c)}</div>
-    <div class="tiny" style="line-height:1.25">${esc(String(p.naam || '').slice(0, 64))}</div><div class="tiny muted">${esc(l.pick.map(a => a[0]).slice(0, 1).join('') || l.bulk.map(a => a[0]).slice(0, 1).join('') || '–')} · telt ${esc(eh.mv)}</div><div class="tiny" style="color:#0b5a8a;font-weight:600">${gewichtRegel(c)}</div>${(ik => ik ? `<div class="tiny" style="color:#5a3e8f" title="Inkooporders afgelopen 12 maanden: ${ik.n}×, totaal ${nf(ik.tot)}, kleinste ${nf(ik.min)}, grootste ${nf(ik.max)}">inkoop ${ik.n}× · meestal ${nf(ik.med)} · max ${nf(ik.max)}</div>` : '')(inkVan(c))}</td>
+  const plek = l.pick.map(a => a[0]).slice(0, 1).join('') || l.bulk.map(a => a[0]).slice(0, 1).join('') || '–';
+  const ik = inkVan(c);
+  return `<tr data-code="${esc(c)}" class="${st.s === 'klaar' ? 'r-klaar' : ''}"><td class="prod"><div class="row" style="gap:6px;align-items:baseline"><a class="code" href="#/productdata/p/${encodeURIComponent(c)}" tabindex="-1" style="font-size:12px">${esc(c)}</a>${abcBadge(c)}<span class="tiny muted">${esc(plek)} · telt ${esc(eh.mv)}</span></div>
+    <div class="tiny pn" title="${esc(String(p.naam || ''))}">${esc(String(p.naam || ''))}</div>
+    <div class="pinfo"><span style="color:#0b5a8a;font-weight:600">${gewichtRegel(c)}</span>${ik ? `<span style="color:#5a3e8f" title="Inkooporders afgelopen 12 maanden: ${ik.n}×, totaal ${nf(ik.tot)}, kleinste ${nf(ik.min)}, grootste ${nf(ik.max)}">inkoop ${ik.n}× · meestal ${nf(ik.med)} · max ${nf(ik.max)}</span>` : ''}</div></td>
     ${TAB_KOL.map(([k]) => tabCel(c, k, f)).join('')}<td class="t-st" aria-live="polite">${st.s === 'klaar' ? '✓' : ''}</td></tr>`;
 }
 function viewTabel(zone){
