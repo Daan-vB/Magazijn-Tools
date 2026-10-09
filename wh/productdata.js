@@ -215,6 +215,7 @@ function nodig(code, k, w){
   if(['maxpick', 'lvl', 'met'].includes(k) && pick === 'nee') return false;
   if(['spd', 'doos'].includes(k) && (e === 'm' || e === 'cm' || e === 'rol') && leeg(w(k))) return false;   // per meter/rol: doos is optioneel, telt pas mee als er iets staat
   if(k === 'kgst') return false;   // optioneel: alleen invullen als het Picqer-gewicht niet klopt
+  if(k === 'gewicht' && kgOnb(code) && LEEGWAARDE(pdWaarde(code, 'gewicht'))) return false;   // x bij kg: eerst wegen (taak), houdt de regel niet open
   return true;
 }
 // huidige toestand van een veld
@@ -1943,7 +1944,7 @@ function tabCel(c, k, f){
     return `<td class="${st.s === 'ok' ? 't-ok' : 't-info'}"><input data-pdt="kgst" data-code="${esc(c)}" value="${esc(st.s === 'ok' ? String(st.v).replace('.', ',') : '')}" data-was="${esc(st.s === 'ok' ? st.v : '')}" placeholder="${pq ? esc(nf(pq, 3)) : '?'}" title="${pq ? 'Picqer: ' + esc(nf(pq, 3)) + ' kg per ' + esc(eh) + '. Alleen invullen als dat niet klopt.' : 'Picqer heeft geen gewicht: vul kg per ' + esc(eh) + ' in'}" inputmode="decimal" autocomplete="off"></td>`;
   }
   const d = VELDEN[k], i = f.info(k), st = staat(c, k), m = S.pd[c] && S.pd[c].meta && S.pd[c].meta[k];
-  const uit = !nodig(c, k, f) && k !== 'spd';   // spd blijft invulbaar (max in doos of alleen pallet) ook als het niet verplicht is
+  const uit = !nodig(c, k, f) && k !== 'spd' && !(k === 'gewicht' && kgOnb(c));   // spd blijft invulbaar (max in doos of alleen pallet) ook als het niet verplicht is
   let cls = 't-mist', ph = '', titel = '';
   if(i.s === 'ok') cls = m && m.bron === 'auto' ? 't-auto' : 't-ok';
   else if(i.s === 'voorstel') cls = 't-voor';
@@ -1979,6 +1980,7 @@ function viewTabel(zone){
   const lijst = Object.entries(groepen);
   // zelfde telling als het klein-spul-scherm met deze afdeling en "nog te doen"
   const nKlein = kleinTelZone(zone);
+  { const t = (D.TODO || {})['pd-wegen'], n = kgLijst().length; if(n && (!t || t.klaar || !String(t.titel).includes(plural(n, 'product', 'producten')))) wegenTaak(); }
   app.innerHTML = `<div class="pd-feedkop"><div class="row between wrap" style="gap:8px"><div><a class="small" href="#/productdata/afd">← Afdelingen</a> <b style="font-size:18px;margin-left:6px">${esc(ZONENAAM[zone] || zone)}</b> <span class="small muted">${esc(zoneLabel(zone, alle))}</span></div>
       <div class="pd-chips"><button class="pd-chip ${filt === 'open' ? 'on' : ''}" data-pd="afdfilter" data-v="open">Nog te doen<span class="n">${nf(nOpen)}</span></button><button class="pd-chip ${filt === 'alles' ? 'on' : ''}" data-pd="afdfilter" data-v="alles">Alles<span class="n">${nf(alle.length)}</span></button><a class="pd-chip" href="#/productdata/afd/${zone}/kaart" style="text-decoration:none">Kaartjes</a>${nKlein ? `<a class="pd-chip" href="#/productdata/klein/${encodeURIComponent(zone)}" style="text-decoration:none;border-color:#5a3e8f;color:#5a3e8f" title="Producten in deze afdeling die los of in dozen komen: daar zijn de palletvelden niet nodig">Klein spul hier<span class="n">${nf(nKlein)}</span></a>` : ''}</div></div>
     <div class="pd-chips mt8"><button class="pd-chip ${!lev ? 'on' : ''}" data-pd="afdlev" data-v="">Alle leveranciers</button>${Object.entries(levs).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([l, k]) => `<button class="pd-chip ${lev === l ? 'on' : ''}" data-pd="afdlev" data-v="${esc(l)}">${esc(l.length > 26 ? l.slice(0, 24) + '…' : l)}<span class="n">${k}</span></button>`).join('')}</div>
@@ -2021,6 +2023,7 @@ async function tabBewaarRij(tr){
     await opslaan({ [c]:wijz }, klein ? 'klein' : 'tabel');
     tr.querySelectorAll('input[data-pdt]:not([disabled])').forEach(inp => { if(inp.value.trim()){ const v = tabNorm(inp.dataset.pdt, inp.value); inp.parentNode.className = v === 'onb' ? 't-dub' : 't-ok'; if(v === 'onb') inp.value = 'x'; inp.dataset.was = v; } else if(inp.dataset.pdt === 'kgst') inp.parentNode.className = 't-info'; });
     status.textContent = '✓'; status.title = ''; status.className = 't-st'; tr.classList.add('r-klaar'); delete tr.dataset.vuil; delete tr.dataset.gezien;
+    if('kgst' in wijz) wegenTaak();
   }catch(e){ status.textContent = '!'; status.title = e.message; status.className = 't-st t-err'; toast(c + ': ' + e.message, 6000); }
   finally{ delete tr.dataset.bezig; }
 }
@@ -2431,6 +2434,21 @@ app.addEventListener('change', ev => {
 });
 
 /* ---------- gewicht uitzoeken: producten waar je x hebt gezet bij kg per st/m ---------- */
+// één taak op Vandaag ("Wegen"), bijgewerkt bij elke x of ingevuld gewicht; leeg = afgevinkt
+let wegenT = null;
+function wegenTaak(){
+  clearTimeout(wegenT);
+  wegenT = setTimeout(async () => {
+    try{
+      const l = kgLijst().sort(), oud = (D.TODO || {})['pd-wegen'], nu = new Date().toISOString();
+      if(!l.length){ if(oud && !oud.klaar) await WH.catPatch('wh-todo', { 'pd-wegen':Object.assign({}, oud, { klaar:{ op:nu, door:'app' } }) }); return; }
+      const taak = Object.assign({ id:'pd-wegen', wie:['Daan'], datum:isoDag(), tijd:'', herhaal:null, prio:2, door:'Productdata', op:nu }, oud && !oud.klaar ? oud : {}, {
+        titel:'Wegen: gewicht van ' + plural(l.length, 'product', 'producten'),
+        noot:'Picqer-gewicht klopt niet (x bij kg per st/m). Weeg 1 stuk/meter, vul het in bij Productdata → Gewicht uitzoeken: ' + l.slice(0, 25).join(', ') + (l.length > 25 ? ' +' + (l.length - 25) : ''), klaar:null });
+      await WH.catPatch('wh-todo', { 'pd-wegen':taak });
+    }catch(e){}
+  }, 800);
+}
 const kgLijst = () => Object.keys(S.pd).filter(c => D.P[c] && kgOnb(c));
 function kgKaart(){
   const l = kgLijst(); if(!l.length) return '';
