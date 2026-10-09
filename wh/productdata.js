@@ -31,7 +31,7 @@ const LAGEN = [
 const PLAATSEN = ['1', '1,2', '1,3', '2', '3'];
 const MATEN = ['80x120', '100x100', '100x120', '110x110', '90x120', '100x150', '120x150', '120x180', '100x200', '120x200', '120x240', '130x210', '130x250', '40x120', '40x200'];
 const VELDEN = {
-  opslag:  { t:'Soort', laag:1, type:'keus', opt:[['pallet', '1 Pallet'], ['deel', '2 Deel'], ['mix', '3 Mix'], ['pick', '4 Pick']], hint:'1 pallet: aanvullen met volle pallet · 2 deel: pallets op bulk, pick krijgt een deel · 3 mix: dozen op een mixpallet · 4 pick: alles direct naar pick' },
+  opslag:  { t:'Soort', laag:1, type:'keus', opt:[['pallet', '1 Pallet'], ['deel', '2 Deel'], ['mix', '3 Mix'], ['pick', '4 Pick']], hint:'1 pallet: picklocatie, aangevuld met volle pallets · 2 deel: picklocatie aangevuld met een deel, of geen pick en alleen bulk (per order verplaatst) · 3 mix: dozen op een mixpallet · 4 pick: alles direct naar pick' },
   spp:     { t:'Stuks per pallet', laag:1, type:'num', eh:true, hint:'nvt = komt niet op pallet · onb = weet ik niet' },
   pick:    { t:'Picklocatie', laag:1, type:'keus', opt:[['ja', 'Ja'], ['nee', 'Nee, alleen bulk']] },
   maxpick: { t:'Max op pick', laag:1, type:'num', eh:true, hint:'Aanvullen bij + wat je bijvult. Bij 10 en een pallet van 67: 77' },
@@ -2155,13 +2155,12 @@ function soortVoorstel(c, f){
     // alleen bulk: wordt per backorder van de pallet gehaald = deel van een pallet
     if((pk.s === 'ok' && pk.v === 'nee') || !f.l.pick.length) return ja('deel', spoor + ', alleen bulk: per backorder een deel van de pallet');
     if(f.max && n && lv.s === 'ok'){ const bij = f.max - num(lv.v); return bij >= n ? ja('pallet', spoor + ', bijvullen ' + nf(bij) + ' ≥ 1 pallet') : ja('deel', spoor + ', bijvullen ' + nf(bij) + ' < 1 pallet'); }
-    // volle pallet alleen bij een echte vloerplek (niet Midden) en geen grote voorraad (VST of meerdere pallets op bulk)
-    const bpal = f.l.bulk.filter(a => num(a[1]) > 0).length;
-    if(f.l.pick.some(a => /00$/.test(a[0])) && !isMidden(c) && !f.vst && bpal <= 1) return ja('pallet', spoor + ', picklocatie op de vloer');
-    if(f.vst || bpal > 1) return ja('deel', spoor + (f.vst && !/VST/.test(spoor) ? ', ' + nf(f.vst) + ' op VST' : '') + (bpal > 1 ? ', ' + bpal + ' pallets op bulk' : '') + ': veel voorraad, pick krijgt een deel');
+    // 1 pallet = picklocatie die met volle pallets wordt gevuld. Zonder aanvulgegevens: alleen een echte vloerplek (niet Midden) wijst daarop
+    if(f.l.pick.some(a => /00$/.test(a[0])) && !isMidden(c)) return ja('pallet', spoor + ', picklocatie op de vloer: waarschijnlijk volle pallets');
     const bp = f.l.bulk.filter(a => num(a[1]) > 0).length;
-    return ja('deel', spoor + (bp ? ', ' + bp + ' op bulk' : '') + (f.l.pick.length ? ', picklocatie in de stelling' : ''));
+    return ja('deel', spoor + (bp ? ', ' + bp + ' op bulk' : '') + ', picklocatie in de stelling of Midden: geen volle pallets');
   }
+  if(!f.l.pick.length && f.buiten > 0 && !NVT(spp)) return ja('deel', 'geen picklocatie, alleen bulk: per order verplaatst');
   if(e.e !== 'st' && !NVT(spp)) return tw('deel', 'Picqer telt ' + e.t + ', geen palletgegevens');
   const mnd = f.ik && f.vk ? f.ik.med / f.vk : null;
   const inkT = f.ik ? 'inkoop meestal ' + nf(f.ik.med) + (mnd !== null ? ' (≈ ' + nf(mnd, 1) + ' mnd verkoop)' : '') : 'geen inkoop in 12 mnd';
