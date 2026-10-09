@@ -489,7 +489,7 @@ function inScope(code, sc, metFilter = true){
   if(metFilter && UI.lev && p.leverancier !== UI.lev) return false;
   const abc = abcVan(code);
   switch(sc || UI.scope){
-    case 'belangrijk': return (abc === 'A' || abc === 'B' || index().binnen.has(code)) && !isLater(code) && !alleenPick(code);
+    case 'belangrijk': return abc === 'A' || abc === 'B' || index().binnen.has(code);
     case 'A': return abc === 'A';
     case 'AB': return abc === 'A' || abc === 'B';
     case 'beweegt': return !!(abc || pdVan(code) > 0 || vkmVan(code) > 0 || index().bo[code]);
@@ -1516,7 +1516,7 @@ function regelIndeling(){
   const per = {}, zonderPick = {}, van = {};
   REGELS.forEach(R => { per[R.id] = []; zonderPick[R.id] = 0; });
   Object.keys(D.P).forEach(c => {
-    if(!actief(c) || isLater(c) || alleenPick(c) || isOutlet(c)) return;
+    if(!actief(c) || isLater(c) || isOutlet(c)) return;
     const R = REGELS.find(R => R.past(c)); if(!R) return;
     if(locaties(c).pick.length){ per[R.id].push(c); van[c] = R; } else zonderPick[R.id]++;
   });
@@ -1609,7 +1609,7 @@ async function bewaarRegel(){
 // tegels in CE: wat regelmatig gepickt wordt maar geen picklocatie heeft, of wel een picklocatie maar geen aanvuladvies
 function tegelOverzicht(){
   return Object.keys(D.P).filter(c => {
-    if(!actief(c) || isLater(c) || alleenPick(c) || isOutlet(c)) return false;
+    if(!actief(c) || isLater(c) || isOutlet(c)) return false;
     const p = D.P[c], tags = String(p.tags || '').toLowerCase();
     if(/kunststof pen|\bpin\b|pen voor|pennen/i.test(p.naam || '')) return false;
     const tegel = /tile5050|tile50100/.test(tags) || String(p.locaties_hm || '').split(',').some(l => /^\s*CE/i.test(l)) || /rubber tegel|puzzeltegel|vloertegel/i.test(p.naam || '');
@@ -1665,7 +1665,7 @@ function autoPlan(codes){
 const REGELNAAM = { regel:'aanvulregel', 'maxpick:picqer':'Picqer-instelling', 'lvl:picqer':'Picqer-instelling', 'hoogte:genoot':'kleurgenoot', 'vn:genoot':'naam kleurgenoot', 'spp:mvvst':'verplaatst naar VST', 'spp:vst2':'VST-pallets', 'spp:bulk2':'bulkpallets', oud:'palletlabels / containers', 'pick:picqer':'Picqer-locatie', 'maxpick:aanvulbase':'aanvulbase', 'lvl:aanvulbase':'aanvulbase', 'maxpick:som':'bij + volle pallet', 'met:som':'uit bij en max', 'met:geenpallet':'komt niet op pallet', 'maat:afm':'Picqer-afmetingen', 'hoogte:fam':'familie', 'gewicht:pakbon':'pakbon', 'gewicht:picqer':'Picqer-gewicht', 'gewicht:picqerm':'Picqer-gewicht per m/cm/rol', 'gewicht:eigen':'jouw kg per stuk/m', 'plaatsen:maat':'uit palletmaat', 'maxlig:fam':'familie' };
 const regelNaam = r => REGELNAAM[r] || (/:genoot$/.test(r) ? 'kleurgenoot' : r);
 function viewAuto(){
-  const sc = UI.autoScope || 'belangrijk', codes = lijst(sc, false).filter(c => !isLater(c) && !alleenPick(c));
+  const sc = UI.autoScope || 'belangrijk', codes = lijst(sc, false).filter(c => !isLater(c));
   const { rijen, tel } = autoPlan(codes);
   const nW = rijen.reduce((s, r) => s + Object.keys(r.nieuw).length, 0);
   const nAuto = Object.values(S.pd).reduce((s, r) => s + Object.values(r.meta || {}).filter(m => m && m.bron === 'auto').length, 0);
@@ -1688,7 +1688,7 @@ function viewAuto(){
     <div class="row wrap">${nAuto ? `<button class="btn" data-pd="autoweg">Automatische waarden weghalen</button>` : ''}<button class="btn acc" data-pd="autosave" ${nW ? '' : 'disabled'}>Vul ${nf(nW)} waarden in</button></div></div>`;
 }
 async function bewaarAuto(){
-  const { rijen } = autoPlan(lijst(UI.autoScope || 'belangrijk', false).filter(c => !isLater(c) && !alleenPick(c)));
+  const { rijen } = autoPlan(lijst(UI.autoScope || 'belangrijk', false).filter(c => !isLater(c)));
   const wijz = {}; rijen.forEach(r => { wijz[r.code] = r.nieuw; });
   const n = await opslaan(wijz, 'auto');
   return { n, nW:rijen.reduce((s, r) => s + Object.keys(r.nieuw).length, 0) };
@@ -1704,9 +1704,9 @@ async function autoWeg(){
    Midden (Batch Midden) is van Katerina: apart en overgeslagen. */
 const KORT = { spp:'Per pallet', pick:'Pick', lvl:'Bij', maxpick:'Max', met:'Met', maat:'Maat', hoogte:'Hoogte', gewicht:'Gewicht', plaatsen:'Plaatsen', maxlig:'Max/ligger', spd:'Per doos', vn:'Vloernaam' };
 const FEED_VELDEN = ['spp', 'pick', 'lvl', 'maxpick', 'met', 'maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig', 'spd', 'vn'];
-const zoneVan = c => { if(isMidden(c)) return 'MIDDEN'; if(isOpMaat(c)) return 'OPMAAT'; const l = locaties(c), loc = (l.pick[0] || l.bulk[0] || [''])[0]; return String(loc).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2) || 'GEEN'; };
-const ZONENAAM = { MIDDEN:'Midden (Katerina)', OPMAAT:'Ribbel 40/50 op maat (stellingkast)', GEEN:'Zonder locatie' };
-const LATER = { MIDDEN:'Van Katerina, slaan we nu over', OPMAAT:'Concept nog in ontwikkeling, slaan we nu over' };
+const zoneVan = c => { if(isMidden(c)) return 'MIDDEN'; if(isOpMaat(c)) return 'OPMAAT'; if(alleenPick(c)) return 'PICK'; const l = locaties(c), loc = (l.pick[0] || l.bulk[0] || [''])[0]; return String(loc).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2) || 'GEEN'; };
+const ZONENAAM = { PICK:'Alleen pick (los van pallet en aanvullen)', MIDDEN:'Midden (Katerina)', OPMAAT:'Ribbel 40/50 op maat (stellingkast)', GEEN:'Zonder locatie' };
+const LATER = { PICK:'Ligt op één plek, geen pallets of aanvullen: apart', MIDDEN:'Van Katerina, slaan we nu over', OPMAAT:'Concept nog in ontwikkeling, slaan we nu over' };
 const STOPW = new Set('voor met zonder van per set incl inclusief stuks stuk rand design nieuw'.split(' '));
 function zoneLabel(zone, codes){
   if(ZONENAAM[zone]) return ZONENAAM[zone];
