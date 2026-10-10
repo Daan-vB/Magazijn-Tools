@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="IVOL 3.0">
+<meta name="theme-color" content="#10151c">
+<title>IVOL Warehouse 3.0</title>
+<link rel="icon" type="image/png" href="junior-icon-192.png">
+<link rel="apple-touch-icon" href="junior-icon-192.png">
+<style>
+  :root{--blauw:#1d4ea0;--oranje:#e8590c;--ink:#10151c;--bg:#eef1f5;--lijn:#cdd5df;--zacht:#f6f8fb;--muted:#5b6673;--ok:#1c7a4a;--warn:#b86e00;--rood:#b3261e;--zij:#161d26;--zijtekst:#c4cfdd}
+  *{box-sizing:border-box;margin:0;padding:0}
+  [hidden]{display:none !important}
+  html,body{height:100%}
+  body{font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.45;display:grid;grid-template-columns:250px 1fr;grid-template-rows:auto 1fr;grid-template-areas:"kop kop" "zij inhoud"}
+  a{color:var(--blauw)}
+  .kop{grid-area:kop;background:var(--ink);color:#e8edf4;display:flex;align-items:center;gap:12px;padding:9px 16px;padding-top:calc(9px + env(safe-area-inset-top,0px));min-width:0}
+  .kop h1{font-size:17px;font-weight:800;white-space:nowrap}
+  .kop h1 span{color:#f08a4b}
+  .kop .nul{font-size:10.5px;font-weight:800;letter-spacing:.12em;background:#f08a4b;color:var(--ink);padding:3px 7px;border-radius:3px}
+  #kruimel{font-size:13px;color:#9fb0c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .kop .rechts{margin-left:auto;display:flex;gap:8px;align-items:center}
+  #rollen{display:flex;background:#222b37;border-radius:7px;padding:2px}
+  #rollen button{background:transparent;border:0;color:#9fb0c4;font:inherit;font-size:13px;font-weight:800;padding:5px 10px;border-radius:5px;cursor:pointer}
+  #rollen button.aan{background:#f08a4b;color:var(--ink)}
+  .kop a.uit{color:#c4cfdd;text-decoration:none;font-size:13px;font-weight:700;background:#222b37;padding:6px 10px;border-radius:6px;white-space:nowrap}
+  #menuknop{display:none;background:#222b37;border:0;color:#fff;font:inherit;font-weight:800;padding:6px 10px;border-radius:6px;cursor:pointer}
+  .zij{grid-area:zij;background:var(--zij);overflow-y:auto;padding:10px 8px 40px}
+  .groep{margin-bottom:10px}
+  .gt{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#7d8da0;padding:8px 10px 4px}
+  .zij a{display:flex;align-items:center;justify-content:space-between;gap:6px;color:var(--zijtekst);text-decoration:none;padding:7px 10px;border-radius:6px;font-weight:600;font-size:14px}
+  .zij a:hover{background:#1f2834}
+  .zij a.aan{background:#2a3543;color:#fff;box-shadow:inset 3px 0 0 #f08a4b}
+  i.st{font-style:normal;font-size:10.5px;font-weight:800;padding:1px 6px;border-radius:8px;white-space:nowrap}
+  i.st.ok{background:#dff3e8;color:var(--ok)} i.st.warn{background:#fff1dc;color:var(--warn)} i.st.grijs{background:#e9ecf0;color:#5b6673}
+  .zij i.st.warn{background:#3a3020;color:#f0c27a} .zij i.st.grijs{background:#2a3038;color:#9aa7b8}
+  .inhoud{grid-area:inhoud;min-width:0;min-height:0;position:relative}
+  #frame{border:0;width:100%;height:100%;display:block;background:var(--bg)}
+  #native{height:100%;overflow-y:auto}
+  .pagina{max-width:1040px;margin:0 auto;padding:20px 18px 80px;display:grid;gap:16px}
+  .pagina h1{font-size:26px;font-weight:800}
+  .lede{color:var(--muted);max-width:70ch}
+  .muted{color:var(--muted)} .klein{font-size:13px}
+  .code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+  code{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:#e9ecf0;padding:1px 5px;border-radius:4px}
+  .taak{background:var(--ink);color:#e8edf4;border-radius:12px;padding:18px;display:grid;gap:8px;border-left:8px solid #f08a4b}
+  .taak h2{font-size:20px;font-weight:800}
+  .taak p{color:#c4cfdd;max-width:70ch}
+  .eyebrow{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#f08a4b}
+  .rij{display:flex;flex-wrap:wrap;gap:8px}
+  .knop{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--lijn);background:#fff;color:var(--ink);border-radius:8px;padding:8px 14px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;justify-self:start}
+  .knop.pri{background:#f08a4b;border-color:#f08a4b;color:var(--ink)}
+  .fund{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .fblok{background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(15,23,32,.08);padding:16px;display:grid;gap:10px;align-content:start;border-top:6px solid #d3d9e0}
+  .fblok.groen{border-top-color:var(--ok)} .fblok.oranje{border-top-color:#e0a100}
+  .fkop{display:flex;align-items:center;gap:10px}
+  .fnr{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:var(--ink);color:#fff;font-weight:800;flex:none}
+  .fblok h2{font-size:17px;font-weight:800}
+  .kern{font-size:15px}
+  .kern b{font-size:24px;font-variant-numeric:tabular-nums}
+  .balk{height:8px;background:#e9ecf0;border-radius:4px;margin-top:6px;overflow:hidden}
+  .balk i{display:block;height:100%;background:var(--ok)}
+  .fblok ul{list-style:none;display:grid;gap:0}
+  .fblok li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #eef1f5;font-size:14px}
+  .fblok li:last-child{border-bottom:0}
+  .fblok li b{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .fblok li.let b{color:var(--warn)}
+  .blok{background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(15,23,32,.08);padding:16px;display:grid;gap:10px}
+  .blok h2{font-size:17px;font-weight:800}
+  .vers{grid-column:1/-1}
+  .tabel{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;font-size:12px;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--lijn);white-space:nowrap}
+  td{padding:8px;border-bottom:1px solid #e6ebf1;vertical-align:top}
+  td.let{color:var(--warn);font-weight:700}
+  .leeg{color:#8b97a6;text-align:center;padding:30px}
+  .melding{padding:10px 12px;border-radius:8px;background:#fde4e2;color:var(--rood)}
+  a:focus-visible,button:focus-visible{outline:3px solid #f08a4b;outline-offset:2px}
+  @media (max-width:820px){
+    body{grid-template-columns:1fr;grid-template-areas:"kop" "inhoud"}
+    #menuknop{display:inline-block}
+    #kruimel{display:none}
+    .kop{flex-wrap:wrap}
+    .zij{position:fixed;inset:0 25% 0 0;z-index:40;transform:translateX(-105%);transition:transform .2s;padding-top:calc(60px + env(safe-area-inset-top,0px))}
+    body.menu-open .zij{transform:none}
+    .kop a.uit{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){.zij{transition:none}}
+</style>
+</head>
+<body>
+<header class="kop">
+  <button id="menuknop" aria-label="Menu">☰</button>
+  <h1>IVOL <span>Warehouse</span></h1><span class="nul">3.0</span>
+  <span id="kruimel"></span>
+  <div class="rechts">
+    <div id="rollen"><button data-rol="daan">Daan</button><button data-rol="karin">Karin</button><button data-rol="vloer">Vloer</button></div>
+    <a id="nieuwtab" class="uit" target="_blank" rel="noopener" hidden>Los openen ↗</a>
+  </div>
+</header>
+<nav class="zij" id="menu" aria-label="Onderdelen"></nav>
+<main class="inhoud">
+  <iframe id="frame" title="Onderdeel" hidden></iframe>
+  <div id="native" hidden></div>
+</main>
+<div id="toast" hidden></div>
+<script src="wh/cache.js?v=1"></script>
+<script src="wh/core.js?v=15"></script>
+<script src="wh/logica.js?v=8"></script>
+<script src="wh/triage.js?v=2"></script>
+<script src="wh/live.js?v=5"></script>
+<script src="wh/aanvullive.js?v=2"></script>
+<script src="wh/ivol.js?v=1"></script>
+</body>
+</html>
