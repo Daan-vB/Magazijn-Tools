@@ -76,6 +76,19 @@
   td{padding:8px;border-bottom:1px solid #e6ebf1;vertical-align:top}
   td.let{color:var(--warn);font-weight:700}
   .leeg{color:#8b97a6;text-align:center;padding:30px}
+  .pill{font-size:12px;font-weight:800;text-decoration:none;padding:5px 10px;border-radius:12px;white-space:nowrap;background:#33404f;color:#fff}
+  .pill.ok{background:var(--ok)} .pill.bezig{background:#2d5fb3} .pill.fout{background:var(--rood)} .pill.uit{background:#5b6673}
+  .todos{display:grid;gap:10px}
+  .todo{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(15,23,32,.08);padding:14px 16px;text-decoration:none;color:var(--ink)}
+  .todo:hover{box-shadow:0 2px 14px rgba(15,23,32,.16)}
+  .tnr{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:var(--ink);color:#fff;font-weight:800}
+  .tt{display:grid;gap:2px;min-width:0}
+  .tt b{font-size:16px} .tt span{font-size:13.5px;color:var(--muted)}
+  .ft{font-style:normal;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#a8430a}
+  .tk{font-size:13px;font-weight:800;color:var(--blauw);white-space:nowrap}
+  .blok.let{border-left:6px solid #e0a100}
+  ol.stappen{margin-left:20px;display:grid;gap:8px}
+  @media (max-width:520px){ .todo{grid-template-columns:auto 1fr} .tk{grid-column:2} }
   .melding{padding:10px 12px;border-radius:8px;background:#fde4e2;color:var(--rood)}
   a:focus-visible,button:focus-visible{outline:3px solid #f08a4b;outline-offset:2px}
   @media (max-width:820px){
@@ -97,6 +110,7 @@
   <span id="kruimel"></span>
   <div class="rechts">
     <div id="rollen"><button data-rol="daan">Daan</button><button data-rol="karin">Karin</button><button data-rol="vloer">Vloer</button></div>
+    <a id="livepill" class="pill uit" href="#/bronnen">Picqer</a>
     <a id="nieuwtab" class="uit" target="_blank" rel="noopener" hidden>Los openen ↗</a>
   </div>
 </header>
@@ -112,6 +126,7 @@
 <script src="wh/triage.js?v=2"></script>
 <script src="wh/live.js?v=5"></script>
 <script src="wh/aanvullive.js?v=2"></script>
-<script src="wh/ivol.js?v=2"></script>
+<script src="wh/ivol-live.js?v=1"></script>
+<script src="wh/ivol.js?v=3"></script>
 </body>
 </html>

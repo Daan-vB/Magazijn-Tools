@@ -26,6 +26,7 @@ const GROEPEN = [
   { k:'park', t:'Geparkeerd' }
 ];
 const M = [
+  { id:'todo', g:'start', t:'Te doen', native:'todo', st:'draait', r:DV, uit:'Wat nu moet, op volgorde van het fundament. Elke regel opent het scherm waar je het doet.' },
   { id:'fundament', g:'start', t:'Fundament', native:'fundament', st:'draait', r:DK, uit:'Stand van de vier fundamentpunten, uit de echte gegevens.' },
   { id:'kaart', g:'start', t:'Kaart van alles', native:'kaart', st:'draait', r:DV, uit:'Elk onderdeel, waar het staat, welke gegevens, en de status.' },
 
@@ -65,6 +66,7 @@ const M = [
 
   { id:'junior', g:'vloer', t:'Junior', u:'./junior.html', st:'draait', r:ALLE, eigenKop:true, data:'zelfde database', uit:'Kate, Salah, rijders: Nu verplaatsen, Aanvulronde, Containers, Handleiding (NL/EN/ES/EL).' },
 
+  { id:'bronnen', g:'geg', t:'Koppeling Picqer', native:'bronnen', st:'draait', r:DV, uit:'Wat live uit Picqer komt, hoe vers, en wat nog een export is.' },
   { id:'gegevens', g:'geg', t:'Gegevens inladen', u:W('#/gegevens'), st:'draait', r:DK, data:'alle exports', uit:'Picqer-exports inslepen.' },
   { id:'cp-gegevens', g:'geg', t:'Gegevens containers', u:CP('#/gegevens'), st:'draait', r:DK, data:'producten, verkoop, backorders', uit:'Exports en back-up voor containers.' },
   { id:'picqertest', g:'geg', t:'Picqer API-test', u:'./picqer-test.html', st:'naslag', r:DV, data:'Picqer API', uit:'Eerste leestest van de koppeling.' },
@@ -92,9 +94,10 @@ const ls = k => { try{ return localStorage.getItem(k); }catch(e){ return null; }
 const lsZet = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
 const UI = { rol:ROLLEN[ls('ivol-rol')] ? ls('ivol-rol') : 'daan', menu:false, geladen:false, cache:null };
 const zichtbaar = () => M.filter(m => m.r.includes(UI.rol));
-const startVan = rol => rol === 'vloer' ? 'junior' : rol === 'karin' ? 'vandaag' : 'fundament';
+const startVan = rol => rol === 'vloer' ? 'junior' : rol === 'karin' ? 'vandaag' : 'todo';
 function huidig(){
   const id = (location.hash.match(/^#\/([\w-]+)/) || [])[1];
+  UI.rest = (location.hash.match(/^#\/[\w-]+\/(.+)$/) || [])[1] || '';
   const m = zichtbaar().find(x => x.id === id);
   return m || zichtbaar().find(x => x.id === startVan(UI.rol)) || zichtbaar()[0];
 }
@@ -122,13 +125,14 @@ function toon(){
   const fr = $('frame'), nat = $('native');
   if(m.native){
     fr.hidden = true; nat.hidden = false;
-    nat.innerHTML = m.native === 'kaart' ? viewKaart() : viewFundament();
+    nat.innerHTML = m.native === 'kaart' ? viewKaart() : m.native === 'todo' ? viewTodo() : m.native === 'bronnen' ? viewBronnen() : viewFundament();
     nat.scrollTop = 0;
-    if(m.native === 'fundament') rekenFundament();
+    if(m.native === 'fundament' || m.native === 'todo') rekenFundament();
     return;
   }
   nat.hidden = true; fr.hidden = false;
-  if(frameUrl !== m.u){ frameUrl = m.u; fr.dataset.eigenKop = m.eigenKop ? '1' : ''; fr.src = m.u; }
+  const url = m.u + (UI.rest ? '/' + UI.rest : '');
+  if(frameUrl !== url){ frameUrl = url; fr.dataset.eigenKop = m.eigenKop ? '1' : ''; fr.src = url; }
 }
 // de eigen kop van Warehouse, Test en Containers verbergen: het menu staat in de schil
 function frameGeladen(){
@@ -194,13 +198,7 @@ function blok(nr, titel, kleur, kern, regels, linkId, linkTxt){
     ${linkId ? `<a class="knop" href="#/${linkId}">${esc(linkTxt)}</a>` : ''}</section>`;
 }
 async function rekenFundament(){
-  if(!UI.geladen){
-    UI.geladen = 'bezig';
-    await WH.load();
-    try{ await WHAL.laadOpslag(); }catch(e){}
-    UI.geladen = true;
-  }
-  if(UI.geladen !== true) return;
+  if(!(await geladen())) return;
   let h = '';
   try{
     // 1 aanvuladvies
@@ -264,6 +262,7 @@ async function rekenFundament(){
       if(!mist.length) cnt.ok++;
     });
     const nA = lopers.filter(p => p.abc === 'A').length, nB = lopers.filter(p => p.abc === 'B').length;
+    UI.stats = { V, R, nPdf, pdfVandaag:!!(D.ADV && isoDag(dag2(D.ADV.ingelezen || D.ADV.datum) || new Date(0)) === vandaag()), A, afw:afw.length, nLoc, cnt, lopers:lopers.length, nA, nB };
     h += blok(3, 'Lopers compleet', cnt.ok === lopers.length && lopers.length ? 'groen' : 'oranje', lopers.length ? `<b>${nf(cnt.ok)}</b> van ${nf(lopers.length)} lopers compleet (${pct(cnt.ok, lopers.length)}%)<div class="balk"><i style="width:${pct(cnt.ok, lopers.length)}%"></i></div>` : 'Productexport niet ingelezen', [
       ['Lopers', `${nf(lopers.length)} (${nf(nA)} A, ${nf(nB)} B, rest triage)`],
       ['Zonder vaste picklocatie', nf(cnt.pick), cnt.pick ? 'let' : ''],
@@ -279,6 +278,7 @@ async function rekenFundament(){
     const komend = open.filter(c => c.losdatum && c.losdatum >= v && c.losdatum <= over14);
     const voorbij = open.filter(c => c.losdatum && c.losdatum < v);
     const zonder = open.filter(c => !c.losdatum);
+    Object.assign(UI.stats, { open:open.length, voorbij:voorbij.length, zonder:zonder.length, komend:komend.length });
     h += blok(4, 'Elke ontvangst krijgt een plek', voorbij.length ? 'oranje' : 'groen', `<b>${nf(komend.length)}</b> containers in de komende 14 dagen`, [
       ['Open containers', nf(open.length)],
       ['Losdatum voorbij, nog niet afgerond', nf(voorbij.length), voorbij.length ? 'let' : ''],
@@ -296,8 +296,91 @@ async function rekenFundament(){
   }catch(e){ console.error(e); h = `<div class="melding">Rekenen lukte niet: ${esc(e.message)}</div>`; }
   UI.cache = h;
   const el = $('fund'); if(el) el.innerHTML = h;
+  const td = $('todo'); if(td) td.innerHTML = todoLijst();
 }
 const LIVE = () => { try{ return !!localStorage.getItem('ivol-koppelcode'); }catch(e){ return false; } };
+
+/* ---------- laden (één keer, gedeeld) ---------- */
+let laadP = null;
+function geladen(){
+  if(!laadP) laadP = (async () => { const ok = await WH.load(); try{ await WHAL.laadOpslag(); }catch(e){} UI.geladen = true; return ok !== false; })();
+  return laadP;
+}
+
+/* ---------- te doen: elke regel opent het scherm waar je het doet ---------- */
+function todoItems(){
+  const S = UI.stats, B = window.IVL ? IVL.bronnen() : null, out = [];
+  const zet = (f, n, t, w, link, knop) => out.push({ f, n, t, w, link, knop });
+  if(B && !B.gekoppeld) zet(0, null, 'Koppel 3.0 met Picqer', 'Eén keer op dit apparaat. Daarna haalt 3.0 alles zelf op.', 'bronnen', 'Koppelen');
+  if(B && B.functieOud) zet(0, null, 'Picqer-functie bijwerken', 'Locaties en aanvulniveaus live: 5 minuten op de Mac.', 'bronnen', 'Stappen');
+  if(!S) return out;
+  if(!S.pdfVandaag) zet(1, null, 'Verse aanvuladvies-PDF inladen', 'Pas dan is live naast PDF een eerlijke vergelijking (de ene taak).', 'gegevens', 'Gegevens inladen');
+  else zet(1, S.V ? S.V.alleenPdf.length + S.V.alleenLive.length : null, 'Live naast PDF nalopen', 'De ene taak: verschillen opschrijven of akkoord geven.', 'vergelijk', 'Openen');
+  if(S.cnt.niveau) zet(3, S.cnt.niveau, 'Lopers zonder aanvulniveau', 'Picqer vult ze niet aan, dus ze staan in geen enkel advies.', 'abcheck/niveau', 'Niveaus invullen');
+  if(S.cnt.pick) zet(3, S.cnt.pick, 'Lopers zonder vaste picklocatie', 'Orders blijven op deze producten in backorder hangen.', 'abcheck/pick', 'Picklocaties');
+  if(S.cnt.tijd) zet(3, S.cnt.tijd, 'Lopers met picklocatie op tijdelijk', 'Ontkoppelt bij voorraad 0.', 'abcheck/tijd', 'Vast zetten');
+  if(S.cnt.spp) zet(3, S.cnt.spp, 'Lopers zonder stuks per pallet', 'Nodig voor labels, verdeling en aanvullen met hele pallets.', 'productdata', 'Productdata');
+  if(S.afw) zet(2, S.afw, 'Locaties: pick/bulk of vast/tijdelijk wijkt af', 'Na de regel: 00–09 pick en vast, 10+ bulk en tijdelijk.', 'locaties', 'Locaties');
+  if(S.A.dubbel.length) zet(2, S.A.dubbel.length, 'Dubbele BA-locaties met producten', 'Producten van BA..-06 naar BA..06, daarna archiveren.', 'locaties', 'Locaties');
+  if(S.A.rommel.length) zet(2, S.A.rommel.length, 'Rommel-locaties met producten', 'Zoals "kwijt", "tafel": producten naar een echte locatie.', 'locaties', 'Locaties');
+  if(S.A.opMap.length) zet(2, S.A.opMap.length, 'Producten op een gang- of niveaumap', 'Mappen zijn geen locaties.', 'locaties', 'Locaties');
+  if(S.voorbij) zet(4, S.voorbij, 'Containers met losdatum voorbij', 'Gelost? Dan ontvangst inlezen en afronden.', 'containers', 'Containers');
+  if(S.zonder) zet(4, S.zonder, 'Container zonder losdatum', 'Vervoerder bellen of verwachte datum zetten.', 'containers', 'Containers');
+  return out.sort((a, b) => a.f - b.f);
+}
+const FNAAM = { 0:'Koppeling', 1:'Aanvuladvies', 2:'Locaties', 3:'Producten', 4:'Inkomend' };
+function todoLijst(){
+  const it = todoItems();
+  if(!UI.stats && !it.length) return '<div class="leeg">Gegevens laden…</div>';
+  if(!it.length) return '<div class="leeg">Niets te doen. Het fundament staat.</div>';
+  return it.map((x, i) => `<a class="todo" href="#/${x.link}"><span class="tnr">${i + 1}</span><span class="tt"><b>${x.n != null ? nf(x.n) + ' · ' : ''}${esc(x.t)}</b><span>${esc(x.w)}</span><i class="ft">${esc(FNAAM[x.f])}</i></span><span class="tk">${esc(x.knop)} →</span></a>`).join('');
+}
+function viewTodo(){
+  return `<div class="pagina">
+    <h1>Te doen</h1>
+    <p class="lede">Op volgorde van het fundament. Tik een regel: je komt direct op het scherm waar je het doet.</p>
+    <div id="todo" class="todos">${todoLijst()}</div>
+  </div>`;
+}
+
+/* ---------- koppeling Picqer ---------- */
+const tijdKort = iso => { if(!iso) return '–'; const d = new Date(iso); if(isNaN(d)) return '–'; const m = Math.round((Date.now() - d.getTime()) / 6e4); return m < 1 ? 'net' : m < 60 ? m + ' min geleden' : m < 1440 ? Math.round(m / 60) + ' uur geleden' : Math.round(m / 1440) + ' dagen geleden'; };
+function viewBronnen(){
+  const B = IVL.bronnen();
+  return `<div class="pagina">
+    <h1>Koppeling Picqer</h1>
+    <p class="lede">3.0 leest alleen uit Picqer, via de functie <code>picqer</code> in Supabase. Zolang 3.0 open staat, haalt hij alles zelf op. Wat hier "live" is, hoef je niet meer te exporteren.</p>
+    ${B.gekoppeld ? '' : `<section class="blok"><h2>Koppelen</h2><p class="muted">Eén keer per apparaat. De koppelcode staat bij de Secrets in Supabase (IVOL_CODE).</p>
+      <div class="rij"><input id="kcode" type="password" autocomplete="off" placeholder="koppelcode" style="font:inherit;padding:8px 10px;border:1px solid var(--lijn);border-radius:8px;min-width:200px"><button class="knop pri" data-a="koppel">Koppelen</button></div></section>`}
+    ${B.functieOud ? `<section class="blok let"><h2>Functie bijwerken (5 minuten, op de Mac)</h2>
+      <p class="muted">Locaties en aanvulniveaus live vragen twee nieuwe acties in de functie. Alleen lezen, zoals de rest.</p>
+      <ol class="stappen">
+        <li>Open <b>github.com/Daan-vB/Magazijn-Tools</b> → map <code>supabase/functions/picqer</code> → <code>index.ts</code> → knop <b>Raw</b> → alles selecteren → kopiëren.</li>
+        <li>Open <b>supabase.com/dashboard</b> → project <b>Palletlabels</b> → <b>Edge Functions</b> → <b>picqer</b> → <b>Code</b>.</li>
+        <li>Alles in de editor selecteren, plakken, <b>Deploy updates</b>.</li>
+        <li>Terug in 3.0: <b>Nu verversen</b> hieronder.</li>
+      </ol></section>` : ''}
+    <section class="blok"><div class="rij" style="justify-content:space-between;align-items:center"><h2>Gegevens</h2><button class="knop" data-a="ververs" ${B.bezig ? 'disabled' : ''}>Nu verversen</button></div>
+      ${B.bezig ? `<p class="muted">${esc(B.bezig)}</p>` : ''}${B.fout ? `<div class="melding">${esc(B.fout.message || String(B.fout))}</div>` : ''}
+      <div class="tabel"><table><thead><tr><th>Gegevens</th><th>Bron</th><th>Laatst</th><th>Ritme</th><th>Vervangt</th></tr></thead><tbody>
+      ${B.rijen.map(r => `<tr><td><b>${esc(r.t)}</b>${r.extra ? `<br><span class="muted">${esc(r.extra)}</span>` : ''}</td><td><i class="st ${r.bron === 'live' ? 'ok' : 'warn'}">${r.bron}</i></td><td>${esc(tijdKort(r.op))}</td><td class="muted">${esc(r.ritme)}</td><td class="muted">${esc(r.vervangt)}</td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="muted klein">Aanvulniveaus worden pas de waarheid voor alle apps na een volle ronde én als ze voor minstens 90% gelijk zijn aan de laatste export. Zo weten we zeker dat de velden uit Picqer de goede zijn.</p></section>
+  </div>`;
+}
+function tekenPill(){
+  const el = $('livepill'); if(!el || !window.IVL) return;
+  const B = IVL.bronnen(), s = WHLIVE.status();
+  el.className = 'pill ' + (!B.gekoppeld ? 'uit' : B.fout ? 'fout' : B.bezig ? 'bezig' : 'ok');
+  el.textContent = !B.gekoppeld ? 'Picqer: koppelen' : B.fout ? 'Picqer: fout' : B.bezig ? 'Picqer: bijwerken…' : 'Picqer live' + (s.data ? ' · ' + tijdKort(new Date(s.data.binnen).toISOString()).replace(' geleden', '') : '');
+}
+let herT = null;
+function herreken(){
+  tekenPill();
+  const m = huidig();
+  if(m && m.native === 'bronnen'){ const nat = $('native'); if(nat && !(document.activeElement && document.activeElement.id === 'kcode')) nat.innerHTML = viewBronnen(); }
+  if(m && (m.native === 'todo' || m.native === 'fundament')){ clearTimeout(herT); herT = setTimeout(rekenFundament, 4000); }
+}
 
 /* ---------- gebeurtenissen ---------- */
 window.addEventListener('hashchange', toon);
@@ -305,8 +388,13 @@ document.addEventListener('click', ev => {
   const r = ev.target.closest('#rollen button');
   if(r){ UI.rol = r.dataset.rol; lsZet('ivol-rol', UI.rol); location.hash = '#/' + startVan(UI.rol); toon(); return; }
   if(ev.target.closest('#menuknop')){ document.body.classList.toggle('menu-open'); return; }
+  const k = ev.target.closest('[data-a]');
+  if(k && k.dataset.a === 'koppel'){ const v = (($('kcode') || {}).value || '').trim(); if(!v) return; WHLIVE.zetCode(v); IVL.ronde(true); toon(); return; }
+  if(k && k.dataset.a === 'ververs'){ IVL.ronde(true); herreken(); return; }
 });
 $('frame').addEventListener('load', frameGeladen);
 toon();
+IVL.opNieuw(herreken);
+geladen().then(() => { tekenPill(); IVL.ronde(false); });
 return { M, GROEPEN, toon };
 })();
