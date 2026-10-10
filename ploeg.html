@@ -108,6 +108,21 @@
   legend{font-size:14px;font-weight:700;margin-bottom:6px}
   .radio{display:flex !important;align-items:center;gap:10px;font-weight:400 !important;font-size:16px !important;border:1px solid var(--lijn);border-radius:9px;padding:12px;cursor:pointer}
   .radio input{width:22px;height:22px}
+  .volg{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;font-size:13px;flex:none}
+  .kaart h2{flex-wrap:wrap}
+  .kaart h3{font-size:15px;font-weight:800}
+  .klein{font-size:13px}
+  .badge.oranje{background:#fde9dc;color:#a8430a}
+  .melding{background:#fff8e6;border:1px solid #f0d08a}
+  .melding.fout,.melding.ok{border:0}
+  .chip.uit{background:#fde4e2;border-color:#f3b9b4;color:var(--rood)} .chip.uit small{color:var(--rood)}
+  .chip .x{border:0;background:transparent;font:inherit;font-weight:800;color:var(--muted);cursor:pointer;padding:0 0 0 4px}
+  select{font:inherit;font-size:15px;padding:8px;border:1px solid var(--lijn);border-radius:8px;background:#fff;color:var(--ink);min-width:110px}
+  table.indeling td{vertical-align:middle}
+  .pijlen{white-space:nowrap}
+  .pijlen .knop{min-width:34px}
+  details summary{cursor:pointer;font-weight:700;font-size:14px;color:var(--muted);padding:6px 0}
+  .knop[disabled]{opacity:.35;cursor:default}
   pre{white-space:pre-wrap;font-size:12px}
   #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;z-index:60;box-shadow:0 4px 16px rgba(0,0,0,.25);max-width:90vw}
 </style>
@@ -115,7 +130,7 @@
 <body>
 <header class="top">
   <h1>IVOL <span>Ploeg</span></h1><span id="sync"></span>
-  <div class="rechts"><button data-a="ververs" aria-label="Ververs">↻</button><button id="wie" data-a="wissel">Kies je rol</button></div>
+  <div class="rechts"><button data-a="ververs" aria-label="Ververs">↻</button><button id="wie" data-a="wissel">Kies je naam</button></div>
 </header>
 <main id="app"></main>
 <div id="toast" hidden></div>
@@ -126,6 +141,6 @@
 <script src="wh/barcode.js?v=1"></script>
 <script src="wh/live.js?v=5"></script>
 <script src="wh/aanvullive.js?v=2"></script>
-<script src="wh/ploeg.js?v=1"></script>
+<script src="wh/ploeg.js?v=2"></script>
 </body>
 </html>
