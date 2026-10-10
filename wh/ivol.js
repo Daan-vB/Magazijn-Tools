@@ -205,13 +205,24 @@ async function rekenFundament(){
   try{
     // 1 aanvuladvies
     let R = null, V = null;
-    try{ if(WHAL.S.st && WHAL.S.st.p){ R = WHAL.ronde(); V = WHAL.vergelijk(R); } }catch(e){ console.error(e); }
+    try{
+      if(WHAL.S.st && WHAL.S.st.p){
+        R = WHAL.ronde();
+        if(D.ADV && D.ADV.rows){
+          const pdf = new Set(D.ADV.rows.map(r => D.PLOW[String(r.code).toLowerCase()] || r.code));
+          const live = new Set(R.uit.map(r => r.code));
+          V = { beide:[...live].filter(c => pdf.has(c)), alleenPdf:[...pdf].filter(c => !live.has(c)), alleenLive:[...live].filter(c => !pdf.has(c)) };
+        }
+      }
+    }catch(e){ console.error(e); }
     const nPdf = D.ADV && D.ADV.rows ? D.ADV.rows.length : 0;
     const r1 = [
       ['Aanvuladvies-PDF', D.ADV ? `${nf(nPdf)} regels · ${wanneer(D.ADV.ingelezen || D.ADV.datum)}` : 'niet ingelezen', D.ADV && oud(D.ADV.ingelezen || D.ADV.datum) > 1 ? 'let' : ''],
       ['Live advies', R ? `${nf(R.uit.length)} regels · stand ${wanneer(WHAL.S.st.bijgewerkt)}` : 'nog geen stand', R ? '' : 'let']
     ];
     if(V) r1.push(['In beide', nf(V.beide.length)], ['Alleen in de PDF', nf(V.alleenPdf.length), V.alleenPdf.length ? 'let' : ''], ['Alleen live', nf(V.alleenLive.length), V.alleenLive.length ? 'let' : '']);
+    const pdfDag = D.ADV && isoDag(dag2(D.ADV.ingelezen || D.ADV.datum) || new Date(0));
+    if(V && pdfDag !== vandaag()) r1.push(['Eerlijk vergelijken', 'pas met een PDF van vandaag', 'let']);
     const overeen = V ? pct(V.beide.length, V.beide.length + V.alleenPdf.length + V.alleenLive.length) : null;
     h += blok(1, 'Aanvuladvies klopt', V && overeen >= 95 ? 'groen' : 'oranje', V ? `<b>${overeen}%</b> overeenkomst live en PDF` : 'Nog niet te vergelijken: PDF en live stand nodig', r1, 'vergelijk', 'Live naast PDF');
 
@@ -247,9 +258,10 @@ async function rekenFundament(){
         if(p.pq.lvl === null || p.pq.tot === null) mist.push('niveau');
         if(p.picks.length > 1) mist.push('meer');
       }
-      if(!p.spp) cnt.spp++;
-      mist.forEach(k => cnt[k]++);
-      if(!mist.length && p.spp) cnt.ok++;
+      const sppNodig = p.bulks.length > 0 || p.pickSoort === 'vloer' || f.type === 'vloer';   // legbord zonder bulk: stuks per pallet doet er niet toe
+      if(sppNodig && !p.spp){ cnt.spp++; mist.push('spp'); }
+      mist.forEach(k => { if(k !== 'spp') cnt[k]++; });
+      if(!mist.length) cnt.ok++;
     });
     const nA = lopers.filter(p => p.abc === 'A').length, nB = lopers.filter(p => p.abc === 'B').length;
     h += blok(3, 'Lopers compleet', cnt.ok === lopers.length && lopers.length ? 'groen' : 'oranje', lopers.length ? `<b>${nf(cnt.ok)}</b> van ${nf(lopers.length)} lopers compleet (${pct(cnt.ok, lopers.length)}%)<div class="balk"><i style="width:${pct(cnt.ok, lopers.length)}%"></i></div>` : 'Productexport niet ingelezen', [
@@ -258,7 +270,7 @@ async function rekenFundament(){
       ['Picklocatie op tijdelijk', nf(cnt.tijd), cnt.tijd ? 'let' : ''],
       ['Geen aanvulniveau in Picqer', nf(cnt.niveau), cnt.niveau ? 'let' : ''],
       ['Meerdere picklocaties', nf(cnt.meer)],
-      ['Stuks per pallet onbekend', nf(cnt.spp), cnt.spp ? 'let' : '']
+      ['Stuks per pallet onbekend (met bulk of vloerpallet)', nf(cnt.spp), cnt.spp ? 'let' : '']
     ], 'abcheck', 'A/B-check');
 
     // 4 inkomend
