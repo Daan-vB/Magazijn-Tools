@@ -42,11 +42,14 @@ async function locaties(){
   const naamVan = {}; alle.forEach(([id, naam]) => naamVan[id] = naam);
   const rows = alle.map(([id, naam, bulk, tijd, excl, parent]) => [naam, bulk, tijd, excl, parent ? (naamVan[parent] || '') : '', ((D.LOC[naam] || {}).codes || []).join('|')]);
   const datum = new Date().toISOString();
-  await WH.catZet('wh-locaties', { datum, bron:'picqer-live', rows });
+  // datum van de productkoppelingen = de laatste locatie-export (live levert alleen de locaties zelf)
+  const vorigeLive = S.meta.loc && S.meta.loc.t;
+  const codesDatum = vorigeLive && vorigeLive === D.LOCDATUM ? (S.meta.loc.codes || null) : D.LOCDATUM;
+  await WH.catZet('wh-locaties', { datum, bron:'picqer-live', codes:codesDatum, rows });
   D.LOC = {}; D.LOCDATUM = datum;
   rows.forEach(([naam, bulk, tijd, excl, parent, codes]) => { D.LOC[naam] = { naam, bulk:!!bulk, tijd:!!tijd, excl:!!excl, parent, codes:codes ? codes.split('|') : [] }; });
   if(window.WHL) WHL.reset();
-  await zetMeta({ loc:{ t:datum, n:rows.length } });
+  await zetMeta({ loc:{ t:datum, n:rows.length, codes:codesDatum } });
 }
 
 /* ---------- aanvulniveaus: doorlopend, 240 producten per ronde ---------- */
@@ -120,7 +123,7 @@ function bronnen(){
       { t:'Locaties: pick/bulk, vast/tijdelijk', bron:S.functieOud ? 'export' : 'live', op:(S.meta.loc || {}).t || D.LOCDATUM, ritme:S.functieOud ? 'na functie-update: elke 12 uur' : 'elke 12 uur', vervangt:'locatie-export' },
       { t:'Aanvulniveaus', bron:S.functieOud ? 'export' : 'live', op:n && (n.klaar || n.t), ritme:S.functieOud ? 'na functie-update: doorlopend' : 'doorlopend, ±90 min per ronde', vervangt:'productexport (niveaus)',
         extra:n ? (n.cursor ? 'ronde ' + nf(n.cursor) + ' / ' + nf(n.totaal || 0) : '') + (n.check ? ' · controle: ' + n.check.pct + '% gelijk aan export, ' + n.check.uitkomst : '') : '' },
-      { t:'Producten per locatie (koppelingen)', bron:'export', op:D.LOCDATUM, ritme:'met de locatie-export', vervangt:'' },
+      { t:'Producten per locatie (koppelingen)', bron:'export', op:(S.meta.loc && S.meta.loc.t) ? (S.meta.loc.codes || null) : D.LOCDATUM, ritme:'met de productexport (wekelijks)', vervangt:'', extra:(S.meta.loc && S.meta.loc.t && !S.meta.loc.codes) ? 'uit de laatste locatie-export, datum onbekend' : '' },
       { t:'Magazijnverkopen per maand', bron:'export', op:null, ritme:'maandelijks', vervangt:'' }
     ]
   };
