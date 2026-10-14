@@ -32,6 +32,10 @@ function dataDatums(){
     advies: D.ADV ? (D.ADV.ingelezen || D.ADV.datum) : null
   };
 }
+function vkPeriodeTxt(){
+  const r = Object.values(D.VK).reduce((m, x) => x.geimporteerd_op && (!m || x.geimporteerd_op > m.geimporteerd_op) ? x : m, null);
+  return r && r.periode_van ? esc(String(r.periode_van).slice(0, 10) + ' t/m ' + String(r.periode_tot).slice(0, 10)) + ' · ' + nf(Object.keys(D.VK).length) + ' producten' : nf(Object.keys(D.VK).length) + ' producten';
+}
 function nietKlaar(){
   const m = [];
   if(!Object.keys(D.P).length) m.push('productexport');
@@ -707,9 +711,8 @@ function viewGegevens(){
     <tr><td><b>Voorraad per locatie</b><div class="desc">Aantal per product per locatie, incl. geen specifieke locatie en retourkarren (export "stock-….xlsx"). Nodig voor de controle na het lossen.</div></td><td>${exportLeeftijd(D.VRDATUM)}</td><td class="n">${nf(Object.keys(D.VR).length)} producten</td></tr>
     <tr><td><b>VST: voorraad per pallet</b><div class="desc">Zelfde export, magazijn Bulk van Spreuwel.</div></td><td>${exportLeeftijd(D.VSTVRDATUM)}</td><td class="n">${nf(Object.keys(D.VSTVR).length)} producten</td></tr>
     ${rij('Backorders', 'backorders', nf(D.BO.length) + ' regels', 'Picqer → Backorders → Exporteer backorders. De vorige stand wordt bewaard (opgelost / open / nieuw).')}
-    ${rij('Magazijnverkopen', 'verkoop', nf(Object.keys(D.VK).length), 'Picqer → Rapporten → Magazijnverkopen. Per maand: maand in de bestandsnaam. Anders periode hierboven invullen.')}
+    <tr><td><b>Magazijnverkopen</b><div class="desc">Picqer → Rapporten → Magazijnverkopen. Vul hierboven de periode in en laad het bestand in. Verkoop/maand = totaal gedeeld door het aantal maanden.</div></td><td>${exportLeeftijd(dataDatums().verkoop)}</td><td class="n">${vkPeriodeTxt()}</td></tr>
     <tr><td><b>Verplaatsingen uit Picqer</b><div class="desc">Mac-script "Verplaatsingen ophalen" → bestand in 00_Inbox (.json). Laatste 60 dagen blijven bewaard.</div></td><td>${D.VP && D.VP !== 'laden' && D.VP.datum ? exportLeeftijd(D.VP.datum) : '–'}</td><td class="n">${D.VP && D.VP !== 'laden' && D.VP.rows ? nf(D.VP.rows.length) + ' verplaatsingen' + (D.VP.rows.length ? ' · ' + esc(String(D.VP.rows.reduce((m, r) => r[1] < m ? r[1] : m, '9')).slice(0, 10)) + ' t/m ' + esc(String(D.VP.rows.reduce((m, r) => r[1] > m ? r[1] : m, '')).slice(0, 10)) : '') : '–'}</td></tr>
-    <tr><td><b>Verkoop per maand</b><div class="desc">Verkoop/maand = gemiddelde van de laatste 6 maanden.</div></td><td>${exportLeeftijd(D.VKM && D.VKM.datum)}</td><td class="n">${D.VKM ? esc(D.VKM.maanden[0] + ' t/m ' + D.VKM.maanden[D.VKM.maanden.length - 1]) : '–'}</td></tr>
     ${rij('Aanvuladvies', 'advies', D.ADV ? nf(D.ADV.rows.length) + ' regels' : '–', 'Picqer → Aanvuladvies → PDF (picklijst bulklocaties).')}
   </table></div>
   <div class="small muted mt8">Zelfde database als Containers en Palletlabels. Back-up: Containers → Gegevens → Back-up downloaden.</div></div>`;
