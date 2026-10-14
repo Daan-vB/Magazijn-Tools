@@ -68,6 +68,8 @@
   td.nm{color:#39434f;max-width:320px}
   td.n{text-align:right;white-space:nowrap}
   .dot{display:inline-block;width:10px;height:10px;border-radius:50%}
+  .dot.uit{background:#fff;border:2px solid #9aa7b8;width:6px;height:6px}
+  .btn-uitl{background:transparent;border:1px solid #6b5a2a !important;color:#e8c860;margin-top:10px;padding:10px 16px !important;font-size:13.5px !important}.btn-uitl:hover{background:#2a2414}
   .dot.full{background:var(--ok)} .dot.part{background:#e0a100} .dot.leeg{background:#d3d9e0}
   .empty{color:#8b97a6;font-size:14px;text-align:center;padding:50px 20px;line-height:1.7}
   .more{padding:12px 16px;font-size:13px;color:#5b6673;border-top:1px solid var(--line)}
@@ -270,7 +272,9 @@
   const qtyCode = code => { const g = g1(code); const t = g ? String(g.qty ?? '').trim().toLowerCase() : ''; return t.replace(/\./g, '') === 'nvt' ? 'nvt' : t === 'onb' ? 'onb' : null; };
   const naamVan = r => r.naam || (g1(r.productcode) || {}).name || '';
   const leeg = v => v === null || v === undefined || v === '';
+  const telt = r => !r.uitlopend;
   function compleet(r){
+    if(r.uitlopend) return 'uit'; // uitlopend: geen palletdata meer nodig
     if(qtyCode(r.productcode) === 'nvt') return 'full'; // geen pallet: geen palletdata nodig
     const need = [stuksVan(r.productcode), r.palletmaat, r.hoogte_cm, r.gewicht_kg, r.plaatsen];
     const n = need.filter(v => !leeg(v)).length;
@@ -289,12 +293,13 @@
   function renderLevPanel(){
     const lev = $('lev').value;
     if(!lev){ $('levpanel').innerHTML = ''; return; }
-    const all = Object.values(prod).filter(r => r.leverancier === lev);
+    const alle = Object.values(prod).filter(r => r.leverancier === lev);
+    const all = alle.filter(telt), nUit = alle.length - all.length;
     const vol = all.filter(r => compleet(r) === 'full').length;
     const open = todos.filter(t => t.leverancier === lev && !t.afgerond).sort((a, b) => (PRIO[b.prioriteit]||0) - (PRIO[a.prioriteit]||0));
     $('levpanel').innerHTML = '<button class="back-lev" id="backlev">← Alle leveranciers</button><div class="levpanel">' +
       '<h2>' + esc(lev) + '</h2>' +
-      '<div class="sub">' + vol + ' van ' + all.length + ' producten volledig ingevuld' + (open.length ? ' · ' + open.length + ' openstaand' : '') + '</div>' +
+      '<div class="sub">' + vol + ' van ' + all.length + ' producten volledig ingevuld' + (nUit ? ' · ' + nUit + ' uitlopend (telt niet mee)' : '') + (open.length ? ' · ' + open.length + ' openstaand' : '') + '</div>' +
       '<div id="todolist">' + (open.length ? open.map(todoRow).join('') : '<div class="sub" style="margin:0">Geen openstaande punten.</div>') + '</div>' +
       '<div class="addtodo">' +
         '<input type="text" id="td_txt" placeholder="Nieuw punt, bijv. productcode + vraag…">' +
@@ -329,7 +334,7 @@
     $('levpanel').innerHTML = '';
     const levs = [...new Set(Object.values(prod).map(r => r.leverancier).filter(Boolean))];
     const cards = levs.map(l => {
-      const all = Object.values(prod).filter(r => r.leverancier === l);
+      const all = Object.values(prod).filter(r => r.leverancier === l && telt(r));
       const vol = all.filter(r => compleet(r) === 'full').length;
       const openCt = todos.filter(t => t.leverancier === l && !t.afgerond).length;
       const pct = all.length ? Math.round(vol / all.length * 100) : 0;
@@ -351,16 +356,17 @@
     if(!lev && !q){ renderLevKiezer(); return; }
     renderLevPanel();
     const all = Object.values(prod);
-    const basis = lev ? all.filter(r => r.leverancier === lev) : all;
+    const basis = (lev ? all.filter(r => r.leverancier === lev) : all).filter(telt);
+    const nUitl = (lev ? all.filter(r => r.leverancier === lev) : all).length - basis.length;
     const rows = all.filter(r => {
       if(lev && r.leverancier !== lev) return false;
       if($('fStock').checked && !((r.voorraad_hm || 0) > 0 || (r.voorraad_vst || 0) > 0)) return false;
-      if($('fOpen').checked && compleet(r) === 'full') return false;
+      if($('fOpen').checked && (compleet(r) === 'full' || r.uitlopend)) return false;
       if(q && !(r.productcode + ' ' + naamVan(r)).toLowerCase().replace(/\s+/g, '').includes(q.replace(/\s+/g, ''))) return false; // '40x60' vindt ook '40 x 60'
       return true;
     }).sort((a, b) => a.productcode.localeCompare(b.productcode));
     const volledig = basis.filter(r => compleet(r) === 'full').length;
-    $('cnt').textContent = rows.length + ' van ' + basis.length + ' producten · ' + volledig + ' volledig ingevuld';
+    $('cnt').textContent = rows.length + ' producten getoond · ' + volledig + ' van ' + basis.length + ' volledig ingevuld' + (nUitl ? ' · ' + nUitl + ' uitlopend' : '');
     const stamp = all.map(r => r.picqer_datum).filter(Boolean).sort().pop();
     $('stamp').textContent = stamp ? 'Picqer-data van ' + new Date(stamp).toLocaleDateString('nl-NL') : 'Nog geen Picqer-export geïmporteerd';
     if(!rows.length){ $('list').innerHTML = '<div class="empty">' + (all.length ? 'Geen producten met deze filters.' : 'Nog geen producten. Importeer een Picqer-export.') + '</div>'; return; }
@@ -446,6 +452,7 @@
       '</div>' +
       '<div class="sec"><h3>Voorbeeld</h3><div id="g_prev"></div></div>' +
       '<button class="act btn-save" id="g_save">Opslaan voor ' + codes.length + ' product' + (codes.length === 1 ? '' : 'en') + '</button>' +
+      '<button class="act btn-uitl" id="g_uitl" title="Nog op voorraad, niet meer inkopen: telt niet meer mee als onvolledig">Markeer als uitlopend voor ' + codes.length + ' product' + (codes.length === 1 ? '' : 'en') + '</button>' +
       '<button class="act btn-uit" id="g_uit" title="Niet meer in gebruik: weg uit de lijsten en het productgeheugen">Uitfaseren (niet meer in gebruik) voor ' + codes.length + ' product' + (codes.length === 1 ? '' : 'en') + '</button>' +
       '<div class="status" id="f_status"></div>';
     Object.entries(bewaar).forEach(([id, v]) => { if($(id)) $(id).value = v; });
@@ -467,6 +474,7 @@
     upd();
     $('card').querySelectorAll('.gsel button').forEach(b => b.addEventListener('click', () => { sel.delete(b.dataset.c); renderList(); selChanged(); }));
     $('g_save').addEventListener('click', groepOpslaan);
+    $('g_uitl').addEventListener('click', () => zetUitlopend([...sel], true));
     $('g_uit').addEventListener('click', () => uitfaseer([...sel]));
     if(openPanel){ $('panel').classList.add('open'); $('panel').scrollTop = 0; }
   }
@@ -545,6 +553,7 @@
     if(gl.length > 1) notes.push('<div class="note">Staat ' + gl.length + '× in het productgeheugen (onder verschillende namen). Bij opslaan krijgen ze allemaal hetzelfde aantal.</div>');
     if(g && r.ean && String(g.ean) !== String(r.ean)) notes.push('<div class="note bad">EAN verschilt: Picqer ' + esc(r.ean) + ', productgeheugen ' + esc(g.ean) + '.</div>');
     if(r._alleenGeheugen) notes.push('<div class="note">Staat (nog) niet in de Picqer-import. Controleer of de productcode exact klopt.</div>');
+    if(r.uitlopend) notes.push('<div class="note">Uitlopend: nog op voorraad, wordt niet meer ingekocht. Telt niet mee in de voortgang.</div>');
     if(r.actief === false) notes.push('<div class="note">Product staat op inactief in Picqer.</div>');
 
     const maatSel = MATEN.includes(r.palletmaat) ? r.palletmaat : (r.palletmaat ? 'anders' : '');
@@ -600,6 +609,7 @@
         '<div><label class="fld" for="f_opm">Opmerking</label><textarea id="f_opm" placeholder="bijv. blokpallet, niet stapelen">' + esc(r.opmerking || '') + '</textarea></div>' +
       '</div>' +
       '<button class="act btn-save" id="f_save">Opslaan</button>' +
+      '<button class="act btn-uitl" id="f_uitl">' + (r.uitlopend ? 'Niet meer uitlopend (weer meetellen)' : 'Markeer als uitlopend') + '</button>' +
       '<button class="act btn-uit" id="f_uit" title="Niet meer in gebruik: weg uit de lijsten en het productgeheugen">Uitfaseren (niet meer in gebruik)</button>' +
       '<div class="status" id="f_status"></div>';
 
@@ -622,6 +632,7 @@
       if(hoogteSugg) $('f_hoogte').value = hoogteSugg;
     };
     $('f_save').addEventListener('click', () => save(code));
+    $('f_uitl').addEventListener('click', () => zetUitlopend([code], !r.uitlopend));
     $('f_uit').addEventListener('click', () => uitfaseer([code]));
     $('panel').classList.add('open');
     $('panel').scrollTop = 0;
@@ -677,6 +688,24 @@
       fStatus('Opslaan mislukt: ' + e.message, 'err');
       $('f_save').disabled = false;
     }
+  }
+
+  // uitlopend: blijft in het systeem (voorraad, labels), maar telt niet meer mee als onvolledig
+  async function zetUitlopend(codes, waarde){
+    codes = [...new Set(codes.filter(c => prod[c] && !prod[c]._alleenGeheugen))];
+    if(!codes.length) return fStatus('Alleen producten uit de Picqer-import kunnen uitlopend worden.', 'err');
+    try{
+      for(const c of codes){
+        const res = await fetch(URL_ + '/rest/v1/producten?productcode=eq.' + encodeURIComponent(c), {
+          method:'PATCH', headers:Object.assign({}, H, { 'Content-Type':'application/json', Prefer:'return=minimal' }), body:JSON.stringify({ uitlopend:waarde })
+        });
+        if(!res.ok){ const t = await res.text(); throw new Error(c + ': ' + res.status + (/uitlopend/.test(t) ? ' (kolom "uitlopend" ontbreekt nog in Supabase)' : '')); }
+        prod[c].uitlopend = waarde;
+      }
+      codes.forEach(c => sel.delete(c));
+      renderList(); renderSelbar();
+      placeholder(codes.length + ' product' + (codes.length === 1 ? '' : 'en') + (waarde ? ' gemarkeerd als uitlopend.' : ' weer actief.'));
+    }catch(e){ fStatus('Mislukt: ' + e.message, 'err'); }
   }
 
   // niet meer in gebruik: weg uit het productgeheugen en verborgen (actief = nee), net als X bij Vloernamen
