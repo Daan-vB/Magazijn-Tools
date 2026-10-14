@@ -91,10 +91,12 @@ async function bijwerken(alles){
       stap('Voorraadmutaties sinds ' + st.sinds.slice(11, 16) + ' ophalen…', 0.32);
       const m = await V('mutaties', { sinds:st.sinds });
       if(m.vol) vernieuw = kand;
-      else {
+            else {
         const gewijzigd = new Set(m.ids || []);
-        vernieuw = kand.filter(c => !st.p[c] || gewijzigd.has(S.cat.ids[c]));
+        const opLijst = new Set(ronde().uit.concat(ronde().leeg).map(r => r.code));
+        vernieuw = kand.filter(c => !st.p[c] || gewijzigd.has(S.cat.ids[c]) || opLijst.has(c));
       }
+
     }
     // 3. voorraad per locatie, 50 producten per keer
     const ids = vernieuw.map(c => S.cat.ids[c]).filter(Boolean);
