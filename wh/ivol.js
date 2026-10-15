@@ -35,6 +35,7 @@ const M = [
   { id:'fundament', g:'start', t:'Fundament', native:'fundament', st:'draait', r:DK, uit:'Stand van de vier fundamentpunten, uit de echte gegevens.' },
   { id:'kaart', g:'start', t:'Kaart van alles', native:'kaart', st:'draait', r:DV, uit:'Elk onderdeel, waar het staat, welke gegevens, en de status.' },
   { id:'naslag', g:'start', t:'Naslag', native:'naslag', st:'draait', r:DV, uit:'Alle links, koppelingen, functies, mappen en documenten op één plek.' },
+  { id:'kennisbank', g:'start', t:'Kennisbank', native:'kennisbank', st:'draait', r:DV, uit:'Daans eigen plek: korte vragen beantwoorden wanneer het uitkomt. Los van bouwplan en Te doen. Antwoorden in catalog wh-kennisbank.' },
 
   { id:'dag', g:'vandaag', t:'Dagstart', native:'x-dag', st:'proef', r:ALLE, uit:'Zes kerncijfers, het ritme van de dag om af te vinken en het ochtendoverleg.' },
   { id:'vandaag', g:'vandaag', t:'Vandaag', u:W('#/'), st:'draait', r:DK, data:'wh-taken, wh-todo, Picqer live', uit:'De dag in stappen, taken, leeftijd van de exports.' },
@@ -119,7 +120,7 @@ function tekenMenu(){
   const lijst = inMenu();
   $('menulijst').innerHTML = GROEPEN.map(g => {
     const items = lijst.filter(m => m.g === g.k); if(!items.length) return '';
-    return `<div class="groep"><div class="gt">${esc(g.t)}</div>${items.map(m => `<a href="${m.ext ? esc(m.ext) + '" target="_blank" rel="noopener' : '#/' + m.id}" class="${m === nu ? 'aan' : ''}">${esc(m.t)}${UI.rol === 'daan' && m.st !== 'draait' ? ` <i class="st ${ST[m.st][1]}">${ST[m.st][0]}</i>` : ''}</a>`).join('')}</div>`;
+    return `<div class="groep"><div class="gt">${esc(g.t)}</div>${items.map(m => `<a href="${m.ext ? esc(m.ext) + '" target="_blank" rel="noopener' : '#/' + m.id}" class="${m === nu ? 'aan' : ''}">${esc(m.t)}${m.native === 'kennisbank' && window.WHKB ? ` <i class="st grijs" data-kbtel>${WHKB.open()} open</i>` : ''}${UI.rol === 'daan' && m.st !== 'draait' ? ` <i class="st ${ST[m.st][1]}">${ST[m.st][0]}</i>` : ''}</a>`).join('')}</div>`;
   }).join('');
   document.querySelectorAll('#rollen button').forEach(b => b.classList.toggle('aan', b.dataset.rol === UI.rol));
   $('kruimel').textContent = nu ? ((GROEPEN.find(g => g.k === nu.g) || {}).t || '') + ' · ' + nu.t + (nu.id === 'taak' && UI.rest ? ' ' + decodeURIComponent(UI.rest) : '') : '';
@@ -153,6 +154,7 @@ function toon(){
   if(m.native){
     fr.hidden = true; nat.hidden = false;
     if(['todo', 'taak', 'bouwplan'].includes(m.native)){ nat.scrollTop = 0; WHTAAK.render(m.native, UI.rest); nat.scrollTop = 0; if(m.native === 'todo' && window.WHX) WHX.banner(nat); }
+    else if(m.native === 'kennisbank' && window.WHKB){ WHKB.render(nat); nat.scrollTop = 0; return; }
     else if(/^x-/.test(m.native) && window.WHX){ WHX.render(m.native.slice(2), nat, UI.rest); nat.scrollTop = 0; return; }
     else { nat.innerHTML = m.native === 'kaart' ? viewKaart() : m.native === 'bronnen' ? viewBronnen() : m.native === 'naslag' ? viewNaslag() : viewFundament(); nat.scrollTop = 0; }
     if(m.native === 'naslag') laadNaslag();

@@ -27,6 +27,8 @@
   "wh/taak.js",
   "wh/aannames.js",
   "wh/ivol-x.js",
+  "wh/kennisbank-vragen.js",
+  "wh/kennisbank.js",
   "wh/ivol.js"
  ],
  "junior": [
