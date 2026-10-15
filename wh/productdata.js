@@ -237,6 +237,9 @@ function staat(code, k){
   if(v !== null && !LEEGWAARDE(v)){
     // eerder overgezet terwijl palletlabels twee waarden had: opnieuw laten kiezen
     if(bron === 'overgezet' && o && o.conflict) return { v:'', s:'open', conflict:o.conflict };
+    // schatting van Claude (meta.tw): staat ingevuld klaar, maar telt pas als compleet na controle (Te controleren in 3.0, of Opslaan op de kaart)
+    const mk = r && r.meta && r.meta[k];
+    if(mk && mk.tw) return { v, s:'oud', bron:'schatting Claude, te controleren' + (mk.uit ? ' · ' + mk.uit : ''), tw:true };
     return { v, s:'ok' };
   }
   if(o && o.conflict) return { v:'', s:'open', conflict:o.conflict };

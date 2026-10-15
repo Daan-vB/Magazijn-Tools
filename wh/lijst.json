@@ -25,6 +25,8 @@
   "wh/bouwplan-route.js",
   "wh/bouwplan.js",
   "wh/taak.js",
+  "wh/aannames.js",
+  "wh/ivol-x.js",
   "wh/ivol.js"
  ],
  "junior": [

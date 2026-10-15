@@ -13,7 +13,7 @@ const { $, esc, nf, D, vandaag, isoDag } = WH;
 /* ---------- alle onderdelen: één lijst, waaruit menu en kaart worden gemaakt ---------- */
 const BOUWPLAN = 'https://claude.ai/artifact/7a3juevLzzxWRtPJY8K2bn';
 const W = h => './warehouse.html' + h, T = h => './test.html' + h, CP = h => './containerplanning.html' + h, CPT = h => './containerplanning.html?test' + h;
-const DV = ['daan'], DK = ['daan', 'karin'], ALLE = ['daan', 'karin', 'vloer'];
+const DV = ['daan'], DK = ['daan', 'karin'], ALLE = ['daan', 'karin', 'vloer'], IEDEREEN = ['daan', 'karin', 'vloer', 'mgmt'];
 const GROEPEN = [
   { k:'start', t:'Start' },
   { k:'vandaag', t:'Vandaag' },
@@ -27,6 +27,8 @@ const GROEPEN = [
   { k:'park', t:'Geparkeerd' }
 ];
 const M = [
+  { id:'stand', g:'start', t:'Hoe staat het ervoor', native:'x-stand', st:'proef', r:['daan', 'karin', 'mgmt'], uit:'Daans tien punten met het cijfer dat de app erover kan geven. Alleen lezen, voor Jim, Maxime, Ryan en Gino.' },
+  { id:'nakijken', g:'start', t:'Te controleren', native:'x-nakijken', st:'proef', r:DV, uit:'Schattingen van Claude in Productdata en aannames (kerncijfers, dagritme): Klopt of aanpassen.' },
   { id:'todo', g:'start', t:'Te doen', native:'todo', st:'draait', r:DV, uit:'De werkplek: de bouwplanstap van nu, wat vandaag moet en wat later komt. Elke knop opent het scherm waar je het doet.' },
   { id:'bouwplan', g:'start', t:'Bouwplan', native:'bouwplan', st:'draait', r:DV, uit:'De route, stap voor stap: Nu, Route, Visie, Data, Logboek, Parkeerplaats.' },
   { id:'taak', g:'start', t:'Taak', native:'taak', st:'draait', r:DV, verborgen:true, uit:'Eén bouwplanstap: wat nog moet, klaar als, vastleggen, afronden.' },
@@ -34,6 +36,7 @@ const M = [
   { id:'kaart', g:'start', t:'Kaart van alles', native:'kaart', st:'draait', r:DV, uit:'Elk onderdeel, waar het staat, welke gegevens, en de status.' },
   { id:'naslag', g:'start', t:'Naslag', native:'naslag', st:'draait', r:DV, uit:'Alle links, koppelingen, functies, mappen en documenten op één plek.' },
 
+  { id:'dag', g:'vandaag', t:'Dagstart', native:'x-dag', st:'proef', r:ALLE, uit:'Zes kerncijfers, het ritme van de dag om af te vinken en het ochtendoverleg.' },
   { id:'vandaag', g:'vandaag', t:'Vandaag', u:W('#/'), st:'draait', r:DK, data:'wh-taken, wh-todo, Picqer live', uit:'De dag in stappen, taken, leeftijd van de exports.' },
   { id:'live', g:'vandaag', t:'Picqer live', u:T('#/live'), st:'proef', r:DV, data:'functie picqer', uit:'Picklijsten en backorders rechtstreeks uit Picqer.' },
   { id:'planning', g:'vandaag', t:'Planning', u:T('#/planning'), st:'proef', r:DV, data:'wh-taken', uit:'Cijfers per dag en wat nog van Daan nodig is.' },
@@ -70,6 +73,7 @@ const M = [
   { id:'labels', g:'labels', t:'Palletlabels', u:'./index.html', st:'draait', r:ALLE, data:'catalog-ean', uit:'Labels printen; het productgeheugen.' },
   { id:'containerlabels', g:'labels', t:'Container / Stockmove-PDF', u:'./container-labels.html', st:'draait', r:ALLE, data:'catalog-ean', uit:'Labels voor een hele container.' },
 
+  { id:'zoek', g:'vloer', t:'Product zoeken', native:'x-zoek', st:'proef', r:IEDEREEN, uit:'Waar ligt het, wat weten we erover, en een meldknop voor de vloer.' },
   { id:'junior', g:'vloer', t:'Junior', u:'./junior.html', st:'draait', r:ALLE, eigenKop:true, data:'zelfde database', uit:'Kate, Salah, rijders: Nu verplaatsen, Aanvulronde, Containers, Handleiding (NL/EN/ES/EL).' },
 
   { id:'bronnen', g:'geg', t:'Koppeling Picqer', native:'bronnen', st:'draait', r:DV, uit:'Wat live uit Picqer komt, hoe vers, en wat nog een export is.' },
@@ -92,7 +96,7 @@ const OUD = [
   ['oud/productkaart-kopie-2.html', 'Kopie productkaart', 'dubbel bestand (15-10 naar oud/)'],
   ['oud/test-kopie.html', 'Kopie test', 'dubbel bestand (15-10 naar oud/)']
 ];
-const ROLLEN = { daan:'Daan', karin:'Karin', vloer:'Vloer' };
+const ROLLEN = { daan:'Daan', karin:'Karin', vloer:'Vloer', mgmt:'Management' };
 const ST = { draait:['draait', 'ok'], proef:['proef', 'warn'], geparkeerd:['geparkeerd', 'grijs'], naslag:['naslag', 'grijs'] };
 
 /* ---------- staat ---------- */
@@ -101,7 +105,7 @@ const lsZet = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
 const UI = { rol:ROLLEN[ls('ivol-rol')] ? ls('ivol-rol') : 'daan', menu:false, geladen:false, cache:null };
 const zichtbaar = () => M.filter(m => m.r.includes(UI.rol));
 const inMenu = () => zichtbaar().filter(m => !m.verborgen);
-const startVan = rol => rol === 'vloer' ? 'junior' : rol === 'karin' ? 'vandaag' : 'todo';
+const startVan = rol => rol === 'vloer' ? 'dag' : rol === 'karin' ? 'dag' : rol === 'mgmt' ? 'stand' : 'todo';
 function huidig(){
   const id = (location.hash.match(/^#\/([\w-]+)/) || [])[1];
   UI.rest = (location.hash.match(/^#\/[\w-]+\/(.+)$/) || [])[1] || '';
@@ -149,6 +153,7 @@ function toon(){
   if(m.native){
     fr.hidden = true; nat.hidden = false;
     if(['todo', 'taak', 'bouwplan'].includes(m.native)){ nat.scrollTop = 0; WHTAAK.render(m.native, UI.rest); nat.scrollTop = 0; }
+    else if(/^x-/.test(m.native) && window.WHX){ WHX.render(m.native.slice(2), nat, UI.rest); nat.scrollTop = 0; return; }
     else { nat.innerHTML = m.native === 'kaart' ? viewKaart() : m.native === 'bronnen' ? viewBronnen() : m.native === 'naslag' ? viewNaslag() : viewFundament(); nat.scrollTop = 0; }
     if(m.native === 'naslag') laadNaslag();
     if(['fundament', 'todo', 'taak', 'bouwplan'].includes(m.native)) rekenFundament();
