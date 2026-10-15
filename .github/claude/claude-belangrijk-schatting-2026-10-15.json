@@ -1,0 +1,2522 @@
+{
+"naam": "Claude: schattingen belangrijke producten (te controleren)",
+"datum": "2026-10-15",
+"regels": [
+{
+"code": "single-mounting-pin",
+"zet": [
+[
+"mixgroep",
+"GREEN TYRE · korte",
+"claude",
+"Voorstel app (mid): leverancier + soort product",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SSRTEARHR",
+"zet": [
+[
+"lvl",
+"15",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "HN3188-black",
+"zet": [
+[
+"lvl",
+"22",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"222",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"claude",
+"Schatting Claude: doos met wisselend aantal tot de inkoop het aantal per doos bevestigt",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "holder-black-flat",
+"zet": [
+[
+"lvl",
+"16",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"179",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"claude",
+"Schatting Claude: doos met wisselend aantal tot de inkoop het aantal per doos bevestigt",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ZJ-007",
+"zet": [
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.4",
+"zet": [
+[
+"vn",
+"Rubbermat op rol - Fijne ribbel - Dikte 3mm - Breedte 40cm - Lengte 1m",
+"claude",
+"Voorstel app (laag): uit Picqer-naam · klopte bij 13% van 571 getoetst",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BTMSD4080",
+"zet": [
+[
+"lvl",
+"7",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "rh50x100",
+"zet": [
+[
+"lvl",
+"5",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Voorstel app (laag): familie: RH60x100, RH80x120-16 +2 · klopte bij 64% van 33 getoetst",
+null,
+"twijfel"
+],
+[
+"spd",
+"1",
+"claude",
+"Voorstel app (mid): familie: RH100x250, rh100x200",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "1711-black-set",
+"zet": [
+[
+"geleverd",
+"100",
+"claude",
+"Voorstel app (mid): zelfde als 1711-ass-set, 1711-red-set",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "IWW01",
+"zet": [
+[
+"maxpick",
+"11",
+"claude",
+"Voorstel app (laag): nu 11 op pick",
+null,
+"twijfel"
+],
+[
+"lvl",
+"6",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"claude",
+"Schatting Claude: doos met wisselend aantal tot de inkoop het aantal per doos bevestigt",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-2",
+"zet": [
+[
+"maxpick",
+"15",
+"claude",
+"Voorstel app (laag): nu 15 op pick",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Voorstel app (laag): familie: MR65SX2.7-0.4, MR65SX2.7-0.4-2 +3 · klopte bij 64% van 33 getoetst",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"295",
+"claude",
+"Voorstel app (laag): 100 rollen × 2,8 kg (Picqer) + 15 kg pallet · klopte bij 35% van 4 getoetst",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Schatting Claude: volgt uit de soort",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.4-3",
+"zet": [
+[
+"vn",
+"Rubbermat op rol - Fijne ribbel - Dikte 3mm - Breedte 40cm - Lengte 3m",
+"claude",
+"Voorstel app (laag): uit Picqer-naam · klopte bij 13% van 571 getoetst",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WBSKB000001",
+"zet": [
+[
+"lvl",
+"5",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"claude",
+"Schatting Claude: doos met wisselend aantal tot de inkoop het aantal per doos bevestigt",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "1711-white-set",
+"zet": [
+[
+"geleverd",
+"100",
+"claude",
+"Voorstel app (mid): zelfde als 1711-ass-set, 1711-red-set",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "14016.400",
+"zet": [
+[
+"geleverd",
+"wisselt",
+"claude",
+"Schatting Claude: doos met wisselend aantal tot de inkoop het aantal per doos bevestigt",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "368-1-441-001",
+"zet": [
+[
+"lvl",
+"5",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "thansen-40790",
+"zet": [
+[
+"vn",
+"Wielklem slot",
+"claude",
+"Voorstel app (laag): uit Picqer-naam · klopte bij 13% van 571 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5",
+"zet": [
+[
+"maxpick",
+"19",
+"claude",
+"Voorstel app (laag): nu 19 op pick",
+null,
+"twijfel"
+],
+[
+"lvl",
+"4",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Voorstel app (mid): aangevuld met 9 (minder dan 1 pallet)",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Voorstel app (laag): familie: MR65SX2.7-0.4, MR65SX2.7-0.4-2 +3 · klopte bij 64% van 33 getoetst",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"155",
+"claude",
+"Voorstel app (laag): 100 rollen × 1,4 kg (Picqer) + 15 kg pallet · klopte bij 35% van 4 getoetst",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WBCLS000200",
+"zet": [
+[
+"maxpick",
+"57",
+"claude",
+"Voorstel app (laag): nu 57 op pick",
+null,
+"twijfel"
+],
+[
+"lvl",
+"4",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"claude",
+"Schatting Claude: doos met wisselend aantal tot de inkoop het aantal per doos bevestigt",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "368-1-402-302",
+"zet": [
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPM60100",
+"zet": [
+[
+"spp",
+"110",
+"claude",
+"Voorstel app (laag): bulk: 1 pallet van 110 + binnengeboekt op bulk in pallets van 110 · klopte bij 65% van 20 getoetst",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"290",
+"claude",
+"Schatting Claude: stuks per pallet × Picqer-gewicht + 15 kg",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "14016.401",
+"zet": [
+[
+"geleverd",
+"wisselt",
+"claude",
+"Schatting Claude: doos met wisselend aantal tot de inkoop het aantal per doos bevestigt",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RH40x60",
+"zet": [
+[
+"maat",
+"80x120",
+"claude",
+"Voorstel app (laag): familie: RH60x100, RH80x120-16 +2 · klopte bij 64% van 33 getoetst",
+null,
+"twijfel"
+],
+[
+"spd",
+"1",
+"claude",
+"Voorstel app (mid): familie: RH100x250, rh100x200",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RGM1",
+"zet": [
+[
+"lvl",
+"11",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ZJ-017",
+"zet": [
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "holder-black-square",
+"zet": [
+[
+"lvl",
+"5",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"45",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"claude",
+"Schatting Claude: doos met wisselend aantal tot de inkoop het aantal per doos bevestigt",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "9030-1",
+"zet": [
+[
+"lvl",
+"6",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"vn",
+"Bureaulade voor onder bureau - Zwart",
+"claude",
+"Voorstel app (laag): uit Picqer-naam · klopte bij 13% van 571 getoetst",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "HL-S1009-Bla",
+"zet": [
+[
+"spd",
+"5",
+"claude",
+"Voorstel app (mid): pakbon: 20 per pak",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "rh50x80",
+"zet": [
+[
+"lvl",
+"4",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"spd",
+"1",
+"claude",
+"Voorstel app (mid): familie: RH100x250, rh100x200",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WBERB000005",
+"zet": [
+[
+"geleverd",
+"50",
+"claude",
+"Voorstel app (mid): zelfde als WBERB000001",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "LT805",
+"zet": [
+[
+"geleverd",
+"wisselt",
+"claude",
+"Schatting Claude: doos met wisselend aantal tot de inkoop het aantal per doos bevestigt",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "42x21x100ALU",
+"zet": [
+[
+"maxpick",
+"14",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "C4001",
+"zet": [
+[
+"lvl",
+"2",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "VD-CJ-202",
+"zet": [
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RH40x60-CLOSED",
+"zet": [
+[
+"spp",
+"59",
+"claude",
+"Voorstel app (laag): bulk: 1 pallet van 59 (kan een restpallet zijn) · klopte bij 30% van 125 getoetst",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"100x150",
+"claude",
+"Voorstel app (laag): familie: RH100x150-CLOSED · klopte bij 64% van 33 getoetst",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"715",
+"claude",
+"Voorstel app (laag): familie: RH100x150-CLOSED · klopte bij 50% van 2 getoetst",
+null,
+"twijfel"
+],
+[
+"spd",
+"2",
+"claude",
+"Voorstel app (mid): familie: RH100x150-CLOSED",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"2",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-4",
+"zet": [
+[
+"lvl",
+"3",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Voorstel app (laag): familie: MR65SX2.7-0.4, MR65SX2.7-0.4-2 +3 · klopte bij 64% van 33 getoetst",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"575",
+"claude",
+"Voorstel app (laag): 100 rollen × 5,6 kg (Picqer) + 15 kg pallet · klopte bij 35% van 4 getoetst",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Schatting Claude: volgt uit de soort",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"7",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BWM61x91",
+"zet": [
+[
+"spp",
+"78",
+"claude",
+"Voorstel app (laag): bulk: 1 pallet van 78 (kan een restpallet zijn) · klopte bij 30% van 125 getoetst",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"327",
+"claude",
+"Schatting Claude: stuks per pallet × Picqer-gewicht + 15 kg",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-3",
+"zet": [
+[
+"maxpick",
+"8",
+"claude",
+"Voorstel app (laag): nu 8 op pick",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Voorstel app (laag): familie: MR65SX2.7-0.4, MR65SX2.7-0.4-2 +3 · klopte bij 64% van 33 getoetst",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"435",
+"claude",
+"Voorstel app (laag): 100 rollen × 4,2 kg (Picqer) + 15 kg pallet · klopte bij 35% van 4 getoetst",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Schatting Claude: volgt uit de soort",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "VD-ZJ-201",
+"zet": [
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "1711-blue-set",
+"zet": [
+[
+"geleverd",
+"100",
+"claude",
+"Voorstel app (mid): zelfde als 1711-ass-set, 1711-red-set",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WBMPH000000",
+"zet": [
+[
+"lvl",
+"2",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"claude",
+"Schatting Claude: doos met wisselend aantal tot de inkoop het aantal per doos bevestigt",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "AK2017(26)-50x80",
+"zet": [
+[
+"lvl",
+"2",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken, max de helft van max op pick · Picqer staat op standaard 1 · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-10",
+"zet": [
+[
+"lvl",
+"2",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Voorstel app (mid): aangevuld met 2 (minder dan 1 pallet)",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Voorstel app (laag): familie: MR65SX2.7-0.4, MR65SX2.7-0.4-2 +3 · klopte bij 64% van 33 getoetst",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"1415",
+"claude",
+"Voorstel app (laag): 100 rollen × 14 kg (Picqer) + 15 kg pallet · klopte bij 35% van 4 getoetst",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"10",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WBCLS000100",
+"zet": [
+[
+"maxpick",
+"25",
+"claude",
+"Voorstel app (laag): nu 25 op pick",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"claude",
+"Schatting Claude: doos met wisselend aantal tot de inkoop het aantal per doos bevestigt",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "D76-GREY",
+"zet": [
+[
+"vn",
+"Auto luchtbed voor achterbank - met 12v elektrische pomp, 2 kussens en plakset",
+"claude",
+"Voorstel app (laag): uit Picqer-naam · klopte bij 13% van 571 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "design-200-black",
+"zet": [
+[
+"lvl",
+"2",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"vn",
+"Design trapleuning zwart - 200 cm",
+"claude",
+"Voorstel app (laag): uit Picqer-naam · klopte bij 13% van 571 getoetst",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"11",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "TRLBLACK-350",
+"zet": [
+[
+"lvl",
+"2",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"vn",
+"Trapleuning zwart rond 45 mm 350 cm",
+"claude",
+"Voorstel app (laag): uit Picqer-naam · klopte bij 13% van 571 getoetst",
+null,
+"twijfel"
+],
+[
+"spp",
+"nvt",
+"claude",
+"Schatting Claude: product langer dan 2,5 m: geen gewone pallet",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"9",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "design-250-black",
+"zet": [
+[
+"lvl",
+"2",
+"claude",
+"Voorstel app (laag): ± 2 dagen picken · klopte bij 7% van 30 getoetst",
+null,
+"twijfel"
+],
+[
+"vn",
+"Design trapleuning zwart - 250 cm",
+"claude",
+"Voorstel app (laag): uit Picqer-naam · klopte bij 13% van 571 getoetst",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"6",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "2031-BLK",
+"zet": [
+[
+"spp",
+"50",
+"claude",
+"Voorstel app (laag): VST: 1 van 1 pallets hebben 50 + binnengeboekt op bulk in pallets van 50 · klopte bij 65% van 20 getoetst",
+null,
+"twijfel"
+],
+[
+"vn",
+"Inklapbare huishoudtrap 4 treden - Zwart",
+"claude",
+"Voorstel app (laag): uit Picqer-naam · klopte bij 13% van 571 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"415",
+"claude",
+"Schatting Claude: stuks per pallet × Picqer-gewicht + 15 kg",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.4-4",
+"zet": [
+[
+"vn",
+"Rubbermat op rol - Fijne ribbel - Dikte 3mm - Breedte 40cm - Lengte 4m",
+"claude",
+"Voorstel app (laag): uit Picqer-naam · klopte bij 13% van 571 getoetst",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SWH01",
+"zet": [
+[
+"mixgroep",
+"Ningbo Henri · skate",
+"claude",
+"Voorstel app (mid): leverancier + soort product",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KJCRB711",
+"zet": [
+[
+"spp",
+"68",
+"claude",
+"Voorstel app (laag): bulk: 1 pallet van 68 (kan een restpallet zijn) · klopte bij 30% van 125 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"83",
+"claude",
+"Schatting Claude: stuks per pallet × Picqer-gewicht + 15 kg",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.4-5",
+"zet": [
+[
+"vn",
+"Rubbermat op rol - Fijne ribbel - Dikte - 3mm - Breedte 40cm - Lengte 5m",
+"claude",
+"Voorstel app (laag): uit Picqer-naam · klopte bij 13% van 571 getoetst",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "2031",
+"zet": [
+[
+"spp",
+"50",
+"claude",
+"Voorstel app (laag): bulk: 1 pallet van 50 (kan een restpallet zijn) · klopte bij 30% van 125 getoetst",
+null,
+"twijfel"
+],
+[
+"vn",
+"Inklapbare huishoudtrap 4 treden",
+"claude",
+"Voorstel app (laag): uit Picqer-naam · klopte bij 13% van 571 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"445",
+"claude",
+"Schatting Claude: stuks per pallet × Picqer-gewicht + 15 kg",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "VD-HX-E04-B",
+"zet": [
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "CJ-001",
+"zet": [
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KJCRB705",
+"zet": [
+[
+"spp",
+"60",
+"claude",
+"Voorstel app (laag): bulk: 1 pallet van 60 (kan een restpallet zijn) · klopte bij 30% van 125 getoetst",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"75",
+"claude",
+"Schatting Claude: stuks per pallet × Picqer-gewicht + 15 kg",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-5",
+"zet": [
+[
+"opslag",
+"deel",
+"claude",
+"Voorstel app (laag): twijfel: Picqer telt per rol, geen palletgegevens",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PUR-R-BLA",
+"zet": [
+[
+"opslag",
+"deel",
+"claude",
+"Voorstel app (laag): twijfel: Picqer telt per meter, geen palletgegevens",
+null,
+"twijfel"
+],
+[
+"vn",
+"Zelfklevend PU leer - Leerreparatie / wandbekleding – Zwart – 140 cm * PER METER *",
+"claude",
+"Voorstel app (laag): uit Picqer-naam · klopte bij 13% van 571 getoetst",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BRE-60x90",
+"zet": [
+[
+"pick",
+"nee",
+"claude",
+"Schatting Claude: geen locatie in Picqer",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Schatting Claude: volgt uit de soort",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"claude",
+"Schatting Claude: ± 1 week verkoop (regel masterdocument), minimaal 1",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"2",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BRE-80x120",
+"zet": [
+[
+"spp",
+"100",
+"claude",
+"Voorstel app (laag): pakbon: 100 per pallet · klopte bij 43% van 7 getoetst",
+null,
+"twijfel"
+],
+[
+"pick",
+"nee",
+"claude",
+"Schatting Claude: geen locatie in Picqer",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Schatting Claude: volgt uit de soort",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"claude",
+"Schatting Claude: ± 1 week verkoop (regel masterdocument), minimaal 1",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"2",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"claude",
+"Schatting Claude: standaard europallet",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"claude",
+"Schatting Claude: standaardhoogte hal A (max hal A 140, hal B/C 220)",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"claude",
+"Schatting Claude: 2000 kg per ligger en 3 plaatsen per ligger (hal A)",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"claude",
+"Schatting Claude: komt per pallet, niet per doos",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MM-BLK-10x120",
+"zet": [
+[
+"pick",
+"nee",
+"claude",
+"Schatting Claude: geen locatie in Picqer",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Schatting Claude: volgt uit de soort",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"claude",
+"Schatting Claude: ± 1 week verkoop (regel masterdocument), minimaal 1",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"2",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MM-BLK-4x120",
+"zet": [
+[
+"pick",
+"nee",
+"claude",
+"Schatting Claude: geen locatie in Picqer",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Schatting Claude: volgt uit de soort",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"claude",
+"Schatting Claude: ± 1 week verkoop (regel masterdocument), minimaal 1",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"2",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MM-BLUE-10x120",
+"zet": [
+[
+"pick",
+"nee",
+"claude",
+"Schatting Claude: geen locatie in Picqer",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Schatting Claude: volgt uit de soort",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"claude",
+"Schatting Claude: ± 1 week verkoop (regel masterdocument), minimaal 1",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"2",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MM-BLUE-4x120",
+"zet": [
+[
+"pick",
+"nee",
+"claude",
+"Schatting Claude: geen locatie in Picqer",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Schatting Claude: volgt uit de soort",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"claude",
+"Schatting Claude: ± 1 week verkoop (regel masterdocument), minimaal 1",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"2",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MM-GRY-10x120",
+"zet": [
+[
+"pick",
+"nee",
+"claude",
+"Schatting Claude: geen locatie in Picqer",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Schatting Claude: volgt uit de soort",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"claude",
+"Schatting Claude: ± 1 week verkoop (regel masterdocument), minimaal 1",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"2",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MM-GRY-4x120",
+"zet": [
+[
+"pick",
+"nee",
+"claude",
+"Schatting Claude: geen locatie in Picqer",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Schatting Claude: volgt uit de soort",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"claude",
+"Schatting Claude: ± 1 week verkoop (regel masterdocument), minimaal 1",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"2",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RH100x200-16",
+"zet": [
+[
+"maat",
+"80x120",
+"claude",
+"Voorstel app (laag): familie: RH60x100, RH80x120-16 +2 · klopte bij 64% van 33 getoetst",
+null,
+"twijfel"
+],
+[
+"spd",
+"1",
+"claude",
+"Voorstel app (mid): familie: RH100x250, rh100x200",
+null,
+"twijfel"
+],
+[
+"pick",
+"nee",
+"claude",
+"Schatting Claude: geen locatie in Picqer",
+null,
+"twijfel"
+],
+[
+"met",
+"deel",
+"claude",
+"Schatting Claude: volgt uit de soort",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"claude",
+"Schatting Claude: ± 1 week verkoop (regel masterdocument), minimaal 1",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"2",
+"claude",
+"Schatting Claude: ± 3 weken verkoop, minimaal aanvullen bij + 1",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"claude",
+"Schatting Claude: uit de palletmaat",
+null,
+"twijfel"
+]
+]
+}
+]
+}

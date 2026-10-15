@@ -12,7 +12,9 @@ KEY = "sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA"   # publieke sleutel, sta
 def samenvoegen(rij, zet, nu):
     data, meta = dict(rij.get("data") or {}), dict(rij.get("meta") or {})
     gezet, overgeslagen = [], []
-    for veld, waarde, bron, reden, verwacht in zet:
+    for item in zet:
+        veld, waarde, bron, reden, verwacht = item[:5]
+        twijfel = len(item) > 5 and item[5] == "twijfel"
         cv = data.get(veld)
         cv = cv.get("v") if isinstance(cv, dict) else cv
         cb = (meta.get(veld) or {}).get("bron")
@@ -26,6 +28,8 @@ def samenvoegen(rij, zet, nu):
             continue
         data[veld] = str(waarde)
         meta[veld] = {"op": nu, "bron": bron, "uit": reden}
+        if twijfel:
+            meta[veld]["tw"] = 1   # schatting van Claude: in de app onder "Te controleren", telt niet als compleet in de poort
         gezet.append(veld)
     return {"productcode": rij["productcode"], "data": data, "meta": meta, "updated_at": nu}, gezet, overgeslagen
 
@@ -45,19 +49,22 @@ def main(bestand):
     p = json.load(open(bestand))
     nu = datetime.datetime.now(datetime.timezone.utc).isoformat()
     codes = [r["code"] for r in p["regels"]]
-    lijst = ",".join('"' + c.replace('"', '\\"') + '"' for c in codes)
-    huidig = {r["productcode"]: r for r in req("GET", "productdata?select=productcode,data,meta&productcode=in.(" + urllib.parse.quote(lijst) + ")") or []}
+    huidig = {}
+    for i in range(0, len(codes), 150):   # in stukken: een lange in.(...) past niet in één adres
+        lijst = ",".join('"' + c.replace('"', '\\"') + '"' for c in codes[i:i + 150])
+        for r in req("GET", "productdata?select=productcode,data,meta&productcode=in.(" + urllib.parse.quote(lijst) + ")") or []:
+            huidig[r["productcode"]] = r
     rijen, n_gezet, n_over = [], 0, 0
     for r in p["regels"]:
         rij = huidig.get(r["code"]) or {"productcode": r["code"], "data": {}, "meta": {}}
         nieuw, gezet, over = samenvoegen(rij, r["zet"], nu)
         n_gezet += len(gezet); n_over += len(over)
-        if over:
+        if over and len(p["regels"]) <= 200:
             print(f"{r['code']}: niet overschreven (eigen invoer): {', '.join(over)}")
         if gezet:
             rijen.append(nieuw)
-    if rijen:
-        req("POST", "productdata?on_conflict=productcode", rijen, {"Prefer": "resolution=merge-duplicates,return=minimal"})
+    for i in range(0, len(rijen), 400):
+        req("POST", "productdata?on_conflict=productcode", rijen[i:i + 400], {"Prefer": "resolution=merge-duplicates,return=minimal"})
     print(f"{p['naam']}: {n_gezet} waarden gezet voor {len(rijen)} producten, {n_over} overgeslagen")
 
 
