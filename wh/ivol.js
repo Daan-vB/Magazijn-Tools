@@ -224,8 +224,8 @@ async function rekenFundament(){
   if(!(await geladen())) return;
   let h = '';
   try{
-    // 1 aanvuladvies
-    let R = null, V = null;
+    // 1 aanvuladvies: alleen onverklaarde verschillen tussen live en PDF zijn werk (doel 0)
+    let R = null, V = null, U = null;
     try{
       if(WHAL.S.st && WHAL.S.st.p){
         R = WHAL.ronde();
@@ -233,6 +233,7 @@ async function rekenFundament(){
           const pdf = new Set(D.ADV.rows.map(r => D.PLOW[String(r.code).toLowerCase()] || r.code));
           const live = new Set(R.uit.map(r => r.code));
           V = { beide:[...live].filter(c => pdf.has(c)), alleenPdf:[...pdf].filter(c => !live.has(c)), alleenLive:[...live].filter(c => !pdf.has(c)) };
+          U = WHAL.uitleg(R);
         }
       }
     }catch(e){ console.error(e); }
@@ -241,11 +242,9 @@ async function rekenFundament(){
       ['Aanvuladvies-PDF', D.ADV ? `${nf(nPdf)} regels · ${wanneer(D.ADV.ingelezen || D.ADV.datum)}` : 'niet ingelezen', D.ADV && oud(D.ADV.ingelezen || D.ADV.datum) > 1 ? 'let' : ''],
       ['Live advies', R ? `${nf(R.uit.length)} regels · stand ${wanneer(WHAL.S.st.bijgewerkt)}` : 'nog geen stand', R ? '' : 'let']
     ];
-    if(V) r1.push(['In beide', nf(V.beide.length)], ['Alleen in de PDF', nf(V.alleenPdf.length), V.alleenPdf.length ? 'let' : ''], ['Alleen live', nf(V.alleenLive.length), V.alleenLive.length ? 'let' : '']);
-    const pdfDag = D.ADV && isoDag(dag2(D.ADV.ingelezen || D.ADV.datum) || new Date(0));
-    if(V && pdfDag !== vandaag()) r1.push(['Eerlijk vergelijken', 'pas met een PDF van vandaag', 'let']);
-    const overeen = V ? pct(V.beide.length, V.beide.length + V.alleenPdf.length + V.alleenLive.length) : null;
-    h += blok(1, 'Aanvuladvies klopt', V && overeen >= 95 ? 'groen' : 'oranje', V ? `<b>${overeen}%</b> overeenkomst live en PDF` : 'Nog niet te vergelijken: PDF en live stand nodig', r1, 'vergelijk', 'Live naast PDF');
+    if(V) r1.push(['In beide', nf(V.beide.length)], ['Verschillen', nf(U ? U.verschillen : V.alleenPdf.length + V.alleenLive.length)], ['Verklaard', nf(U ? U.verklaard : 0)], ['Onverklaard', nf(U ? U.onverklaard : 0), U && U.onverklaard ? 'let' : '']);
+    if(U && U.teOud) r1.push(['Zelfde moment', U.teOud, 'let']);
+    h += blok(1, 'Aanvuladvies klopt', U && !U.onverklaard && !U.teOud ? 'groen' : 'oranje', U ? `<b>${nf(U.onverklaard)}</b> onverklaarde verschillen live en PDF (doel 0)` : 'Nog niet te vergelijken: PDF en live stand nodig', r1, 'vergelijk', 'Live naast PDF');
 
     // 2 locaties
     const LS = WHL.locStats(), A = LS.aand;
@@ -287,7 +286,7 @@ async function rekenFundament(){
       if(!mist.length) cnt.ok++;
     });
     const nA = lopers.filter(p => p.abc === 'A').length, nB = lopers.filter(p => p.abc === 'B').length;
-    UI.stats = { V, R, nPdf, pdfVandaag:!!(D.ADV && isoDag(dag2(D.ADV.ingelezen || D.ADV.datum) || new Date(0)) === vandaag()), A, afw:afw.length, nLoc, cnt, lopers:lopers.length, nA, nB };
+    UI.stats = { V, R, U, uitleg:U, nPdf, pdfVandaag:!!(D.ADV && isoDag(dag2(D.ADV.ingelezen || D.ADV.datum) || new Date(0)) === vandaag()), A, afw:afw.length, nLoc, cnt, lopers:lopers.length, nA, nB };
     h += blok(3, 'Lopers compleet', cnt.ok === lopers.length && lopers.length ? 'groen' : 'oranje', lopers.length ? `<b>${nf(cnt.ok)}</b> van ${nf(lopers.length)} lopers compleet (${pct(cnt.ok, lopers.length)}%)<div class="balk"><i style="width:${pct(cnt.ok, lopers.length)}%"></i></div>` : 'Productexport niet ingelezen', [
       ['Lopers', `${nf(lopers.length)} (${nf(nA)} A, ${nf(nB)} B, rest triage)`],
       ['Zonder vaste picklocatie in Picqer', nf(cnt.pick) + (D.PDAAN && cnt.pickPd ? ` · ${nf(cnt.pickPd)} staan in Productdata op ja` : ''), cnt.pick ? 'let' : ''],
@@ -515,6 +514,7 @@ document.addEventListener('keydown', ev => { if(ev.key === 'Escape' && smal() &&
 $('frame').addEventListener('load', frameGeladen);
 toon();
 IVL.opNieuw(herreken);
+WHAL.opNieuw(herreken);
 geladen().then(() => { tekenPill(); herreken(); IVL.ronde(false); });
 return { M, GROEPEN, toon, huidig, geladen, stats:() => UI.stats || null };
 })();

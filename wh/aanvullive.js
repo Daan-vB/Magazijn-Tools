@@ -42,8 +42,12 @@ function locIndex(){
   }));
   return idx;
 }
-function kandidaten(){
+// metPdf: ook alle producten uit het ingelezen PDF-advies (bij het ophalen van de stand), zodat elk PDF-product
+// een live stand heeft om mee te vergelijken. De aanvulronde zelf rekent met de gewone kandidaten.
+const pdfCodes = () => (D.ADV && D.ADV.rows ? D.ADV.rows.map(r => D.PLOW[String(r.code).toLowerCase()] || r.code) : []);
+function kandidaten(metPdf){
   if(!S.cat) return [];
+  if(metPdf){ const k = kandidaten(), set = new Set(k); pdfCodes().forEach(c => { if(S.cat.ids && S.cat.ids[c] && !set.has(c)){ set.add(c); k.push(c); } }); return k; }
   const idx = locIndex(), st = (S.st && S.st.p) || {};
   return Object.keys(S.cat.ids || {}).filter(code => {
     if(!((S.cat.hm || {})[code] > 0)) return false;
@@ -83,7 +87,7 @@ async function bijwerken(alles){
       await WH.catZet('wh-pq-cat', cat);
     }
     // 2. wie moet opnieuw: alles bij de eerste keer of na 20 uur, anders alleen producten met een voorraadmutatie
-    const kand = kandidaten();
+    const kand = kandidaten(true);
     const st = (S.st && S.st.p) ? S.st : { p:{} };
     let vernieuw = kand;
     const nieuweSinds = pqNu(start - 120000);
@@ -177,6 +181,90 @@ function vergelijk(R){
   return { datum:D.ADV.datum || D.ADV.ingelezen, alleenPdf, alleenLive, beide, nPdf:pdf.size };
 }
 
+/* ---------- PDF en live naast elkaar: elk verschil een reden ----------
+   Eerlijk vergelijken kan alleen als de PDF en de live stand hooguit 30 minuten uit elkaar liggen.
+   Een verschil is verklaard als de oorzaak in de gegevens te zien is; alleen onverklaard is werk. */
+const MAX_VERSCHIL = 30;
+const tijdMs = t => { if(!t) return null; const d = new Date(t); return isNaN(d) ? null : d.getTime(); };
+const hhmm = ms => ms == null ? '–' : new Date(ms).toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit', hour12:false });
+function momenten(){
+  const pdfT = D.ADV ? tijdMs(D.ADV.datum || D.ADV.ingelezen) : null;
+  const st = S.st || {};
+  // stand van de PDF-producten na het inlezen van deze PDF opnieuw opgehaald: die tijd telt
+  const liveT = st.pdfStand && D.ADV && st.pdfStand.adv === (D.ADV.ingelezen || D.ADV.datum) ? Math.max(tijdMs(st.pdfStand.t) || 0, tijdMs(st.bijgewerkt) || 0) : tijdMs(st.bijgewerkt);
+  const gat = pdfT != null && liveT != null ? Math.round(Math.abs(liveT - pdfT) / 6e4) : null;
+  return { pdfT, liveT, gat, zelfde:gat != null && gat <= MAX_VERSCHIL };
+}
+function redenPdf(x, M){
+  const c = x.code, q = D.PQ[c] || [], lvl = q[0], pdf = x.pdf || {}, s = stand(c);
+  const li = M.idx ? M.idx[c] : null;   // locatie-export: geen picklocatie gekoppeld (alleen bulk)
+  const geenPick = pdf.geenPick || (pdf.pick && !pdf.pick.length) || (s && !s.pick.length) || (!s && li && !li.pick && li.bulk);
+  if(geenPick) return { r:'Geen picklocatie: hoort bij Voor orders, niet bij de aanvulronde', ok:true };
+  if(lvl === null || lvl === undefined) return { r:'Geen aanvulniveau in de app (Picqer had er wel een)', ok:true };
+  if(!S.cat || !S.cat.ids || !S.cat.ids[c]) return { r:'Geen voorraad meer in het Hoofdmagazijn', ok:true };
+  if(!s) return { r:'Nog geen live stand van dit product: eerst verversen', ok:!M.zelfde };
+  const toen = pdf.pickst, nu = s.pickVrij;
+  if(nu >= lvl){
+    if(toen != null && toen !== nu) return { r:'Voorraad veranderd sinds de PDF (pick toen ' + nf(toen) + ', nu ' + nf(nu) + ')', ok:true };
+    // zelfde pickvoorraad: Picqer vult aan bij "dit of minder", de app pas onder het niveau
+    if(nu === lvl) return { r:'Rekenverschil: pick ' + nf(nu) + ' is gelijk aan het aanvulniveau. Picqer vult dan al aan, de app pas eronder', ok:false };
+    return { r:'Onverklaard: pick ' + nf(nu) + ' boven het niveau ' + nf(lvl) + ', ook al in de PDF', ok:false };
+  }
+  if(!s.bulk.length){
+    const bulkPdf = (pdf.bulk || []).filter(Boolean);
+    return { r:bulkPdf.length ? 'Bulk is leeg (PDF noemde nog ' + bulkPdf.slice(0, 2).join(', ') + ')' : 'Onder het niveau, maar geen bulk', ok:true };
+  }
+  if(!kandidaten().includes(c)) return { r:'Niet in de aanvulronde: pick en bulk niet allebei gekoppeld in de locatie-export', ok:false };
+  return { r:'Onverklaard', ok:false };
+}
+function redenLive(r, M){
+  const s = r.s;
+  if(M.pdfT != null && M.liveT != null && M.liveT - M.pdfT > MAX_VERSCHIL * 6e4) return { r:'Voorraad veranderd sinds de PDF: om ' + hhmm(M.pdfT) + ' nog boven het niveau, nu pick ' + nf(s.pickVrij) + ' (niveau ' + nf(r.lvl) + ')', ok:true };
+  // zelfde moment: Picqer had hem toen ook moeten noemen
+  return { r:'Onverklaard: live onder het niveau (pick ' + nf(s.pickVrij) + ', niveau ' + nf(r.lvl) + '), niet in de PDF van hetzelfde moment', ok:false };
+}
+function uitleg(R){
+  R = R || (S.st && S.st.p ? ronde() : null);
+  if(!R) return null;
+  const C = vergelijk(R); if(!C) return null;
+  const M = Object.assign(momenten(), { idx:locIndex() });
+  const rijen = C.alleenPdf.map(x => Object.assign({ code:x.code, soort:'pdf', x }, redenPdf(x, M)))
+    .concat(C.alleenLive.map(r => Object.assign({ code:r.code, soort:'live', x:r }, redenLive(r, M))));
+  const verklaard = rijen.filter(r => r.ok).length;
+  return { C, M, rijen, verschillen:rijen.length, verklaard, onverklaard:rijen.length - verklaard,
+    teOud:M.zelfde || M.pdfT == null || M.liveT == null ? null : 'PDF ' + hhmm(M.pdfT) + ' · live ' + hhmm(M.liveT) + ' — eerst verversen' };
+}
+// stand van de PDF-producten nu ophalen (alleen lezen in Picqer); na het inlezen van een nieuwe PDF en met de knop
+async function verversPdf(adv){
+  if(adv) D.ADV = adv;
+  if(!window.WHLIVE || !WHLIVE.status().code) return false;
+  await laadOpslag();
+  if(!S.cat || !S.cat.ids) return false;
+  const codes = pdfCodes().filter(c => S.cat.ids[c]);
+  const st = (S.st && S.st.p) ? S.st : { p:{} };
+  const codeVan = {}; codes.forEach(c => codeVan[S.cat.ids[c]] = c);
+  const ids = codes.map(c => S.cat.ids[c]);
+  try{
+    for(let i = 0; i < ids.length; i += 50){
+      const r = await V('locaties', { ids:ids.slice(i, i + 50).join(',') });
+      (r.lijst || []).forEach(([id, l]) => { const c = codeVan[id]; if(c && l) st.p[c] = { t:r.opgehaald, l }; });
+    }
+    // aanvulniveaus van dezelfde producten (functie: niveaus); oude functie zonder deze actie: overslaan
+    try{
+      for(let i = 0; i < ids.length; i += 60){
+        const r = await V('niveaus', { ids:ids.slice(i, i + 60).join(',') });
+        (r.lijst || []).forEach(([id, w]) => { const c = codeVan[id]; if(c && w && w[0] != null){ const o = D.PQ[c] || []; D.PQ[c] = [w[0], w[1], o[2] || 0]; } });
+      }
+    }catch(e){ if(!/Onbekende actie/i.test(String(e && e.message))) throw e; }
+    st.pdfStand = { t:new Date().toISOString(), adv:D.ADV ? (D.ADV.ingelezen || D.ADV.datum) : null, n:ids.length };
+    S.st = st;
+    await WH.catZet('wh-pickstand', st);
+    S.fout = null;
+  }catch(e){ S.fout = e; }
+  teken();
+  return !S.fout;
+}
+
 /* ---------- scherm ---------- */
 const locs = (ls, i) => ls.map(l => `<span class="loc">${esc(l[0])}</span> <span class="small">${nf(i === 'vrij' ? Math.max(0, l[4] - l[5]) : l[4])}</span>`).join('<br>');
 const tijdTxt = iso => iso ? new Date(iso).toLocaleString('nl-NL', { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '–';
@@ -255,23 +343,20 @@ function tabVst(V){
       <div class="small muted mt8">${plural(V.orders.length, 'order wordt', 'orders worden')} compleet met VST.</div>` : '<div class="empty">Geen orders die met VST compleet worden.</div>'}</div>`;
 }
 function tabVergelijk(R){
-  const C = vergelijk(R);
-  if(!C) return '<div class="card empty">Geen PDF-advies van Picqer ingeladen om mee te vergelijken (Gegevens → aanvuladvies-PDF).</div>';
+  const U = uitleg(R);
+  if(!U) return '<div class="card empty">Geen PDF-advies van Picqer ingeladen om mee te vergelijken (Gegevens → aanvuladvies-PDF).</div>';
+  const C = U.C, red = {}; U.rijen.forEach(r => { red[r.soort + '|' + r.code] = r; });
+  const rd = (soort, code) => { const r = red[soort + '|' + code]; return r ? `<span class="badge ${r.ok ? 'b-grey' : 'b-bad'}">${r.ok ? 'verklaard' : 'onverklaard'}</span> ${esc(r.r)}` : ''; };
   const rij = x => `<tr><td><span class="code">${esc(x.code)}</span></td><td>${x.pdf ? esc((x.pdf.pick || []).join ? x.pdf.pick.join(' ') : x.pdf.pick || '') : ''}</td><td class="n">${x.pdf ? nf(x.pdf.pickst) : ''}</td><td class="n">${x.pdf ? nf(x.pdf.aantal) : ''}</td>
-    <td>${x.s ? locs(x.s.pick, 'vrij') : '<span class="desc">niet in de berekening</span>'}</td><td class="small">${x.reden || ''}</td></tr>`;
-  const reden = x => {
-    if(!x.kand) return 'geen kandidaat (geen pick én bulk gekoppeld in de locatie-export, of geen niveau)';
-    const q = D.PQ[x.code] || []; if(!x.s) return '';
-    if(!x.s.bulk.length) return 'geen bulkvoorraad meer';
-    if(x.s.pickVrij >= q[0]) return 'pick vrij ' + nf(x.s.pickVrij) + ' ≥ niveau ' + nf(q[0]) + ' (inmiddels aangevuld?)';
-    return '';
-  };
-  return `<div class="card"><h3>Vergelijk met het PDF-advies van Picqer</h3><div class="small muted">PDF van ${esc(tijdTxt(C.datum))} (${nf(C.nPdf)} regels) tegen de live berekening van ${esc(tijdTxt((S.st || {}).bijgewerkt))}. Verschillen door tijd zijn normaal; structurele verschillen wil ik weten.</div>
+    <td>${x.s ? locs(x.s.pick, 'vrij') : '<span class="desc">geen live stand</span>'}</td><td class="small">${rd('pdf', x.code)}</td></tr>`;
+  return `<div class="card"><h3>Vergelijk met het PDF-advies van Picqer</h3><div class="small muted">PDF van ${esc(tijdTxt(C.datum))} (${nf(C.nPdf)} regels) tegen de live berekening van ${esc(tijdTxt(U.M.liveT ? new Date(U.M.liveT).toISOString() : null))}. Alleen onverklaarde verschillen zijn werk.</div>
+    ${U.teOud ? `<div class="status mt8 row wrap between" style="gap:8px;background:#fff1dc;color:#7a4b00;padding:8px 10px;border-radius:8px"><b>${esc(U.teOud)}</b>${S.bezig ? '' : '<button class="btn pri sm" data-al="ververs-pdf">Live stand nu verversen</button>'}</div>` : ''}
+    <div class="mt12"><b style="font-size:17px">${plural(U.verschillen, 'verschil', 'verschillen')} · ${nf(U.verklaard)} verklaard · ${nf(U.onverklaard)} onverklaard</b></div>
     <div class="tiles mt12"><div class="tile t-ok"><div class="lbl">In beide</div><div class="big">${nf(C.beide.length)}</div></div>
       <div class="tile t-warn"><div class="lbl">Alleen in PDF</div><div class="big">${nf(C.alleenPdf.length)}</div></div><div class="tile t-info"><div class="lbl">Alleen live</div><div class="big">${nf(C.alleenLive.length)}</div></div></div>
     ${C.beide.length ? `<details class="mt12"><summary>In beide: aantal PDF tegen live</summary><div class="scroll mt8"><table><tr><th>Product</th><th class="n">PDF aanvullen</th><th class="n">Live aanvullen</th></tr>${C.beide.map(x => `<tr><td><span class="code">${esc(x.r.code)}</span></td><td class="n">${nf(x.pdf.aantal)}</td><td class="n">${nf(x.r.aantal)}</td></tr>`).join('')}</table></div></details>` : ''}
-    ${C.alleenPdf.length ? `<details class="mt12" open><summary>Alleen in PDF (${C.alleenPdf.length})</summary><div class="scroll mt8"><table><tr><th>Product</th><th>Pick (PDF)</th><th class="n">Pickvrd PDF</th><th class="n">Aantal PDF</th><th>Pick nu (vrij)</th><th>Waarom niet live</th></tr>${C.alleenPdf.map(x => rij(Object.assign(x, { reden:reden(x) }))).join('')}</table></div></details>` : ''}
-    ${C.alleenLive.length ? `<details class="mt12"><summary>Alleen live (${C.alleenLive.length})</summary><div class="scroll mt8"><table><tr><th>Product</th><th>Pick (vrij)</th><th class="n">Onder / tot</th><th class="n">Aanvullen</th></tr>${C.alleenLive.map(r => `<tr><td><span class="code">${esc(r.code)}</span></td><td>${locs(r.s.pick, 'vrij')}</td><td class="n">${nf(r.lvl)} / ${nf(r.tot)}</td><td class="n">${nf(r.aantal)}</td></tr>`).join('')}</table></div></details>` : ''}</div>`;
+    ${C.alleenPdf.length ? `<details class="mt12" open><summary>Alleen in PDF (${C.alleenPdf.length})</summary><div class="scroll mt8"><table><tr><th>Product</th><th>Pick (PDF)</th><th class="n">Pickvrd PDF</th><th class="n">Aantal PDF</th><th>Pick nu (vrij)</th><th>Reden</th></tr>${C.alleenPdf.map(rij).join('')}</table></div></details>` : ''}
+    ${C.alleenLive.length ? `<details class="mt12" open><summary>Alleen live (${C.alleenLive.length})</summary><div class="scroll mt8"><table><tr><th>Product</th><th>Pick (vrij)</th><th class="n">Onder / tot</th><th class="n">Aanvullen</th><th>Reden</th></tr>${C.alleenLive.map(r => `<tr><td><span class="code">${esc(r.code)}</span></td><td>${locs(r.s.pick, 'vrij')}</td><td class="n">${nf(r.lvl)} / ${nf(r.tot)}</td><td class="n">${nf(r.aantal)}</td><td class="small">${rd('live', r.code)}</td></tr>`).join('')}</table></div></details>` : ''}</div>`;
 }
 
 let TAB = 'ronde';
@@ -320,6 +405,7 @@ document.addEventListener('click', ev => {
   const k = b.dataset.al;
   if(k === 'ververs' || k === 'bijwerken') ververs(1);
   if(k === 'alles') bijwerken(true);
+  if(k === 'ververs-pdf'){ ververs(0).then(() => verversPdf()); }
   if(k === 'gang'){ S.gang = b.dataset.g || ''; teken(); }
   if(k === 'print'){
     const oud = document.title, n = new Date();
@@ -327,5 +413,5 @@ document.addEventListener('click', ev => {
     window.print(); setTimeout(() => { document.title = oud; }, 500);
   }
 });
-return { view, ververs, bijwerken, ronde, rondeLijst, vanVst, kandidaten, stand, gedaan, registreer, laadOpslag, opNieuw:f => LUISTER.push(f), S };
+return { view, ververs, bijwerken, ronde, rondeLijst, vanVst, kandidaten, stand, gedaan, registreer, laadOpslag, uitleg, momenten, verversPdf, opNieuw:f => LUISTER.push(f), S };
 })();

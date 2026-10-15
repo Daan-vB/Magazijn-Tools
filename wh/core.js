@@ -643,7 +643,10 @@ async function impAdvies(file){
   // lege PDF van Picqer (alles al aangevuld): kort document zonder regels is geldig, dan 0 regels bewaren
   if(!rows.length && !pag.every(ws => ws.length < 60)) throw new Error('geen regels gevonden in het aanvuladvies');
   const onbekend = rows.filter(r => !D.P[r.code] && !D.PLOW[r.code.toLowerCase()]).map(r => r.code);
-  await catZet('wh-advies', { datum:datum || new Date().toISOString(), ingelezen:new Date().toISOString(), rows });
+  const adv = { datum:datum || new Date().toISOString(), ingelezen:new Date().toISOString(), rows };
+  await catZet('wh-advies', adv);
+  // binnen 3.0: meteen de live stand van de PDF-producten ophalen, zodat live en PDF op hetzelfde moment staan
+  try{ const p = window.parent; if(p && p !== window && p.IVOL && p.WHAL && p.WHAL.verversPdf) p.WHAL.verversPdf(adv); }catch(e){}
   if(!rows.length) return '0 adviesregels (Picqer heeft niets aan te vullen)';
   return rows.length + ' adviesregels' + (onbekend.length ? ' · ' + onbekend.length + ' codes niet in de productimport (' + onbekend.slice(0, 5).join(', ') + (onbekend.length > 5 ? '…' : '') + ')' : '');
 }
