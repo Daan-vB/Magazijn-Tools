@@ -256,18 +256,19 @@
 <main id="app"><div class="empty">Laden…</div></main>
 <div id="toast" hidden></div>
 
-<script src="wh/menu.js?v=12"></script>
-<script src="wh/cache.js?v=1"></script>
-<script src="wh/core.js?v=15"></script>
-<script src="wh/logica.js?v=8"></script>
-<script src="wh/planning.js?v=8"></script>
-<script src="wh/triage.js?v=2"></script>
-<script src="wh/dag.js?v=23"></script>
-<script src="wh/barcode.js?v=1"></script>
-<script src="wh/stelling.js?v=5"></script>
-<script src="wh/taken.js?v=3"></script>
-<script src="wh/live.js?v=5"></script>
-<script src="wh/aanvullive.js?v=3"></script>
-<script src="wh/views.js?v=23"></script>
+<script>
+/* laadt elk script met controle op een nieuwe versie: geen ?v= meer nodig */
+(function(){
+  var f=["wh/menu.js","wh/cache.js","wh/core.js","wh/logica.js","wh/planning.js","wh/triage.js","wh/dag.js","wh/barcode.js","wh/stelling.js","wh/taken.js","wh/live.js","wh/aanvullive.js","wh/views.js"];
+  function nood(i){var s=document.createElement("script");s.src=f[i];s.onload=s.onerror=function(){laad(i+1)};document.body.appendChild(s);}
+  function laad(i){
+    if(i>=f.length)return;
+    fetch(f[i],{cache:"no-cache"}).then(function(r){if(!r.ok)throw 0;return r.text();})
+      .then(function(t){var s=document.createElement("script");s.textContent=t+"\n//# sourceURL="+f[i];document.body.appendChild(s);laad(i+1);})
+      .catch(function(){nood(i);});
+  }
+  laad(0);
+})();
+</script>
 </body>
 </html>
