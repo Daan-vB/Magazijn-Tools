@@ -28,12 +28,12 @@ function pdLaden(){
       // eerst de gedeelde gegevens (WH.load in 3.0); IVOL bestaat pas als ivol.js klaar is met opstarten
       while(!IV()) await new Promise(r => setTimeout(r, 50));
       await IV().geladen();
-      if(!window.WHPD){
-        // zelfde manier als de lader in ivol.html: altijd de nieuwste versie
-        await fetch('wh/productdata.js', { cache:'no-cache' }).then(r => { if(!r.ok) throw new Error('status ' + r.status); return r.text(); })
-          .then(t => { const s = document.createElement('script'); s.textContent = t + '\n//# sourceURL=wh/productdata.js'; document.body.appendChild(s); })
-          .catch(() => new Promise((ok, nee) => { const s = document.createElement('script'); s.src = 'wh/productdata.js'; s.onload = ok; s.onerror = () => nee(new Error('productdata.js laden lukte niet')); document.body.appendChild(s); }));
-      }
+      // zelfde manier als de lader in ivol.html: altijd de nieuwste versie (Per familie na Productdata)
+      const laadJs = f => fetch(f, { cache:'no-cache' }).then(r => { if(!r.ok) throw new Error('status ' + r.status); return r.text(); })
+        .then(t => { const s = document.createElement('script'); s.textContent = t + '\n//# sourceURL=' + f; document.body.appendChild(s); })
+        .catch(() => new Promise((ok, nee) => { const s = document.createElement('script'); s.src = f; s.onload = ok; s.onerror = () => nee(new Error(f + ' laden lukte niet')); document.body.appendChild(s); }));
+      if(!window.WHPD) await laadJs('wh/productdata.js');
+      if(!window.WHPDF) await laadJs('wh/pdfamilie.js').catch(e => console.error(e));
       if(!window.WHPD) throw new Error('Productdata niet beschikbaar');
       await WHPD.laad();
       WHPD.S.idx = null;   // index opnieuw op de volledig geladen gegevens
@@ -86,13 +86,16 @@ function nodig04(id){
       <ul class="plijst">${l.map(x => `<li><a class="code" href="#/productdata/p/${encodeURIComponent(x.c)}" data-taak="${esc(id)}">${esc(x.c)}</a><span class="muted klein">${esc(x.v.map(v => (V[v] || {}).t || v).join(' · '))}</span></li>`).join('')}</ul></details>`; }).join('');
   const later = BP.inst('poortLaterMee') !== false;
   const apps = Object.keys(APPNAAM).filter(a => (WH.PD_APPS || ['test', 'ivol']).includes(a));
+  // per familie: de volgende open familie direct op het werkblad
+  let fam = '';
+  try{ if(window.WHPDF){ const v = WHPDF.voortgang(), n = WHPDF.volgende(); fam = `<li><span class="nt"><b>Per familie: families klaar ${nf(v.klaar)} van ${nf(v.tot)}</b><span class="muted klein">${n ? 'Volgende: ' + esc(n.naam) + ' · ' + nf(n.gevuld) + ' van ' + nf(n.velden) + ' velden' : 'Alle families klaar'}</span></span>${knop(id, n ? '#/productdata/familie/' + encodeURIComponent(n.fk) : '#/productdata/familie', n ? 'Volgende familie' : 'Per familie', true)}</li>`; } }catch(e){ console.error(e); }
   return `<p class="kern"><b>${nf(nGroen)}</b> van ${nf(it.length)} groen in Poort 0.4 · ${nf(d.P.bel.length)} belangrijke producten · <b>${nf(d.open.length)}</b> producten open</p>
-    <ul class="nog">${regels}${gel}</ul>
+    <ul class="nog">${fam}${regels}${gel}</ul>
     ${d.open.length ? `<h3>Open belangrijke producten</h3>${groepen}` : ''}
     <label class="schakel"><input type="checkbox" data-a="bp-latermee" ${later ? 'checked' : ''}> Later en Op maat tellen mee in de poort</label>
     <p class="muted klein">Productdata lezen nu: ${esc(apps.map(a => APPNAAM[a]).join(' en ') || 'geen')}. Nog niet: ${esc(Object.keys(APPNAAM).filter(a => !apps.includes(a)).map(a => APPNAAM[a]).concat(['Palletlabels', 'Containers']).join(', '))} (eerst Gelijkzetten).</p>`;
 }
-function kort04(){ const d = data04(); return d ? nf(d.open.length) + ' producten open' : (PD.fout ? '' : '… producten open'); }
+function kort04(){ const d = data04(); if(!d) return PD.fout ? '' : '… producten open'; let f = ''; try{ if(window.WHPDF){ const v = WHPDF.voortgang(); f = ' · families klaar ' + nf(v.klaar) + ' van ' + nf(v.tot); } }catch(e){} return nf(d.open.length) + ' producten open' + f; }
 
 /* ---------- overige stappen ---------- */
 const SB = 'https://supabase.com/dashboard/project/jarbgetbwkjtxwtcfwmq';
