@@ -3074,6 +3074,6 @@ async function view(delen){
 const herlaad = async () => { S.idx = null; await laad(true); };
 
 const zetLaterMee = v => { S.laterMee = v !== false; S.idx = null; };
-const intern = { check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
+const intern = { levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
 return { view, herlaad, laad, zetLaterMee, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();

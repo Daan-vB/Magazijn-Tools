@@ -267,7 +267,8 @@ function kenmerken(c){
   const ratio = spp && aanv.length ? mediaan(aanv.map(n => n / spp)) : null;
   const pb = X().pbRegels(c).find(r => r.soort !== 'pallet' && num(r.per) > 1);
   const pq = D.PQ[c] || [];
-  return { e, abc, ab:/^[AB]$/.test(abc) ? 'A/B' : 'C', vkm:X().vkmVan(c), pd:X().pdVan(c), spp, sppSterk, sppT:sppH ? sppH.t : '', ink, veelvoud, vollePal, aanv, aanvMed:mediaan(aanv), ratio, perMaand:aanv.length / maanden,
+  const soort = P().famNaam(String((D.P[c] || {}).naam || '')).split(' ').filter(w => w.length > 2)[0] || '';
+  return { lev:X().levKort(c), soort, e, abc, ab:/^[AB]$/.test(abc) ? 'A/B' : 'C', vkm:X().vkmVan(c), pd:X().pdVan(c), spp, sppSterk, sppT:sppH ? sppH.t : '', ink, veelvoud, vollePal, aanv, aanvMed:mediaan(aanv), ratio, perMaand:aanv.length / maanden,
     pakbon:pb ? num(pb.per) * (num(pb.factor) || 1) : null, pq0:num(pq[0]), pq1:num(pq[1]), pick:P().locaties(c).pick.length > 0, regel:X().regelVan(c) };
 }
 const EHT = { st:'per stuk', m:'per meter', cm:'per cm', rol:'per rol', m2:'per m²' };
@@ -295,6 +296,9 @@ const REGELS = {
     { id:'aanv', t:'aanvullen bij + wat je meestal bijvult', f:x => x.lvlEigen !== null && x.aanvMed ? { v:String(x.lvlEigen + x.aanvMed), why:'aanvullen bij ' + nf(x.lvlEigen) + ' + meestal ' + nf(x.aanvMed) + ' bijgevuld (' + x.aanv.length + ' keer)' } : null },
     { id:'picqer', t:'"vul aan tot" dat nu in Picqer staat', f:x => x.pq1 > 1 && !(x.pq0 === 1 && x.pq1 === 11) ? { v:String(x.pq1), why:'Picqer: vul aan tot ' + nf(x.pq1) } : null }
   ],
+  mixgroep:[
+    { id:'lev', min:1, t:'zelfde leverancier en soort product als een al ingevulde mixgroep', key:x => x.soort ? x.lev + '|' + x.soort : null, kt:k => { const [l, w] = k.split('|'); return 'van ' + l + ' (' + w + ')'; } }
+  ],
   spp:[
     { id:'bron', t:'minstens 2 pallets op VST of bulk met hetzelfde aantal', f:x => x.sppSterk ? { v:String(x.sppSterk), why:x.sppT } : null },
     { id:'bron1', t:'één pallet op VST of bulk, of de pakbon', f:x => !x.sppSterk && x.spp ? { v:String(x.spp), why:x.sppT + ' (kan een restpallet zijn)' } : null },
@@ -302,6 +306,7 @@ const REGELS = {
   ]
 };
 const LEERVELDEN = Object.keys(REGELS);
+const TABELMIN = R => R.min || 3;
 function eigenWaarde(c, k){
   const r = P().S.pd[c], m = r && r.meta && r.meta[k], v = r && r.data && r.data[k];
   if(leeg(v) || X().LEEGWAARDE(v) || X().NVT(v) || !m || /^auto/.test(m.bron || '') || m.tw) return null;   // auto en schattingen met twijfel leren niet mee
@@ -318,14 +323,15 @@ function leer(){
     const regels = REGELS[k].map(R => ({ R, goed:0, tot:0, fout:[] }));
     // beslistabel per regel: key → {waarde: {fam: aantal}}
     const tabel = {};
-    REGELS[k].forEach(R => { if(!R.key) return; const t = tabel[R.id] = {}; train.forEach(x => { const key = R.key(K(x.c)); const b = t[key] = t[key] || {}; const w = b[x.v] = b[x.v] || {}; w[x.fk] = (w[x.fk] || 0) + 1; }); });
+    REGELS[k].forEach(R => { if(!R.key) return; const t = tabel[R.id] = {}; train.forEach(x => { const key = R.key(K(x.c)); if(key === null) return; const b = t[key] = t[key] || {}; const w = b[x.v] = b[x.v] || {}; w[x.fk] = (w[x.fk] || 0) + 1; }); });
     const kies = (R, x, zonder) => {
       if(R.f) return R.f(x);
-      const b = (tabel[R.id] || {})[R.key(x)]; if(!b) return null;
+      const key = R.key(x); if(key === null) return null;
+      const b = (tabel[R.id] || {})[key]; if(!b) return null;
       const tel = Object.entries(b).map(([v, per]) => [v, Object.entries(per).reduce((s, [fk, n]) => s + (fk === zonder ? 0 : n), 0)]).filter(e => e[1] > 0).sort((p, q) => q[1] - p[1]);
       const tot = tel.reduce((s, e) => s + e[1], 0);
-      if(!tel.length || tot < 3 || tel[0][1] / tot < 0.5) return null;
-      return { v:tel[0][0], why:'bij andere producten ' + R.kt(R.key(x)) + ' koos je ' + tel[0][1] + ' van ' + tot + ' keer ' + tel[0][0] };
+      if(!tel.length || tot < (R.min || 3) || tel[0][1] / tot < 0.5) return null;
+      return { v:tel[0][0], why:'bij andere producten ' + R.kt(key) + ' koos je ' + tel[0][1] + ' van ' + tot + ' keer ' + tel[0][0] };
     };
     // toets: per product, met de eigen familie eruit (en zijn eigen waarde voor dit veld niet bekend)
     let goedBest = 0, totBest = 0;
@@ -347,7 +353,7 @@ function leer(){
 function leerRij(k, cs){
   if(!REGELS[k]) return null;
   const L = leer(), u = L.uit[k]; if(!u) return null;
-  const vs = cs.map(c => { const x = L.K(c); for(const g of u.volg){ if(g.tot < 3 && g.R.key) continue; const r = u.kies(g.R, x, null); if(r){ const v = norm(k, r.v); if(v !== null) return { v, why:r.why, g }; } } return null; }).filter(Boolean);
+  const vs = cs.map(c => { const x = L.K(c); for(const g of u.volg){ if(g.R.key && g.tot < TABELMIN(g.R)) continue; const r = u.kies(g.R, x, null); if(r){ const v = norm(k, r.v); if(v !== null) return { v, why:r.why, g }; } } return null; }).filter(Boolean);
   if(!vs.length) return null;
   const m = meest(vs.map(v => v.v)), b = vs.find(v => v.v === m.v);
   return { v:m.v, why:b.why + (cs.length > 1 ? ' (' + m.n + ' van ' + cs.length + ')' : ''), p:b.g.p, score:'klopte ' + Math.round(b.g.p * 100) + '% bij andere families (' + b.g.tot + ' getoetst)', r:'leer:' + k + ':' + b.g.R.id };
