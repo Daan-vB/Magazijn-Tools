@@ -5,6 +5,8 @@
      { v:1, t:<ms>, s:{ "<stap>":{ c:{}, f:{}, done, note, hold, holdWhy, holdAt } }, park:[…], inst:{} }
    Regels (zoals in het artifact):
      - stap i is "nu" als alle eerdere stappen af of op wacht staan
+     - een stap met parallel:true loopt mee: open zolang de huidige stap ervoor open is (1.1 naast 0.4)
+     - 1.1: de app vinkt per werkdag een dag af als Vergelijk met PDF op 0 onverklaard staat (dagVergeleken)
      - afronden kan pas als alle vinkjes en verplichte velden kloppen
      - op wacht zetten met reden, hervatten; alleen de laatst afgeronde stap kan weer open
    Opslaan 700 ms na de laatste wijziging; bij openen en elke 2 minuten opnieuw lezen.
@@ -24,7 +26,11 @@ const BYID = {}; STEPS.forEach((s, i) => { s.i = i; BYID[s.id] = s; });
 
 /* ---------- stand ---------- */
 // "Neem je bouwplan over": de stand uit het artifact op 15 okt 19:00
-const OVERNAME = {"v":1,"t":1792083600000,"park":[{"at":"0.3","id":"1791379500001","t":"2026-10-07T13:25:00.000Z","txt":"Visie voor Jim en Maxime: wat is gebouwd, waarom, welke voordelen. Daarna pas de kosten van Supabase Pro voorleggen (stap 0.3)."},{"at":"0.2","id":"1791393000001","t":"2026-10-07T17:28:00.000Z","txt":"Na 0.2: Supabase-egress omlaag (5,5 van 5 GB op 7 okt). Uitzoeken welke schermen grote tabellen steeds opnieuw ophalen en dat zuiniger maken, zodat het gratis abonnement volstaat."}],"s":{"0.1":{"c":{"0":true,"1":true},"done":"2026-10-07T04:38:01.132Z","f":{"abpick":"22","exports":"5","gang":"451","noloc":"610","std":"1070"},"note":""},"0.2":{"c":{"0":true,"1":true,"2":true,"3":true,"4":true,"5":true},"done":"2026-10-07T18:12:08.824Z","f":{"datum":"2026-10-06","domein":"https://ivol-dev.picqer.com"},"hold":false,"note":"7 okt: testomgeving ivol-dev.picqer.com werkt (101 producten, 540 locaties hoofdmagazijn). Eigen testsleutel staat alleen als geheim in Supabase. Aparte testfunctie picqer-test (alleen lezen), live functie picqer onaangeroerd. Schakelaar Live/Test staat in de Test-app en toont \"Bron: TEST · ivol-dev.picqer.com\". Schrijven naar test pas na akkoord Maxime."},"0.3":{"c":{},"done":null,"f":{},"hold":true,"holdAt":"2026-10-07T18:25:00.000Z","holdWhy":"Eerst 0.4. Daarna zelf vaststellen, Maxime heeft groen licht, Jim niet nodig","note":""},"0.4":{"c":{"0":true,"1":true,"2":false,"3":true,"4":false},"done":null,"f":{},"hold":false,"holdAt":"2026-10-07T13:25:00.000Z","holdWhy":"Raakt live Supabase en Maxime. Eerst de basis stabiel","note":"7 okt: 0.4 is nu de hele productdata-stap (oude 4.1 t/m 4.4 zitten erin). Belangrijke producten = A, B en wat binnenkomt: 475. Werkvolgorde: 1) Overzetten, 2) Dubbel in palletlabels (51), 3) laag 1, 2 en 3 per familie, 4) steekproef van 20 op de vloer, 5) poortcode hier invullen. Claude zet daarna de apps over op productdata.\n15 okt (Claude): vinkjes 'overgezet' en 'Prioriteit 100%' weer uit, want Poort 0.4 zegt: 2 waarden nog over te zetten, laag 1 = 402 van 462. Open: 70 producten, waarvan 39 Later en 11 Ribbel op maat (tellen nu mee). Gedaan: 3.0 en Test lezen Productdata; scherm Productdata → Gelijkzetten (Palletlabels en Containers) staat klaar, nog niet uitgevoerd. Warehouse en Junior volgen na akkoord."}},"inst":{"poortLaterMee":true}};
+const OVERNAME = {"v":1,"t":1792083600000,"park":[{"at":"0.3","id":"1791379500001","t":"2026-10-07T13:25:00.000Z","txt":"Visie voor Jim en Maxime: wat is gebouwd, waarom, welke voordelen. Daarna pas de kosten van Supabase Pro voorleggen (stap 0.3)."},{"at":"0.2","id":"1791393000001","t":"2026-10-07T17:28:00.000Z","txt":"Na 0.2: Supabase-egress omlaag (5,5 van 5 GB op 7 okt). Uitzoeken welke schermen grote tabellen steeds opnieuw ophalen en dat zuiniger maken, zodat het gratis abonnement volstaat."}],"s":{"0.1":{"c":{"0":true,"1":true},"done":"2026-10-07T04:38:01.132Z","f":{"abpick":"22","exports":"5","gang":"451","noloc":"610","std":"1070"},"note":""},"0.2":{"c":{"0":true,"1":true,"2":true,"3":true,"4":true,"5":true},"done":"2026-10-07T18:12:08.824Z","f":{"datum":"2026-10-06","domein":"https://ivol-dev.picqer.com"},"hold":false,"note":"7 okt: testomgeving ivol-dev.picqer.com werkt (101 producten, 540 locaties hoofdmagazijn). Eigen testsleutel staat alleen als geheim in Supabase. Aparte testfunctie picqer-test (alleen lezen), live functie picqer onaangeroerd. Schakelaar Live/Test staat in de Test-app en toont \"Bron: TEST · ivol-dev.picqer.com\". Schrijven naar test pas na akkoord Maxime."},"0.3":{"c":{},"done":null,"f":{},"hold":true,"holdAt":"2026-10-07T18:25:00.000Z","holdWhy":"Eerst 0.4. Daarna zelf vaststellen, Maxime heeft groen licht, Jim niet nodig","note":""},"0.4":{"c":{"0":true,"1":true,"2":false,"3":true,"4":false},"done":null,"f":{},"hold":false,"holdAt":"2026-10-07T13:25:00.000Z","holdWhy":"Raakt live Supabase en Maxime. Eerst de basis stabiel","note":"7 okt: 0.4 is nu de hele productdata-stap (oude 4.1 t/m 4.4 zitten erin). Belangrijke producten = A, B en wat binnenkomt: 475. Werkvolgorde: 1) Overzetten, 2) Dubbel in palletlabels (51), 3) laag 1, 2 en 3 per familie, 4) steekproef van 20 op de vloer, 5) poortcode hier invullen. Claude zet daarna de apps over op productdata.\n15 okt (Claude): vinkjes 'overgezet' en 'Prioriteit 100%' weer uit, want Poort 0.4 zegt: 2 waarden nog over te zetten, laag 1 = 402 van 462. Open: 70 producten, waarvan 39 Later en 11 Ribbel op maat (tellen nu mee). Gedaan: 3.0 en Test lezen Productdata; scherm Productdata → Gelijkzetten (Palletlabels en Containers) staat klaar, nog niet uitgevoerd. Warehouse en Junior volgen na akkoord."}},"inst":{"poortLaterMee":true,"dag11":true}};
+// dag 1 van 1.1 (15-10-2026 23:00, PDF 22:59: 13 verschillen · 13 verklaard · 0 onverklaard)
+const DAG1 = { d:'2026-10-15', t:'2026-10-15T21:00:00.000Z', pdf:'2026-10-15T22:59', n:13, ok:13, onv:0 };
+const dagTekst = x => 'Dag ' + x.nr + ': ' + x.d.slice(8, 10) + '-' + x.d.slice(5, 7) + ' ' + new Date(x.t).toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit', hour12:false }) + ' · PDF ' + String(x.pdf || '').slice(11, 16) + ' · ' + x.n + ' verschillen · ' + x.ok + ' verklaard · ' + x.onv + ' onverklaard';
+OVERNAME.s['1.1'] = { c:{}, f:{}, done:null, note:dagTekst(Object.assign({ nr:1 }, DAG1)), dagen:[DAG1] };
 const norm = d => ({ v:1, t:+d.t || 0, s:(d.s && typeof d.s === 'object') ? d.s : {}, park:Array.isArray(d.park) ? d.park : [], inst:(d.inst && typeof d.inst === 'object') ? d.inst : {} });
 const B = { state:norm({}), bestaat:null, vuil:false, timer:null, status:'', fout:null, laden:null, luister:[], auto:{} };
 
@@ -37,7 +43,10 @@ function lastDoneIdx(){ let l = -1; STEPS.forEach(s => { if(isDone(s.id)) l = s.
 function nextOpen(c){ return STEPS.find(x => x.i > c && !isDone(x.id) && !isHold(x.id)) || null; }
 function holdList(c){ return STEPS.filter(s => isHold(s.id) && s.i !== c); }
 // "nu" = alle eerdere stappen af of op wacht, zelf niet af en niet op wacht
-const isNu = id => { const s = BYID[id]; return !!s && !isDone(id) && !isHold(id) && STEPS.slice(0, s.i).every(x => isDone(x.id) || isHold(x.id)); };
+const isNu = id => { const s = BYID[id]; return !!s && !isDone(id) && !isHold(id) && (STEPS.slice(0, s.i).every(x => isDone(x.id) || isHold(x.id)) || loopMee(s)); };
+// parallel: open zolang de huidige stap ervoor open is
+function loopMee(s){ if(!s.parallel || isDone(s.id) || isHold(s.id)) return false; const c = STEPS.find(x => !isDone(x.id) && !isHold(x.id)); return !!c && c.i < s.i; }
+const meelopers = () => STEPS.filter(loopMee);
 const huidig = () => { const i = curIdx(); return i < 0 ? null : STEPS[i]; };
 
 /* ---------- controles ---------- */
@@ -97,12 +106,31 @@ async function laad(){
         B.bestaat = true;
         // nieuwer opgeslagen (bijv. op de iPhone) en hier niets onopgeslagen: de nieuwe stand tonen
         if(!B.vuil && d.t > B.state.t){ B.state = d; meld(); }
+        aanvullen();
       } else if(B.bestaat === null){ B.bestaat = false; meld(); }
       B.fout = null;
     }catch(e){ B.fout = e; if(B.bestaat === null) meld(); }
     B.laden = null;
   })();
   return B.laden;
+}
+// 1.1 dag 1 eenmalig aanvullen in een stand die al was overgenomen (besluit Daan 15-10)
+function aanvullen(){
+  if(B.state.inst.dag11) return;
+  wijzig(st => { const r = mrec('1.1'); if(!(r.dagen && r.dagen.length)){ r.dagen = [DAG1]; r.note = (r.note ? r.note + '\n' : '') + dagTekst(Object.assign({ nr:1 }, DAG1)); } st.inst.dag11 = true; });
+}
+// Vergelijk met PDF op 0 onverklaard (PDF van vandaag, alle standen na de PDF): de eerstvolgende open dag van 1.1 afvinken.
+// Eén per kalenderdag, alleen werkdagen. Bij onverklaard > 0 niets.
+function dagVergeleken(u){
+  if(B.bestaat !== true || !u || u.onverklaard !== 0 || isDone('1.1')) return false;
+  const nu = new Date(), d = WH.isoDag(nu), wd = nu.getDay();
+  if(wd === 0 || wd === 6) return false;
+  if(!u.pdf || String(u.pdf).slice(0, 10) !== d) return false;
+  const r = rec('1.1'), dagen = r.dagen || [];
+  if(dagen.length >= 5 || dagen.some(x => x.d === d)) return false;
+  const x = { d, t:nu.toISOString(), pdf:String(u.pdf).slice(0, 16), n:u.verschillen, ok:u.verklaard, onv:0 };
+  wijzig(() => { const m = mrec('1.1'); m.dagen = dagen.concat([x]); m.note = (m.note ? m.note + '\n' : '') + dagTekst(Object.assign({ nr:m.dagen.length }, x)); });
+  return true;
 }
 async function overnemen(){
   B.state = norm(JSON.parse(JSON.stringify(OVERNAME)));
@@ -149,7 +177,7 @@ const pijler = s => (R.PILLARS[s.pillar] || {}).n || '';
 function staatVan(s){
   if(isDone(s.id)) return { k:'af', t:'af ' + datum(rec(s.id).done) };
   if(isHold(s.id)) return { k:'wacht', t:'op wacht' };
-  if(isNu(s.id)) return { k:'nu', t:'nu' };
+  if(isNu(s.id)) return loopMee(s) ? { k:'nu', t:'loopt mee' } : { k:'nu', t:'nu' };
   return { k:'dicht', t:'dicht' };
 }
 // stellingbalk: per fase een vak tussen twee blauwe staanders, per stap een oranje ligger (vol = af)
@@ -220,7 +248,14 @@ function view(rest){
 }
 
 laad();
-return { R, STEPS, BYID, B, laad, overnemen, rec, eff, isDone, isHold, isNu, curIdx, huidig, lastDoneIdx, nextOpen, holdList, missing, fieldOk, kanAf, CHECKS,
+// 1.1: dagen 1–5 en, op dag 5, "laatste dag 0 onverklaard" en het veld v5 vult de app zelf
+B.auto['1.1'] = () => {
+  const dagen = rec('1.1').dagen || [], c = {};
+  for(let i = 0; i < 5; i++) c[i] = i < dagen.length;
+  if(dagen.length >= 5) c[5] = dagen[4].onv === 0;
+  return { c, f:dagen.length >= 5 ? { v5:dagen[4].onv } : {} };
+};
+return { R, STEPS, BYID, B, laad, overnemen, dagVergeleken, loopMee, meelopers, rec, eff, isDone, isHold, isNu, curIdx, huidig, lastDoneIdx, nextOpen, holdList, missing, fieldOk, kanAf, CHECKS,
   vink, veld, notitie, afronden, opWacht, hervat, heropen, parkeer, parkeerWeg, zetInst, inst, kpiNu, staatVan, pijler, datum, datumTijd, view, kop,
   opNieuw:f => B.luister.push(f), registreer:(id, fn) => { B.auto[id] = fn; } };
 })();

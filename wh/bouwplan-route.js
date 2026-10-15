@@ -58,7 +58,7 @@ const PHASES=[
    claude:""}
  ]},
  {id:"F1",n:"Aanvuladvies live",pillar:"P4",goal:"Klaar als er geen PDF en geen backorder-export meer nodig is en afvinken echt verplaatst in Picqer.",steps:[
-  {id:"1.1",t:"Live advies tegen de PDF, 5 werkdagen",
+  {id:"1.1",t:"Live advies tegen de PDF, 5 werkdagen",parallel:true,
    do:"Open elke werkdag Test → Live advies → Vergelijk met PDF. Elk verschil gaat naar Claude, tot er geen onverklaarde verschillen meer zijn.",
    why:"Pas als de app hetzelfde of beter rekent dan Picqer, kan de PDF weg.",
    checks:["Dag 1 vergeleken","Dag 2 vergeleken","Dag 3 vergeleken","Dag 4 vergeleken","Dag 5 vergeleken","Laatste dag: 0 onverklaarde verschillen"],

@@ -212,6 +212,9 @@ function blokNu(){
       <h2>${esc(s.t)}</h2><p>${esc(eersteZin(s.do))}</p>
       <p class="voortgang">${nf(n)} van ${nf(s.checks.length)} klaar${k ? ' · ' + esc(k) : ''}</p>
       <div class="rij"><a class="knop pri groot" href="#/taak/${esc(s.id)}">Open taak</a></div></section>
+    ${(BP.meelopers ? BP.meelopers() : []).map(m => { const em = BP.eff(m.id), nm = m.checks.filter((_, i) => em.c[i]).length, km = kortVan(m.id);
+      return `<section class="taak nu"><span class="eyebrow">Loopt mee · stap ${esc(m.id)} · ${esc(BP.pijler(m))}</span><h2>${esc(m.t)}</h2><p>${esc(eersteZin(m.do))}</p>
+        <p class="voortgang">${nf(nm)} van ${nf(m.checks.length)} klaar${km ? ' · ' + esc(km) : ''}</p><div class="rij"><a class="knop" href="#/taak/${esc(m.id)}">Open taak</a></div></section>`; }).join('')}
     ${wacht.map(w => `<div class="wachtregel"><span><b>Wacht: ${esc(w.id)}</b> · ${esc(BP.rec(w.id).holdWhy || w.t)}</span><button class="knop" data-a="bp-hervat" data-stap="${esc(w.id)}">Hervat</button></div>`).join('')}`;
 }
 function blokVandaag(){
@@ -239,7 +242,7 @@ function laterGroepen(){
   g.push(['3.3', locRegels(S)]);
   g.push(['4.1', [['Aanvulniveaus naar Picqer: lopers zonder niveau' + (S.cnt.nivPd ? ' (' + nf(S.cnt.nivPd) + ' klaar in Productdata)' : ''), S.cnt.niveau], ['Lopers zonder vaste picklocatie (4.1/4.2)', S.cnt.pick]]]);
   const nu = BP.huidig();
-  return g.map(([id, r]) => [id, r.filter(x => x[1])]).filter(([id, r]) => r.length && (!nu || nu.id !== id) && !BP.isDone(id));
+  return g.map(([id, r]) => [id, r.filter(x => x[1])]).filter(([id, r]) => r.length && (!nu || nu.id !== id) && !BP.isDone(id) && !BP.isNu(id));
 }
 function blokLater(){
   const S = IV() && IV().stats(); if(!S) return '<div class="leeg">Gegevens laden…</div>';

@@ -234,6 +234,7 @@ async function rekenFundament(){
           const live = new Set(R.uit.map(r => r.code));
           V = { beide:[...live].filter(c => pdf.has(c)), alleenPdf:[...pdf].filter(c => !live.has(c)), alleenLive:[...live].filter(c => !pdf.has(c)) };
           U = WHAL.uitleg(R);
+          dag11(U);
           // de PDF bevat ook wat bij Voor orders staat: tel zoals de vergelijking (Voor orders + Aanvulronde)
           if(U) V = { beide:U.C.beide.map(b => b.code), alleenPdf:U.C.alleenPdf.map(x => x.code), alleenLive:U.C.alleenLive.map(a => a.code) };
         }
@@ -452,8 +453,22 @@ function tekenPill(){
   el.className = 'pill ' + (!B.gekoppeld ? 'uit' : B.fout ? 'fout' : B.bezig ? 'bezig' : 'ok');
   el.textContent = !B.gekoppeld ? 'Picqer: koppelen' : B.fout ? 'Picqer: fout' : B.bezig ? 'Picqer: bijwerken…' : 'Picqer live' + (s.data ? ' · ' + tijdKort(new Date(s.data.binnen).toISOString()).replace(' geleden', '') : '');
 }
+// bouwplan 1.1: Vergelijk met PDF op 0 onverklaard met een PDF van vandaag en alle standen na de PDF → dag afvinken
+function dag11(U){
+  try{
+    if(!window.WHBP || !WHBP.dagVergeleken || !U || U.teOud || !D.ADV) return;
+    WHBP.dagVergeleken({ onverklaard:U.onverklaard, verschillen:U.verschillen, verklaard:U.verklaard, pdf:D.ADV.datum || D.ADV.ingelezen });
+  }catch(e){ console.error(e); }
+}
+let dag11T = 0;
+function dag11Kijk(){
+  if(Date.now() - dag11T < 60e3 || !WHAL.S.st || !WHAL.S.st.p || !D.ADV) return;
+  dag11T = Date.now();
+  try{ dag11(WHAL.uitleg(WHAL.ronde())); }catch(e){ console.error(e); }
+}
 let herT = null;
 function herreken(){
+  dag11Kijk();
   tekenPill();
   const m = huidig();
   if(m && m.native === 'bronnen'){ const nat = $('native'); if(nat && !(document.activeElement && document.activeElement.id === 'kcode')) nat.innerHTML = viewBronnen(); }
