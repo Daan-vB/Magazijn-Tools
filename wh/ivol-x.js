@@ -5,6 +5,7 @@
      dag       Dagstart: zes kerncijfers, dagritme om af te vinken, ochtendoverleg
      stand     Hoe staat het magazijn ervoor: Daans tien punten (kennisbank A1), alleen lezen (management)
      zoek      Product zoeken voor de vloer: waar ligt het, wat weten we, en een meldknop
+     hulp      Hulp: per rol drie zinnen over wat je ziet en wat je doet (16-10)
    Opslag: productdata (alleen na een tik van Daan), catalog wh-aannames, wh-dag, wh-todo (meldingen).
    Leest alleen uit Picqer (via WHLIVE); schrijft nooit naar Picqer.
    ===================================================================== */
@@ -333,12 +334,43 @@ async function meld(soort){
   try{ await WH.catPatch('wh-todo', { [id]:taak }); toast('Gemeld: ' + soort); }catch(e){ toast('Melden lukte niet'); }
 }
 
+/* ---------- Hulp: per rol wat je ziet en wat je doet ---------- */
+const HULP = [
+  { rol:'daan', t:'Daan', z:[
+    'Je start op Te doen: de bouwplanstap van nu, wat vandaag moet, en bovenaan Te controleren met wat Claude heeft geschat of aangenomen.',
+    'Tik bij Te controleren op Klopt of pas de waarde aan; bij Locaties tik je een tegel, beslis je per regel met één knop en ga je via Naar import altijd langs een verse export (maximaal 2 uur oud).',
+    'Importbestanden upload je zelf in Picqer, de eerste keer per soort eerst het testbestand met 2 regels; de app schrijft nooit naar Picqer.'] },
+  { rol:'karin', t:'Karin', z:[
+    'Je start op Dagstart: zes kerncijfers (groen op schema, oranje let op, rood nu iets doen), het ritme van de dag en het ochtendoverleg.',
+    'Vink in het ritme af wat gedaan is, zoals Van VST om 14:00 en op containerdag de Stockmove; bij Containers zie je wat er binnenkomt.',
+    'Aanvullen en Product zoeken staan in het menu; wijzigingen doe je zelf in Picqer, de app leest alleen.'] },
+  { rol:'vloer', t:'Vloer (Kate, Sala, Valerii, pickers)', z:[
+    'Je start op Dagstart: de cijfers van vandaag en het ritme; Kate en Sala verdelen om 07:00 het werk en vullen Verdeling vandaag in.',
+    'Rijders doen eerst Nu verplaatsen (wat een order vrijmaakt), dan de aanvulronde: eerst de retourkar terugzetten, en een volle pallet pakken waar dat bij het product staat.',
+    'Klopt er iets niet, zoek het product op in Product zoeken en tik de meldknop; Kate en Sala krijgen dan een taak.'] },
+  { rol:'mgmt', t:'Management (Jim, Maxime, Ryan, Gino)', z:[
+    'Je start op Hoe staat het ervoor: de tien punten waarop Daan het magazijn beoordeelt, met het cijfer dat de app er nu over kan geven.',
+    'Grijs is nog niet meetbaar, groen op schema, oranje let op, rood nu iets doen; bovenaan staan dezelfde zes kerncijfers als op Dagstart.',
+    'Je kijkt alleen, je verandert niets; vragen of keuzes gaan naar Daan.'] }
+];
+function viewHulp(){
+  let rol = 'daan'; try{ rol = localStorage.getItem('ivol-rol') || 'daan'; }catch(e){}
+  const lijst = HULP.slice().sort((a, b) => (b.rol === rol) - (a.rol === rol));
+  return `<div class="pagina"><h1>Hulp</h1>
+    <p class="lede">Per rol in drie zinnen: wat je ziet en wat je doet. Kies je rol rechtsboven; die van jou staat bovenaan.</p>
+    ${lijst.map(h => `<section class="blok"${h.rol === rol ? ' style="border-left:6px solid #f08a4b"' : ''}><h2>${esc(h.t)}${h.rol === rol ? ' <span class="x-abc">jouw rol</span>' : ''}</h2><ol class="stappen">${h.z.map(z => `<li>${esc(z)}</li>`).join('')}</ol></section>`).join('')}
+    <section class="blok"><h2>Altijd zo</h2><ul class="small" style="padding-left:18px;display:grid;gap:4px">
+      <li>De app leest alleen uit Picqer. Iets veranderen doe je in Picqer zelf, of met een importbestand dat Daan uploadt.</li>
+      <li>Tijden in 24 uur. "Nieuwe versie klaar" bovenin: tik Vernieuwen als je niet aan het typen bent.</li>
+      <li>Iets vreemds gezien? Meld het via Product zoeken of bij Daan.</li></ul></section></div>`;
+}
+
 /* ---------- tekenen en klikken ---------- */
 function herteken(){
   if(!S.el || S.el.hidden) return;
   const actief = document.activeElement, id = actief && actief.id, pos = actief && actief.selectionStart;
   const y = S.el.scrollTop;
-  S.el.innerHTML = S.naam === 'nakijken' ? viewNakijken() : S.naam === 'dag' ? viewDag() : S.naam === 'stand' ? viewStand() : viewZoek();
+  S.el.innerHTML = S.naam === 'nakijken' ? viewNakijken() : S.naam === 'dag' ? viewDag() : S.naam === 'stand' ? viewStand() : S.naam === 'hulp' ? viewHulp() : viewZoek();
   S.el.scrollTop = y;
   if(id && $(id)){ const e = $(id); e.focus(); try{ if(pos != null) e.setSelectionRange(pos, pos); }catch(x){} }
 }

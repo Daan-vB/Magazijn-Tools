@@ -35,6 +35,7 @@ const M = [
   { id:'fundament', g:'start', t:'Fundament', native:'fundament', st:'draait', r:DK, uit:'Stand van de vier fundamentpunten, uit de echte gegevens.' },
   { id:'kaart', g:'start', t:'Kaart van alles', native:'kaart', st:'draait', r:DV, uit:'Elk onderdeel, waar het staat, welke gegevens, en de status.' },
   { id:'naslag', g:'start', t:'Naslag', native:'naslag', st:'draait', r:DV, uit:'Alle links, koppelingen, functies, mappen en documenten op één plek.' },
+  { id:'hulp', g:'start', t:'Hulp', native:'x-hulp', st:'proef', r:IEDEREEN, uit:'Per rol in drie zinnen: wat je ziet en wat je doet.' },
   { id:'kennisbank', g:'start', t:'Kennisbank', native:'kennisbank', st:'draait', r:DV, uit:'Daans eigen plek: korte vragen beantwoorden wanneer het uitkomt. Los van bouwplan en Te doen. Antwoorden in catalog wh-kennisbank.' },
 
   { id:'dag', g:'vandaag', t:'Dagstart', native:'x-dag', st:'proef', r:ALLE, uit:'Zes kerncijfers, het ritme van de dag om af te vinken en het ochtendoverleg.' },
