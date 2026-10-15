@@ -50,6 +50,7 @@ const M = [
   { id:'base', g:'prod', t:'Niveaus', u:T('#/base'), st:'proef', r:DV, data:'wh-aanvul', uit:'Aanvulbase: picklocatie, aanvullen onder, vul aan tot.' },
   { id:'invul', g:'prod', t:'Invullen', u:T('#/invul'), st:'proef', r:DV, data:'wh-aanvul, catalog-ean', uit:'Op de telefoon, één product per scherm.' },
   { id:'productdata', g:'prod', t:'Productdata', u:T('#/productdata'), st:'proef', r:DV, data:'producten, catalog-ean', uit:'Afdelingen doorlopen, automatisch invullen, importeren.' },
+  { id:'gelijk', g:'prod', t:'Gelijkzetten', u:T('#/productdata/gelijk'), st:'proef', r:DV, data:'productdata, catalog-ean, producten', uit:'Productdata naar Palletlabels en Containers zetten.' },
   { id:'soorten', g:'prod', t:'Soorten', u:T('#/productdata/soort'), st:'proef', r:DV, data:'opslag', uit:'1 pallet · 2 deel · 3 mix · 4 pick.' },
   { id:'productkaart', g:'prod', t:'Productkaart', u:'./productkaart.html', st:'draait', r:DK, data:'catalog-ean, producten', uit:'Alles over één product.' },
   { id:'cp-producten', g:'prod', t:'Producten per leverancier', u:CPT('#/producten'), st:'proef', r:DV, data:'pakbon_alias, producten', uit:'Palletgegevens en koppelingen per leverancier.' },
@@ -486,6 +487,35 @@ function herreken(){
   if(m && (m.native === 'todo' || m.native === 'fundament')){ clearTimeout(herT); herT = setTimeout(rekenFundament, 4000); }
 }
 
+/* ---------- nieuwe versie: elke 5 minuten (en bij terugkomen) kijken of de bestanden op GitHub Pages veranderd zijn ----------
+   Alleen een balk, nooit zelf herladen: Daan kiest het moment (er kan in een invulveld getypt worden). */
+const VERSIE_BESTANDEN = ['wh/lijst.json', 'wh/ivol.js', 'wh/productdata.js', 'test.html'];
+const VS = { basis:null, bezig:false };
+async function versieKijk(){
+  if(VS.bezig) return; VS.bezig = true;
+  const nu = {};
+  await Promise.all(VERSIE_BESTANDEN.map(async f => {
+    try{
+      const r = await fetch(f, { method:'HEAD', cache:'no-store' }); if(!r.ok) return;
+      const sig = (r.headers.get('ETag') || '') + '|' + (r.headers.get('Last-Modified') || '');
+      if(sig !== '|') nu[f] = sig;
+    }catch(e){ /* geen verbinding of geen headers: niets doen */ }
+  }));
+  VS.bezig = false;
+  if(!VS.basis){ VS.basis = nu; return; }
+  if(Object.keys(nu).some(f => VS.basis[f] && VS.basis[f] !== nu[f])) $('versiebalk').hidden = false;
+  Object.keys(nu).forEach(f => { if(!VS.basis[f]) VS.basis[f] = nu[f]; });
+}
+async function vernieuw(){
+  // eerst de html in de browsercache verversen (GitHub Pages bewaart hem 10 minuten), dan 3.0 met iframe opnieuw laden
+  const fr = $('frame'), pad = fr && fr.src ? new URL(fr.src, location.href).pathname : null;
+  await Promise.all(['ivol.html', 'test.html', 'warehouse.html', pad].filter(Boolean).map(u => fetch(u, { cache:'reload' }).catch(() => {})));
+  location.reload();
+}
+setInterval(versieKijk, 5 * 60e3);
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') versieKijk(); });
+versieKijk();
+
 /* ---------- gebeurtenissen ---------- */
 window.addEventListener('hashchange', toon);
 document.addEventListener('click', ev => {
@@ -495,6 +525,7 @@ document.addEventListener('click', ev => {
   if(ev.target.closest('#zijdicht') || ev.target.closest('#zijdek')){ zetZij(false); return; }
   if(ev.target.closest('#menulijst a') && smal() && zijOpen()){ zetZij(false); }   // ook het actieve item sluit het menu
   const k = ev.target.closest('[data-a]');
+  if(k && k.dataset.a === 'vernieuw'){ k.disabled = true; vernieuw(); return; }
   if(k && k.dataset.a === 'koppel'){ const v = (($('kcode') || {}).value || '').trim(); if(!v) return; WHLIVE.zetCode(v); IVL.ronde(true); toon(); return; }
   if(k && k.dataset.a === 'ververs'){ IVL.ronde(true); herreken(); return; }
   if(k && k.dataset.a === 'naslag-plus'){

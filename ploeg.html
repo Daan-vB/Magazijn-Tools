@@ -134,13 +134,23 @@
 </header>
 <main id="app"></main>
 <div id="toast" hidden></div>
-<script src="wh/cache.js?v=1"></script>
-<script src="wh/core.js?v=16"></script>
-<script src="wh/logica.js?v=9"></script>
-<script src="wh/triage.js?v=2"></script>
-<script src="wh/barcode.js?v=1"></script>
-<script src="wh/live.js?v=5"></script>
-<script src="wh/aanvullive.js?v=2"></script>
-<script src="wh/ploeg.js?v=2"></script>
+<script>
+/* laadt de scripts van deze app uit wh/lijst.json (altijd de nieuwste, nieuwe bestanden maar op één plek toevoegen) */
+(function(){
+  var APP="ploeg",K="ivol-lijst";
+  function nood(f,i){var s=document.createElement("script");s.src=f[i];s.onload=s.onerror=function(){laad(f,i+1)};document.body.appendChild(s);}
+  function laad(f,i){
+    if(i>=f.length)return;
+    fetch(f[i],{cache:"no-cache"}).then(function(r){if(!r.ok)throw 0;return r.text();})
+      .then(function(t){var s=document.createElement("script");s.textContent=t+"\n//# sourceURL="+f[i];document.body.appendChild(s);laad(f,i+1);})
+      .catch(function(){nood(f,i);});
+  }
+  fetch("wh/lijst.json",{cache:"no-cache"}).then(function(r){if(!r.ok)throw 0;return r.json();})
+    .then(function(j){try{localStorage.setItem(K,JSON.stringify(j));}catch(e){}laad(j[APP],0);})
+    .catch(function(){var j=null;try{j=JSON.parse(localStorage.getItem(K));}catch(e){}
+      if(j&&j[APP])laad(j[APP],0);
+      else document.body.insertAdjacentHTML("afterbegin","<p style='padding:20px'>De app kon niet laden. Controleer je internet en vernieuw de pagina.</p>");});
+})();
+</script>
 </body>
 </html>

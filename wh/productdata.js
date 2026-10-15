@@ -1082,6 +1082,7 @@ function viewStart(){
   const migN = Object.values(mig.t).reduce((a, b) => a + b, 0);
   const fams = families(codes);
   const openLaag = codes.filter(c => open(c, UI.laag).length).length;
+  const gp = gelijkPlan(), gelijkBoven = gp.spp.length + gp.nieuw.length + gp.pal.length > 0;   // verschillen met Palletlabels/Containers: poort en gelijkzetten bovenaan
   app.innerHTML = `
   <div class="card">
     <div class="pd-kop"><div><h2>Productdata</h2><div class="small muted mt4">Eén kaart per product voor alles wat Picqer niet weet. Naam, code, EAN, leverancier en prijzen blijven van Picqer: die zie je, maar pas je hier niet aan.</div></div></div>
@@ -1092,6 +1093,7 @@ function viewStart(){
   ${!S.mist && migN ? `<div class="card" style="border-left:4px solid var(--blue)"><h3>Eerst: overzetten wat al bekend is</h3>
     <p class="small mt8">Van ${nf(mig.prod)} producten staan gegevens nog verspreid over palletlabels, containers en de aanvulbase: ${Object.entries(mig.t).map(([k, n]) => nf(n) + ' × ' + esc(VELDEN[k].t.toLowerCase())).join(', ')}. Eén klik zet ze over naar productdata. De oude plekken blijven ongemoeid. Wat dubbel en verschillend in palletlabels staat, gaat niet mee: dat kies je zelf.</p>
     <div class="row wrap mt12"><button class="btn pri" data-pd="mig">Zet ${nf(migN)} waarden over</button></div></div>` : ''}
+  ${gelijkBoven ? poortKaart() + gelijkKaart() : ''}
   ${UI.mig ? `<div class="card" style="border-left:4px solid var(--ok)"><h3>Overgezet</h3><div class="small mt8">${Object.keys(UI.mig.voor).map(k => esc(VELDEN[k].t) + ': vóór <b>' + nf(UI.mig.voor[k]) + '</b>, na <b>' + nf(UI.mig.na[k] || 0) + '</b>' + ((UI.mig.na[k] || 0) === UI.mig.voor[k] ? ' ✓' : ' <span class="badge b-bad">verschil</span>')).join('<br>')}</div></div>` : ''}
   <a class="card" href="#/productdata/afd" style="display:block;text-decoration:none;color:inherit;border-left:6px solid var(--orange)"><div class="row between wrap"><div><h2 style="font-size:18px">Afdelingen doorlopen</h2><div class="small muted mt4">Per afdeling een lijst: per product wat we weten, wat mist en wat geschat is. Tik, nakijken, Opslaan en door naar de volgende.</div></div><span class="btn acc">Begin →</span></div></a>
   <a class="card" href="#/productdata/soort" style="display:block;text-decoration:none;color:inherit;border-left:6px solid #5a3e8f"><div class="row between wrap"><div><h2 style="font-size:18px">Soorten: 1 pallet · 2 deel · 3 mix · 4 pick</h2><div class="small muted mt4">Per product de soort, met een voorstel uit de data. Mix vul je hier verder in (geleverd, max op pick, aanvullen met, mixgroep). Filteren en veel producten tegelijk instellen.</div></div><span class="btn">Openen →</span></div></a>
@@ -1099,8 +1101,7 @@ function viewStart(){
   ${inkKaart()}
   <a class="card" href="#/productdata/import" style="display:block;text-decoration:none;color:inherit;border-left:4px solid #5a3e8f"><div class="row between wrap"><div><h3>Importeren</h3><div class="small muted mt4">Een lijst van Claude plakken (bijvoorbeeld uit je ingesproken opname), nakijken en in één klik opslaan.</div></div><span class="btn">Openen →</span></div></a>
   <a class="card" href="#/productdata/auto" style="display:block;text-decoration:none;color:inherit;border-left:4px solid var(--ok)"><div class="row between wrap"><div><h3>Automatisch invullen uit alle bronnen</h3><div class="small muted mt4">Palletlabels, containers, pakbonnen, VST, bulk, verplaatsingen, Picqer en kleurgenoten naast elkaar. Alleen wat getoetst zeker genoeg is, jouw invoer blijft staan.</div></div><span class="btn ok">Bekijken →</span></div></a>
-  ${poortKaart()}
-  ${gelijkKaart()}
+  ${gelijkBoven ? '' : poortKaart() + gelijkKaart()}
   ${opschonenKaart()}
   <div class="card">
     <h3>Hoe ver ben je</h3><div class="small muted mt4">${nf(codes.length)} producten in deze selectie. Kies een laag en vul die eerst helemaal.</div>

@@ -35,5 +35,35 @@
   "wh/junior-taal.js",
   "wh/junior-handleiding.js",
   "wh/junior.js"
+ ],
+ "test": [
+  "wh/menu.js",
+  "wh/cache.js",
+  "wh/core.js",
+  "wh/logica.js",
+  "wh/planning.js",
+  "wh/triage.js",
+  "wh/dag.js",
+  "wh/barcode.js",
+  "wh/stelling.js",
+  "wh/taken.js",
+  "wh/live.js",
+  "wh/bron.js",
+  "wh/testbron.js",
+  "wh/aanvullive.js",
+  "wh/productdata.js",
+  "wh/demo.js",
+  "wh/levering.js",
+  "wh/views.js"
+ ],
+ "ploeg": [
+  "wh/cache.js",
+  "wh/core.js",
+  "wh/logica.js",
+  "wh/triage.js",
+  "wh/barcode.js",
+  "wh/live.js",
+  "wh/aanvullive.js",
+  "wh/ploeg.js"
  ]
 }
