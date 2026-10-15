@@ -109,7 +109,7 @@ function huidig(){
 function tekenMenu(){
   const nu = huidig();
   const lijst = zichtbaar();
-  $('menu').innerHTML = GROEPEN.map(g => {
+  $('menulijst').innerHTML = GROEPEN.map(g => {
     const items = lijst.filter(m => m.g === g.k); if(!items.length) return '';
     return `<div class="groep"><div class="gt">${esc(g.t)}</div>${items.map(m => `<a href="${m.ext ? esc(m.ext) + '" target="_blank" rel="noopener' : '#/' + m.id}" class="${m === nu ? 'aan' : ''}">${esc(m.t)}${UI.rol === 'daan' && m.st !== 'draait' ? ` <i class="st ${ST[m.st][1]}">${ST[m.st][0]}</i>` : ''}</a>`).join('')}</div>`;
   }).join('');
@@ -119,11 +119,26 @@ function tekenMenu(){
   if(nu && nu.u){ uit.href = nu.u; uit.hidden = false; } else uit.hidden = true;
 }
 
+/* ---------- zijmenu: smal schuift het over de inhoud, breed klapt het in (keuze onthouden) ---------- */
+const smal = () => window.matchMedia('(max-width:820px)').matches;
+const zijOpen = () => smal() ? document.body.classList.contains('menu-open') : !document.body.classList.contains('zij-dicht');
+function zetZij(open){
+  const b = document.body, was = zijOpen();
+  if(smal()) b.classList.toggle('menu-open', open);
+  else { b.classList.toggle('zij-dicht', !open); lsZet('ivol-zij', open ? 'open' : 'dicht'); }
+  $('menuknop').setAttribute('aria-expanded', String(open));
+  if(open && smal()) $('zijdicht').focus();
+  else if(!open && was) $('menuknop').focus();
+}
+const zijAria = () => $('menuknop').setAttribute('aria-expanded', String(zijOpen()));
+zijAria();
+try{ window.matchMedia('(max-width:820px)').addEventListener('change', zijAria); }catch(e){}
+
 /* ---------- inhoud ---------- */
 let frameUrl = null;
 function toon(){
   const m = huidig();
-  document.body.classList.toggle('menu-open', false);
+  if(document.body.classList.contains('menu-open')) zetZij(false);
   tekenMenu();
   const fr = $('frame'), nat = $('native');
   if(m.native){
@@ -476,7 +491,9 @@ window.addEventListener('hashchange', toon);
 document.addEventListener('click', ev => {
   const r = ev.target.closest('#rollen button');
   if(r){ UI.rol = r.dataset.rol; lsZet('ivol-rol', UI.rol); location.hash = '#/' + startVan(UI.rol); toon(); return; }
-  if(ev.target.closest('#menuknop')){ document.body.classList.toggle('menu-open'); return; }
+  if(ev.target.closest('#menuknop')){ zetZij(!zijOpen()); return; }
+  if(ev.target.closest('#zijdicht') || ev.target.closest('#zijdek')){ zetZij(false); return; }
+  if(ev.target.closest('#menulijst a') && smal() && zijOpen()){ zetZij(false); }   // ook het actieve item sluit het menu
   const k = ev.target.closest('[data-a]');
   if(k && k.dataset.a === 'koppel'){ const v = (($('kcode') || {}).value || '').trim(); if(!v) return; WHLIVE.zetCode(v); IVL.ronde(true); toon(); return; }
   if(k && k.dataset.a === 'ververs'){ IVL.ronde(true); herreken(); return; }
@@ -491,6 +508,7 @@ document.addEventListener('click', ev => {
   }
   if(k && k.dataset.a === 'naslag-weg'){ naslagBewaar(((NS.d && NS.d.rijen) || []).filter(r => r.id !== k.dataset.id)); return; }
 });
+document.addEventListener('keydown', ev => { if(ev.key === 'Escape' && smal() && zijOpen()) zetZij(false); });
 $('frame').addEventListener('load', frameGeladen);
 toon();
 IVL.opNieuw(herreken);

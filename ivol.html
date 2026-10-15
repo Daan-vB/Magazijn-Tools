@@ -16,7 +16,7 @@
   html,body{height:100%}
   body{font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.45;display:grid;grid-template-columns:250px 1fr;grid-template-rows:auto 1fr;grid-template-areas:"kop kop" "zij inhoud"}
   a{color:var(--blauw)}
-  .kop{grid-area:kop;background:var(--ink);color:#e8edf4;display:flex;align-items:center;gap:12px;padding:9px 16px;padding-top:calc(9px + env(safe-area-inset-top,0px));min-width:0}
+  .kop{grid-area:kop;background:var(--ink);color:#e8edf4;display:flex;align-items:center;gap:12px;padding:9px 16px;padding-top:calc(9px + env(safe-area-inset-top,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));min-width:0}
   .kop h1{font-size:17px;font-weight:800;white-space:nowrap}
   .kop h1 span{color:#f08a4b}
   .kop .nul{font-size:10.5px;font-weight:800;letter-spacing:.12em;background:#f08a4b;color:var(--ink);padding:3px 7px;border-radius:3px}
@@ -26,8 +26,12 @@
   #rollen button{background:transparent;border:0;color:#9fb0c4;font:inherit;font-size:13px;font-weight:800;padding:5px 10px;border-radius:5px;cursor:pointer}
   #rollen button.aan{background:#f08a4b;color:var(--ink)}
   .kop a.uit{color:#c4cfdd;text-decoration:none;font-size:13px;font-weight:700;background:#222b37;padding:6px 10px;border-radius:6px;white-space:nowrap}
-  #menuknop{display:none;background:#222b37;border:0;color:#fff;font:inherit;font-weight:800;padding:6px 10px;border-radius:6px;cursor:pointer}
-  .zij{grid-area:zij;background:var(--zij);overflow-y:auto;padding:10px 8px 40px}
+  #menuknop{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;margin:-6px 0;background:#222b37;border:0;color:#fff;font:inherit;font-size:20px;font-weight:800;border-radius:8px;cursor:pointer;flex:none}
+  .zij{grid-area:zij;background:var(--zij);overflow-y:auto;padding:10px 8px 40px;padding-left:max(8px,env(safe-area-inset-left,0px));padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
+  .zijkop{display:none;align-items:center;justify-content:space-between;padding:0 2px 6px 10px;color:#7d8da0;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+  #zijdicht{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;background:#222b37;border:0;color:#fff;font:inherit;font-size:24px;line-height:1;border-radius:8px;cursor:pointer}
+  #zijdek{display:none}
+  @media (min-width:821px){ body.zij-dicht{grid-template-columns:1fr;grid-template-areas:"kop" "inhoud"} body.zij-dicht .zij{display:none} }
   .groep{margin-bottom:10px}
   .gt{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#7d8da0;padding:8px 10px 4px}
   .zij a{display:flex;align-items:center;justify-content:space-between;gap:6px;color:var(--zijtekst);text-decoration:none;padding:7px 10px;border-radius:6px;font-weight:600;font-size:14px}
@@ -93,19 +97,23 @@
   a:focus-visible,button:focus-visible{outline:3px solid #f08a4b;outline-offset:2px}
   @media (max-width:820px){
     body{grid-template-columns:1fr;grid-template-areas:"kop" "inhoud"}
-    #menuknop{display:inline-block}
     #kruimel{display:none}
     .kop{flex-wrap:wrap}
-    .zij{position:fixed;inset:0 25% 0 0;z-index:40;transform:translateX(-105%);transition:transform .2s;padding-top:calc(60px + env(safe-area-inset-top,0px))}
-    body.menu-open .zij{transform:none}
+    .zij{position:fixed;top:0;bottom:0;left:0;width:min(320px,85vw);z-index:40;transform:translateX(-105%);visibility:hidden;transition:transform .2s,visibility 0s .2s;padding-top:calc(8px + env(safe-area-inset-top,0px));box-shadow:4px 0 24px rgba(0,0,0,.35)}
+    body.menu-open .zij{transform:none;visibility:visible;transition:transform .2s}
+    .zijkop{display:flex}
+    .zij a{min-height:44px}
+    #zijdek{position:fixed;inset:0;z-index:39;background:rgba(8,12,18,.55)}
+    body.menu-open #zijdek{display:block}
     .kop a.uit{display:none}
   }
-  @media (prefers-reduced-motion:reduce){.zij{transition:none}}
+  @media (prefers-reduced-motion:reduce){.zij,body.menu-open .zij{transition:none}}
 </style>
 </head>
 <body>
+<script>try{if(localStorage.getItem('ivol-zij')==='dicht')document.body.classList.add('zij-dicht');}catch(e){}</script>
 <header class="kop">
-  <button id="menuknop" aria-label="Menu">☰</button>
+  <button id="menuknop" aria-label="Menu" aria-controls="menu" aria-expanded="false">☰</button>
   <h1>IVOL <span>Warehouse</span></h1><span class="nul">3.0</span>
   <span id="kruimel"></span>
   <div class="rechts">
@@ -114,7 +122,8 @@
     <a id="nieuwtab" class="uit" target="_blank" rel="noopener" hidden>Los openen ↗</a>
   </div>
 </header>
-<nav class="zij" id="menu" aria-label="Onderdelen"></nav>
+<nav class="zij" id="menu" aria-label="Onderdelen"><div class="zijkop"><span>Menu</span><button id="zijdicht" aria-label="Menu sluiten">×</button></div><div id="menulijst"></div></nav>
+<div id="zijdek"></div>
 <main class="inhoud">
   <iframe id="frame" title="Onderdeel" hidden></iframe>
   <div id="native" hidden></div>
