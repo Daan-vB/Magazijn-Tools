@@ -27,7 +27,7 @@ function stijl(){
   const s = document.createElement('style'); s.id = 'whx-stijl';
   s.textContent = `
   .x-tabs{display:flex;gap:6px;flex-wrap:wrap}
-  .x-tabs button{border:1px solid var(--lijn);background:#fff;border-radius:999px;padding:7px 14px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+  .x-tabs button{border:1px solid var(--lijn);background:#fff;border-radius:999px;padding:7px 14px;min-height:44px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
   .x-tabs button.aan{background:var(--ink);color:#fff;border-color:var(--ink)}
   .x-tabs b{font-variant-numeric:tabular-nums;margin-left:4px}
   .x-kaart{background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(15,23,32,.08);padding:14px 16px;display:grid;gap:8px}
@@ -37,10 +37,10 @@ function stijl(){
   .x-abc.A{background:#1c7a4a;color:#fff}.x-abc.B{background:#cfe8da}
   .x-rij{display:grid;grid-template-columns:minmax(120px,190px) minmax(90px,170px) 1fr auto;grid-template-areas:"l i w k";gap:8px;align-items:center;padding:6px 0;border-top:1px solid #eef1f5}
   .x-rij>b{grid-area:l}.x-rij>input{grid-area:i}.x-rij>.x-why{grid-area:w}.x-rij>button{grid-area:k}
-  .x-rij input{width:100%;border:1px solid var(--lijn);border-radius:6px;padding:7px 9px;font:inherit;font-size:15px;background:#fffbea}
+  .x-rij input{width:100%;min-height:44px;border:1px solid var(--lijn);border-radius:6px;padding:7px 9px;font:inherit;font-size:15px;background:#fffbea}
   .x-rij input.ok{background:#fff}
   .x-why{font-size:12.5px;color:var(--muted)}
-  .x-btn{border:1px solid var(--lijn);background:#fff;border-radius:8px;padding:7px 12px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .x-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;border:1px solid var(--lijn);background:#fff;border-radius:8px;padding:7px 12px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;text-decoration:none;color:inherit}
   .x-btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
   .x-btn.pri{background:#f08a4b;border-color:#f08a4b}
   .x-btn:disabled{opacity:.5;cursor:default}
@@ -61,6 +61,10 @@ function stijl(){
   .x-punt.groen{border-left-color:var(--ok)}.x-punt.oranje{border-left-color:#e0a100}.x-punt.rood{border-left-color:var(--rood)}
   .x-punt .nr{font-size:12px;font-weight:800;color:var(--muted)}
   .x-punt .m{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}
+  .x-punt a.small{display:inline-flex;align-items:center;min-height:44px;justify-self:start}
+  .x-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .x-ritme label:focus-within{outline:3px solid #f08a4b;outline-offset:-3px;border-radius:6px}
+  #native input:focus-visible,#native textarea:focus-visible,#native select:focus-visible,#native summary:focus-visible{outline:3px solid #f08a4b;outline-offset:2px}
   .x-zoek input{width:100%;font:inherit;font-size:18px;padding:12px 14px;border:2px solid var(--ink);border-radius:10px}
   .x-res{display:grid;gap:6px}
   .x-res button{all:unset;cursor:pointer;background:#fff;border-radius:10px;padding:10px 12px;box-shadow:0 1px 4px rgba(15,23,32,.08);display:grid;gap:2px}
@@ -132,9 +136,9 @@ function viewNakijken(){
   const kop = `<div class="pagina"><h1>Te controleren</h1>
     <p class="lede">Wat Claude heeft ingevuld of aangenomen zonder dat jij het zei. Alles is al bruikbaar, maar telt pas als zeker nadat jij op <b>Klopt</b> tikt of het aanpast. Productdata-schattingen tellen tot dan als open in Poort 0.4.</p>
     <div class="x-tabs" role="tablist">
-      <button class="${tab === 'pd' ? 'aan' : ''}" data-x="tab" data-v="pd">Productdata<b>${S.pd ? nf(nTw) : '…'}</b></button>
-      <button class="${tab === 'aan' ? 'aan' : ''}" data-x="tab" data-v="aan">Aannames<b>${nf(aan.length)}</b></button>
-      <button class="${tab === 'data' ? 'aan' : ''}" data-x="tab" data-v="data">Uit de data</button>
+      <button role="tab" aria-selected="${tab === 'pd'}" class="${tab === 'pd' ? 'aan' : ''}" data-x="tab" data-v="pd">Productdata<b>${S.pd ? nf(nTw) : '…'}</b></button>
+      <button role="tab" aria-selected="${tab === 'aan'}" class="${tab === 'aan' ? 'aan' : ''}" data-x="tab" data-v="aan">Aannames<b>${nf(aan.length)}</b></button>
+      <button role="tab" aria-selected="${tab === 'data'}" class="${tab === 'data' ? 'aan' : ''}" data-x="tab" data-v="data">Uit de data</button>
     </div>`;
   let body = '';
   if(tab === 'pd'){
@@ -183,7 +187,8 @@ function cijfers(){
   return { st, P, B, nu, takenAchter, geen, binnen, na12, live:!!data };
 }
 function tegels(K){
-  const t = (n, titel, uitleg, kl, href) => `<a class="x-tegel ${kl}" href="${href || '#/dag'}"><span class="n">${n === null || n === undefined ? '–' : nf(n)}</span><span class="t">${esc(titel)}</span><span class="u">${esc(uitleg)}</span></a>`;
+  const KL = { groen:'op schema', oranje:'let op', rood:'nu iets doen' };
+  const t = (n, titel, uitleg, kl, href) => `<a class="x-tegel ${kl}" href="${href || '#/dag'}"><span class="n">${n === null || n === undefined ? '–' : nf(n)}</span><span class="t">${esc(titel)}</span><span class="u">${esc(uitleg)}</span>${KL[kl] ? `<span class="x-sr">, ${KL[kl]}</span>` : ''}</a>`;
   const geenLive = K.st.code ? (K.st.laden ? 'laden…' : K.st.fout ? 'Picqer: ' + (K.st.fout.message || 'fout') : 'nog niet geladen') : 'geen koppelcode op dit apparaat';
   return `<div class="x-tegels">
     ${t(K.P ? K.P.o12 : null, 'Orders ouder dan 12 uur', K.P ? (K.na12 ? 'na 12:00: moet 0 zijn' : 'om 12:00 moet dit 0 zijn') : geenLive, K.P ? kleur(K.P.o12, 'k-o12', K.na12 ? '' : 'voor12') : '', '#/live')}
@@ -216,7 +221,7 @@ function viewDag(){
     <p class="lede">Zes cijfers, het ritme van de dag en het ochtendoverleg. Groen = op schema, oranje = let op, rood = nu iets doen. Grenzen en tijden staan onder Te controleren (aannames).</p>
     ${tegels(K)}
     <section class="blok"><div class="x-kop"><h2>Ritme van vandaag</h2><span class="small muted">${nf(nAf)} van ${nf(R.length)} gedaan${volgende ? ' · volgende: ' + esc(volgende.tijd) + ' ' + esc(volgende.wat) : ''}</span></div>
-      <div class="x-ritme">${R.map(r => `<label class="${af[r.id] ? 'af' : ''}${volgende && volgende.id === r.id ? ' nu' : ''}"><input type="checkbox" data-x="ritme" data-id="${esc(r.id)}" ${af[r.id] ? 'checked' : ''}><span class="tijd">${esc(r.tijd || r.wanneer)}</span><span><span class="wat">${esc(r.wat)}</span>${r.cont ? ' <span class="x-abc">container</span>' : ''}<div class="wie">${esc(r.wie)}${af[r.id] ? ' · gedaan ' + esc(String(af[r.id].op || '').slice(11, 16)) + ' door ' + esc(af[r.id].door || '') : ''}</div></span><span></span></label>`).join('')}</div>
+      <div class="x-ritme">${R.map(r => `<label class="${af[r.id] ? 'af' : ''}${volgende && volgende.id === r.id ? ' nu' : ''}"><input type="checkbox" id="x-r-${esc(r.id)}" data-x="ritme" data-id="${esc(r.id)}" ${af[r.id] ? 'checked' : ''}><span class="tijd">${esc(r.tijd || r.wanneer)}</span><span><span class="wat">${esc(r.wat)}</span>${r.cont ? ' <span class="x-abc">container</span>' : ''}<div class="wie">${esc(r.wie)}${af[r.id] ? ' · gedaan ' + esc(String(af[r.id].op || '').slice(11, 16)) + ' door ' + esc(af[r.id].door || '') : ''}</div></span><span></span></label>`).join('')}</div>
     </section>
     <section class="blok"><h2>Ochtendoverleg (Kate en Sala, 07:00)</h2>
       <ul class="small" style="padding-left:18px;display:grid;gap:4px">
