@@ -627,9 +627,11 @@ async function impAdvies(file){
       if(code) rows.push({ code, naam, bulk, pick, geenPick:geen, aantal:aant, pickst:num(a.t) });
     });
   });
-  if(!rows.length) throw new Error('geen regels gevonden in het aanvuladvies');
+  // lege PDF van Picqer (alles al aangevuld): kort document zonder regels is geldig, dan 0 regels bewaren
+  if(!rows.length && !pag.every(ws => ws.length < 60)) throw new Error('geen regels gevonden in het aanvuladvies');
   const onbekend = rows.filter(r => !D.P[r.code] && !D.PLOW[r.code.toLowerCase()]).map(r => r.code);
   await catZet('wh-advies', { datum:datum || new Date().toISOString(), ingelezen:new Date().toISOString(), rows });
+  if(!rows.length) return '0 adviesregels (Picqer heeft niets aan te vullen)';
   return rows.length + ' adviesregels' + (onbekend.length ? ' · ' + onbekend.length + ' codes niet in de productimport (' + onbekend.slice(0, 5).join(', ') + (onbekend.length > 5 ? '…' : '') + ')' : '');
 }
 
