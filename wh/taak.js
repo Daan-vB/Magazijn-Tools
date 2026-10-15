@@ -115,17 +115,31 @@ function nodig11(id){
     <ul class="nog"><li><span class="nt"><b>Live naast PDF</b><span class="muted klein">Doel: 0 onverklaarde verschillen. Alleen onverklaard is werk.</span></span>${knop(id, '#/vergelijk', 'Vergelijking', !!U.onverklaard)}</li></ul>`;
 }
 function kort11(){ const S = IV() && IV().stats(); return S && S.uitleg ? nf(S.uitleg.onverklaard) + ' onverklaard' : ''; }
+// telling uit wh/locaties.js (besliste uitzonderingen en verwerkte besluiten tellen niet mee); anders de ruwe telling
+const locT = () => { try{ const T = window.WHLOC ? WHLOC.telling() : null; return T && T.geladen ? T : null; }catch(e){ console.error(e); return null; } };
 function locRegels(S){
+  const T = locT();
+  if(T) return WHLOC.SOORTEN.filter(s => s.k !== 'geen').map(s => [s.t + (T.per[s.k].wacht ? ' (' + nf(T.per[s.k].wacht) + ' wachten op Picqer)' : ''), T.per[s.k].werk]);
   const A = S.A;
   return [['Pick of bulk / vast of tijdelijk wijkt af', S.afw], ['Picklocaties op tijdelijk', A.tijdPick.length], ['Dubbele BA-locaties met producten', A.dubbel.length], ['Rommel-locaties met producten', A.rommel.length], ['Producten op een gang- of niveaumap', A.opMap.length]];
 }
 function nodig33(id){
+  const T = locT();
+  if(T){
+    const G = WHLOC.gangStats(), na = G.reduce((s, g) => s + g.na, 0), n = G.reduce((s, g) => s + g.n, 0);
+    const r = WHLOC.SOORTEN.map(s => { const x = T.per[s.k]; if(!x.n) return '';
+      return `<li><span class="nt"><b>${x.werk ? nf(x.open) + ' open · ' : '✓ '}${esc(s.t)}</b><span class="muted klein">${nf(x.beslist)} van ${nf(x.n)} beslist${x.wacht ? ' · ' + nf(x.wacht) + ' wachten op Picqer' : ''}</span></span>${knop(id, '#/locaties/punt/' + s.k, x.werk ? 'Doorlopen' : 'Bekijken', !!x.open)}</li>`; }).join('');
+    return `<ul class="nog">${r || '<li><span class="nt">Geen aandachtspunten in de locaties.</span></li>'}
+      <li><span class="nt"><b>Locaties</b><span class="muted klein">Alle aandachtspunten, gangen en de import op een verse export</span></span>${knop(id, '#/locaties', 'Locaties', true)}</li></ul>
+      <details class="pgroep"><summary><b>Gangen nalopen per hoogte</b> <i class="tel">${nf(na)} / ${nf(n)}</i></summary>
+      <ul class="nog">${G.map(g => `<li><span class="nt"><b>Gang ${esc(g.gang)}</b><span class="muted klein">${nf(g.na)} van ${nf(g.n)} locaties nagelopen</span></span>${knop(id, '#/locaties/' + g.gang, 'Gang ' + g.gang)}</li>`).join('')}</ul></details>`;
+  }
   const S = IV() && IV().stats(); if(!S) return '<div class="leeg">Gegevens laden…</div>';
   const r = locRegels(S).filter(x => x[1]);
   return `<ul class="nog">${r.map(([t, n]) => `<li><span class="nt"><b>${nf(n)} · ${esc(t)}</b></span></li>`).join('') || '<li><span class="nt">Geen punten in de locatie-export.</span></li>'}
     <li><span class="nt"><b>Locaties</b><span class="muted klein">Stellingkaart, aandachtspunten, locatie-import</span></span>${knop(id, '#/locaties', 'Locaties', true)}</li></ul>`;
 }
-function kort33(){ const S = IV() && IV().stats(); return S ? nf(locRegels(S).reduce((s, x) => s + x[1], 0)) + ' punten' : ''; }
+function kort33(){ const T = locT(); if(T) return nf(T.werk) + ' punten'; const S = IV() && IV().stats(); return S ? nf(locRegels(S).reduce((s, x) => s + x[1], 0)) + ' punten' : ''; }
 function nodig41(id){
   const S = IV() && IV().stats(); if(!S) return '<div class="leeg">Gegevens laden…</div>';
   return `<ul class="nog">

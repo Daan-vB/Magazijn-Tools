@@ -37,6 +37,13 @@ const LIJST = [
   { id:'p-hoogte', groep:'Productdata-schattingen', t:'Hoogte incl. pallet (als er niets bekend is)', waarde:'hal A 120 cm · hal B/C 150 cm', waarom:'Max bulk hal A 140, hal B/C 220 (masterdocument §2).' },
   { id:'p-gew', groep:'Productdata-schattingen', t:'Gewicht volle pallet', waarde:'stuks × Picqer-gewicht + 15 kg', waarom:'Getoetst 82% (productdata-bronnen).' },
   { id:'p-lig', groep:'Productdata-schattingen', t:'Max pallets per ligger', waarde:'2000 kg per ligger; 3 plaatsen (hal A), 4 (hal B/C)', waarom:'Bulkvoorstel containerdag (masterdocument §10).' },
+  // locaties (ronde 3, 16-10): keuzes van Claude bij het bouwen van Locaties opruimen
+  { id:'l-map', groep:'Locaties opruimen', t:'Wat is een map', waarde:'bovenliggende locatie, of gang-/sectie-/plaatsnaam op tijdelijk', waarom:'Uit ronde 1c (Live advies). Container 1–6 telt als retourkar, niet als losse naam.' },
+  { id:'l-hoog', groep:'Locaties opruimen', t:'Hoge pick op tijdelijk', waarde:'alleen onder Hoog maar pick', waarom:'Schatting Claude: één locatie hoort in één tabel, anders botsen "moet vast" en "wordt bulk, tijdelijk".' },
+  { id:'l-vr', groep:'Locaties opruimen', t:'Voorraad hier', waarde:'live stand als die nieuwer is dan de voorraad-export', waarom:'Schatting Claude: de nieuwste stand beslist of ontkoppelen kan.' },
+  { id:'l-geteld', groep:'Locaties opruimen', t:'Geteld en weggezet / Teruggezet', waarde:'klaar tot een nieuwere voorraad-export het weer laat zien', waarom:'Schatting Claude: het is alleen een notitie; de volgende export controleert het.' },
+  { id:'l-waar', groep:'Locaties opruimen', t:'Waarden in de locatie-import', waarde:'WAAR / ONWAAR', waarom:'Zelfde formaat als de locatie-import die Picqer op 30-9 accepteerde.' },
+  { id:'l-30d', groep:'Locaties opruimen', t:'Verwerkte besluiten in "gaat niet mee"', waarde:'30 dagen zichtbaar', waarom:'Schatting Claude: daarna alleen nog als ✓ in de tabellen.' },
   { id:'p-mix', groep:'Productdata-schattingen', t:'Mix: geleverd', waarde:'wisselt, tot de inkoop het aantal per doos bevestigt', waarom:'Schatting Claude.' }
 ];
 const S = { keus:null, laden:null };

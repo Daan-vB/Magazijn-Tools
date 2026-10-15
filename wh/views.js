@@ -79,7 +79,7 @@ function route(){
     if(naam === 'aanvullen') return viewAanvullen(delen[1] || 'nu');
     if(naam === 'base') return viewBase(q);
     if(naam === 'abcheck'){ if(delen[1] && AB_STAP.some(x => x[0] === delen[1])) UI.ab = delen[1]; return viewAB(); }   // #/abcheck/<stap> opent die stap (3.0 Te doen)
-    if(naam === 'locaties') return viewLocaties(delen[1] || '', q);
+    if(naam === 'locaties') return window.WHLOC ? WHLOC.view(delen.slice(1), q) : viewLocaties(delen[1] || '', q);   // 3.0/Test: wh/locaties.js
     if(naam === 'stelling') return WHS.view(delen[1] || '');
     if(naam === 'triage') return WHT.view();
     if(naam === 'planning') return viewPlanning();

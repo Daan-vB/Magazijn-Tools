@@ -261,8 +261,11 @@ async function rekenFundament(){
     const LS = WHL.locStats(), A = LS.aand;
     const afw = WHL.locAfwijkingen();
     const nLoc = Object.keys(D.LOC).length;
-    const punten = A.tijdPick.length + A.dubbel.length + A.rommel.length + A.opMap.length + afw.length;
-    h += blok(2, 'Locaties kloppen', !nLoc ? 'oranje' : punten ? 'oranje' : 'groen', nLoc ? `<b>${nf(punten)}</b> punten om op te ruimen · ${nf(nLoc)} locaties` : 'Locatie-export niet ingelezen', [
+    // telling uit wh/locaties.js: besliste uitzonderingen en verwerkte besluiten tellen niet mee
+    let LT = null; try{ LT = window.WHLOC ? WHLOC.telling() : null; if(LT && !LT.geladen) LT = null; }catch(e){ console.error(e); }
+    const punten = LT ? LT.werk : A.tijdPick.length + A.dubbel.length + A.rommel.length + A.opMap.length + afw.length;
+    h += blok(2, 'Locaties kloppen', !nLoc ? 'oranje' : punten ? 'oranje' : 'groen', nLoc ? `<b>${nf(punten)}</b> punten om op te ruimen · ${nf(nLoc)} locaties` : 'Locatie-export niet ingelezen', LT ? [
+      ['Locatie-export', D.LOCDATUM ? wanneer(D.LOCDATUM) : 'niet ingelezen', oud(D.LOCDATUM) > 7 ? 'let' : '']].concat(WHLOC.SOORTEN.filter(s => s.k !== 'geen' && LT.per[s.k].n).map(s => [s.t, nf(LT.per[s.k].werk) + (LT.per[s.k].wacht ? ' (' + nf(LT.per[s.k].wacht) + ' wacht)' : ''), LT.per[s.k].werk ? 'let' : ''])) : [
       ['Locatie-export', D.LOCDATUM ? wanneer(D.LOCDATUM) : 'niet ingelezen', oud(D.LOCDATUM) > 7 ? 'let' : ''],
       ['Pick of bulk / vast of tijdelijk wijkt af', nf(afw.length), afw.length ? 'let' : ''],
       ['Picklocaties op tijdelijk', nf(A.tijdPick.length), A.tijdPick.length ? 'let' : ''],

@@ -204,6 +204,8 @@ async function load(){
 }
 function zetLocaties(d){
   D.LOC = {}; D.LOCDATUM = d ? d.datum : null;
+  // live (3.0): bulk/tijdelijk uit Picqer, productkoppelingen uit de laatste locatie-export (datum in codes)
+  D.LOCBRON = d && d.bron || 'export'; D.LOCCODES = d ? (d.bron === 'picqer-live' ? (d.codes || null) : d.datum) : null;
   if(!d || !d.rows) return;
   d.rows.forEach(r => {
     const [naam, bulk, tijd, excl, parent, codes] = r;

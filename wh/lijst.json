@@ -22,6 +22,7 @@
   "wh/live.js",
   "wh/aanvullive.js",
   "wh/ivol-live.js",
+  "wh/locaties.js",
   "wh/bouwplan-route.js",
   "wh/bouwplan.js",
   "wh/taak.js",
@@ -62,6 +63,7 @@
   "wh/pdfamilie.js",
   "wh/demo.js",
   "wh/levering.js",
+  "wh/locaties.js",
   "wh/views.js"
  ],
  "ploeg": [

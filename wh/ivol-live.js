@@ -41,13 +41,22 @@ async function locaties(){
   }
   if(alle.length < 100) throw new Error('Te weinig locaties terug uit Picqer (' + alle.length + '), niets overschreven.');
   const naamVan = {}; alle.forEach(([id, naam]) => naamVan[id] = naam);
-  const rows = alle.map(([id, naam, bulk, tijd, excl, parent]) => [naam, bulk, tijd, excl, parent ? (naamVan[parent] || '') : '', ((D.LOC[naam] || {}).codes || []).join('|')]);
+  // productkoppelingen: de nieuwste uit de database (in een scherm van 3.0 kan net een verse locatie-export zijn ingelezen)
+  let codesVan = null, codesDatum = null;
+  try{
+    const r = await WH.catHaal('wh-locaties'), d = r && r.data;
+    if(d && d.rows && d.rows.length > 100){ codesVan = {}; d.rows.forEach(x => { codesVan[x[0]] = x[5] || ''; }); codesDatum = d.bron === 'picqer-live' ? (d.codes || null) : d.datum; }
+  }catch(e){ console.error(e); }
+  if(!codesVan){
+    codesVan = {}; Object.values(D.LOC).forEach(L => { codesVan[L.naam] = (L.codes || []).join('|'); });
+    // datum van de productkoppelingen = de laatste locatie-export (live levert alleen de locaties zelf)
+    const vorigeLive = S.meta.loc && S.meta.loc.t;
+    codesDatum = vorigeLive && vorigeLive === D.LOCDATUM ? (S.meta.loc.codes || null) : D.LOCDATUM;
+  }
+  const rows = alle.map(([id, naam, bulk, tijd, excl, parent]) => [naam, bulk, tijd, excl, parent ? (naamVan[parent] || '') : '', codesVan[naam] || '']);
   const datum = new Date().toISOString();
-  // datum van de productkoppelingen = de laatste locatie-export (live levert alleen de locaties zelf)
-  const vorigeLive = S.meta.loc && S.meta.loc.t;
-  const codesDatum = vorigeLive && vorigeLive === D.LOCDATUM ? (S.meta.loc.codes || null) : D.LOCDATUM;
   await WH.catZet('wh-locaties', { datum, bron:'picqer-live', codes:codesDatum, rows });
-  D.LOC = {}; D.LOCDATUM = datum;
+  D.LOC = {}; D.LOCDATUM = datum; D.LOCBRON = 'picqer-live'; D.LOCCODES = codesDatum;
   rows.forEach(([naam, bulk, tijd, excl, parent, codes]) => { D.LOC[naam] = { naam, bulk:!!bulk, tijd:!!tijd, excl:!!excl, parent, codes:codes ? codes.split('|') : [] }; });
   if(window.WHL) WHL.reset();
   await zetMeta({ loc:{ t:datum, n:rows.length, codes:codesDatum } });

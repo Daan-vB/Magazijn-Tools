@@ -253,7 +253,8 @@ function viewStand(){
   const K = cijfers(), vd = vandaag(), dg = (S.dag || {})[vd] || {}, gis = (S.dag || {})[isoDag(Date.now() - 864e5)] || {};
   let d04 = null; try{ d04 = window.WHTAAK && window.WHPD ? WHTAAK.data04() : null; if(!d04 && window.WHTAAK) WHTAAK.pdLaden().then(herteken); }catch(e){}
   const pdPct = d04 && d04.P.bel.length ? Math.floor((d04.P.bel.length - d04.open.length) / d04.P.bel.length * 100) : null;
-  let locA = null; try{ if(window.WHL && WHL.locStats){ const a = WHL.locStats().aand || {}; locA = Object.values(a).reduce((s, x) => s + (Array.isArray(x) ? x.length : 0), 0); } }catch(e){}
+  // locatie-aandachtspunten: telling uit wh/locaties.js (zonder besliste uitzonderingen en verwerkte besluiten)
+  let locA = null; try{ const T = window.WHLOC ? WHLOC.telling() : null; if(T && T.geladen) locA = T.werk; else if(window.WHL && WHL.locStats){ const a = WHL.locStats().aand || {}; locA = Object.values(a).reduce((s, x) => s + (Array.isArray(x) ? x.length : 0), 0); } }catch(e){}
   const contN = (D.CONT || []).filter(c => c.status !== 'afgerond' && c.losdatum && c.losdatum >= vd && c.losdatum <= isoDag(Date.now() + 14 * 864e5));
   const tw = S.pd ? twLijst().length : null;
   const daanOpen = Object.values(D.TODO || {}).filter(t => t && t.titel && !t.klaar && (t.wie || []).includes('Daan') && t.datum <= vd).length;
@@ -269,7 +270,7 @@ function viewStand(){
       ${p(4, 'Vloer vrij en berijdbaar', (gis.af || {})['d-10'] ? '✓ gisteren' : '–', (gis.af || {})['d-10'] ? 'groen' : '', 'Einde-dag-check (16:30) afgevinkt in Dagstart', '#/dag')}
       ${p(5, 'Pickers op prioriteit', K.P ? nf(K.P.urgent) + ' urgent open' : '–', K.P ? (K.P.urgent ? 'oranje' : 'groen') : '', 'Urgente picklijsten die nog open staan', '#/live')}
       ${p(6, 'Containerdag volgens plan', nf(contN.length) + ' in 14 dagen', contN.length ? '' : 'groen', contN.slice(0, 3).map(c => esc((c.losdatum || '').slice(5) + ' ' + (c.leverancier || ''))).join(' · ') || 'geen gepland', '#/containers')}
-      ${p(7, 'Inrichting op logica', pdPct !== null ? pdPct + '% productdata' : '…', pdPct === null ? '' : pdPct >= 100 ? 'groen' : pdPct >= 85 ? 'oranje' : 'rood', 'Belangrijke producten met complete productdata (Poort 0.4); herindeling volgt na de analyses', '#/todo')}
+      ${p(7, 'Inrichting op logica', pdPct !== null ? pdPct + '% productdata' : '…', pdPct === null ? '' : pdPct >= 100 ? 'groen' : pdPct >= 85 ? 'oranje' : 'rood', 'Belangrijke producten met complete productdata (Poort 0.4)' + (locA !== null ? ' · ' + nf(locA) + ' locatie-aandachtspunten open' : '') + '; herindeling volgt na de analyses', '#/todo')}
       ${p(8, 'Verzenden juist verpakt', '–', '', geenBron + ' (kennisbank E6/E8)', '')}
       ${p(9, '12:00: orders ouder dan 12 uur verwerkt', K.P ? nf(K.P.o12) : '–', K.P ? kleur(K.P.o12, 'k-o12', K.na12 ? '' : 'voor12') : '', K.na12 ? 'Na 12:00 moet dit 0 zijn' : 'Vóór 12:00: dit moet om 12:00 op 0 staan', '#/live')}
       ${p(10, 'Daan managet in plaats van oplost', nf(daanOpen) + ' taken · ' + (tw === null ? '…' : nf(tw)) + ' te controleren', daanOpen + (tw || 0) ? 'oranje' : 'groen', 'Open taken voor Daan en wat hij nog moet nakijken', '#/nakijken')}
