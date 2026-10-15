@@ -55,6 +55,7 @@
   "wh/testbron.js",
   "wh/aanvullive.js",
   "wh/productdata.js",
+  "wh/pdfamilie.js",
   "wh/demo.js",
   "wh/levering.js",
   "wh/views.js"
