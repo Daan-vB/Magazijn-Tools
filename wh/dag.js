@@ -1105,15 +1105,91 @@ function boDiff(){
   const o = Object.keys(oud), n = Object.keys(nieuw);
   return { van:D.BOVORIG.datum, opgelost:o.filter(x => !nieuw[x]), open:n.filter(x => oud[x]), nieuw:n.filter(x => !oud[x]), oud, nieuwM:nieuw };
 }
+/* ---------- backorders ouder dan 30 dagen: per order de reden uit de stand en de actie (3.0, 16-10) ----------
+   Live (WHLIVE) als die er is, anders de backorder-export. Waar ligt de voorraad: WHLIVE.productStand met de live
+   locaties van het product; zonder live locaties de voorraad-per-locatie-export. */
+const BO_REDEN = {
+  geen:{ t:'geen voorraad', a:'Wacht op inkoop: leverdatum navragen, of de order splitsen of annuleren met de klant.', cls:'b-bad', r:0 },
+  vst:{ t:'alleen bij VST', a:'Van VST halen (Karin: Stockmove).', cls:'b-vst', r:1 },
+  kar:{ t:'alleen retourkar', a:'Terugzetten van de retourkar op de picklocatie, dan Verwerk backorders.', cls:'b-warn', r:2 },
+  los:{ t:'alleen zonder locatie', a:'Tellen en op een locatie zetten (Locaties → Voorraad zonder locatie), dan Verwerk backorders.', cls:'b-warn', r:3 },
+  bulk:{ t:'alleen bulk', a:'Van bulk naar pick (Nu verplaatsen), dan Verwerk backorders.', cls:'b-bulk', r:4 },
+  pick:{ t:'staat op pick', a:'Verwerk backorders in Picqer: de voorraad ligt er al.', cls:'b-ok', r:5 },
+  set:{ t:'set', a:'Set: de losse producten bepalen het.', cls:'b-grey', r:6 }
+};
+function standExport(code, nodig){
+  const v = D.VR[code] || { locs:{}, geen:0, cont:{} };
+  let pick = 0, bulk = 0;
+  Object.entries(v.locs || {}).forEach(([l, n]) => { if(!(n > 0)) return; const L = D.LOC[l]; if(L && L.bulk) bulk += n; else if(window.WHAL && WHAL.isPick && !WHAL.isPick(l)) return; else pick += n; });
+  const kar = Object.values(v.cont || {}).reduce((s, n) => s + (n > 0 ? n : 0), 0);
+  return pick >= nodig ? 'pick' : bulk > 0 ? 'bulk' : v.geen > 0 ? 'los' : kar > 0 ? 'kar' : null;
+}
+function boOud(){
+  const L = window.WHLIVE ? WHLIVE.status() : null, grens = Date.now() - 30 * 864e5, uit = [];
+  const ids = window.WHAL && WHAL.S.cat && WHAL.S.cat.ids ? WHAL.S.cat.ids : {};
+  const codeVan = {}; Object.entries(ids).forEach(([c, id]) => { codeVan[id] = c; });
+  const vst = c => (D.P[c] && num(D.P[c].voorraad_vst) > 0) || (window.WHAL && WHAL.S.cat && (WHAL.S.cat.vst || {})[c] > 0);
+  const reden = (code, a, v, prod) => {
+    if(v < a) return vst(code) ? 'vst' : 'geen';
+    if(prod){ const s = WHLIVE.productStand(prod, a, L.data.magazijn); if(s.soort === 'set') return 'set'; if(s.soort !== 'los') return s.soort; }
+    return (code && standExport(code, a)) || 'los';
+  };
+  const tijd = s => { const d = new Date(String(s || '').replace(' ', 'T')); return isNaN(d) ? null : d; };
+  if(L && L.data){
+    const B = WHLIVE.backorderCijfers(L.data.backorders);
+    B.orderLijst.forEach(o => {
+      const d = tijd(o.oudste); if(!d || d.getTime() > grens) return;
+      const regels = o.regels.filter(r => !r.hp).map(r => { const prod = WHLIVE.prod ? WHLIVE.prod(r.p) : null, code = prod ? prod.code : codeVan[r.p] || null;
+        return { code:code || '#' + r.p, a:r.a, v:r.v, soort:reden(code, r.a, r.v, prod) }; });
+      uit.push({ o:o.o, link:'https://ivol.picqer.com/orders/' + o.o, sinds:d, regels });
+    });
+    return { bron:'live', datum:new Date(L.data.binnen).toISOString(), orders:afmaken(uit) };
+  }
+  const per = {};
+  (D.BO || []).forEach(r => { (per[r.bestelling] = per[r.bestelling] || []).push(r); });
+  Object.entries(per).forEach(([nr, rr]) => {
+    const d = rr.map(r => tijd(r.besteld_op)).filter(Boolean).sort((a, b) => a - b)[0];
+    if(!d || d.getTime() > grens) return;
+    const regels = rr.map(r => { const code = D.PLOW[String(r.productcode || '').toLowerCase()] || r.productcode; const a = num(r.aantal) || 0, v = num(r.beschikbaar) || 0;
+      return { code, a, v, soort:reden(code, a, v, null) }; });
+    uit.push({ o:nr, link:null, sinds:d, regels });
+  });
+  return { bron:'export', datum:V().dataDatums().backorders, orders:afmaken(uit) };
+}
+function afmaken(uit){
+  uit.forEach(o => { o.soort = o.regels.map(r => r.soort).sort((a, b) => BO_REDEN[a].r - BO_REDEN[b].r)[0] || 'geen'; o.dagen = Math.floor((Date.now() - o.sinds.getTime()) / 864e5); });
+  return uit.sort((a, b) => a.sinds - b.sinds);
+}
+function boOudBlok(){
+  let X; try{ X = boOud(); }catch(e){ console.error(e); return ''; }
+  const B = V();
+  if(!X.orders.length) return `<div class="card"><h3>Ouder dan 30 dagen</h3><div class="small muted mt4">Geen orders langer dan 30 dagen in backorder (${X.bron === 'live' ? 'live uit Picqer' : 'export van ' + esc(fdt(X.datum))}).</div></div>`;
+  const tel = {}; X.orders.forEach(o => { tel[o.soort] = (tel[o.soort] || 0) + 1; });
+  const datum = d => d.toLocaleDateString('nl-NL', { day:'numeric', month:'short', year:'numeric' });
+  return `<div class="card" style="border-left:5px solid var(--bad)"><h3>Ouder dan 30 dagen · ${nf(X.orders.length)} orders</h3>
+    <div class="small muted mt4">${X.bron === 'live' ? 'Live uit Picqer' : 'Backorder-export van ' + esc(fdt(X.datum))} · oudste ${esc(datum(X.orders[0].sinds))}. Reden per order: waar ligt de voorraad (${X.bron === 'live' ? 'live locaties waar bekend, anders de' : 'de'} voorraad-per-locatie-export${D.VRDATUM ? ' van ' + esc(fdt(D.VRDATUM)) : ''}).</div>
+    <div class="row wrap mt8" style="gap:6px">${Object.keys(BO_REDEN).filter(k => tel[k]).map(k => B.badge(nf(tel[k]) + ' ' + BO_REDEN[k].t, BO_REDEN[k].cls)).join('')}</div>
+    <div class="scroll mt8"><table><tr><th>Order</th><th>Sinds</th><th>Regels</th><th>Reden</th><th>Actie</th></tr>
+    ${X.orders.slice(0, 250).map(o => `<tr><td class="code">${o.link ? `<a href="${o.link}" target="_blank" rel="noopener">${esc(o.o)}</a>` : esc(o.o)}</td><td>${esc(datum(o.sinds))}<div class="desc">${nf(o.dagen)} dagen</div></td>
+      <td class="small">${o.regels.map(r => `<span class="code">${esc(r.code)}</span> ×${nf(r.a)} ${B.badge(BO_REDEN[r.soort].t, BO_REDEN[r.soort].cls)}`).join('<br>')}</td>
+      <td>${B.badge(BO_REDEN[o.soort].t, BO_REDEN[o.soort].cls)}</td><td class="small">${esc(BO_REDEN[o.soort].a)}</td></tr>`).join('')}</table></div>
+    ${X.orders.length > 250 ? `<div class="small muted mt8">Eerste 250 van ${nf(X.orders.length)}.</div>` : ''}</div>`;
+}
+let boLive = false;
 function viewBackorders(){
+  // live backorders erbij halen (alleen lezen) en opnieuw tekenen zodra ze binnen zijn
+  if(window.WHLIVE){
+    if(!boLive){ boLive = true; WHLIVE.opNieuw(() => { if(/^#\/backorders/.test(location.hash)) viewBackorders(); }); if(window.WHAL && !WHAL.S.geladen) WHAL.laadOpslag().then(() => { if(/^#\/backorders/.test(location.hash)) viewBackorders(); }); }
+    const L = WHLIVE.status(); if(L.code && !L.data && !L.laden && !L.fout) WHLIVE.laad();
+  }
   const d = boDiff();
   const B = V();
-  if(!d){ app.innerHTML = '<div class="card empty">Nog geen vergelijking: laad een nieuwe backorder-export in (de vorige wordt dan bewaard).</div>'; return; }
+  if(!d){ app.innerHTML = boOudBlok() + '<div class="card empty">Nog geen vergelijking: laad een nieuwe backorder-export in (de vorige wordt dan bewaard).</div>'; return; }
   const C = WHL.bereken();
   const mvOrders = new Set(C.mv.flatMap(m => m.orders));
   const regel = (nr, rr) => `<tr><td class="code">${esc(nr)}</td><td class="small">${rr.map(([c, a, b]) => `<a class="code" href="#/p/${encodeURIComponent(c)}">${esc(c)}</a> ×${nf(a)}${b >= a ? ' ' + B.badge('beschikbaar', 'b-ok') : ''}`).join('<br>')}</td><td class="small">${mvOrders.has(nr) ? B.badge('wacht op verplaatsen', 'b-bad') : ''}</td></tr>`;
   const blok = (titel, lijst, bron, open) => `<details class="card" ${open ? 'open' : ''}><summary>${esc(titel)} · ${lijst.length}</summary><div class="scroll mt8"><table><tr><th>Order</th><th>Regels</th><th></th></tr>${lijst.slice(0, 200).map(nr => regel(nr, bron[nr])).join('')}</table></div></details>`;
-  app.innerHTML = `<div class="card"><h2>Backorders: vorige vs nu</h2><div class="small muted">Vorige export ${esc(fdt(d.van))} · nu ${esc(fdt(B.dataDatums().backorders))}.</div>
+  app.innerHTML = boOudBlok() + `<div class="card"><h2>Backorders: vorige vs nu</h2><div class="small muted">Vorige export ${esc(fdt(d.van))} · nu ${esc(fdt(B.dataDatums().backorders))}.</div>
     <div class="tiles mt12"><div class="tile t-ok"><div class="lbl">Opgelost</div><div class="big">${nf(d.opgelost.length)}</div><div class="sub">orders niet meer in backorder</div></div>
       <div class="tile t-warn"><div class="lbl">Nog open</div><div class="big">${nf(d.open.length)}</div><div class="sub">${nf(d.open.filter(x => mvOrders.has(x)).length)} wachten op verplaatsen</div></div>
       <div class="tile t-bad"><div class="lbl">Nieuw</div><div class="big">${nf(d.nieuw.length)}</div><div class="sub">sinds de vorige export</div></div></div></div>

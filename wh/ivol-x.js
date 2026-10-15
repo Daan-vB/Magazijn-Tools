@@ -178,6 +178,8 @@ function cijfers(){
   const data = st.data;
   const P = data ? WHLIVE.picklijstCijfers(data.picklijsten) : null;
   const B = data ? WHLIVE.backorderCijfers(data.backorders) : null;
+  // orders langer dan 30 dagen in backorder (oudste regel van de order)
+  if(B) B.o30 = B.orderLijst.filter(o => (WHLIVE.uren(o.oudste) ?? 0) >= 30 * 24).length;
   let nu = null; try{ nu = data && st.klaar ? WHLIVE.nuLijst().length : null; }catch(e){}
   const vd = vandaag(), tn = tijdNu();
   const takenAchter = Object.values(D.TODO || {}).filter(t => t && t.titel && !t.klaar && (t.datum < vd || (t.datum === vd && t.tijd && t.tijd < tn))).length;
@@ -193,7 +195,7 @@ function tegels(K){
   return `<div class="x-tegels">
     ${t(K.P ? K.P.o12 : null, 'Orders ouder dan 12 uur', K.P ? (K.na12 ? 'na 12:00: moet 0 zijn' : 'om 12:00 moet dit 0 zijn') : geenLive, K.P ? kleur(K.P.o12, 'k-o12', K.na12 ? '' : 'voor12') : '', '#/live')}
     ${t(K.P ? K.P.o24 : null, 'Picklijsten ouder dan 24 uur', K.P ? (K.P.oudsteUur ? 'oudste ' + Math.round(K.P.oudsteUur) + ' uur' : 'geen open') : geenLive, K.P ? kleur(K.P.o24, 'k-o24') : '', '#/live')}
-    ${t(K.B ? K.B.orders : null, 'Backorders', K.B ? nf(K.B.vol) + ' met alles op voorraad' : geenLive, K.B ? kleur(K.B.orders, 'k-bo') : '', '#/live')}
+    ${t(K.B ? K.B.orders : null, 'Backorders', K.B ? nf(K.B.vol) + ' met alles op voorraad · waarvan ' + nf(K.B.o30) + ' > 30 dagen' : geenLive, K.B ? kleur(K.B.orders, 'k-bo') : '', '#/live')}
     ${t(K.nu, 'Nu verplaatsen open', K.nu === null ? (K.live ? 'voorraad laden…' : geenLive) : 'van bulk naar pick voor orders', K.nu === null ? '' : K.na12 ? kleur(K.nu, 'k-nu') : (K.nu ? 'oranje' : 'groen'), '#/aanvullive')}
     ${t(K.takenAchter, 'Taken achter', 'niet afgevinkt op tijd', kleur(K.takenAchter, 'k-taak'), '#/vandaag')}
     ${t(K.binnen.length, 'Inkomend vandaag', K.binnen.length ? K.binnen.map(c => c.leverancier || c.containernummer || '').filter(Boolean).slice(0, 2).join(', ') : 'geen container gepland', K.binnen.length ? 'oranje' : 'groen', '#/containers')}
