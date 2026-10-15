@@ -534,19 +534,73 @@ function tabZonderLocatie(){
       <td>${z.pick.map(l => `<span class="loc">${esc(l)}</span>`).join(' ')}${z.bron === 'export' ? '<div class="desc">export</div>' : ''}</td><td class="n">${nf(z.plank)}${z.krap ? ' <span class="badge b-warn">krap</span>' : ''}</td><td class="n">${nf(z.lvl)} / ${nf(z.tot)}</td></tr>`).join('')}</table></div>
     ${Z.length > MAX ? `<div class="small muted mt8">+${nf(Z.length - MAX)} meer</div>` : ''}</details>`;
 }
+// 3.0 en Test (ook Warehouse binnen 3.0): volle pallets, retourkar eerst en productdata in de aanvulronde.
+// Warehouse los, Junior en de rekenregels (ronde, rondeLijst) blijven zoals ze waren.
+const in30 = () => { if(isTest()) return true; try{ return window.parent !== window && !!window.parent.IVOL; }catch(e){ return false; } };
+const pdVan = c => (D.PDAAN && D.PD && D.PD[c]) || {};
+const vrijL = l => Math.max(0, l[4] - (l[5] || 0));
+// aanvullen met volle pallets: aantal afronden op hele pallets (min. 1, niet boven max op pick) en een bulkpallet met precies dat aantal kiezen
+function palletAdvies(r){
+  const pd = pdVan(r.code), met = String(pd.met || '').trim().toLowerCase();
+  const spp = WHL.sppVan(r.code);
+  if(met !== 'pallet' || !(spp > 0)) return null;
+  const maxp = WH.num(pd.maxpick);
+  let n = Math.max(1, Math.round(r.aantal / spp));
+  if(maxp > 0) while(n > 1 && r.s.pickFys + n * spp > maxp) n--;
+  const opRoute = (a, b) => WHL.sortLoc(a[0], b[0]);
+  const exact = r.s.bulk.filter(l => vrijL(l) === spp).sort(opRoute);
+  const meer = r.s.bulk.filter(l => vrijL(l) > spp && vrijL(l) % spp === 0).sort(opRoute);
+  const van = []; let nog = n;
+  exact.forEach(l => { if(nog > 0){ van.push([l[0], 1]); nog--; } });
+  meer.forEach(l => { if(nog > 0){ const k = Math.min(nog, vrijL(l) / spp); van.push([l[0], k]); nog -= k; } });
+  const pal = n - nog;
+  return { spp, n, pal, stuks:pal * spp, van, tekort:nog, geen:!pal, maxp };
+}
+function pdRegel(c){
+  const pd = pdVan(c), d = [];
+  if(pd.spd && !/^(nvt|onb)$/i.test(pd.spd)) d.push(nf(WH.num(pd.spd)) + ' per doos');
+  if(pd.maxpick && WH.num(pd.maxpick) > 0) d.push('max op pick ' + nf(WH.num(pd.maxpick)));
+  return d.join(' · ');
+}
+function rijNieuw(r){
+  const pd = pdVan(r.code), P = palletAdvies(r), regel = pdRegel(r.code);
+  const met = String(pd.met || '').trim().toLowerCase();
+  const kolBulk = P && !P.geen ? r.s.bulk.slice().sort((a, b) => (P.van.some(v => v[0] === b[0]) ? 1 : 0) - (P.van.some(v => v[0] === a[0]) ? 1 : 0)).slice(0, 3) : r.s.bulk.slice(0, 3);
+  const bulkHtml = kolBulk.map(l => `<span class="loc">${esc(l[0])}</span> <span class="small">${nf(l[4])}</span>${(() => { const v = P && P.van.find(x => x[0] === l[0]); return v ? ` <span class="badge b-ok">${v[1] > 1 ? v[1] + ' volle pallets' : 'volle pallet'}</span>` : ''; })()}`).join('<br>');
+  const aanv = P && !P.geen ? `<b style="font-size:16px">${plural(P.pal, 'pallet', 'pallets')}</b><div class="desc">${nf(P.stuks)} stuks · ${nf(P.spp)} per pallet</div>${P.tekort ? `<div class="desc">nog ${nf(P.tekort * P.spp)} los: niet genoeg volle pallets</div>` : ''}${P.maxp > 0 && r.s.pickFys + P.stuks > P.maxp ? `<div class="desc" style="color:var(--warn)">boven max op pick (${nf(P.maxp)})</div>` : ''}`
+    : `<b style="font-size:16px">${nf(r.aantal)}</b>${P && P.geen ? '<div class="desc">losse stuks: geen volle pallet op bulk</div>' : met === 'deel' ? '<div class="desc">deel van een pallet</div>' : ''}`;
+  return `<tr><td><span class="code">${esc(r.code)}</span>${r.voorOrders ? ' <span class="badge b-bad">ook voor orders</span>' : ''}${r.pqOver ? ` <span class="badge b-warn">Picqer slaat dit over: ${esc(r.pqOver)}</span>` : ''}${pd.vn ? `<div><b>${esc(pd.vn)}</b></div>` : ''}<div class="desc">${esc(r.naam)}</div>${regel ? `<div class="desc">${esc(regel)}</div>` : ''}</td>
+          <td>${pickLocs(r.s.pick)}${r.s.pickFys !== r.s.pickVrij ? `<div class="desc">fysiek ${nf(r.s.pickFys)}</div>` : ''}</td><td class="n">${nf(r.lvl)} / ${nf(r.tot)}${r.nivBron === 'picqer' ? '<div class="desc">niveau uit Picqer</div>' : ''}</td>
+          <td>${bulkHtml}${r.s.bulk.length > 3 ? `<div class="desc">+${r.s.bulk.length - 3}</div>` : ''}</td><td class="n">${aanv}${r.s.bulkRes ? `<div class="desc">waarvan ${nf(r.s.bulkRes)} voor picklijsten op bulk</div>` : ''}</td></tr>`;
+}
+// retourkar (Container 1–6): voorraad daarop blokkeert orders (Picqer telt hem als pick), dus eerst terugzetten
+function karBlok(){
+  const rijen = [];
+  Object.keys((S.st && S.st.p) || {}).forEach(code => { const s = stand(code); if(s) s.kar.forEach(l => rijen.push({ code, kar:String(l[0]), n:l[4], pick:s.pick.map(x => x[0]), bron:'live' })); });
+  const gezien = new Set(rijen.map(x => x.code));
+  Object.entries(D.VR || {}).forEach(([code, v]) => {
+    if(gezien.has(code)) return;
+    Object.entries(v.cont || {}).forEach(([kar, n]) => { if(n > 0) rijen.push({ code, kar, n, pick:WHL.locsVan(code).filter(l => WHL.soortLoc(l) === 'pick' && !isMap(l)), bron:'export' }); });
+  });
+  if(!rijen.length) return '';
+  rijen.sort((a, b) => a.kar.localeCompare(b.kar, 'nl', { numeric:true }) || a.code.localeCompare(b.code));
+  return `<div class="card" style="border-left:5px solid var(--bad)"><div class="row wrap between"><div><h3>Eerst terugzetten: retourkar (${rijen.length})</h3><div class="small muted">Voorraad op een retourkar blokkeert orders: Picqer telt hem als pick, maar op de plank ligt hij niet. Eerst terugzetten op de picklocatie (en in Picqer verplaatsen), dan aanvullen.</div></div></div>
+    <div class="scroll mt8"><table><tr><th>Kar</th><th>Product</th><th class="n">Op de kar</th><th>Terug naar</th></tr>
+    ${rijen.map(x => { const pd = pdVan(x.code); return `<tr><td><span class="loc">${esc(x.kar)}</span>${x.bron === 'export' ? '<div class="desc">export</div>' : ''}</td><td><span class="code">${esc(x.code)}</span>${pd.vn ? `<div><b>${esc(pd.vn)}</b></div>` : ''}<div class="desc">${esc((D.P[x.code] || {}).naam || '')}</div></td><td class="n"><b>${nf(x.n)}</b></td><td>${x.pick.length ? x.pick.map(l => `<span class="loc">${esc(l)}</span>`).join(' ') : '<span class="badge b-warn">geen picklocatie</span>'}</td></tr>`; }).join('')}</table></div></div>`;
+}
 function tabRonde(R){
   if(!S.st || !S.st.p) return `<div class="card empty">Nog niet uitgerekend. ${isTest() ? 'Klik <b>alles opnieuw</b> (de eerste keer duurt een paar minuten).' : 'Dat gebeurt één keer in Test → Live advies.'}</div>`;
   const gangen = [...new Set(R.uit.map(r => r.gang))];
   const lijst = R.uit.filter(r => !S.gang || r.gang === S.gang);
   let vorige = '';
-  return `<div class="card"><div class="row wrap between"><div><h3>2 · Aanvulronde</h3><div class="small muted">Per gang, in looproute. Pick (vrij) = voorraad op de picklocatie min wat al op een picklijst staat. Zoals Picqer: aanvullen als die op of onder het niveau zit.</div></div><button class="btn sm noprint" data-al="print" data-t="Aanvulronde${S.gang ? ' ' + S.gang : ''}">Print</button></div>
+  return (in30() ? karBlok() : '') + `<div class="card"><div class="row wrap between"><div><h3>2 · Aanvulronde</h3><div class="small muted">Per gang, in looproute. Pick (vrij) = voorraad op de picklocatie min wat al op een picklijst staat. Zoals Picqer: aanvullen als die op of onder het niveau zit.</div></div><button class="btn sm noprint" data-al="print" data-t="Aanvulronde${S.gang ? ' ' + S.gang : ''}">Print</button></div>
     <div class="filters mt8 noprint"><button class="btn sm ${!S.gang ? 'pri' : ''}" data-al="gang" data-g="">alle</button>${gangen.map(g => `<button class="btn sm ${S.gang === g ? 'pri' : ''}" data-al="gang" data-g="${esc(g)}">${esc(g)} <span class="badge b-grey">${R.uit.filter(r => r.gang === g).length}</span></button>`).join('')}</div>
     ${printKop('Aanvulronde' + (S.gang ? ' ' + S.gang : ''))}
     ${lijst.length ? `<div class="scroll mt8"><table><tr><th>Product</th><th>Pick (vrij)</th><th class="n">Onder / tot</th><th>Bulk</th><th class="n">Aanvullen</th></tr>
       ${lijst.map(r => { const g = r.gang !== vorige ? (vorige = r.gang, `<tr class="pgang"><td colspan="5"><b>${esc(r.gang)}</b></td></tr>`) : '';
-        return g + `<tr><td><span class="code">${esc(r.code)}</span>${r.voorOrders ? ' <span class="badge b-bad">ook voor orders</span>' : ''}${r.pqOver ? ` <span class="badge b-warn">Picqer slaat dit over: ${esc(r.pqOver)}</span>` : ''}<div class="desc">${esc(r.naam)}</div></td>
+        return g + (in30() ? rijNieuw(r) : `<tr><td><span class="code">${esc(r.code)}</span>${r.voorOrders ? ' <span class="badge b-bad">ook voor orders</span>' : ''}${r.pqOver ? ` <span class="badge b-warn">Picqer slaat dit over: ${esc(r.pqOver)}</span>` : ''}<div class="desc">${esc(r.naam)}</div></td>
           <td>${pickLocs(r.s.pick)}${r.s.pickFys !== r.s.pickVrij ? `<div class="desc">fysiek ${nf(r.s.pickFys)}</div>` : ''}</td><td class="n">${nf(r.lvl)} / ${nf(r.tot)}${r.nivBron === 'picqer' ? '<div class="desc">niveau uit Picqer</div>' : ''}</td>
-          <td>${locs(r.s.bulk.slice(0, 3))}${r.s.bulk.length > 3 ? `<div class="desc">+${r.s.bulk.length - 3}</div>` : ''}</td><td class="n"><b style="font-size:16px">${nf(r.aantal)}</b>${r.s.bulkRes ? `<div class="desc">waarvan ${nf(r.s.bulkRes)} voor picklijsten op bulk</div>` : ''}</td></tr>`; }).join('')}</table></div>`
+          <td>${locs(r.s.bulk.slice(0, 3))}${r.s.bulk.length > 3 ? `<div class="desc">+${r.s.bulk.length - 3}</div>` : ''}</td><td class="n"><b style="font-size:16px">${nf(r.aantal)}</b>${r.s.bulkRes ? `<div class="desc">waarvan ${nf(r.s.bulkRes)} voor picklijsten op bulk</div>` : ''}</td></tr>`); }).join('')}</table></div>`
       : '<div class="empty">Niets aan te vullen.</div>'}
     ${R.leeg.length ? `<details class="mt12"><summary>Onder het niveau, maar geen bulkvoorraad (${R.leeg.length})</summary><div class="scroll mt8"><table><tr><th>Product</th><th>Pick (vrij)</th><th class="n">Onder / tot</th><th>Retourkar</th></tr>
       ${R.leeg.map(r => `<tr><td><span class="code">${esc(r.code)}</span><div class="desc">${esc(r.naam)}</div></td><td>${pickLocs(r.s.pick)}</td><td class="n">${nf(r.lvl)} / ${nf(r.tot)}</td><td>${r.s.kar.length ? locs(r.s.kar) : ''}${(S.cat.vst || {})[r.code] ? `<div class="desc">VST ${nf(S.cat.vst[r.code])}</div>` : ''}</td></tr>`).join('')}</table></div></details>` : ''}

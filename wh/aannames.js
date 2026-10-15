@@ -44,6 +44,9 @@ const LIJST = [
   { id:'l-geteld', groep:'Locaties opruimen', t:'Geteld en weggezet / Teruggezet', waarde:'klaar tot een nieuwere voorraad-export het weer laat zien', waarom:'Schatting Claude: het is alleen een notitie; de volgende export controleert het.' },
   { id:'l-waar', groep:'Locaties opruimen', t:'Waarden in de locatie-import', waarde:'WAAR / ONWAAR', waarom:'Zelfde formaat als de locatie-import die Picqer op 30-9 accepteerde.' },
   { id:'l-30d', groep:'Locaties opruimen', t:'Verwerkte besluiten in "gaat niet mee"', waarde:'30 dagen zichtbaar', waarom:'Schatting Claude: daarna alleen nog als ✓ in de tabellen.' },
+  // aanvullen (ronde C, 16-10)
+  { id:'a-pal', groep:'Aanvullen', t:'Aanvullen met volle pallet: hoeveel pallets', waarde:'afronden op hele pallets, minimaal 1, niet boven max op pick', waarom:'Schatting Claude: afspraak 8-10 (max = bij + een volle pallet).' },
+  { id:'a-bulk', groep:'Aanvullen', t:'Welke bulkpallet', waarde:'eerst een plek met precies één pallet, dan een plek met een veelvoud; in looproute', waarom:'Schatting Claude; reserveringen op bulk tellen niet als volle pallet.' },
   { id:'p-mix', groep:'Productdata-schattingen', t:'Mix: geleverd', waarde:'wisselt, tot de inkoop het aantal per doos bevestigt', waarom:'Schatting Claude.' }
 ];
 const S = { keus:null, laden:null };
