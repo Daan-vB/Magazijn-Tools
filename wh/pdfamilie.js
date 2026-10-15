@@ -31,6 +31,7 @@ const NIVNAAM = { fam:'familie', maat:'maatgroep', prod:'product' };
 const EIGEN = new Set(['invul', 'spraak', 'samen', 'overgezet', 'claude', 'regel', 'tabel', 'klein', 'kleuren', 'basisregel', 'import']);
 const bronVan = (c, k) => { const r = P().S.pd[c]; return (r && r.meta && r.meta[k] && r.meta[k].bron) || ''; };
 const isUitl = c => !!X().pdWaarde(c, 'uitlopend');
+const naamUitl = c => /uitlopend/i.test(String((D.P[c] || {}).naam || '')) && !isUitl(c);   // voorstel "Uitlopend?", nooit automatisch
 const cor = () => P().S.fcor || (P().S.fcor = X().famCorNorm(null));
 
 /* ---------- indeling ---------- */
@@ -94,8 +95,10 @@ async function bewaarCor(fn, tekst){
 const VOORSTEL = [
   { id:'kokos', naam:'Kokos op rol', uit:'Kokos 100 en 200 cm, 17 en 24 mm (rollen per cm) uit twee families samen; de deurmatten blijven apart.',
     codes:() => Object.values(D.P).filter(p => /^(kokos\s+(100|200)\s*cm|kokos\s+rol|kokosmat\s+op\s+rol)/i.test(String(p.naam || '').trim())).map(p => p.productcode) },
-  { id:'trapmat', naam:'Trapmat', uit:'Alle trapmatten van Vica (Bueno, Luego, Baleno, Novelle, Turbo, Lines, Multi Stripes) in één familie, maatgroepen per maat. Pakketten van 15 (BOL-) en rubber/aluminium blijven apart.',
-    codes:() => Object.values(D.P).filter(p => /^vica/i.test(String(p.leverancier || '')) && /^trapmat\b/i.test(String(p.naam || '').trim())).map(p => p.productcode) }
+  { id:'trapmat', naam:'Trapmat', uit:'Alle trapmatten van Vica (Bueno, Luego, Baleno, Novelle, Turbo, Lines, Multi Stripes) in één familie, maatgroepen per maat; Bueno en Luego samen in 16x56. Turbo 25x60 en Novelle bruin 20x56 gaan op uitlopend (Daan, 16-10). Pakketten van 15 (BOL-) en rubber/aluminium blijven apart.',
+    codes:() => Object.values(D.P).filter(p => /^vica/i.test(String(p.leverancier || '')) && /^trapmat\b/i.test(String(p.naam || '').trim())).map(p => p.productcode),
+    maat:c => /^trapmat\s+(bueno|luego)\b/i.test(String((D.P[c] || {}).naam || '')) ? '16x56' : null,
+    uitl:c => /^trapmat\s+(turbo\b.*25x60|novelle\s+bruin\b.*20x56)/i.test(String((D.P[c] || {}).naam || '')) }
 ];
 function voorstelInfo(v){
   const cs = v.codes().filter(c => D.P[c] && X().actief(c));
@@ -223,6 +226,14 @@ async function opslaan(fk){
     toast(plural(n, 'product', 'producten') + ' bijgewerkt, ' + plural(p.nUitz, 'uitzondering', 'uitzonderingen') + (p.keuzes.length ? ' · ' + nf(p.keuzes.length) + ' keuzes nog open' : ''), 6000);
   }catch(e){ toast('Opslaan mislukt: ' + e.message, 8000); }
   UI.bezig = false; X().rerender();
+}
+// voorstel-indeling overnemen: familie, naam, vaste maatgroepen en (op aanwijzing van Daan) uitlopend
+async function neemOver(id){
+  const x = voorstelInfo(VOORSTEL.find(v => v.id === id) || {}); if(!x) return null;
+  await bewaarCor(d => { x.cs.forEach(c => { d.fam[c] = x.doel; const m = x.v.maat && x.v.maat(c); if(m) d.maat[c] = m; }); d.naam[x.doel] = x.v.naam; }, 'Indeling ' + x.v.naam + ' overgenomen');
+  const u = x.v.uitl ? x.cs.filter(c => x.v.uitl(c) && !isUitl(c)) : [];
+  if(u.length) await zetUitlopend(u, true);
+  return { doel:x.doel, n:x.cs.length, uitl:u };
 }
 async function zetUitlopend(codes, aan){
   const wijz = {}; codes.forEach(c => { wijz[c] = { uitlopend:aan ? isoDag() : '' }; });
@@ -458,6 +469,7 @@ function viewWerkblad(fk){
     <div class="pf-stats"><span>Verkoop <b>${nf(Math.round(vkm))}</b> per maand</span><span>Picks <b>${nf(pdd, 1)}</b> per dag</span><span>ABC ${Object.entries(abc).map(([a, n]) => `<b>${esc(a)}</b> ${n}`).join(' · ')}</span><span>Open containers <b>${nf(cont.size)}</b></span></div>
     <div class="row wrap" style="gap:8px"><input id="pf-naam" data-pfnaam="1" value="${esc(cor().naam[fk] || '')}" placeholder="Naam voor deze familie (bijv. Kokos)" style="max-width:280px"><button class="btn sm" data-pfa="naam">Naam bewaren</button>
       ${famOpts.length ? `<select id="pf-erbij" style="max-width:280px"><option value="">Familie erbij…</option>${famOpts.map(f => `<option value="${esc(f)}">${esc(famNaam(f))} (${actiefLeden(f).length})</option>`).join('')}</select><button class="btn sm" data-pfa="erbij">Samenvoegen</button>` : ''}</div>
+    ${(() => { const u = ls.filter(naamUitl); return u.length ? `<div class="pf-keus"><b>Uitlopend?</b> ${plural(u.length, 'product heeft', 'producten hebben')} UITLOPEND in de naam: ${esc(u.map(c => lab[c] || c).join(', '))}<button class="pf-k" data-pfa="uitl" data-codes="${esc(u.join('\n'))}" data-aan="1">${u.length > 1 ? 'Alle ' + u.length + ' op uitlopend' : 'Op uitlopend'}</button></div>` : ''; })()}
     ${Object.keys(ehAlle).length > 1 ? `<div class="small" style="color:var(--bad)"><b>Eenheid verschilt in Picqer:</b> ${Object.entries(ehAlle).map(([e, cs]) => nf(cs.length) + ' ' + esc(e) + (cs.length <= 4 ? ' (' + esc(cs.join(', ')) + ')' : '')).join(' · ')}. Controleer dat stuks per pallet, aanvullen bij en max op pick in de eenheid van Picqer staan.</div>` : ''}
     ${UI.uitslag && UI.uitslag.fk === fk && Date.now() - UI.uitslag.op < 6e5 ? `<div class="small" style="color:var(--ok)"><b>Opgeslagen: ${plural(UI.uitslag.n, 'product', 'producten')} bijgewerkt, ${plural(UI.uitslag.uitz, 'uitzondering', 'uitzonderingen')}${UI.uitslag.open ? ' · ' + nf(UI.uitslag.open) + ' keuzes nog open' : ''}</b></div>` : ''}</div>
 
@@ -481,7 +493,7 @@ function viewWerkblad(fk){
         ${ux.length ? `<div class="small" style="color:#9a4205">Uitzondering: ${esc(ux.map(k => P().VELDEN[k] ? P().VELDEN[k].t + ' ' + X().toonWaarde(c, k, P().staat(c, k).v) : k).join(', '))} <button class="pf-k" data-pfa="uitzweg" data-c="${esc(c)}">familie volgen</button></div>` : ''}</td>
         ${prodV.map(k => `<td>${cel(fk, 'p:' + c, k, R.prod[c][k], {})}</td>`).join('')}
         <td><select class="pf-k" data-pfa="naarfam" data-c="${esc(c)}"><option value="">hoort niet in deze familie…</option><option value="eigen|${esc(c)}">eigen familie</option>${famOpts.map(f => `<option value="${esc(f)}">${esc(famNaam(f))}</option>`).join('')}</select>
-          <div class="mt4"><button class="pf-k" data-pfa="uitl" data-codes="${esc(c)}" data-aan="1">uitlopend</button></div></td></tr>`; }).join('')}
+          <div class="mt4"><button class="pf-k" data-pfa="uitl" data-codes="${esc(c)}" data-aan="1">${naamUitl(c) ? 'Uitlopend? (staat in de naam)' : 'uitlopend'}</button></div></td></tr>`; }).join('')}
     ${uitl.map(c => `<tr class="pf-uitl"><td class="kop"><b>${esc(lab[c] || c)}</b><div class="small mono">${esc(c)}</div><div class="small">uitlopend sinds ${esc(String(X().pdWaarde(c, 'uitlopend')))}</div></td>${prodV.map(() => '<td></td>').join('')}<td><button class="pf-k" data-pfa="uitl" data-codes="${esc(c)}" data-aan="">terugzetten</button></td></tr>`).join('')}
     </tbody></table></div></details>
 
@@ -535,7 +547,7 @@ document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('[data-pfa]'); if(!b || b.tagName === 'SELECT') return;
   const a = b.dataset.pfa, fk = fkNu();
   if(a === 'meer'){ UI.n += 40; X().rerender(); return; }
-  if(a === 'voorstel'){ const x = voorstelInfo(VOORSTEL.find(v => v.id === b.dataset.id) || {}); if(x) bewaarCor(d => { x.cs.forEach(c => { d.fam[c] = x.doel; }); d.naam[x.doel] = x.v.naam; }, 'Indeling ' + x.v.naam + ' overgenomen'); return; }
+  if(a === 'voorstel'){ neemOver(b.dataset.id); return; }
   if(!fk) return;
   if(a === 'gebruik'){ zetConcept(fk, b.dataset.r, b.dataset.k, b.dataset.v); X().rerender(); return; }
   if(a === 'niv'){ zetNiv(fk, b.dataset.k, b.dataset.v); return; }
@@ -549,5 +561,5 @@ document.addEventListener('click', ev => {
   if(a === 'opslaan'){ opslaan(fk); return; }
 });
 
-return { view, opslaan, zetUitlopend, bewaarCor, famLijst, volgende, voortgang, leer, rek, plan, famNaam, maatgroepen, actiefLeden, leden, con, niv, zetNiv, VOORSTEL, voorstelInfo, kenmerken, REGELS, EIGEN, LEER };
+return { view, opslaan, neemOver, naamUitl, zetUitlopend, bewaarCor, famLijst, volgende, voortgang, leer, rek, plan, famNaam, maatgroepen, actiefLeden, leden, con, niv, zetNiv, VOORSTEL, voorstelInfo, kenmerken, REGELS, EIGEN, LEER };
 })();
