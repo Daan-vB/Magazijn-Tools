@@ -400,6 +400,16 @@ function stijl(){
   .pf-voet{position:sticky;bottom:0;z-index:5;background:rgba(255,255,255,.97);border:1px solid #d6dde5;border-bottom:0;box-shadow:0 -6px 18px rgba(19,32,44,.07);padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));border-radius:10px 10px 0 0;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
   .pf-voet .btn{min-height:44px}
   .pf-regels{font-size:13px} .pf-regels li{margin:3px 0}
+  .pf-mt{table-layout:fixed;width:100%;min-width:0}
+  .pf-mt col.kopcol{width:150px}
+  .pf-mt th{white-space:normal;overflow-wrap:anywhere;hyphens:auto;line-height:1.25}
+  .pf-mt th .pf-k{white-space:normal;text-align:left;width:100%}
+  .pf-mt td.kop{position:static;min-width:0;max-width:none}
+  .pf-mt .pf-in{min-width:0;width:100%;padding:5px 6px}
+  .pf-mt .pf-why{max-width:none;overflow-wrap:anywhere}
+  .pf-mt .pf-acties select{width:100%}
+  .pf-mg{border-bottom:1px solid #d6dde5} .pf-mg:last-child{border-bottom:0}
+  .pf-mgkop{padding:10px 14px;background:#f7f9fb;border-bottom:1px solid #e3e8ee}
   .pf-acties > summary{list-style:none;display:inline-block} .pf-acties > summary::-webkit-details-marker{display:none}
   .pf-acties select{max-width:100%}
   @media (max-width:760px){
@@ -480,6 +490,9 @@ function viewWerkblad(fk){
       ? `<button class="pf-k" data-pfa="niv" data-k="${k}" data-v="${naar}">geldt voor de hele ${naar === 'fam' ? 'familie' : 'maatgroep'}</button>` : '';
   };
   const ehVan = cs => [...new Set(cs.map(c => P().eenheid(c).mv))];
+  const mgKop = g => { const eh = ehVan(g.cs);
+    return `<b>${esc(g.t)}</b><div class="small muted">${plural(g.cs.length, 'product', 'producten')} · ${esc(eh.join(' / '))}</div>${eh.length > 1 ? `<div class="small" style="color:var(--bad)">Eenheid verschilt (${esc(g.cs.map(c => c + ': ' + P().eenheid(c).t).join(', '))}): controleer dat stuks per pallet in de eenheid van Picqer staat.</div>` : ''}
+      <details class="pf-acties mt4"><summary class="pf-k">acties</summary><div class="row wrap mt4" style="gap:4px">${g.cs.length > 1 ? `<button class="pf-k" data-pfa="splits" data-m="${esc(g.k)}">splitsen</button>` : ''}${mg.length > 1 ? `<select class="pf-k" data-pfa="voeg" data-m="${esc(g.k)}"><option value="">samenvoegen met…</option>${mg.filter(h => h.k !== g.k).map(h => `<option value="${esc(h.k)}">${esc(h.t)}</option>`).join('')}</select>` : ''}<button class="pf-k" data-pfa="uitl" data-codes="${esc(g.cs.join('\n'))}" data-aan="1">uitlopend</button></div></details>`; };
   const famOpts = (() => { const lev = fk.split('|')[0], woorden = fk.split('|')[1].split(' ').filter(w => w.length > 3);
     return Object.keys(I.fam).filter(f => f !== fk && f.split('|')[0] === lev && woorden.some(w => f.includes(w)) && actiefLeden(f).length).slice(0, 40); })();
   app().innerHTML = `<div class="pf"><a class="small" href="#/productdata/familie">← Per familie</a>
@@ -497,12 +510,11 @@ function viewWerkblad(fk){
   </section>
 
   <section class="pf-sec"><h3>2 · Maatgroepen <span class="u">per maat dezelfde palletgegevens</span></h3>
-    <div class="pf-tab"><table class="pf-t"><thead><tr><th>Maat</th>${maatV.map(k => `<th>${esc(P().VELDEN[k].t)}${terug(k, 'maat')}${zak(k, 'maat')}</th>`).join('')}</tr></thead><tbody>
-    ${mg.map(g => { const eh = ehVan(g.cs);
-      return `<tr><td class="kop"><b>${esc(g.t)}</b><div class="small muted">${plural(g.cs.length, 'product', 'producten')} · ${esc(eh.join(' / '))}</div>${eh.length > 1 ? `<div class="small" style="color:var(--bad)">Eenheid verschilt (${esc(g.cs.map(c => c + ': ' + P().eenheid(c).t).join(', '))}): controleer dat stuks per pallet in de eenheid van Picqer staat.</div>` : ''}
-        <details class="pf-acties mt4"><summary class="pf-k">acties</summary><div class="row wrap mt4" style="gap:4px">${g.cs.length > 1 ? `<button class="pf-k" data-pfa="splits" data-m="${esc(g.k)}">splitsen</button>` : ''}${mg.length > 1 ? `<select class="pf-k" data-pfa="voeg" data-m="${esc(g.k)}"><option value="">samenvoegen met…</option>${mg.filter(h => h.k !== g.k).map(h => `<option value="${esc(h.k)}">${esc(h.t)}</option>`).join('')}</select>` : ''}<button class="pf-k" data-pfa="uitl" data-codes="${esc(g.cs.join('\n'))}" data-aan="1">uitlopend</button></div></details></td>
-        ${maatV.map(k => `<td>${cel(fk, 'm:' + g.k, k, R.maat[g.k][k], { eh:eh.join('/') })}</td>`).join('')}</tr>`; }).join('')}
-    </tbody></table></div></section>
+    ${maatKaarten() ? mg.map((g, i) => `<div class="pf-mg"><div class="pf-mgkop">${mgKop(g)}</div>
+      ${maatV.map(k => `<div class="pf-rij"><label for="pf-${X().idVan('m:' + g.k + '-' + k)}">${esc(P().VELDEN[k].t)}</label><div>${cel(fk, 'm:' + g.k, k, R.maat[g.k][k], { eh:ehVan(g.cs).join('/') })}</div><div class="pf-why" style="padding-top:8px">${i === 0 ? terug(k, 'maat') + zak(k, 'maat') : ''}</div></div>`).join('')}</div>`).join('')
+    : `<table class="pf-t pf-mt"><colgroup><col class="kopcol">${maatV.map(() => '<col>').join('')}</colgroup><thead><tr><th>Maat</th>${maatV.map(k => `<th>${esc(P().VELDEN[k].t)}${terug(k, 'maat')}${zak(k, 'maat')}</th>`).join('')}</tr></thead><tbody>
+    ${mg.map(g => `<tr><td class="kop">${mgKop(g)}</td>${maatV.map(k => `<td>${cel(fk, 'm:' + g.k, k, R.maat[g.k][k], { eh:ehVan(g.cs).join('/') })}</td>`).join('')}</tr>`).join('')}
+    </tbody></table>`}</section>
 
   <details class="pf-sec" ${Object.keys(keuzeVan).length || UI.open[fk] ? 'open' : ''} data-pfdet="${esc(fk)}"><summary style="padding:10px 14px;font-weight:700;cursor:pointer">3 · Producten <span class="small muted">vloernaam, opmerking en uitzonderingen${pl.keuzes.length ? ' · ' + nf(pl.keuzes.length) + ' keuzes open' : ''}</span></summary>
     <div class="pf-tab"><table class="pf-t"><thead><tr><th>Product</th>${prodV.map(k => `<th>${esc(P().VELDEN[k].t)}${terug(k, 'prod')}</th>`).join('')}<th>Indeling</th></tr></thead><tbody>
@@ -519,7 +531,13 @@ function viewWerkblad(fk){
   <div class="pf-voet"><div><b>${pl.n ? plural(pl.n, 'product', 'producten') + ' bij te werken' : 'Niets nieuws om op te slaan'}</b><div class="small muted">${pl.nUitz ? plural(pl.nUitz, 'uitzondering', 'uitzonderingen') + ' blijven · ' : ''}${pl.keuzes.length ? nf(pl.keuzes.length) + ' keuzes open (eigen waarde wijkt af) · ' : ''}${pl.fouten.length ? '<span style="color:var(--bad)">' + nf(pl.fouten.length) + ' fout</span> · ' : ''}concept blijft bewaard tot je opslaat</div></div>
     <div class="row wrap" style="gap:8px">${Object.keys(con(fk).f).length + Object.keys(con(fk).m).length + Object.keys(con(fk).p).length ? '<button class="btn" data-pfa="wis">Concept wissen</button>' : ''}<button class="btn acc" data-pfa="opslaan" ${pl.n && !pl.fouten.length && !UI.bezig ? '' : 'disabled'}>${UI.bezig ? 'Opslaan…' : 'Opslaan'}</button></div></div></div>`;
 }
+// maatgroepen: tabel die altijd past (vaste kolommen die meekrimpen), onder 1100 px een kaart per maatgroep
+const KAART_ONDER = 1100;
+const maatKaarten = () => window.innerWidth < KAART_ONDER;
+let kaartNu = null, resizeT = null;
+window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { const k = maatKaarten(); if(kaartNu !== null && k !== kaartNu && fkNu()) X().rerender(); }, 150); });
 function view(arg){
+  kaartNu = maatKaarten();
   stijl();
   if(!P().S.fcor) P().S.fcor = X().famCorNorm(null);
   if(arg) return viewWerkblad(arg);
