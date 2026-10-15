@@ -51,7 +51,15 @@ const TWIJFEL = new Set(['AA01A10','AA01B10','AA01C10','AA03A10','AA03B10','AA03
 
 /* ---------- producten ---------- */
 function locsVan(code){ const p = D.P[code]; return p && p.locaties_hm ? String(p.locaties_hm).split(',').map(s => s.trim()).filter(Boolean) : []; }
-function sppVan(code){ const g = (D.GEH[String(code).toLowerCase()] || []).find(x => num(x.qty) > 0); return g ? num(g.qty) : null; }
+// Productdata (bouwplan 0.4) gaat voor, als die bron aan staat (WH.pdBron); anders en bij leeg/onb het oude palletgeheugen
+const pdv = (code, k) => { if(!D.PDAAN) return null; const r = D.PD[code]; if(!r) return null; const v = r[k]; return leeg(v) ? null : String(v).trim(); };
+const isNvt = v => /^nvt$/i.test(String(v || '').trim());
+function sppVan(code){
+  const p = pdv(code, 'spp');
+  if(p !== null){ const n = num(p); if(n > 0) return n; if(isNvt(p)) return null; }
+  const g = (D.GEH[String(code).toLowerCase()] || []).find(x => num(x.qty) > 0); return g ? num(g.qty) : null;
+}
+const sppNvt = code => isNvt(pdv(code, 'spp'));
 function vkVan(code){ const v = D.VK[code]; return v ? num(v.per_maand) : null; }
 function naamVan(code){ const p = D.P[code]; return (p && p.naam) || ''; }
 const heelGetal = x => Math.max(0, Math.ceil(x - 1e-9));
@@ -92,7 +100,7 @@ function maakProfiel(code, bezet){
   const pr = {
     code, naam:p.naam || '', lev:p.leverancier || '', abc, st:num(p.voorraad_hm) || 0, vrij:num(p.vrij_hm), vst:num(p.voorraad_vst) || 0,
     vk, spp, locs, picks, bulks, conts, vstPallets:(D.VSTLOC[code] || []), pq:{ lvl:leeg(pq[0]) ? null : pq[0], tot:leeg(pq[1]) ? null : pq[1] }, virt:pq[2] === 1,
-    bo, redenen:[]
+    bo, redenen:[], sppNvt:sppNvt(code), pdPick:pdv(code, 'pick'), pdLvl:num(pdv(code, 'lvl')), pdMax:num(pdv(code, 'maxpick'))
   };
   const pi = picks.length ? locInfo(picks[0]) : null;
   pr.pickSoort = pi ? pickSoort(pi, spp) : null;
@@ -109,7 +117,8 @@ function maakProfiel(code, bezet){
   if(triS) pr.redenen.push({ lvl:'info', t:'triage: ' + (window.WHT ? WHT.SLANG[triS] : triS) });
   if((triS === 'r' || triS === 'x') && picks.length) pr.redenen.push({ lvl:'let', t:'triage zegt "' + (window.WHT ? WHT.SL[triS] : triS) + '", maar er is een picklocatie: klopt dat?' });
   if(!picks.length){
-    if(loper && bulks.length){
+    if(pr.pdPick === 'nee') pr.redenen.push({ lvl:'info', t:'Productdata: bewust alleen bulk' });
+    else if(loper && bulks.length){
       const vrij = vrijeVloerOnder(bulks, bezet);
       if(vrij){ v.pick = vrij.loc; v.nieuwePick = true; bezet.add(vrij.loc); pr.redenen.push({ lvl:'info', t:'voorstel picklocatie ' + vrij.loc + (vrij.direct ? ' (vloer onder de bulk)' : ' (vloer in dezelfde sectie)') }); }
       else pr.redenen.push({ lvl:'let', t:'loopt, maar geen vrije vloerplek onder de bulk: kies zelf een picklocatie' });
@@ -160,6 +169,11 @@ function maakProfiel(code, bezet){
   if(e){
     ['pick', 'lvl', 'tot', 'type'].forEach(k => { if(e[k] !== undefined) f[k] = e[k]; });
     if(e.pick !== undefined) f.nieuwePick = !!e.pick && !locs.includes(e.pick);
+  }
+  // Productdata: aanvullen bij en max op pick zijn door Daan per product vastgelegd en gaan boven het rekenvoorstel en de oude aanvulbase
+  if(f.pick && pr.pdPick !== 'nee' && pr.pdLvl !== null && pr.pdMax !== null && pr.pdMax > 0 && f.type !== 'bulk'){
+    f.lvl = pr.pdLvl; f.tot = pr.pdMax; f.uitPd = true;
+    pr.redenen.push({ lvl:'info', t:'aanvullen uit Productdata: bij ' + pr.pdLvl + ', tot ' + pr.pdMax });
   }
   pr.final = f;
   pr.imp = importWaarden(pr);
@@ -442,6 +456,6 @@ function locStats(){
   return { gangen:Object.values(per).sort((a, b) => a.gang.localeCompare(b.gang)), aand };
 }
 
-return { reset, bereken, prof, mvSort, mvStaat, boLaatst, locInfo, regelSoort, soortLoc, sortLoc, TWIJFEL, HAL_NAAM, locsVan, sppVan, vkVan, naamVan,
+return { reset, bereken, prof, pdv, sppNvt, mvSort, mvStaat, boLaatst, locInfo, regelSoort, soortLoc, sortLoc, TWIJFEL, HAL_NAAM, locsVan, sppVan, vkVan, naamVan,
   importAanvul, importKoppel, locAfwijkingen, locStats };
 })();

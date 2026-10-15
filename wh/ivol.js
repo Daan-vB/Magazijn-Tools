@@ -11,6 +11,7 @@ window.IVOL = (function(){
 const { $, esc, nf, D, vandaag, isoDag } = WH;
 
 /* ---------- alle onderdelen: één lijst, waaruit menu en kaart worden gemaakt ---------- */
+const BOUWPLAN = 'https://claude.ai/artifact/7a3juevLzzxWRtPJY8K2bn';
 const W = h => './warehouse.html' + h, T = h => './test.html' + h, CP = h => './containerplanning.html' + h, CPT = h => './containerplanning.html?test' + h;
 const DV = ['daan'], DK = ['daan', 'karin'], ALLE = ['daan', 'karin', 'vloer'];
 const GROEPEN = [
@@ -29,6 +30,8 @@ const M = [
   { id:'todo', g:'start', t:'Te doen', native:'todo', st:'draait', r:DV, uit:'Wat nu moet, op volgorde van het fundament. Elke regel opent het scherm waar je het doet.' },
   { id:'fundament', g:'start', t:'Fundament', native:'fundament', st:'draait', r:DK, uit:'Stand van de vier fundamentpunten, uit de echte gegevens.' },
   { id:'kaart', g:'start', t:'Kaart van alles', native:'kaart', st:'draait', r:DV, uit:'Elk onderdeel, waar het staat, welke gegevens, en de status.' },
+  { id:'naslag', g:'start', t:'Naslag', native:'naslag', st:'draait', r:DV, uit:'Alle links, koppelingen, functies, mappen en documenten op één plek.' },
+  { id:'bouwplan', g:'start', t:'Bouwplan ↗', ext:BOUWPLAN, st:'draait', r:DV, uit:'De route, stap voor stap (opent apart in claude.ai).' },
 
   { id:'vandaag', g:'vandaag', t:'Vandaag', u:W('#/'), st:'draait', r:DK, data:'wh-taken, wh-todo, Picqer live', uit:'De dag in stappen, taken, leeftijd van de exports.' },
   { id:'live', g:'vandaag', t:'Picqer live', u:T('#/live'), st:'proef', r:DV, data:'functie picqer', uit:'Picklijsten en backorders rechtstreeks uit Picqer.' },
@@ -76,15 +79,15 @@ const M = [
 ];
 // alleen in de kaart: oude pagina's die niet meer in het menu horen
 const OUD = [
-  ['artikel-review.html', 'Artikel Review (Van Gennip)', 'oude tool, eigen database'],
-  ['invoer.html', 'Productinvoer', 'vervangen door Productdata'],
-  ['cleanup-export.html', 'Opschonen & exporteren', 'hoort bij Artikel Review'],
-  ['import-catalog-ean.html', 'Eenmalige import productgeheugen', 'eenmalig, gedaan'],
-  ['import-eenmalig.html', 'Eenmalige import Artikel Review', 'eenmalig, gedaan'],
-  ['triage/', 'Picklocatie-triage (los)', 'vervangen door Triage in de app'],
-  ['productkaart (1).html', 'Kopie productkaart', 'dubbel bestand, opruimen'],
-  ['productkaart (2).html', 'Kopie productkaart', 'dubbel bestand, opruimen'],
-  ['test (1).html', 'Kopie test', 'dubbel bestand, opruimen']
+  ['oud/artikel-review.html', 'Artikel Review (Van Gennip)', 'oude tool, eigen database'],
+  ['oud/invoer.html', 'Productinvoer', 'vervangen door Productdata'],
+  ['oud/cleanup-export.html', 'Opschonen & exporteren', 'hoort bij Artikel Review'],
+  ['oud/import-catalog-ean.html', 'Eenmalige import productgeheugen', 'eenmalig, gedaan'],
+  ['oud/import-eenmalig.html', 'Eenmalige import Artikel Review', 'eenmalig, gedaan'],
+  ['triage/', 'Picklocatie-triage (los)', 'vervangen door Triage in de app; blijft staan (kan als app op een telefoon staan)'],
+  ['oud/productkaart-kopie-1.html', 'Kopie productkaart', 'dubbel bestand (15-10 naar oud/)'],
+  ['oud/productkaart-kopie-2.html', 'Kopie productkaart', 'dubbel bestand (15-10 naar oud/)'],
+  ['oud/test-kopie.html', 'Kopie test', 'dubbel bestand (15-10 naar oud/)']
 ];
 const ROLLEN = { daan:'Daan', karin:'Karin', vloer:'Vloer' };
 const ST = { draait:['draait', 'ok'], proef:['proef', 'warn'], geparkeerd:['geparkeerd', 'grijs'], naslag:['naslag', 'grijs'] };
@@ -98,7 +101,7 @@ const startVan = rol => rol === 'vloer' ? 'junior' : rol === 'karin' ? 'vandaag'
 function huidig(){
   const id = (location.hash.match(/^#\/([\w-]+)/) || [])[1];
   UI.rest = (location.hash.match(/^#\/[\w-]+\/(.+)$/) || [])[1] || '';
-  const m = zichtbaar().find(x => x.id === id);
+  const m = zichtbaar().find(x => x.id === id && !x.ext);
   return m || zichtbaar().find(x => x.id === startVan(UI.rol)) || zichtbaar()[0];
 }
 
@@ -108,7 +111,7 @@ function tekenMenu(){
   const lijst = zichtbaar();
   $('menu').innerHTML = GROEPEN.map(g => {
     const items = lijst.filter(m => m.g === g.k); if(!items.length) return '';
-    return `<div class="groep"><div class="gt">${esc(g.t)}</div>${items.map(m => `<a href="#/${m.id}" class="${m === nu ? 'aan' : ''}">${esc(m.t)}${UI.rol === 'daan' && m.st !== 'draait' ? ` <i class="st ${ST[m.st][1]}">${ST[m.st][0]}</i>` : ''}</a>`).join('')}</div>`;
+    return `<div class="groep"><div class="gt">${esc(g.t)}</div>${items.map(m => `<a href="${m.ext ? esc(m.ext) + '" target="_blank" rel="noopener' : '#/' + m.id}" class="${m === nu ? 'aan' : ''}">${esc(m.t)}${UI.rol === 'daan' && m.st !== 'draait' ? ` <i class="st ${ST[m.st][1]}">${ST[m.st][0]}</i>` : ''}</a>`).join('')}</div>`;
   }).join('');
   document.querySelectorAll('#rollen button').forEach(b => b.classList.toggle('aan', b.dataset.rol === UI.rol));
   $('kruimel').textContent = nu ? ((GROEPEN.find(g => g.k === nu.g) || {}).t || '') + ' · ' + nu.t : '';
@@ -125,7 +128,8 @@ function toon(){
   const fr = $('frame'), nat = $('native');
   if(m.native){
     fr.hidden = true; nat.hidden = false;
-    nat.innerHTML = m.native === 'kaart' ? viewKaart() : m.native === 'todo' ? viewTodo() : m.native === 'bronnen' ? viewBronnen() : viewFundament();
+    nat.innerHTML = m.native === 'kaart' ? viewKaart() : m.native === 'todo' ? viewTodo() : m.native === 'bronnen' ? viewBronnen() : m.native === 'naslag' ? viewNaslag() : viewFundament();
+    if(m.native === 'naslag') laadNaslag();
     nat.scrollTop = 0;
     if(m.native === 'fundament' || m.native === 'todo') rekenFundament();
     return;
@@ -164,7 +168,8 @@ function viewKaart(){
     </tbody></table></div></section>
     <section class="blok"><h2>Gegevens (Supabase "Palletlabels")</h2><div class="tabel"><table><thead><tr><th>Waar</th><th>Wat</th></tr></thead><tbody>
       <tr><td class="code">producten</td><td>Picqer-productexport + palletdata</td></tr>
-      <tr><td class="code">catalog-ean</td><td>Productgeheugen: stuks per pallet, labelnaam, EAN (gedeeld met Palletlabels)</td></tr>
+      <tr><td class="code">productdata</td><td>Eén kaart per product voor alles wat Picqer niet weet (bouwplan 0.4). De bron in 3.0 en Test; Warehouse en Junior na akkoord</td></tr>
+      <tr><td class="code">catalog-ean</td><td>Oud productgeheugen: stuks per pallet, labelnaam, EAN (Palletlabels en Containers lezen dit nog)</td></tr>
       <tr><td class="code">containers · pakbon_alias</td><td>Containers met regels, verdeling, ontvangst; geleerde koppelingen pakbon → Picqer</td></tr>
       <tr><td class="code">backorders · verkoop</td><td>Exports; verkoop per maand = gemiddelde laatste 6 maanden</td></tr>
       <tr><td class="code">wh-locaties · wh-pq · wh-voorraad</td><td>Locatie-export, aanvulniveaus uit Picqer, voorraad per locatie</td></tr>
@@ -247,17 +252,19 @@ async function rekenFundament(){
       const t = tri(p.code); if(t === 'r' || t === 'x') return false;
       return p.abc === 'A' || p.abc === 'B' || t === 'g' || t === 'o';
     });
-    const cnt = { pick:0, tijd:0, niveau:0, meer:0, spp:0, ok:0 };
+    const cnt = { pick:0, tijd:0, niveau:0, meer:0, spp:0, ok:0, pickPd:0, nivPd:0, bewust:0 };
     lopers.forEach(p => {
       const f = p.final, pi = f.pick ? WHL.locInfo(f.pick) : null, mist = [];
-      if(!f.pick || f.type === 'bulk' || f.type === 'los' || (f.nieuwePick && p.status !== 'bevestigd')) mist.push('pick');
+      const geenPick = !f.pick || f.type === 'bulk' || f.type === 'los' || (f.nieuwePick && p.status !== 'bevestigd');
+      if(geenPick && p.pdPick === 'nee' && !p.picks.length) cnt.bewust++;          // Productdata: bewust alleen bulk
+      else if(geenPick){ mist.push('pick'); if(p.pdPick === 'ja') cnt.pickPd++; }
       else {
         if(pi && pi.bestaat && pi.tijd) mist.push('tijd');
-        if(p.pq.lvl === null || p.pq.tot === null) mist.push('niveau');
+        if(p.pq.lvl === null || p.pq.tot === null){ mist.push('niveau'); if(p.pdLvl !== null && p.pdMax !== null) cnt.nivPd++; }
         if(p.picks.length > 1) mist.push('meer');
       }
       const sppNodig = p.bulks.length > 0 || p.pickSoort === 'vloer' || f.type === 'vloer';   // legbord zonder bulk: stuks per pallet doet er niet toe
-      if(sppNodig && !p.spp){ cnt.spp++; mist.push('spp'); }
+      if(sppNodig && !p.spp && !p.sppNvt){ cnt.spp++; mist.push('spp'); }
       mist.forEach(k => { if(k !== 'spp') cnt[k]++; });
       if(!mist.length) cnt.ok++;
     });
@@ -265,9 +272,10 @@ async function rekenFundament(){
     UI.stats = { V, R, nPdf, pdfVandaag:!!(D.ADV && isoDag(dag2(D.ADV.ingelezen || D.ADV.datum) || new Date(0)) === vandaag()), A, afw:afw.length, nLoc, cnt, lopers:lopers.length, nA, nB };
     h += blok(3, 'Lopers compleet', cnt.ok === lopers.length && lopers.length ? 'groen' : 'oranje', lopers.length ? `<b>${nf(cnt.ok)}</b> van ${nf(lopers.length)} lopers compleet (${pct(cnt.ok, lopers.length)}%)<div class="balk"><i style="width:${pct(cnt.ok, lopers.length)}%"></i></div>` : 'Productexport niet ingelezen', [
       ['Lopers', `${nf(lopers.length)} (${nf(nA)} A, ${nf(nB)} B, rest triage)`],
-      ['Zonder vaste picklocatie', nf(cnt.pick), cnt.pick ? 'let' : ''],
+      ['Zonder vaste picklocatie in Picqer', nf(cnt.pick) + (D.PDAAN && cnt.pickPd ? ` · ${nf(cnt.pickPd)} staan in Productdata op ja` : ''), cnt.pick ? 'let' : ''],
+      ...(D.PDAAN ? [['Bewust alleen bulk (Productdata)', nf(cnt.bewust)]] : []),
       ['Picklocatie op tijdelijk', nf(cnt.tijd), cnt.tijd ? 'let' : ''],
-      ['Geen aanvulniveau in Picqer', nf(cnt.niveau), cnt.niveau ? 'let' : ''],
+      ['Geen aanvulniveau in Picqer', nf(cnt.niveau) + (D.PDAAN && cnt.nivPd ? ` · ${nf(cnt.nivPd)} klaar in Productdata` : ''), cnt.niveau ? 'let' : ''],
       ['Meerdere picklocaties', nf(cnt.meer)],
       ['Stuks per pallet onbekend (met bulk of vloerpallet)', nf(cnt.spp), cnt.spp ? 'let' : '']
     ], 'abcheck', 'A/B-check');
@@ -316,8 +324,8 @@ function todoItems(){
   if(!S) return out;
   if(!S.pdfVandaag) zet(1, null, 'Verse aanvuladvies-PDF inladen', 'Pas dan is live naast PDF een eerlijke vergelijking (de ene taak).', 'gegevens', 'Gegevens inladen');
   else zet(1, S.V ? S.V.alleenPdf.length + S.V.alleenLive.length : null, 'Live naast PDF nalopen', 'De ene taak: verschillen opschrijven of akkoord geven.', 'vergelijk', 'Openen');
-  if(S.cnt.niveau) zet(3, S.cnt.niveau, 'Lopers zonder aanvulniveau', 'Picqer vult ze niet aan, dus ze staan in geen enkel advies.', 'abcheck/niveau', 'Niveaus invullen');
-  if(S.cnt.pick) zet(3, S.cnt.pick, 'Lopers zonder vaste picklocatie', 'Orders blijven op deze producten in backorder hangen.', 'abcheck/pick', 'Picklocaties');
+  if(S.cnt.niveau) zet(3, S.cnt.niveau, 'Lopers zonder aanvulniveau in Picqer', S.cnt.nivPd ? nf(S.cnt.nivPd) + ' staan al in Productdata en wachten op de import naar Picqer (stap 4.1). De rest nog invullen.' : 'Picqer vult ze niet aan, dus ze staan in geen enkel advies.', S.cnt.nivPd ? 'productdata' : 'abcheck/niveau', S.cnt.nivPd ? 'Productdata' : 'Niveaus invullen');
+  if(S.cnt.pick) zet(3, S.cnt.pick, 'Lopers zonder vaste picklocatie in Picqer', (S.cnt.pickPd ? nf(S.cnt.pickPd) + ' staan in Productdata op ja: alleen nog een plek koppelen. ' : '') + 'Orders blijven op deze producten in backorder hangen.', 'abcheck/pick', 'Picklocaties');
   if(S.cnt.tijd) zet(3, S.cnt.tijd, 'Lopers met picklocatie op tijdelijk', 'Ontkoppelt bij voorraad 0.', 'abcheck/tijd', 'Vast zetten');
   if(S.cnt.spp) zet(3, S.cnt.spp, 'Lopers zonder stuks per pallet', 'Nodig voor labels, verdeling en aanvullen met hele pallets.', 'productdata', 'Productdata');
   if(S.afw) zet(2, S.afw, 'Locaties: pick/bulk of vast/tijdelijk wijkt af', 'Na de regel: 00–09 pick en vast, 10+ bulk en tijdelijk.', 'locaties', 'Locaties');
@@ -338,9 +346,87 @@ function todoLijst(){
 function viewTodo(){
   return `<div class="pagina">
     <h1>Te doen</h1>
+    <a class="todo" href="${BOUWPLAN}" target="_blank" rel="noopener" style="border-left:6px solid #f08a4b"><span class="tnr">★</span><span class="tt"><b>Bouwplan: de stap van nu gaat voor</b><span>Eén stap tegelijk. Wat hieronder staat en niet bij die stap hoort, wacht.</span><i class="ft">Bouwplan</i></span><span class="tk">Openen ↗</span></a>
     <p class="lede">Op volgorde van het fundament. Tik een regel: je komt direct op het scherm waar je het doet.</p>
     <div id="todo" class="todos">${todoLijst()}</div>
   </div>`;
+}
+
+/* ---------- naslag: alle links, koppelingen, functies, mappen en documenten op één plek ----------
+   Vaste inhoud hieronder staat in de openbare repo: alleen wat daar al staat (adressen, namen), nooit sleutels of bedrijfsdata.
+   Eigen regels (bijv. iCloud-mappen) staan in catalog-rij `wh-naslag` in de database: { rijen:[{ id, g, naam, adres, noot, op }] } */
+const NASLAG = [
+  { g:'Apps', rijen:[
+    ['IVOL Warehouse 3.0', './ivol.html', 'Jouw ingang: alles in één menu'],
+    ['IVOL Warehouse', './warehouse.html', 'Dagelijkse basis voor Daan en Karin'],
+    ['Junior', './junior.html', 'Kate, Salah, Valerii · NL/EN/ES/EL'],
+    ['Containers', './containerplanning.html', 'Pakbon, verdeling, losdag, labels, Stockmove, VST-mail'],
+    ['Palletlabels', './index.html', 'Labels printen; het oude productgeheugen (catalog-ean)'],
+    ['Productkaart', './productkaart.html', 'Alles over één product'],
+    ['Testdata Picqer', './testdata.html', 'Picqer-testomgeving vullen (schrijft alleen naar ivol-dev)'],
+    ['Ploeg', './ploeg.html', 'Geparkeerd tot bouwplan stap 2.1'],
+    ['Bouwplan', BOUWPLAN, 'De route, stap voor stap (claude.ai)'] ] },
+  { g:'Code · GitHub', rijen:[
+    ['Repo Magazijn-Tools', 'https://github.com/Daan-vB/Magazijn-Tools', 'Openbaar: nooit sleutels of bedrijfsdata in de repo'],
+    ['Automatische taken (Actions)', 'https://github.com/Daan-vB/Magazijn-Tools/actions', 'Functies live zetten · versleutelde data-export · spraak naar tekst · Productdata door Claude · database-opbouw'],
+    ['Gedeelde code (map wh/)', 'https://github.com/Daan-vB/Magazijn-Tools/tree/main/wh', 'Eén code voor 3.0, Warehouse, Test, Junior en Ploeg; welke app wat laadt: wh/lijst.json'] ] },
+  { g:'Database · Supabase "Palletlabels"', rijen:[
+    ['Dashboard', 'https://supabase.com/dashboard/project/jarbgetbwkjtxwtcfwmq', 'Frankfurt · gratis abonnement (bouwplan 0.3) · organisatie Daan_Private'],
+    ['Tabellen', '', 'producten · productdata · catalog (rijen wh-… en catalog-ean) · containers · pakbon_alias · verkoop · backorders · todos'],
+    ['Edge Functions', 'https://supabase.com/dashboard/project/jarbgetbwkjtxwtcfwmq/functions', 'picqer (live, lezen) · picqer-inkoop (live, lezen) · picqer-test (test, lezen) · picqer-seed (test, schrijven) · db-setup (eenmalig)'],
+    ['Geheimen (alleen de namen)', '', 'Onder Edge Functions → Secrets: PICQER_DOMAIN, PICQER_KEY, PICQER_WAREHOUSE, PICQER_VST, IVOL_CODE (koppelcode), PICQER_TEST_DOMAIN, PICQER_TEST_KEY, PICQER_TEST_WAREHOUSE, PICQER_TEST_VST'] ] },
+  { g:'Picqer', rijen:[
+    ['Picqer live', 'https://ivol.picqer.com', 'De echte. De apps lezen alleen (functie picqer). Hoofdmagazijn 3857 · Bulk van Spreuwel (VST) 3991'],
+    ['Picqer test (ivol-dev)', 'https://ivol-dev.picqer.com', 'Hier mag alles (Maxime, 7 okt). Hoofdmagazijn 13337 · External (VST) 13523'] ] },
+  { g:'Documenten', rijen:[
+    ['Stand van zaken 15 okt', 'https://claude.ai/code/artifact/5bc0ce06-516e-4c90-843e-3fc087995f57', 'Alle tools en data doorgelicht, met voorstel'],
+    ['Projectdocumenten (claude.ai-project IVOL Warehouse Test)', '', 'masterdocument · app-fundament · ivol-warehouse-app · picqer-api-test · bouwplan · picqer-testomgeving · aanvulregels · productdata-bronnen · opslagtypen · spraak-invoer · aandachtspunten'] ] }
+];
+const NASLAG_VOORSTEL = [
+  ['iCloud-mappen', 'Inbox', 'iCloud Drive/Daan_System/00_Inbox', 'Picqer-exports en downloads komen hier binnen'],
+  ['iCloud-mappen', 'Back-up database', 'iCloud Drive/02_Werk_IVOL/Backup', 'Maandelijkse export van alle tabellen (bouwplan 0.3)']
+];
+const NS = { d:null, laden:false, fout:null };
+async function laadNaslag(){
+  if(NS.laden) return; NS.laden = true;
+  try{ const r = await WH.catHaal('wh-naslag'); NS.d = (r && r.data) || { rijen:[] }; NS.fout = null; }
+  catch(e){ NS.fout = e; NS.d = NS.d || { rijen:[] }; }
+  NS.laden = false;
+  const nat = $('native'); if(nat && huidig().native === 'naslag') nat.innerHTML = viewNaslag();
+}
+const linkCel = (a) => !a ? '' : /^(https?:|\.\/)/.test(a) ? `<a href="${esc(a)}" target="_blank" rel="noopener">${esc(a.replace(/^https?:\/\//, '').replace(/^\.\//, ''))}</a>` : `<span class="code">${esc(a)}</span>`;
+function viewNaslag(){
+  const eigen = (NS.d && NS.d.rijen) || [];
+  const groepen = [...new Set(eigen.map(r => r.g || 'Overig'))];
+  const voorstel = NASLAG_VOORSTEL.filter(([g, n, a]) => !eigen.some(r => r.adres === a));
+  return `<div class="pagina">
+    <h1>Naslag</h1>
+    <p class="lede">Alles op één plek: apps, code, database, Picqer, mappen en documenten. Geen wachtwoorden of sleutels hier: de database is nog niet afgeschermd (bouwplan 0.3).</p>
+    ${NASLAG.map(g => `<section class="blok"><h2>${esc(g.g)}</h2><div class="tabel"><table><tbody>
+      ${g.rijen.map(([n, a, w]) => `<tr><td><b>${esc(n)}</b></td><td>${linkCel(a)}</td><td class="muted">${esc(w)}</td></tr>`).join('')}
+    </tbody></table></div></section>`).join('')}
+    <section class="blok"><h2>Eigen regels</h2>
+      <p class="muted klein">Mappen op je Mac of iCloud, extra links, notities. Staat in de database (rij wh-naslag), niet in de openbare repo.</p>
+      ${NS.fout ? `<div class="melding">Laden lukte niet: ${esc(NS.fout.message || String(NS.fout))}</div>` : ''}
+      ${!NS.d ? '<div class="leeg">Laden…</div>' : eigen.length ? groepen.map(gr => `<h3 style="font-size:14px;margin-top:6px">${esc(gr)}</h3><div class="tabel"><table><tbody>
+        ${eigen.filter(r => (r.g || 'Overig') === gr).map(r => `<tr><td><b>${esc(r.naam)}</b></td><td>${linkCel(r.adres)}</td><td class="muted">${esc(r.noot || '')}</td><td style="width:1%"><button class="knop" data-a="naslag-weg" data-id="${esc(r.id)}" aria-label="Verwijder">×</button></td></tr>`).join('')}
+      </tbody></table></div>`).join('') : '<p class="muted">Nog geen eigen regels.</p>'}
+      ${voorstel.length ? `<div class="rij">${voorstel.map(([g, n, a], i) => `<button class="knop" data-a="naslag-voorstel" data-i="${NASLAG_VOORSTEL.findIndex(x => x[2] === a)}">+ ${esc(g)}: ${esc(n)}</button>`).join('')}</div>` : ''}
+      <div class="rij" style="margin-top:6px">
+        <input id="ns-g" list="ns-groepen" placeholder="Groep (bijv. iCloud-mappen)" style="font:inherit;padding:8px 10px;border:1px solid var(--lijn);border-radius:8px;min-width:160px">
+        <datalist id="ns-groepen"><option>iCloud-mappen</option><option>Links</option><option>Mensen en afspraken</option><option>Overig</option></datalist>
+        <input id="ns-n" placeholder="Naam" style="font:inherit;padding:8px 10px;border:1px solid var(--lijn);border-radius:8px;min-width:140px">
+        <input id="ns-a" placeholder="Link of pad" style="font:inherit;padding:8px 10px;border:1px solid var(--lijn);border-radius:8px;min-width:220px;flex:1">
+        <input id="ns-w" placeholder="Notitie" style="font:inherit;padding:8px 10px;border:1px solid var(--lijn);border-radius:8px;min-width:160px;flex:1">
+        <button class="knop pri" data-a="naslag-plus">Toevoegen</button>
+      </div></section>
+  </div>`;
+}
+async function naslagBewaar(rijen){
+  const vorig = NS.d; NS.d = { rijen };
+  const nat = $('native'); if(nat) nat.innerHTML = viewNaslag();
+  try{ await WH.catZet('wh-naslag', NS.d); WH.toast('Opgeslagen'); }
+  catch(e){ NS.d = vorig; if(nat) nat.innerHTML = viewNaslag(); WH.toast('Opslaan mislukt: ' + e.message, 6000); }
 }
 
 /* ---------- koppeling Picqer ---------- */
@@ -366,6 +452,9 @@ function viewBronnen(){
       ${B.rijen.map(r => `<tr><td><b>${esc(r.t)}</b>${r.extra ? `<br><span class="muted">${esc(r.extra)}</span>` : ''}</td><td><i class="st ${r.bron === 'live' ? 'ok' : 'warn'}">${r.bron}</i></td><td>${esc(tijdKort(r.op))}</td><td class="muted">${esc(r.ritme)}</td><td class="muted">${esc(r.vervangt)}</td></tr>`).join('')}
       </tbody></table></div>
       <p class="muted klein">Aanvulniveaus worden pas de waarheid voor alle apps na een volle ronde én als ze voor minstens 90% gelijk zijn aan de laatste export. Zo weten we zeker dat de velden uit Picqer de goede zijn.</p></section>
+    <section class="blok"><h2>Productdata als bron</h2>
+      <p>${D.PDAAN ? `<b>Aan</b> op dit scherm: stuks per pallet, aanvullen bij, max op pick en "alleen bulk" komen eerst uit Productdata (${nf(Object.keys(D.PD).length)} producten), daarna pas uit het oude palletgeheugen.` : '<b>Uit</b> op dit scherm: alles komt nog uit het oude palletgeheugen.'}</p>
+      <p class="muted klein">Aan in 3.0 en Test. Warehouse en Junior volgen na jouw akkoord; Palletlabels en Containers lezen het oude geheugen tot Productdata daar is gelijkgezet (Productdata → Gelijkzetten).</p></section>
   </div>`;
 }
 function tekenPill(){
@@ -391,10 +480,20 @@ document.addEventListener('click', ev => {
   const k = ev.target.closest('[data-a]');
   if(k && k.dataset.a === 'koppel'){ const v = (($('kcode') || {}).value || '').trim(); if(!v) return; WHLIVE.zetCode(v); IVL.ronde(true); toon(); return; }
   if(k && k.dataset.a === 'ververs'){ IVL.ronde(true); herreken(); return; }
+  if(k && k.dataset.a === 'naslag-plus'){
+    const v = id => (($(id) || {}).value || '').trim();
+    if(!v('ns-n') && !v('ns-a')) return;
+    naslagBewaar(((NS.d && NS.d.rijen) || []).concat([{ id:Date.now().toString(36), g:v('ns-g') || 'Overig', naam:v('ns-n') || v('ns-a'), adres:v('ns-a'), noot:v('ns-w'), op:new Date().toISOString() }])); return;
+  }
+  if(k && k.dataset.a === 'naslag-voorstel'){
+    const x = NASLAG_VOORSTEL[+k.dataset.i]; if(!x) return;
+    naslagBewaar(((NS.d && NS.d.rijen) || []).concat([{ id:Date.now().toString(36), g:x[0], naam:x[1], adres:x[2], noot:x[3], op:new Date().toISOString() }])); return;
+  }
+  if(k && k.dataset.a === 'naslag-weg'){ naslagBewaar(((NS.d && NS.d.rijen) || []).filter(r => r.id !== k.dataset.id)); return; }
 });
 $('frame').addEventListener('load', frameGeladen);
 toon();
 IVL.opNieuw(herreken);
-geladen().then(() => { tekenPill(); IVL.ronde(false); });
+geladen().then(() => { tekenPill(); herreken(); IVL.ronde(false); });
 return { M, GROEPEN, toon };
 })();

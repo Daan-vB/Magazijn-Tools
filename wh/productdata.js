@@ -1100,6 +1100,7 @@ function viewStart(){
   <a class="card" href="#/productdata/import" style="display:block;text-decoration:none;color:inherit;border-left:4px solid #5a3e8f"><div class="row between wrap"><div><h3>Importeren</h3><div class="small muted mt4">Een lijst van Claude plakken (bijvoorbeeld uit je ingesproken opname), nakijken en in één klik opslaan.</div></div><span class="btn">Openen →</span></div></a>
   <a class="card" href="#/productdata/auto" style="display:block;text-decoration:none;color:inherit;border-left:4px solid var(--ok)"><div class="row between wrap"><div><h3>Automatisch invullen uit alle bronnen</h3><div class="small muted mt4">Palletlabels, containers, pakbonnen, VST, bulk, verplaatsingen, Picqer en kleurgenoten naast elkaar. Alleen wat getoetst zeker genoeg is, jouw invoer blijft staan.</div></div><span class="btn ok">Bekijken →</span></div></a>
   ${poortKaart()}
+  ${gelijkKaart()}
   ${opschonenKaart()}
   <div class="card">
     <h3>Hoe ver ben je</h3><div class="small muted mt4">${nf(codes.length)} producten in deze selectie. Kies een laag en vul die eerst helemaal.</div>
@@ -1144,6 +1145,94 @@ function poort(){
   const pct = lagen.reduce((s, v) => s + v.gevuld, 0) / Math.max(1, lagen.reduce((s, v) => s + v.velden, 0));
   return { bel, items, groen, dataKlaar, code:groen ? poortCode(bel.length) : null, pct:Math.floor(pct * 100), sp };
 }
+/* ---------- gelijkzetten: Productdata → Palletlabels en Containers (15-10-2026) ----------
+   Productdata is de baas (bouwplan 0.4). Zolang Palletlabels (catalog-ean) en Containers (producten-tabel) nog niet zelf
+   uit Productdata lezen, zet deze knop de waarden van Productdata dáár neer. Vooraf gaat er een kopie van palletlabels
+   naar catalog-rij catalog-ean-kopie-<datum>. Niet aangeraakt: labels zonder aantal (0 of leeg = aanvulpallet),
+   vloernamen van bestaande labels (de naam is de sleutel in Palletlabels), en nvt / onb. */
+const PAL_KOL = [['maat', 'palletmaat'], ['hoogte', 'hoogte_cm'], ['gewicht', 'gewicht_kg'], ['plaatsen', 'plaatsen'], ['maxlig', 'max_per_ligger']];
+const maatNorm = v => String(v ?? '').replace(/\s/g, '').toLowerCase().replace(/×/g, 'x');
+function gelijkPlan(cat){
+  cat = cat || S.labels || {};
+  const perCode = {};
+  Object.entries(cat).forEach(([key, r]) => { if(r && r.sub) (perCode[String(r.sub).trim().toLowerCase()] = perCode[String(r.sub).trim().toLowerCase()] || []).push(key); });
+  const spp = [], nieuw = [], pal = [], overslaan = [];
+  Object.keys(S.pd).sort().forEach(code => {
+    const v = pdWaarde(code, 'spp'), n = LEEGWAARDE(v) || NVT(v) ? null : num(v);
+    if(n > 0){
+      const keys = perCode[code.toLowerCase()] || [];
+      if(keys.length) keys.forEach(k => {
+        const q = num(cat[k].qty); if(!(q > 0) || q === n) return;
+        const ander = D.PLOW[String(cat[k].name || '').trim().toLowerCase()];      // labelnaam is de code van een ander product: verkeerd gekoppeld, niet blind overschrijven
+        if(ander && ander.toLowerCase() !== code.toLowerCase()){ overslaan.push({ code, reden:'label "' + (cat[k].name || k) + '" lijkt bij ' + ander + ' te horen (zelf nakijken in Palletlabels)' }); return; }
+        spp.push({ code, key:k, naam:cat[k].name || k, oud:cat[k].qty, nieuw:n });
+      });
+      else {
+        const vn = pdWaarde(code, 'vn'), ean = String((D.P[code] || {}).ean || '').trim();
+        if(LEEGWAARDE(vn)) overslaan.push({ code, reden:'geen vloernaam in Productdata' });
+        else if(!ean) overslaan.push({ code, reden:'geen EAN in Picqer' });
+        else { const key = String(vn).trim().toUpperCase(); if(cat[key]) overslaan.push({ code, reden:'vloernaam "' + vn + '" hoort al bij ' + (cat[key].sub || 'een ander label') }); else nieuw.push({ code, key, name:String(vn).trim(), ean, qty:String(n) }); }
+      }
+    }
+    const p = D.P[code]; if(!p) return;
+    const w = {};
+    PAL_KOL.forEach(([k, kol]) => {
+      const pv = pdWaarde(code, k); if(LEEGWAARDE(pv) || NVT(pv)) return;
+      const nv = k === 'maat' ? maatNorm(pv) : num(pv); if(nv === null || nv === '') return;
+      const ov = p[kol], on = k === 'maat' ? maatNorm(ov) : num(ov);
+      if(on !== nv) w[kol] = { oud:leeg(ov) ? null : ov, nieuw:nv };
+    });
+    if(Object.keys(w).length) pal.push({ code, w });
+  });
+  return { spp, nieuw, pal, overslaan };
+}
+async function gelijkUitvoeren(){
+  if(window.WH_BRON === 'test'){ toast('Bron staat op TEST: gelijkzetten gaat alleen met bron LIVE.', 6000); return; }
+  UI.gelijk = { bezig:'Palletlabels ophalen…' }; rerender();
+  try{
+    const r = await WH.catHaal('catalog-ean'); const cat = (r && r.data) || {};
+    if(Object.keys(cat).length < 100) throw new Error('Palletlabels gaf maar ' + Object.keys(cat).length + ' regels terug: niets veranderd.');
+    const plan = gelijkPlan(cat);
+    UI.gelijk.bezig = 'Kopie van palletlabels bewaren…'; rerender();
+    const kopie = 'catalog-ean-kopie-' + isoDag(new Date());
+    await WH.catZet(kopie, cat);
+    const nieuwCat = Object.assign({}, cat);
+    plan.spp.forEach(x => { nieuwCat[x.key] = Object.assign({}, nieuwCat[x.key], { qty:String(x.nieuw) }); });
+    plan.nieuw.forEach(x => { nieuwCat[x.key] = { name:x.name, ean:x.ean, qty:x.qty, sub:x.code, used:0 }; });
+    UI.gelijk.bezig = 'Palletlabels bijwerken…'; rerender();
+    await api('POST', 'catalog?on_conflict=key', [{ key:'catalog-ean', mode:'ean', data:nieuwCat, updated_at:new Date().toISOString() }], { Prefer:'resolution=merge-duplicates,return=minimal' });
+    UI.gelijk.bezig = 'Palletgegevens voor Containers bijwerken…'; rerender();
+    const rows = plan.pal.map(x => { const p = D.P[x.code] || {}, o = { productcode:x.code }; PAL_KOL.forEach(([, kol]) => { o[kol] = x.w[kol] ? x.w[kol].nieuw : (leeg(p[kol]) ? null : p[kol]); }); return o; });
+    if(rows.length) await upsert('producten', rows, 'productcode');
+    UI.gelijk = { klaar:{ spp:plan.spp.length, nieuw:plan.nieuw.length, pal:rows.length, kopie, op:new Date().toISOString() } };
+    await WH.load(); await laad(true); S.idx = null;
+    toast('Gelijkgezet: ' + plural(plan.spp.length, 'aantal', 'aantallen') + ', ' + plural(plan.nieuw.length, 'nieuw label', 'nieuwe labels') + ', ' + plural(rows.length, 'product', 'producten') + ' palletgegevens', 6000);
+  }catch(e){ UI.gelijk = { fout:e.message }; toast('Gelijkzetten mislukt: ' + e.message, 8000); }
+  rerender();
+}
+function gelijkKaart(){
+  const p = gelijkPlan(), n = p.spp.length + p.nieuw.length + p.pal.length;
+  return `<a class="card" href="#/productdata/gelijk" style="display:block;text-decoration:none;color:inherit;border-left:4px solid ${n ? 'var(--orange)' : 'var(--ok)'}"><div class="row between wrap"><div><h3>Gelijkzetten met Palletlabels en Containers</h3>
+    <div class="small muted mt4">${n ? `Palletlabels en Containers lezen nog hun eigen gegevens. Verschil nu: ${nf(p.spp.length)} aantallen per pallet, ${nf(p.nieuw.length)} producten zonder label, ${nf(p.pal.length)} producten met andere palletgegevens.` : 'Palletlabels en Containers zijn gelijk aan Productdata.'}</div></div><span class="btn ${n ? 'acc' : 'ok'}">${n ? 'Bekijken →' : 'Gelijk ✓'}</span></div></a>`;
+}
+function viewGelijk(){
+  const p = gelijkPlan(), G = UI.gelijk || {}, test = window.WH_BRON === 'test';
+  const rij = (cells) => '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+  const kolNaam = { palletmaat:'palletmaat', hoogte_cm:'hoogte', gewicht_kg:'gewicht', plaatsen:'plaatsen', max_per_ligger:'max/ligger' };
+  app.innerHTML = `<div class="row wrap" style="gap:8px"><a class="btn ghost" href="#/productdata">← Productdata</a></div>
+  <div class="card mt8" style="border-left:4px solid var(--orange)"><h2>Gelijkzetten met Palletlabels en Containers</h2>
+    <p class="small mt8">Productdata is de baas. Palletlabels en Containers lezen nog hun eigen opslag; deze knop zet de waarden uit Productdata daar neer. Eerst gaat er een kopie van palletlabels in de database. Niet aangeraakt: labels zonder aantal (aanvulpallet), de namen van bestaande labels, en nvt of onb.</p>
+    ${G.bezig ? `<p class="mt12"><b>${esc(G.bezig)}</b></p>` : G.klaar ? `<p class="mt12" style="color:var(--ok)"><b>Gedaan</b> om ${esc(fdate(G.klaar.op, { hour:'2-digit', minute:'2-digit' }))}: ${nf(G.klaar.spp)} aantallen, ${nf(G.klaar.nieuw)} nieuwe labels, ${nf(G.klaar.pal)} producten palletgegevens. Kopie: <span class="mono">${esc(G.klaar.kopie)}</span>.</p>` : G.fout ? `<p class="mt12" style="color:var(--bad)">${esc(G.fout)}</p>` : ''}
+    <div class="row wrap mt12"><button class="btn acc" data-pd="gelijk-doe" ${test || G.bezig || !(p.spp.length + p.nieuw.length + p.pal.length) ? 'disabled' : ''}>Zet ${nf(p.spp.length + p.nieuw.length + p.pal.length)} verschillen gelijk</button>${test ? '<span class="small muted">Bron staat op TEST: zet de bron op LIVE.</span>' : ''}</div></div>
+  <div class="card mt8"><h3>Aantal per pallet in Palletlabels · ${nf(p.spp.length)}</h3><div class="small muted mt4">Ook Containers en Aanvullen lezen dit getal.</div>
+    ${p.spp.length ? `<div class="tabel mt8" style="overflow-x:auto"><table class="small"><thead><tr><th>Product</th><th>Label</th><th>Nu</th><th>Wordt</th></tr></thead><tbody>${p.spp.map(x => rij([`<span class="mono">${esc(x.code)}</span>`, esc(x.naam), esc(x.oud), `<b>${nf(x.nieuw)}</b>`])).join('')}</tbody></table></div>` : '<p class="small mt8">Geen verschillen.</p>'}</div>
+  <div class="card mt8"><h3>Nieuw label in Palletlabels · ${nf(p.nieuw.length)}</h3><div class="small muted mt4">Producten met stuks per pallet en vloernaam in Productdata, maar zonder label. Komen onderaan de lijst in Palletlabels.</div>
+    ${p.nieuw.length ? `<div class="tabel mt8" style="overflow-x:auto"><table class="small"><thead><tr><th>Product</th><th>Vloernaam</th><th>EAN</th><th>Per pallet</th></tr></thead><tbody>${p.nieuw.map(x => rij([`<span class="mono">${esc(x.code)}</span>`, esc(x.name), `<span class="mono">${esc(x.ean)}</span>`, esc(x.qty)])).join('')}</tbody></table></div>` : '<p class="small mt8">Geen.</p>'}
+    ${p.overslaan.length ? `<details class="mt8"><summary class="small">${nf(p.overslaan.length)} overgeslagen</summary><div class="small mt4">${p.overslaan.map(x => `<span class="mono">${esc(x.code)}</span>: ${esc(x.reden)}`).join('<br>')}</div></details>` : ''}</div>
+  <div class="card mt8"><h3>Palletgegevens voor Containers · ${nf(p.pal.length)}</h3><div class="small muted mt4">Palletmaat, hoogte, gewicht, plaatsen en max per ligger in de producten-tabel, waar Containers mee plant.</div>
+    ${p.pal.length ? `<div class="tabel mt8" style="overflow-x:auto"><table class="small"><thead><tr><th>Product</th><th>Wat verandert</th></tr></thead><tbody>${p.pal.map(x => rij([`<span class="mono">${esc(x.code)}</span>`, Object.entries(x.w).map(([k, v]) => `${kolNaam[k]}: ${v.oud === null ? '<i>leeg</i>' : esc(v.oud)} → <b>${esc(v.nieuw)}</b>`).join(' · ')])).join('')}</tbody></table></div>` : '<p class="small mt8">Geen verschillen.</p>'}</div>`;
+}
+
 /* ---------- inkoophistorie uit Picqer (alleen lezen): in welke hoeveelheden kopen we in? ----------
    Opgeslagen als catalog "wh-inkoop": { t, sinds, n, p:{ code:[[datum, besteld, ontvangen], ...] } } */
 const FN_INK = WH.URL_ + '/functions/v1/picqer-inkoop';
@@ -2667,6 +2756,7 @@ app.addEventListener('click', async ev => {
   if(a === 'imp' || a === 'impinc') return;
   if(a === 'afdmodus'){ UI.afdModus = b.dataset.v; bewaar('afdmodus', UI.afdModus); rerender(); return; }
   if(a === 'inkhaal'){ haalInkoop(); return; }
+  if(a === 'gelijk-doe'){ if(confirm('Productdata gelijkzetten in Palletlabels en Containers? Er gaat eerst een kopie van palletlabels in de database.')) gelijkUitvoeren(); return; }
   if(a === 'kggebruik'){
     const tr = b.closest('tr'), inp = tr && tr.querySelector('input[data-pdt=kgst]'); if(!inp) return;
     inp.dataset.voor = inp.value; inp.value = String(b.dataset.v).replace('.', ','); inp.parentNode.className = 't-nieuw'; tr.dataset.gezien = '1';
@@ -2956,10 +3046,11 @@ async function view(delen){
   if(sub === 'p' && arg) return viewProduct(arg);
   if(sub === 'dubbel') return viewDubbel();
   if(sub === 'poort') return viewPoort();
+  if(sub === 'gelijk') return viewGelijk();
   return viewStart();
 }
 // na het opnieuw laden van de app (WH.load) ook de index vernieuwen
 const herlaad = async () => { S.idx = null; await laad(true); };
 
-return { view, herlaad, S, UI, KANS, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
+return { view, herlaad, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();

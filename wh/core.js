@@ -14,6 +14,15 @@ const URL_ = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
 const KEY  = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
 const H    = { apikey:KEY, Authorization:'Bearer ' + KEY };
 const CAT_KEYS = ['wh-locaties', 'wh-vst-locaties', 'wh-vst-locaties-vorige', 'wh-pq', 'wh-advies', 'wh-aanvul', 'wh-taken', 'wh-triage', 'wh-voorraad', 'wh-vst-voorraad', 'wh-verkoop-mnd', 'wh-bo-vorige', 'wh-stellingen', 'wh-todo', 'wh-leveringen'];
+/* Productdata als bron (bouwplan 0.4, 15-10-2026): eerst in 3.0 en Test, Warehouse en Junior pas na akkoord van Daan.
+   Aan = de tabel productdata wordt geladen (D.PD) en de rekenregels lezen stuks per pallet, aanvullen en picklocatie daar eerst.
+   Per apparaat te overrulen met localStorage 'ivol-pd-bron' = 'aan' of 'uit'. Na akkoord: 'warehouse' en 'junior' aan PD_APPS toevoegen. */
+const PD_APPS = ['test', 'ivol'];
+function pdBron(){
+  try{ const o = localStorage.getItem('ivol-pd-bron'); if(o === 'aan') return true; if(o === 'uit') return false; }catch(e){}
+  if(PD_APPS.includes(window.WH_APP || '')) return true;
+  try{ return window.parent !== window && !!window.parent.IVOL; }catch(e){ return false; }   // een scherm binnen 3.0 telt als 3.0
+}
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 /* ---------- hulpjes ---------- */
@@ -129,7 +138,7 @@ function catPatch(key, patch){
 const D = {
   P:{}, PLOW:{}, VK:{}, BO:[], GEH:{}, CONT:[],
   LEV:{}, LOC:{}, LOCDATUM:null, VSTLOC:{}, VSTDATUM:null, VSTLOCVORIG:{}, PQ:{}, PQDATUM:null, ADV:null, AANVUL:{}, TAKEN:{}, TRIAGE:{}, STEL:{}, TODO:{},
-  VR:{}, VRDATUM:null, VSTVR:{}, VSTVRDATUM:null, VKM:null, BOVORIG:null, PAL:{},
+  VR:{}, VRDATUM:null, VSTVR:{}, VSTVRDATUM:null, VKM:null, BOVORIG:null, PAL:{}, PD:{}, PDAAN:false,
   catTijd:{}, missend:[], geladen:0, fout:null
 };
 const PROD_SEL = 'productcode,naam,leverancier,leverancier_code,ean,locaties_hm,voorraad_hm,gereserveerd_hm,vrij_hm,voorraad_vst,abc,actief,tags,eenheid,palletmaat,picqer_datum,plaatsen,max_per_ligger,gewicht_kg,hoogte_cm,opmerking';
@@ -142,13 +151,17 @@ async function load(){
     // via WHC: alleen ophalen wat sinds de vorige keer veranderd is (scheelt dataverkeer)
     const T = window.WHC ? WHC.tabel : (t, q) => getAll(t, q);
     const PK = ['picqer_datum', 'updated_at'];
-    const [prod, cat, vk, bo, co] = await Promise.all([
+    const pdAan = pdBron();
+    const [prod, cat, vk, bo, co, pd] = await Promise.all([
       safe('producten', T('producten', 'select=' + PROD_SEL + '&order=productcode', PK).catch(e => /column/i.test(e.body || '') ? T('producten', 'select=*&order=productcode', PK) : Promise.reject(e))),
       window.WHC ? WHC.catalog(['catalog-ean'].concat(CAT_KEYS)) : api('GET', 'catalog?key=in.(' + encodeURIComponent(keys) + ')&select=key,data,updated_at'),
       safe('verkoop', T('verkoop', 'select=*', ['geimporteerd_op'])),
       safe('backorders', T('backorders', 'select=*', ['geimporteerd_op'])),
-      safe('containers', T('containers', 'select=id,leverancier,pakbon_ref,containernummer,losdatum,lostijd,status,updated_at,verwacht:data->verwacht,regels:data->regels,voorboekingen:data->voorboekingen,geleverd:data->geleverd,verdeling:data->verdeling&order=losdatum', ['updated_at']))
+      safe('containers', T('containers', 'select=id,leverancier,pakbon_ref,containernummer,losdatum,lostijd,status,updated_at,verwacht:data->verwacht,regels:data->regels,voorboekingen:data->voorboekingen,geleverd:data->geleverd,verdeling:data->verdeling&order=losdatum', ['updated_at'])),
+      pdAan ? safe('productdata', T('productdata', 'select=productcode,data,updated_at', ['updated_at'])) : Promise.resolve([])
     ]);
+    D.PD = {}; D.PDAAN = pdAan;
+    (pd || []).forEach(r => { if(r && r.productcode) D.PD[r.productcode] = r.data || {}; });
     D.P = {}; D.PLOW = {};
     prod.forEach(r => { if(!r.productcode) return; D.P[r.productcode] = r; D.PLOW[r.productcode.toLowerCase()] = r.productcode; });
     D.VK = {}; vk.forEach(r => D.VK[r.productcode] = r);
@@ -646,7 +659,7 @@ function excel(kop, rijen, bestandsnaam){
   else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = bestandsnaam; a.click(); }
 }
 
-return { URL_, KEY, $, esc, leeg, num, txt, bool, nf, plural, dd, isoDag, vandaag, fdate, fdt, dagenOud, toast, setSync, setSaved,
+return { URL_, KEY, pdBron, $, esc, leeg, num, txt, bool, nf, plural, dd, isoDag, vandaag, fdate, fdt, dagenOud, toast, setSync, setSaved,
   api, getAll, upsert, catZet, catHaal, catPatch, D, load, leesSheet, soortVan,
   impProducten, impLocaties, impBackorders, impVerkoop, impAdvies, excel,
   impVerkoopMaand, verkoopMaandenOpslaan, maandUitNaam, maandVerkoop, impVoorraad, zetStuksPerPallet, datumUitNaam,

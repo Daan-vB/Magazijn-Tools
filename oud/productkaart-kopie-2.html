@@ -11,6 +11,7 @@
 <style>
   :root{--rack-blue:#1d4ea0;--beam-orange:#e8590c;--ink:#10151c;--bg:#eef1f5;--line:#cdd5df;--ok:#1c7a4a;--warn:#b86e00;--bad:#b3261e}
   *{box-sizing:border-box;margin:0;padding:0}
+  [hidden]{display:none !important}
   body{font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--ink)}
   .app{display:flex;min-height:100vh}
 
@@ -84,7 +85,7 @@
 <div class="app">
 
   <aside class="panel" id="panel">
-    <a class="back" href="./">← Palletlabel Generator</a>
+    <a class="back" href="../">← Palletlabel Generator</a>
     <h1>Productkaart <span class="sync" id="sync">laden…</span></h1>
     <button class="close" id="close">← Terug naar lijst</button>
     <div id="card"><p class="placeholder">Kies rechts een product uit de lijst.<br><br>Eerste keer? Klik op <b>Picqer-export importeren</b> om alle producten binnen te halen.</p></div>
@@ -94,7 +95,7 @@
     <div class="bar">
       <input id="q" placeholder="Zoek op productcode of naam…" autocomplete="off">
       <select id="lev"><option value="">Alle leveranciers</option></select>
-      <label class="chk"><input type="checkbox" id="fStock" checked> Met voorraad</label>
+      <label class="chk"><input type="checkbox" id="fStock"> Met voorraad</label>
       <label class="chk"><input type="checkbox" id="fOpen"> Alleen onvolledig</label>
       <label class="imp">Picqer-export importeren<input type="file" id="file" accept=".xlsx,.xls,.csv"></label>
     </div>
