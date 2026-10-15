@@ -85,7 +85,7 @@ function kandidaten(metPdf){
     if(!((S.cat.hm || {})[code] > 0)) return false;
     if((D.PQ[code] || [])[2] === 1) return false;                   // virtueel
     const vorig = st[code];
-    const metPick = !!(vorig && vorig.l && vorig.l.some(l => l[2] === 0 && !isKar(l) && isPick(l[0])));
+    const metPick = !!(vorig && vorig.l && vorig.l.some(l => l[2] === 0 && !isKar(l) && !isGeen(l) && isPick(l[0])));   // regel zonder naam = geen specifieke locatie (voorstel functie)
     // zonder niveau alleen als picklijsten voorraad op bulk gereserveerd hebben
     if(!heeftNiv(niveau(code))) return metPick && vorig.l.some(l => l[2] === 1 && l[5] > 0 && !isKar(l));
     const x = idx[code];
