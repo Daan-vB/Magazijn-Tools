@@ -659,7 +659,7 @@ function excel(kop, rijen, bestandsnaam){
   else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = bestandsnaam; a.click(); }
 }
 
-return { URL_, KEY, pdBron, $, esc, leeg, num, txt, bool, nf, plural, dd, isoDag, vandaag, fdate, fdt, dagenOud, toast, setSync, setSaved,
+return { URL_, KEY, pdBron, PD_APPS, $, esc, leeg, num, txt, bool, nf, plural, dd, isoDag, vandaag, fdate, fdt, dagenOud, toast, setSync, setSaved,
   api, getAll, upsert, catZet, catHaal, catPatch, D, load, leesSheet, soortVan,
   impProducten, impLocaties, impBackorders, impVerkoop, impAdvies, excel,
   impVerkoopMaand, verkoopMaandenOpslaan, maandUitNaam, maandVerkoop, impVoorraad, zetStuksPerPallet, datumUitNaam,

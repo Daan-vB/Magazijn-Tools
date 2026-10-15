@@ -22,6 +22,9 @@
   "wh/live.js",
   "wh/aanvullive.js",
   "wh/ivol-live.js",
+  "wh/bouwplan-route.js",
+  "wh/bouwplan.js",
+  "wh/taak.js",
   "wh/ivol.js"
  ],
  "junior": [

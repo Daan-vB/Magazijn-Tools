@@ -27,11 +27,12 @@ const GROEPEN = [
   { k:'park', t:'Geparkeerd' }
 ];
 const M = [
-  { id:'todo', g:'start', t:'Te doen', native:'todo', st:'draait', r:DV, uit:'Wat nu moet, op volgorde van het fundament. Elke regel opent het scherm waar je het doet.' },
+  { id:'todo', g:'start', t:'Te doen', native:'todo', st:'draait', r:DV, uit:'De werkplek: de bouwplanstap van nu, wat vandaag moet en wat later komt. Elke knop opent het scherm waar je het doet.' },
+  { id:'bouwplan', g:'start', t:'Bouwplan', native:'bouwplan', st:'draait', r:DV, uit:'De route, stap voor stap: Nu, Route, Visie, Data, Logboek, Parkeerplaats.' },
+  { id:'taak', g:'start', t:'Taak', native:'taak', st:'draait', r:DV, verborgen:true, uit:'Eén bouwplanstap: wat nog moet, klaar als, vastleggen, afronden.' },
   { id:'fundament', g:'start', t:'Fundament', native:'fundament', st:'draait', r:DK, uit:'Stand van de vier fundamentpunten, uit de echte gegevens.' },
   { id:'kaart', g:'start', t:'Kaart van alles', native:'kaart', st:'draait', r:DV, uit:'Elk onderdeel, waar het staat, welke gegevens, en de status.' },
   { id:'naslag', g:'start', t:'Naslag', native:'naslag', st:'draait', r:DV, uit:'Alle links, koppelingen, functies, mappen en documenten op één plek.' },
-  { id:'bouwplan', g:'start', t:'Bouwplan ↗', ext:BOUWPLAN, st:'draait', r:DV, uit:'De route, stap voor stap (opent apart in claude.ai).' },
 
   { id:'vandaag', g:'vandaag', t:'Vandaag', u:W('#/'), st:'draait', r:DK, data:'wh-taken, wh-todo, Picqer live', uit:'De dag in stappen, taken, leeftijd van de exports.' },
   { id:'live', g:'vandaag', t:'Picqer live', u:T('#/live'), st:'proef', r:DV, data:'functie picqer', uit:'Picklijsten en backorders rechtstreeks uit Picqer.' },
@@ -98,6 +99,7 @@ const ls = k => { try{ return localStorage.getItem(k); }catch(e){ return null; }
 const lsZet = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
 const UI = { rol:ROLLEN[ls('ivol-rol')] ? ls('ivol-rol') : 'daan', menu:false, geladen:false, cache:null };
 const zichtbaar = () => M.filter(m => m.r.includes(UI.rol));
+const inMenu = () => zichtbaar().filter(m => !m.verborgen);
 const startVan = rol => rol === 'vloer' ? 'junior' : rol === 'karin' ? 'vandaag' : 'todo';
 function huidig(){
   const id = (location.hash.match(/^#\/([\w-]+)/) || [])[1];
@@ -109,13 +111,13 @@ function huidig(){
 /* ---------- menu ---------- */
 function tekenMenu(){
   const nu = huidig();
-  const lijst = zichtbaar();
+  const lijst = inMenu();
   $('menulijst').innerHTML = GROEPEN.map(g => {
     const items = lijst.filter(m => m.g === g.k); if(!items.length) return '';
     return `<div class="groep"><div class="gt">${esc(g.t)}</div>${items.map(m => `<a href="${m.ext ? esc(m.ext) + '" target="_blank" rel="noopener' : '#/' + m.id}" class="${m === nu ? 'aan' : ''}">${esc(m.t)}${UI.rol === 'daan' && m.st !== 'draait' ? ` <i class="st ${ST[m.st][1]}">${ST[m.st][0]}</i>` : ''}</a>`).join('')}</div>`;
   }).join('');
   document.querySelectorAll('#rollen button').forEach(b => b.classList.toggle('aan', b.dataset.rol === UI.rol));
-  $('kruimel').textContent = nu ? ((GROEPEN.find(g => g.k === nu.g) || {}).t || '') + ' · ' + nu.t : '';
+  $('kruimel').textContent = nu ? ((GROEPEN.find(g => g.k === nu.g) || {}).t || '') + ' · ' + nu.t + (nu.id === 'taak' && UI.rest ? ' ' + decodeURIComponent(UI.rest) : '') : '';
   const uit = $('nieuwtab');
   if(nu && nu.u){ uit.href = nu.u; uit.hidden = false; } else uit.hidden = true;
 }
@@ -142,17 +144,20 @@ function toon(){
   if(document.body.classList.contains('menu-open')) zetZij(false);
   tekenMenu();
   const fr = $('frame'), nat = $('native');
+  WHTAAK.balk();
   if(m.native){
     fr.hidden = true; nat.hidden = false;
-    nat.innerHTML = m.native === 'kaart' ? viewKaart() : m.native === 'todo' ? viewTodo() : m.native === 'bronnen' ? viewBronnen() : m.native === 'naslag' ? viewNaslag() : viewFundament();
+    if(['todo', 'taak', 'bouwplan'].includes(m.native)){ nat.scrollTop = 0; WHTAAK.render(m.native, UI.rest); nat.scrollTop = 0; }
+    else { nat.innerHTML = m.native === 'kaart' ? viewKaart() : m.native === 'bronnen' ? viewBronnen() : m.native === 'naslag' ? viewNaslag() : viewFundament(); nat.scrollTop = 0; }
     if(m.native === 'naslag') laadNaslag();
-    nat.scrollTop = 0;
-    if(m.native === 'fundament' || m.native === 'todo') rekenFundament();
+    if(['fundament', 'todo', 'taak', 'bouwplan'].includes(m.native)) rekenFundament();
     return;
   }
   nat.hidden = true; fr.hidden = false;
   const url = m.u + (UI.rest ? '/' + UI.rest : '');
-  if(frameUrl !== url){ frameUrl = url; fr.dataset.eigenKop = m.eigenKop ? '1' : ''; fr.src = url; }
+  // ook opnieuw zetten als het scherm in het iframe intussen ergens anders heen ging (bijv. via een knop uit een taak)
+  let nu = null; try{ nu = fr.contentWindow && fr.contentWindow.location.href; }catch(e){}
+  if(frameUrl !== url || (nu && nu !== 'about:blank' && nu !== new URL(url, location.href).href)){ frameUrl = url; fr.dataset.eigenKop = m.eigenKop ? '1' : ''; fr.src = url; }
 }
 // de eigen kop van Warehouse, Test en Containers verbergen: het menu staat in de schil
 function frameGeladen(){
@@ -174,7 +179,7 @@ function viewKaart(){
     <h1>Kaart van alles</h1>
     <p class="lede">Alles wat in vier weken is gebouwd, op één plek. ${tel('draait')} onderdelen draaien, ${tel('proef')} zijn proef (alleen voor Daan), ${tel('geparkeerd')} geparkeerd, ${tel('naslag')} naslag. Eén database: Supabase "Palletlabels". Picqer alleen lezen via de functie <code>picqer</code>.</p>
     ${GROEPEN.filter(g => g.k !== 'start').map(g => {
-      const items = M.filter(m => m.g === g.k); if(!items.length) return '';
+      const items = M.filter(m => m.g === g.k && !m.verborgen); if(!items.length) return '';
       return `<section class="blok"><h2>${esc(g.t)}</h2><div class="tabel"><table><thead><tr><th>Onderdeel</th><th>Status</th><th>Voor</th><th>Gegevens</th><th>Waar</th></tr></thead><tbody>
         ${items.map(m => `<tr><td><a href="#/${m.id}"><b>${esc(m.t)}</b></a><br><span class="muted">${esc(m.uit)}</span></td><td><i class="st ${ST[m.st][1]}">${ST[m.st][0]}</i></td><td>${m.r.map(r => ROLLEN[r]).join(', ')}</td><td class="code">${esc(m.data || '')}</td><td class="code">${esc((m.u || '').replace('./', ''))}</td></tr>`).join('')}
       </tbody></table></div></section>`;
@@ -201,10 +206,7 @@ function viewKaart(){
 function viewFundament(){
   return `<div class="pagina">
     <h1>Fundament</h1>
-    <p class="lede">Eerst moet het systeem kloppen, dan pas mensen en taken. Vier punten, in deze volgorde. Elk getal komt uit de gegevens in de database.</p>
-    <section class="taak"><span class="eyebrow">De ene taak</span><h2>Live advies naast de aanvuladvies-PDF leggen</h2>
-      <p>Klopt het, dan gaat Live advies naar Warehouse en Junior en vervalt de PDF-export. Klopt het niet, dan schrijven we de verschillen op en lossen we alleen die op.</p>
-      <div class="rij"><a class="knop pri" href="#/vergelijk">Live naast PDF openen</a></div></section>
+    <p class="lede">Eerst moet het systeem kloppen, dan pas mensen en taken. Vier punten, in deze volgorde. Elk getal komt uit de gegevens in de database. Wat nu aan de beurt is, zegt het bouwplan (Te doen).</p>
     <div id="fund" class="fund">${UI.cache || `<div class="leeg">Gegevens laden…</div>`}</div>
   </div>`;
 }
@@ -302,7 +304,9 @@ async function rekenFundament(){
     const komend = open.filter(c => c.losdatum && c.losdatum >= v && c.losdatum <= over14);
     const voorbij = open.filter(c => c.losdatum && c.losdatum < v);
     const zonder = open.filter(c => !c.losdatum);
-    Object.assign(UI.stats, { open:open.length, voorbij:voorbij.length, zonder:zonder.length, komend:komend.length });
+    const morgen = isoDag(new Date(Date.now() + 864e5));
+    Object.assign(UI.stats, { open:open.length, voorbij:voorbij.length, zonder:zonder.length, komend:komend.length,
+      lossenVandaag:open.filter(c => c.losdatum === v).length, lossenMorgen:open.filter(c => c.losdatum === morgen).length });
     h += blok(4, 'Elke ontvangst krijgt een plek', voorbij.length ? 'oranje' : 'groen', `<b>${nf(komend.length)}</b> containers in de komende 14 dagen`, [
       ['Open containers', nf(open.length)],
       ['Losdatum voorbij, nog niet afgerond', nf(voorbij.length), voorbij.length ? 'let' : ''],
@@ -313,6 +317,8 @@ async function rekenFundament(){
     // gegevens: hoe vers
     const boD = (D.BO || []).reduce((m, r) => r.geimporteerd_op && (!m || r.geimporteerd_op > m) ? r.geimporteerd_op : m, null);
     const pD = Object.values(D.P).reduce((m, r) => r.picqer_datum && (!m || r.picqer_datum > m) ? r.picqer_datum : m, null);
+    UI.stats.oudExp = [['Backorders', boD, 1], ['Aanvuladvies-PDF', D.ADV && (D.ADV.ingelezen || D.ADV.datum), 1], ['Voorraad per locatie', D.VRDATUM, 1], ['Producten', pD, 7], ['Locaties', D.LOCDATUM, 7], ['Aanvulniveaus (Picqer)', D.PQDATUM, 7]]
+      .filter(([t, iso, max]) => oud(iso) == null || oud(iso) > max).map(([t, iso]) => ({ t, w:wanneer(iso) }));
     const rij = (t, iso, max) => `<tr><td>${esc(t)}</td><td class="${oud(iso) == null || oud(iso) > max ? 'let' : ''}">${esc(wanneer(iso))}</td><td class="muted">${max === 0 ? 'dagelijks' : max === 1 ? 'dagelijks' : 'elke ' + max + ' dagen'}</td></tr>`;
     h += `<section class="blok vers"><h2>Hoe vers zijn de gegevens</h2><div class="tabel"><table><thead><tr><th>Export</th><th>Laatst</th><th>Ritme</th></tr></thead><tbody>
       ${rij('Backorders', boD, 1)}${rij('Aanvuladvies-PDF', D.ADV && (D.ADV.ingelezen || D.ADV.datum), 1)}${rij('Voorraad per locatie', D.VRDATUM, 1)}${rij('Producten', pD, 7)}${rij('Locaties', D.LOCDATUM, 7)}${rij('Aanvulniveaus (Picqer)', D.PQDATUM, 7)}
@@ -320,7 +326,7 @@ async function rekenFundament(){
   }catch(e){ console.error(e); h = `<div class="melding">Rekenen lukte niet: ${esc(e.message)}</div>`; }
   UI.cache = h;
   const el = $('fund'); if(el) el.innerHTML = h;
-  const td = $('todo'); if(td) td.innerHTML = todoLijst();
+  WHTAAK.herteken();
 }
 const LIVE = () => { try{ return !!localStorage.getItem('ivol-koppelcode'); }catch(e){ return false; } };
 
@@ -329,43 +335,6 @@ let laadP = null;
 function geladen(){
   if(!laadP) laadP = (async () => { const ok = await WH.load(); try{ await WHAL.laadOpslag(); }catch(e){} UI.geladen = true; return ok !== false; })();
   return laadP;
-}
-
-/* ---------- te doen: elke regel opent het scherm waar je het doet ---------- */
-function todoItems(){
-  const S = UI.stats, B = window.IVL ? IVL.bronnen() : null, out = [];
-  const zet = (f, n, t, w, link, knop) => out.push({ f, n, t, w, link, knop });
-  if(B && !B.gekoppeld) zet(0, null, 'Koppel 3.0 met Picqer', 'Eén keer op dit apparaat. Daarna haalt 3.0 alles zelf op.', 'bronnen', 'Koppelen');
-  if(B && B.functieOud) zet(0, null, 'Picqer-functie bijwerken', 'Locaties en aanvulniveaus live: 5 minuten op de Mac.', 'bronnen', 'Stappen');
-  if(!S) return out;
-  if(!S.pdfVandaag) zet(1, null, 'Verse aanvuladvies-PDF inladen', 'Pas dan is live naast PDF een eerlijke vergelijking (de ene taak).', 'gegevens', 'Gegevens inladen');
-  else zet(1, S.V ? S.V.alleenPdf.length + S.V.alleenLive.length : null, 'Live naast PDF nalopen', 'De ene taak: verschillen opschrijven of akkoord geven.', 'vergelijk', 'Openen');
-  if(S.cnt.niveau) zet(3, S.cnt.niveau, 'Lopers zonder aanvulniveau in Picqer', S.cnt.nivPd ? nf(S.cnt.nivPd) + ' staan al in Productdata en wachten op de import naar Picqer (stap 4.1). De rest nog invullen.' : 'Picqer vult ze niet aan, dus ze staan in geen enkel advies.', S.cnt.nivPd ? 'productdata' : 'abcheck/niveau', S.cnt.nivPd ? 'Productdata' : 'Niveaus invullen');
-  if(S.cnt.pick) zet(3, S.cnt.pick, 'Lopers zonder vaste picklocatie in Picqer', (S.cnt.pickPd ? nf(S.cnt.pickPd) + ' staan in Productdata op ja: alleen nog een plek koppelen. ' : '') + 'Orders blijven op deze producten in backorder hangen.', 'abcheck/pick', 'Picklocaties');
-  if(S.cnt.tijd) zet(3, S.cnt.tijd, 'Lopers met picklocatie op tijdelijk', 'Ontkoppelt bij voorraad 0.', 'abcheck/tijd', 'Vast zetten');
-  if(S.cnt.spp) zet(3, S.cnt.spp, 'Lopers zonder stuks per pallet', 'Nodig voor labels, verdeling en aanvullen met hele pallets.', 'productdata', 'Productdata');
-  if(S.afw) zet(2, S.afw, 'Locaties: pick/bulk of vast/tijdelijk wijkt af', 'Na de regel: 00–09 pick en vast, 10+ bulk en tijdelijk.', 'locaties', 'Locaties');
-  if(S.A.dubbel.length) zet(2, S.A.dubbel.length, 'Dubbele BA-locaties met producten', 'Producten van BA..-06 naar BA..06, daarna archiveren.', 'locaties', 'Locaties');
-  if(S.A.rommel.length) zet(2, S.A.rommel.length, 'Rommel-locaties met producten', 'Zoals "kwijt", "tafel": producten naar een echte locatie.', 'locaties', 'Locaties');
-  if(S.A.opMap.length) zet(2, S.A.opMap.length, 'Producten op een gang- of niveaumap', 'Mappen zijn geen locaties.', 'locaties', 'Locaties');
-  if(S.voorbij) zet(4, S.voorbij, 'Containers met losdatum voorbij', 'Gelost? Dan ontvangst inlezen en afronden.', 'containers', 'Containers');
-  if(S.zonder) zet(4, S.zonder, 'Container zonder losdatum', 'Vervoerder bellen of verwachte datum zetten.', 'containers', 'Containers');
-  return out.sort((a, b) => a.f - b.f);
-}
-const FNAAM = { 0:'Koppeling', 1:'Aanvuladvies', 2:'Locaties', 3:'Producten', 4:'Inkomend' };
-function todoLijst(){
-  const it = todoItems();
-  if(!UI.stats && !it.length) return '<div class="leeg">Gegevens laden…</div>';
-  if(!it.length) return '<div class="leeg">Niets te doen. Het fundament staat.</div>';
-  return it.map((x, i) => `<a class="todo" href="#/${x.link}"><span class="tnr">${i + 1}</span><span class="tt"><b>${x.n != null ? nf(x.n) + ' · ' : ''}${esc(x.t)}</b><span>${esc(x.w)}</span><i class="ft">${esc(FNAAM[x.f])}</i></span><span class="tk">${esc(x.knop)} →</span></a>`).join('');
-}
-function viewTodo(){
-  return `<div class="pagina">
-    <h1>Te doen</h1>
-    <a class="todo" href="${BOUWPLAN}" target="_blank" rel="noopener" style="border-left:6px solid #f08a4b"><span class="tnr">★</span><span class="tt"><b>Bouwplan: de stap van nu gaat voor</b><span>Eén stap tegelijk. Wat hieronder staat en niet bij die stap hoort, wacht.</span><i class="ft">Bouwplan</i></span><span class="tk">Openen ↗</span></a>
-    <p class="lede">Op volgorde van het fundament. Tik een regel: je komt direct op het scherm waar je het doet.</p>
-    <div id="todo" class="todos">${todoLijst()}</div>
-  </div>`;
 }
 
 /* ---------- naslag: alle links, koppelingen, functies, mappen en documenten op één plek ----------
@@ -381,13 +350,16 @@ const NASLAG = [
     ['Productkaart', './productkaart.html', 'Alles over één product'],
     ['Testdata Picqer', './testdata.html', 'Picqer-testomgeving vullen (schrijft alleen naar ivol-dev)'],
     ['Ploeg', './ploeg.html', 'Geparkeerd tot bouwplan stap 2.1'],
-    ['Bouwplan', BOUWPLAN, 'De route, stap voor stap (claude.ai)'] ] },
+    ['Bouwplan', '#/bouwplan', 'De route, stap voor stap: staat nu in 3.0'],
+    ['Oud bouwplan (claude.ai, archief)', BOUWPLAN, 'Alleen nog naslag; de stand is overgenomen in 3.0 → Bouwplan'] ] },
   { g:'Code · GitHub', rijen:[
     ['Repo Magazijn-Tools', 'https://github.com/Daan-vB/Magazijn-Tools', 'Openbaar: nooit sleutels of bedrijfsdata in de repo'],
     ['Automatische taken (Actions)', 'https://github.com/Daan-vB/Magazijn-Tools/actions', 'Functies live zetten · versleutelde data-export · spraak naar tekst · Productdata door Claude · database-opbouw'],
     ['Gedeelde code (map wh/)', 'https://github.com/Daan-vB/Magazijn-Tools/tree/main/wh', 'Eén code voor 3.0, Warehouse, Test, Junior en Ploeg; welke app wat laadt: wh/lijst.json'] ] },
   { g:'Database · Supabase "Palletlabels"', rijen:[
     ['Dashboard', 'https://supabase.com/dashboard/project/jarbgetbwkjtxwtcfwmq', 'Frankfurt · gratis abonnement (bouwplan 0.3) · organisatie Daan_Private'],
+    ['Back-ups', 'https://supabase.com/dashboard/project/jarbgetbwkjtxwtcfwmq/database/backups/scheduled', 'Dagelijkse back-ups (vanaf Pro, bouwplan 0.3)'],
+    ['Gebruik', 'https://supabase.com/dashboard/project/jarbgetbwkjtxwtcfwmq/settings/billing/usage', 'Dataverkeer en opslag tegen de grens van het abonnement'],
     ['Tabellen', '', 'producten · productdata · catalog (rijen wh-… en catalog-ean) · containers · pakbon_alias · verkoop · backorders · todos'],
     ['Edge Functions', 'https://supabase.com/dashboard/project/jarbgetbwkjtxwtcfwmq/functions', 'picqer (live, lezen) · picqer-inkoop (live, lezen) · picqer-test (test, lezen) · picqer-seed (test, schrijven) · db-setup (eenmalig)'],
     ['Geheimen (alleen de namen)', '', 'Onder Edge Functions → Secrets: PICQER_DOMAIN, PICQER_KEY, PICQER_WAREHOUSE, PICQER_VST, IVOL_CODE (koppelcode), PICQER_TEST_DOMAIN, PICQER_TEST_KEY, PICQER_TEST_WAREHOUSE, PICQER_TEST_VST'] ] },
@@ -410,7 +382,7 @@ async function laadNaslag(){
   NS.laden = false;
   const nat = $('native'); if(nat && huidig().native === 'naslag') nat.innerHTML = viewNaslag();
 }
-const linkCel = (a) => !a ? '' : /^(https?:|\.\/)/.test(a) ? `<a href="${esc(a)}" target="_blank" rel="noopener">${esc(a.replace(/^https?:\/\//, '').replace(/^\.\//, ''))}</a>` : `<span class="code">${esc(a)}</span>`;
+const linkCel = (a) => !a ? '' : /^#\//.test(a) ? `<a href="${esc(a)}">3.0 ${esc(a)}</a>` : /^(https?:|\.\/)/.test(a) ? `<a href="${esc(a)}" target="_blank" rel="noopener">${esc(a.replace(/^https?:\/\//, '').replace(/^\.\//, ''))}</a>` : `<span class="code">${esc(a)}</span>`;
 function viewNaslag(){
   const eigen = (NS.d && NS.d.rijen) || [];
   const groepen = [...new Set(eigen.map(r => r.g || 'Overig'))];
@@ -484,7 +456,7 @@ function herreken(){
   tekenPill();
   const m = huidig();
   if(m && m.native === 'bronnen'){ const nat = $('native'); if(nat && !(document.activeElement && document.activeElement.id === 'kcode')) nat.innerHTML = viewBronnen(); }
-  if(m && (m.native === 'todo' || m.native === 'fundament')){ clearTimeout(herT); herT = setTimeout(rekenFundament, 4000); }
+  if(m && ['todo', 'fundament', 'taak', 'bouwplan'].includes(m.native)){ clearTimeout(herT); herT = setTimeout(rekenFundament, 4000); }
 }
 
 /* ---------- nieuwe versie: elke 5 minuten (en bij terugkomen) kijken of de bestanden op GitHub Pages veranderd zijn ----------
@@ -544,5 +516,5 @@ $('frame').addEventListener('load', frameGeladen);
 toon();
 IVL.opNieuw(herreken);
 geladen().then(() => { tekenPill(); herreken(); IVL.ronde(false); });
-return { M, GROEPEN, toon };
+return { M, GROEPEN, toon, huidig, geladen, stats:() => UI.stats || null };
 })();

@@ -18,7 +18,7 @@
 window.WHPD = (function(){
 'use strict';
 const { $, esc, leeg, num, nf, plural, toast, api, upsert, D, isoDag, fdate } = WH;
-const app = $('app');
+const app = $('app');   // in 3.0 is er geen #app: dan alleen rekenen (poort, lijsten), geen schermen
 const V = () => window.WHV;
 
 /* ---------- velden ---------- */
@@ -56,7 +56,7 @@ const LEEGWAARDE = v => leeg(v) || String(v).trim().toLowerCase() === 'onb';
 const NVT = v => String(v ?? '').trim().toLowerCase() === 'nvt';
 
 /* ---------- toestand ---------- */
-const S = { pd:{}, extra:{}, cat:null, labels:{}, mv:{}, toets:null, klaar:false, laden:null, mist:false, fout:null, idx:null };
+const S = { pd:{}, extra:{}, cat:null, labels:{}, mv:{}, toets:null, klaar:false, laden:null, mist:false, fout:null, idx:null, laterMee:true };
 const bewaard = k => { try{ return localStorage.getItem('wh-pd-' + k); }catch(e){ return null; } };
 const bewaar = (k, v) => { try{ localStorage.setItem('wh-pd-' + k, v); }catch(e){} };
 const UI = { afdModus:bewaard('afdmodus') || 'tabel', scope:bewaard('scope2') || 'belangrijk', laag:+(bewaard('laag') || 1), lev:bewaard('lev') || '', zoek:'', over:new Set(), i:0, concept:{}, alles:{}, mig:null };
@@ -71,7 +71,7 @@ async function laad(vers){
       const [rows, extra, cat] = await Promise.all([
         T('productdata', 'select=*', ['updated_at']).catch(e => { if(isMissing(e)){ S.mist = true; return []; } throw e; }),
         T('producten', 'select=productcode,gewicht_product_g,lengte_product_cm,breedte_product_cm,hoogte_product_cm,leverancier_code&order=productcode', ['picqer_datum', 'updated_at']).catch(() => []),
-        (window.WHC ? WHC.catalog(['wh-pq-cat', 'catalog-ean', 'wh-verplaatsingen', 'wh-inkoop']) : api('GET', 'catalog?key=in.(%22wh-pq-cat%22,%22catalog-ean%22,%22wh-verplaatsingen%22,%22wh-inkoop%22)&select=key,data,updated_at')).catch(() => [])
+        (window.WHC ? WHC.catalog(['wh-pq-cat', 'catalog-ean', 'wh-verplaatsingen', 'wh-inkoop', 'wh-bouwplan']) : api('GET', 'catalog?key=in.(%22wh-pq-cat%22,%22catalog-ean%22,%22wh-verplaatsingen%22,%22wh-inkoop%22,%22wh-bouwplan%22)&select=key,data,updated_at')).catch(() => [])
       ]);
       S.pd = {}; rows.forEach(r => { S.pd[r.productcode] = { data:r.data || {}, meta:r.meta || {}, t:r.updated_at }; });
       S.extra = {}; extra.forEach(r => { S.extra[r.productcode] = r; });
@@ -80,6 +80,9 @@ async function laad(vers){
       // verplaatsingen uit Picqer: [id, tijd, wie, code, aantal, van, naar, magazijn]
       S.mv = {}; (((cat || []).find(r => r.key === 'wh-verplaatsingen') || {}).data || {}).rows?.forEach(r => { const c = D.PLOW[String(r[3] || '').toLowerCase()] || r[3]; (S.mv[c] = S.mv[c] || []).push({ n:num(r[4]) || 0, van:r[5] || '', naar:r[6] || '', vst:/spreuwel/i.test(r[7] || '') }); });
       S.ink = ((cat || []).find(r => r.key === 'wh-inkoop') || {}).data || null;
+      // bouwplan-schakelaar "Later en Op maat tellen mee in de poort" (standaard ja)
+      const bp = ((cat || []).find(r => r.key === 'wh-bouwplan') || {}).data;
+      S.laterMee = !(bp && bp.inst && bp.inst.poortLaterMee === false);
       S.idx = null; S.klaar = true; S.fout = null;
     }catch(e){ S.fout = e; }
   })();
@@ -506,7 +509,7 @@ function inScope(code, sc, metFilter = true){
   if(metFilter && UI.lev && p.leverancier !== UI.lev) return false;
   const abc = abcVan(code);
   switch(sc || UI.scope){
-    case 'belangrijk': return abc === 'A' || abc === 'B' || index().binnen.has(code);
+    case 'belangrijk': if(!S.laterMee && (pdWaarde(code, 'later') || isOpMaat(code))) return false; return abc === 'A' || abc === 'B' || index().binnen.has(code);
     case 'A': return abc === 'A';
     case 'AB': return abc === 'A' || abc === 'B';
     case 'beweegt': return !!(abc || pdVan(code) > 0 || vkmVan(code) > 0 || index().bo[code]);
@@ -2526,7 +2529,7 @@ function kleinCellen(tr, s){
   const mix = s === 'mix';
   ['geleverd', 'maxpick', 'metn', 'mixgroep'].forEach(kk => { const e = tr.querySelector(`input[data-pdt="${kk}"]`); if(!e || e.disabled === !mix) return; e.disabled = !mix; e.placeholder = mix ? KPH[kk] : '–'; e.parentNode.className = mix ? (e.value ? 't-voor' : 't-mist') : 't-nvt'; });
 }
-app.addEventListener('input', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt === 'opslag' && inp.closest('table[data-klein]')) kleinCellen(inp.closest('tr'), soortNorm(inp.value)); }, true);
+if(app) app.addEventListener('input', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt === 'opslag' && inp.closest('table[data-klein]')) kleinCellen(inp.closest('tr'), soortNorm(inp.value)); }, true);
 // afhankelijke cellen in een soorten-regel
 function kleinAfhankelijk(inp){
   const tr = inp.closest('tr'), k = inp.dataset.pdt, cel = kk => tr.querySelector(`input[data-pdt="${kk}"]`);
@@ -2544,7 +2547,7 @@ function kleinAfhankelijk(inp){
   inp.dataset.voor = inp.value;
 }
 // gebeurtenissen van het soorten-scherm (data-pk)
-app.addEventListener('click', async ev => {
+if(app) app.addEventListener('click', async ev => {
   const b = ev.target.closest && ev.target.closest('[data-pk]'); if(!b || !app.contains(b)) return;
   const K = kSt(), a = b.dataset.pk, v = b.dataset.v;
   if(a === 'zoek' || a === 'lev' || a === 'sort') return;
@@ -2577,7 +2580,7 @@ app.addEventListener('click', async ev => {
     finally{ busy = false; rerender(); }
   }
 });
-app.addEventListener('input', ev => {
+if(app) app.addEventListener('input', ev => {
   const el = ev.target; if(!el.dataset) return;
   const K = kSt();
   if(el.dataset.pk === 'zoek'){ K.zoek = el.value; K.n = 120; clearTimeout(UI.kt); UI.kt = setTimeout(rerender, 300); return; }
@@ -2586,7 +2589,7 @@ app.addEventListener('input', ev => {
     if(g === 'max' && K.b.max) K.b.maxw = ''; if(g === 'maxw' && K.b.maxw) K.b.max = '';
     clearTimeout(UI.kt); UI.kt = setTimeout(rerender, 450); }
 });
-app.addEventListener('change', ev => {
+if(app) app.addEventListener('change', ev => {
   const el = ev.target; if(!el.dataset) return;
   const K = kSt();
   if(el.dataset.pk === 'lev'){ K.lev = el.value; K.n = 120; bewaarK(); rerender(); return; }
@@ -2720,10 +2723,10 @@ async function bewaarProduct(code, alle, ks, opt){
 let busy = false, knopOmlaag = false;
 // een klik op een knop begint met pointerdown en daarna verlaat je het invulveld (change). Dan niet opnieuw tekenen,
 // anders verdwijnt de knop onder je vinger. De knop zelf tekent na de klik opnieuw.
-app.addEventListener('pointerdown', ev => { knopOmlaag = !!(ev.target.closest && ev.target.closest('button, a')); }, true);
+if(app) app.addEventListener('pointerdown', ev => { knopOmlaag = !!(ev.target.closest && ev.target.closest('button, a')); }, true);
 document.addEventListener('pointerup', () => { knopOmlaag = false; }, true);
 document.addEventListener('pointercancel', () => { knopOmlaag = false; }, true);
-app.addEventListener('click', async ev => {
+if(app) app.addEventListener('click', async ev => {
   const alb = ev.target.closest && ev.target.closest('[data-pdal]');
   if(alb){ const inp = alb.parentNode.querySelector('input[data-pdt]'); if(inp){ inp.value = NVT(inp.value) ? '' : 'nvt'; inp.dispatchEvent(new Event('input', { bubbles:true })); inp.dispatchEvent(new Event('change', { bubbles:true })); alb.textContent = (NVT(inp.value) ? '✓ ' : '') + 'alleen pallet'; } return; }
   const s = ev.target.closest('button[data-pds]');
@@ -2808,7 +2811,7 @@ app.addEventListener('click', async ev => {
   }catch(e){ toast(e.message, 6000); }
   finally{ busy = false; if(document.body.contains(b)) b.disabled = false; }
 });
-app.addEventListener('input', ev => {
+if(app) app.addEventListener('input', ev => {
   const el = ev.target; if(!el.dataset) return;
   if(el.dataset.pd === 'imp'){ UI.imp = el.value; bewaar('imp', UI.imp); return; }
   if(el.dataset.pdr === 'in'){ const bs = regelSt(); bs.in[el.dataset.code] = el.value; bewaar('regelin', JSON.stringify(bs.in)); return; }
@@ -2816,7 +2819,7 @@ app.addEventListener('input', ev => {
   if(el.dataset.pds && el.type !== 'checkbox'){ samenInvoer(el); return; }
   if(el.dataset.pd === 'zoek'){ UI.zoek = el.value; UI.i = 0; clearTimeout(UI.t); UI.t = setTimeout(() => rerender(), 300); }
 });
-app.addEventListener('change', ev => {
+if(app) app.addEventListener('change', ev => {
   const el = ev.target; if(!el.dataset) return;
   if(el.dataset.pd === 'lev'){ UI.lev = el.value; bewaar('lev', UI.lev); UI.i = 0; rerender(); return; }
   if(el.dataset.pdr && el.dataset.pdr !== 'in'){ const bs = regelSt(); if(el.dataset.pdr === 'hand') bs.hand = el.checked; if(el.dataset.pdr === 'inc'){ const u = bs.uit[bs.r] = bs.uit[bs.r] || new Set(); if(el.checked) u.delete(el.dataset.code); else u.add(el.dataset.code); } clearTimeout(UI.rt); UI.rt = setTimeout(rerender, 0); return; }
@@ -2830,7 +2833,7 @@ app.addEventListener('change', ev => {
   if((el.dataset.pdc || el.dataset.pds || el.dataset.pdr === 'in') && !knopOmlaag){ clearTimeout(UI.rt); UI.rt = setTimeout(() => { if(!knopOmlaag) rerender(); }, 0); }
 });
 // tabel: Enter = cel eronder, pijl op/neer = rij erboven/eronder, regel verlaten = opslaan
-app.addEventListener('keydown', ev => {
+if(app) app.addEventListener('keydown', ev => {
   const inp = ev.target; if(!inp.dataset || !inp.dataset.pdt) return;
   const ctrl = ev.ctrlKey || ev.metaKey;
   if(ev.shiftKey && (ev.key === 'ArrowDown' || ev.key === 'ArrowUp')){ ev.preventDefault(); tsUitbreiden(inp, ev.key === 'ArrowDown' ? 1 : -1); return; }
@@ -2848,10 +2851,10 @@ app.addEventListener('keydown', ev => {
     }
   }
 }, true);
-app.addEventListener('input', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt){ inp.parentNode.className = 't-nieuw'; inp.closest('tr').dataset.vuil = '1'; } }, true);
-app.addEventListener('change', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt) tabAfhankelijk(inp); }, true);
-app.addEventListener('focusin', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt){ inp.closest('tr').dataset.gezien = '1'; inp.dataset.voor = inp.value; TS.laatste = inp; try{ inp.select(); }catch(e){} if(!TS.houd) tsZet(inp, inp); else tsHandvat(); } });
-app.addEventListener('focusout', ev => {
+if(app) app.addEventListener('input', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt){ inp.parentNode.className = 't-nieuw'; inp.closest('tr').dataset.vuil = '1'; } }, true);
+if(app) app.addEventListener('change', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt) tabAfhankelijk(inp); }, true);
+if(app) app.addEventListener('focusin', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdt){ inp.closest('tr').dataset.gezien = '1'; inp.dataset.voor = inp.value; TS.laatste = inp; try{ inp.select(); }catch(e){} if(!TS.houd) tsZet(inp, inp); else tsHandvat(); } });
+if(app) app.addEventListener('focusout', ev => {
   const inp = ev.target; if(!inp.dataset || !inp.dataset.pdt) return;
   const tr = inp.closest('tr'), naar = ev.relatedTarget;
   if(naar && tr.contains(naar)) return;          // nog in dezelfde regel
@@ -2911,9 +2914,9 @@ function tsVulOmlaag(inp){
   tsZetVeel(paren);
 }
 const tsTekst = vak => { const rijen = tsRijen(), uit = []; for(let r = vak.r1; r <= vak.r2; r++){ const rij = []; for(let c = vak.c1; c <= vak.c2; c++){ const i = tsCel(rijen, r, c); rij.push(i && !i.disabled ? i.value : ''); } uit.push(rij.join('\t')); } return uit.join('\n'); };
-app.addEventListener('copy', ev => { if(!ev.target.dataset || !ev.target.dataset.pdt || tsAantal() < 2) return; ev.preventDefault(); ev.clipboardData.setData('text/plain', tsTekst(tsVak())); toast(plural(tsAantal(), 'cel', 'cellen') + ' gekopieerd', 1800); });
-app.addEventListener('cut', ev => { if(!ev.target.dataset || !ev.target.dataset.pdt || tsAantal() < 2) return; ev.preventDefault(); ev.clipboardData.setData('text/plain', tsTekst(tsVak())); tsZetVeel(tsCellen().map(i => [i, ''])); });
-app.addEventListener('paste', ev => {
+if(app) app.addEventListener('copy', ev => { if(!ev.target.dataset || !ev.target.dataset.pdt || tsAantal() < 2) return; ev.preventDefault(); ev.clipboardData.setData('text/plain', tsTekst(tsVak())); toast(plural(tsAantal(), 'cel', 'cellen') + ' gekopieerd', 1800); });
+if(app) app.addEventListener('cut', ev => { if(!ev.target.dataset || !ev.target.dataset.pdt || tsAantal() < 2) return; ev.preventDefault(); ev.clipboardData.setData('text/plain', tsTekst(tsVak())); tsZetVeel(tsCellen().map(i => [i, ''])); });
+if(app) app.addEventListener('paste', ev => {
   const inp = ev.target; if(!inp.dataset || !inp.dataset.pdt) return;
   const t = (ev.clipboardData && ev.clipboardData.getData('text/plain') || '').replace(/\r/g, '').replace(/\n+$/, '');
   const blok = t.split('\n').map(r => r.split('\t')), een = blok.length === 1 && blok[0].length === 1;
@@ -2930,8 +2933,8 @@ app.addEventListener('paste', ev => {
   tsZetVeel(paren);
 });
 // knoppen: dezelfde waarde vullen (werkt met alleen de muis)
-app.addEventListener('mousedown', ev => { if(ev.target.closest && ev.target.closest('[data-pdvul]')) ev.preventDefault(); }, true);
-app.addEventListener('click', ev => {
+if(app) app.addEventListener('mousedown', ev => { if(ev.target.closest && ev.target.closest('[data-pdvul]')) ev.preventDefault(); }, true);
+if(app) app.addEventListener('click', ev => {
   const kn = ev.target.closest && ev.target.closest('[data-pdvul]'); if(!kn) return;
   const inp = TS.laatste && document.body.contains(TS.laatste) ? TS.laatste : null;
   if(!inp){ toast('Klik eerst in de cel met de waarde die je wilt vullen', 3000); return; }
@@ -2942,7 +2945,7 @@ app.addEventListener('click', ev => {
   tsZetVeel(doelen.map(d => [d, v])); toast(plural(doelen.length, 'cel', 'cellen') + ' gevuld met ' + (v || 'leeg'), 2500);
 });
 // slepen: met de muis een vak kiezen, of het blauwe vierkantje doortrekken
-app.addEventListener('mousedown', ev => {
+if(app) app.addEventListener('mousedown', ev => {
   if(ev.target.classList && ev.target.classList.contains('pd-fh')){ ev.preventDefault(); const v = tsVak(); if(v){ TS.trek = v; TS.my = null; ev.target.closest('table').classList.add('slepen'); tsAutoScroll(); } return; }
   const inp = ev.target; if(!inp.dataset || !inp.dataset.pdt || ev.button !== 0) return;
   if(ev.shiftKey && TS.a){ ev.preventDefault(); TS.b = tsPos(inp); tsVerf(); return; }
@@ -2971,6 +2974,7 @@ function tsOnder(){
   if(TS.sleep && (p.r !== TS.b.r || p.c !== TS.b.c)){ TS.b = p; TS.houd = true; tsVerf(); const a = tsCel(tsRijen(), TS.a.r, TS.a.c); if(a && document.activeElement !== a) a.focus({ preventScroll:true }); TS.houd = false; }
 }
 document.addEventListener('mouseup', () => {
+  if(!app) return;
   TS.sleep = false; clearInterval(TS.auto); app.querySelectorAll('table.slepen').forEach(t => t.classList.remove('slepen'));
   if(!TS.trek) return;
   const bron = TS.trek, v = tsVak(); TS.trek = null; if(!v || v.r2 <= bron.r2) return;
@@ -3004,7 +3008,7 @@ function sluitSheet(){
 }
 window.addEventListener('hashchange', () => { if(!/^#\/productdata\/afd\/[^/]+\/kaart/.test(location.hash)){ UI.sheet = null; document.body.classList.remove('pd-lock'); } });
 document.addEventListener('keydown', ev => { if(ev.key === 'Escape' && UI.sheet && location.hash.indexOf('#/productdata') === 0){ ev.preventDefault(); sluitSheet(); } });
-app.addEventListener('keydown', ev => {
+if(app) app.addEventListener('keydown', ev => {
   if(ev.key === 'Enter' && ev.target.classList && ev.target.classList.contains('pd-feed')){ ev.preventDefault(); ev.target.click(); return; }
   if(ev.key !== 'Enter' || !ev.target.dataset) return;
   if(ev.target.dataset.pds){ ev.preventDefault(); rerender(); return; }
@@ -3036,6 +3040,10 @@ async function view(delen){
   document.body.classList.toggle('pd-lock', !!UI.sheet);
   if(sub === 'afd' && arg) return huidig.delen[2] === 'kaart' ? viewAfdeling(arg) : viewTabel(arg);
   if(sub === 'afd') return viewAfdelingen();
+  if(sub === 'kies' && /^[1-4]$/.test(arg || '')){   // #/productdata/kies/2: belangrijke producten, laag 2 (vanuit een taak in 3.0)
+    UI.laag = +arg; bewaar('laag', UI.laag); UI.scope = 'belangrijk'; bewaar('scope2', UI.scope); UI.i = 0;
+    huidig.delen = ['kies']; try{ history.replaceState(null, '', '#/productdata/kies'); }catch(e){}
+  }
   if(sub === 'kies' || sub === 'fam') return viewKies();
   if(sub === 'samen') return viewSamen();
   if(sub === 'basis' || sub === 'regels') return viewRegels();
@@ -3053,5 +3061,6 @@ async function view(delen){
 // na het opnieuw laden van de app (WH.load) ook de index vernieuwen
 const herlaad = async () => { S.idx = null; await laad(true); };
 
-return { view, herlaad, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
+const zetLaterMee = v => { S.laterMee = v !== false; S.idx = null; };
+return { view, herlaad, laad, zetLaterMee, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();
