@@ -152,7 +152,7 @@ function toon(){
   WHTAAK.balk();
   if(m.native){
     fr.hidden = true; nat.hidden = false;
-    if(['todo', 'taak', 'bouwplan'].includes(m.native)){ nat.scrollTop = 0; WHTAAK.render(m.native, UI.rest); nat.scrollTop = 0; }
+    if(['todo', 'taak', 'bouwplan'].includes(m.native)){ nat.scrollTop = 0; WHTAAK.render(m.native, UI.rest); nat.scrollTop = 0; if(m.native === 'todo' && window.WHX) WHX.banner(nat); }
     else if(/^x-/.test(m.native) && window.WHX){ WHX.render(m.native.slice(2), nat, UI.rest); nat.scrollTop = 0; return; }
     else { nat.innerHTML = m.native === 'kaart' ? viewKaart() : m.native === 'bronnen' ? viewBronnen() : m.native === 'naslag' ? viewNaslag() : viewFundament(); nat.scrollTop = 0; }
     if(m.native === 'naslag') laadNaslag();

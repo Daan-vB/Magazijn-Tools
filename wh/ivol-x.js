@@ -386,5 +386,24 @@ function bind(){
   if(window.WHLIVE) WHLIVE.opNieuw(() => { if(['dag', 'stand'].includes(S.naam)) herteken(); });
 }
 bind();
-return { render, herteken, twLijst, laadPd, cijfers, S };
+// banner bovenaan Te doen: wat er nog te controleren is (alleen als er iets is).
+// Te doen tekent zichzelf geregeld opnieuw: een observer zet de banner er dan weer boven.
+let bannerHtml = '', obs = null;
+function zetBanner(el){
+  if(!bannerHtml || !el || el.hidden || el.querySelector('#x-banner')) return;
+  if(!window.IVOL || (IVOL.huidig() || {}).id !== 'todo') return;
+  const d = document.createElement('div'); d.id = 'x-banner'; d.innerHTML = bannerHtml; el.prepend(d);
+}
+async function banner(el){
+  try{
+    await (async () => { while(!window.IVOL) await new Promise(r => setTimeout(r, 50)); await IVOL.geladen(); })();
+    await Promise.all([window.WHAAN ? WHAAN.laad() : null, laadPd()]);
+    const n = twLijst().length, a = window.WHAAN ? WHAAN.open().length : 0;
+    stijl();
+    bannerHtml = n + a ? `<div class="pagina" style="padding-bottom:0"><a class="x-kaart" href="#/nakijken" style="text-decoration:none;color:inherit;border-left:6px solid #e0a100"><div class="x-kop"><div><b>Te controleren</b><div class="small muted">${n ? nf(n) + ' producten met een schatting van Claude' : ''}${n && a ? ' · ' : ''}${a ? nf(a) + ' aannames (kerncijfers, dagritme, regels)' : ''}. Tik Klopt of pas aan; tot dan tellen ze als open.</div></div><span class="x-btn pri">Openen →</span></div></a></div>` : '';
+    zetBanner(el);
+    if(!obs && window.MutationObserver){ obs = new MutationObserver(() => zetBanner(el)); obs.observe(el, { childList:true }); }
+  }catch(e){ console.error(e); }
+}
+return { render, herteken, twLijst, laadPd, cijfers, banner, S };
 })();
