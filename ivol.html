@@ -164,7 +164,9 @@
   ul.log li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 0;border-bottom:1px solid #eef1f5}
   ul.log li > *{grid-column:1} ul.log li > button{grid-column:2;grid-row:1 / span 3;align-self:center}
   .note{white-space:pre-wrap;overflow-wrap:anywhere}
-  .smalbalk.taak{background:var(--blauw);color:#fff}
+  .smalbalk.taakbalk{background:var(--blauw);color:#fff;flex-wrap:nowrap;gap:8px}
+  .smalbalk.taakbalk .tb{flex:1 1 0;min-width:0;line-height:1.3;font-size:13.5px;padding:4px 0}
+  .smalbalk.taakbalk a.bk{white-space:nowrap;flex:none}
   .smalbalk .tb{flex:1 1 180px;min-width:0}
   @media (max-width:520px){ .todo.zn{grid-template-columns:1fr} .todo.zn .tk{grid-column:1} li.stap a{grid-template-columns:34px 1fr} li.stap a i.sst{grid-column:2;justify-self:start} }
   .melding{padding:10px 12px;border-radius:8px;background:#fde4e2;color:var(--rood)}
@@ -198,7 +200,7 @@
 </header>
 <nav class="zij" id="menu" aria-label="Onderdelen"><div class="zijkop"><span>Menu</span><button id="zijdicht" aria-label="Menu sluiten">×</button></div><div id="menulijst"></div></nav>
 <div id="zijdek"></div>
-<div id="balken"><div id="versiebalk" class="smalbalk versie" role="status" hidden><span>Nieuwe versie klaar</span><button data-a="vernieuw">Vernieuwen</button></div><div id="taakbalk" class="smalbalk taak" hidden></div></div>
+<div id="balken"><div id="versiebalk" class="smalbalk versie" role="status" hidden><span>Nieuwe versie klaar</span><button data-a="vernieuw">Vernieuwen</button></div><div id="taakbalk" class="smalbalk taakbalk" hidden></div></div>
 <main class="inhoud">
   <iframe id="frame" title="Onderdeel" hidden></iframe>
   <div id="native" hidden></div>
