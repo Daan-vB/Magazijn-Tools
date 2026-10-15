@@ -7,6 +7,8 @@
    Per veld "verschilt per maat / per product" en terug "geldt voor de hele familie" (concept bewaart elke rij, niets gaat verloren).
    Eén waarheid blijft de tabel productdata: opslaan schrijft per product, meta[veld].bron = 'familie' of 'maatgroep'.
    Eigen invoer van Daan wordt nooit stil overschreven: verschil in beeld, Daan kiest familie volgen of deze houden.
+   Schattingen van Claude (bron claude met meta.tw) zijn geen eigen invoer: de familie overschrijft ze, ze staan geel
+   als "schatting Claude" in de cel, en na Opslaan is tw weg (bron familie, maatgroep of invul).
    Indeling corrigeren, familienaam, niveaus en uitzonderingen: catalog-rij wh-pd-fam (index() in productdata.js geeft
    die voorrang). Uitlopend = productdata.uitlopend (datum): geen velden meer nodig, telt nergens mee.
    Leren: per veld een paar uitlegbare regels uit inkoop, aanvullingen, eenheid en ABC, getoetst per familie
@@ -113,13 +115,17 @@ const niv = (fk, k) => con(fk).niv[k] || (cor().niv[fk] || {})[k] || STD_NIV[k] 
 const meest = vals => { const t = {}; vals.forEach(v => t[v] = (t[v] || 0) + 1); const e = Object.entries(t).sort((a, b) => b[1] - a[1]); return e.length ? { v:e[0][0], n:e[0][1], soorten:e.length } : null; };
 function norm(k, v){ try{ return X().check(k, v); }catch(e){ return null; } }
 // startwaarde van een rij (nog niets getypt): wat vastligt bij de leden, anders een voorstel
+const twVan = (c, k) => { const r = P().S.pd[c], m = r && r.meta && r.meta[k]; return m && m.tw && r.data && !leeg(r.data[k]) ? String(r.data[k]) : null; };
 function start(fk, k, cs, ctx){
-  const ok = cs.map(c => P().staat(c, k)).filter(st => st.s === 'ok').map(st => st.v);
+  const sts = cs.map(c => P().staat(c, k)), ok = sts.filter(st => st.s === 'ok').map(st => st.v);
   if(ok.length){
     const m = meest(ok), alle = ok.length === cs.length && m.n === ok.length;
     // nog niet bij iedereen ingevuld: geel, de waarde van de rest wordt bij opslaan de familiewaarde
     return { v:m.v, s:alle ? 'ok' : 'voorstel', n:ok.length, van:cs.length, wijkt:ok.length - m.n, p:1, why:alle ? '' : 'al ingevuld bij ' + m.n + ' van ' + cs.length };
   }
+  // geen invoer van Daan, wel een schatting van Claude: geel, de familie neemt hem over bij Opslaan
+  const tw = cs.map(c => twVan(c, k)).filter(v => v !== null).map(v => norm(k, v)).filter(Boolean);
+  if(tw.length){ const m = meest(tw); return { v:m.v, s:'voorstel', claude:true, why:'schatting Claude' + (cs.length > 1 ? ' (' + m.n + ' van ' + cs.length + ')' : '') + ', te controleren' }; }
   const vs = voorstelRij(fk, k, cs, ctx);
   return vs ? Object.assign({ s:vs.p >= X().ZEKER ? 'voorstel' : 'schatting' }, vs) : { v:'', s:'open' };
 }
