@@ -56,7 +56,8 @@ const LEEGWAARDE = v => leeg(v) || String(v).trim().toLowerCase() === 'onb';
 const NVT = v => String(v ?? '').trim().toLowerCase() === 'nvt';
 
 /* ---------- toestand ---------- */
-const S = { pd:{}, extra:{}, cat:null, labels:{}, mv:{}, toets:null, klaar:false, laden:null, mist:false, fout:null, idx:null, laterMee:true };
+const S = { pd:{}, extra:{}, cat:null, labels:{}, mv:{}, toets:null, klaar:false, laden:null, mist:false, fout:null, idx:null, laterMee:true, fcor:null };
+const famCorNorm = d => { d = d && typeof d === 'object' ? d : {}; ['fam', 'maat', 'naam', 'niv', 'uitz'].forEach(k => { if(!d[k] || typeof d[k] !== 'object') d[k] = {}; }); return d; };
 const bewaard = k => { try{ return localStorage.getItem('wh-pd-' + k); }catch(e){ return null; } };
 const bewaar = (k, v) => { try{ localStorage.setItem('wh-pd-' + k, v); }catch(e){} };
 const UI = { afdModus:bewaard('afdmodus') || 'tabel', scope:bewaard('scope2') || 'belangrijk', laag:+(bewaard('laag') || 1), lev:bewaard('lev') || '', zoek:'', over:new Set(), i:0, concept:{}, alles:{}, mig:null };
@@ -71,15 +72,17 @@ async function laad(vers){
       const [rows, extra, cat] = await Promise.all([
         T('productdata', 'select=*', ['updated_at']).catch(e => { if(isMissing(e)){ S.mist = true; return []; } throw e; }),
         T('producten', 'select=productcode,gewicht_product_g,lengte_product_cm,breedte_product_cm,hoogte_product_cm,leverancier_code&order=productcode', ['picqer_datum', 'updated_at']).catch(() => []),
-        (window.WHC ? WHC.catalog(['wh-pq-cat', 'catalog-ean', 'wh-verplaatsingen', 'wh-inkoop', 'wh-bouwplan']) : api('GET', 'catalog?key=in.(%22wh-pq-cat%22,%22catalog-ean%22,%22wh-verplaatsingen%22,%22wh-inkoop%22,%22wh-bouwplan%22)&select=key,data,updated_at')).catch(() => [])
+        (window.WHC ? WHC.catalog(['wh-pq-cat', 'catalog-ean', 'wh-verplaatsingen', 'wh-inkoop', 'wh-bouwplan', 'wh-pd-fam']) : api('GET', 'catalog?key=in.(%22wh-pq-cat%22,%22catalog-ean%22,%22wh-verplaatsingen%22,%22wh-inkoop%22,%22wh-bouwplan%22,%22wh-pd-fam%22)&select=key,data,updated_at')).catch(() => [])
       ]);
       S.pd = {}; rows.forEach(r => { S.pd[r.productcode] = { data:r.data || {}, meta:r.meta || {}, t:r.updated_at }; });
       S.extra = {}; extra.forEach(r => { S.extra[r.productcode] = r; });
       S.cat = ((cat || []).find(r => r.key === 'wh-pq-cat') || {}).data || null;
       S.labels = ((cat || []).find(r => r.key === 'catalog-ean') || {}).data || {};
       // verplaatsingen uit Picqer: [id, tijd, wie, code, aantal, van, naar, magazijn]
-      S.mv = {}; (((cat || []).find(r => r.key === 'wh-verplaatsingen') || {}).data || {}).rows?.forEach(r => { const c = D.PLOW[String(r[3] || '').toLowerCase()] || r[3]; (S.mv[c] = S.mv[c] || []).push({ n:num(r[4]) || 0, van:r[5] || '', naar:r[6] || '', vst:/spreuwel/i.test(r[7] || '') }); });
+      S.mv = {}; (((cat || []).find(r => r.key === 'wh-verplaatsingen') || {}).data || {}).rows?.forEach(r => { const c = D.PLOW[String(r[3] || '').toLowerCase()] || r[3]; (S.mv[c] = S.mv[c] || []).push({ n:num(r[4]) || 0, van:r[5] || '', naar:r[6] || '', vst:/spreuwel/i.test(r[7] || ''), t:r[1] || '' }); });
       S.ink = ((cat || []).find(r => r.key === 'wh-inkoop') || {}).data || null;
+      // correcties op de familie-indeling door Daan (Per familie): { fam:{code:famKey}, maat:{code:maatKey}, naam:{famKey:naam}, niv, uitz }
+      S.fcor = famCorNorm(((cat || []).find(r => r.key === 'wh-pd-fam') || {}).data);
       // bouwplan-schakelaar "Later en Op maat tellen mee in de poort" (standaard ja)
       const bp = ((cat || []).find(r => r.key === 'wh-bouwplan') || {}).data;
       S.laterMee = !(bp && bp.inst && bp.inst.poortLaterMee === false);
@@ -92,6 +95,7 @@ async function laad(vers){
 /* ---------- productfamilies ---------- */
 // Familie = zelfde leverancier + zelfde naam zonder kleuren, maten en getallen ("alle Napoli-stoelen", "alle whiteboards van Red Sun").
 // Maatgroep = familie + zelfde maten in de naam: kleurgenoten, die delen alle palletgegevens.
+// Correcties van Daan (catalog-rij wh-pd-fam, scherm Per familie) gaan voor: andere familie of andere maatgroep per product.
 const KLEUR = /\b(zwart|zwarte|grijs|grijze|lichtgrijs|donkergrijs|blauw|blauwe|rood|rode|groen|groene|wit|witte|bruin|bruine|geel|gele|oranje|beige|zand|sand|antraciet|grafiet|graniet|paars|roze|naturel|natural|natuur|black|grey|gray|blue|red|green|white|brown|yellow|orange|purple|pink|multicolor|assorti|zilver|silver|goud|gold|transparant|blank|bla|gre|whi|blk|gry|brn|nat)\b/g;
 const STOP = new Set('per breedte breed dikte dik lengte lang hoogte hoog let op uit de het een en van voor met in rol cm mm incl ca stuk stuks set'.split(' '));
 function famNaam(n){
@@ -111,10 +115,11 @@ function maatSig(n){
 function index(){
   if(S.idx) return S.idx;
   const fam = {}, famVan = {}, varVan = {}, vari = {};
+  const cor = S.fcor || famCorNorm(null);
   Object.values(D.P).forEach(p => {
     const code = p.productcode, fn = famNaam(p.naam);
-    const fk = String(p.leverancier || '?').slice(0, 24) + '|' + (fn || code.toLowerCase());
-    const vk = fk + '|' + maatSig(p.naam);
+    const fk = cor.fam[code] || (String(p.leverancier || '?').slice(0, 24) + '|' + (fn || code.toLowerCase()));
+    const vk = fk + '|' + (cor.maat[code] !== undefined ? cor.maat[code] : maatSig(p.naam));
     (fam[fk] = fam[fk] || []).push(code); famVan[code] = fk;
     (vari[vk] = vari[vk] || []).push(code); varVan[code] = vk;
   });
@@ -506,6 +511,7 @@ const SCOPES = [
 ];
 function inScope(code, sc, metFilter = true){
   const p = D.P[code]; if(!p || p.actief === false) return false;
+  if(pdWaarde(code, 'uitlopend')) return false;   // uitlopend: geen data meer nodig, telt nergens mee
   if(metFilter && UI.lev && p.leverancier !== UI.lev) return false;
   const abc = abcVan(code);
   switch(sc || UI.scope){
@@ -542,7 +548,7 @@ async function opslaan(wijz, bron){
         const extra = v && typeof v === 'object' ? v : null;
         v = String((extra ? extra.v : v) ?? '').trim();
         if(!v){ delete data[k]; delete meta[k]; }
-        else { data[k] = v; meta[k] = Object.assign({ op:nu, bron:bron || 'invul' }, extra && extra.uit ? { uit:extra.uit, r:extra.r } : {}); }
+        else { data[k] = v; meta[k] = Object.assign({ op:nu, bron:(extra && extra.bron) || bron || 'invul' }, extra && extra.uit ? { uit:extra.uit, r:extra.r } : {}); }
       });
       rijen.push({ productcode:code, data, meta, updated_at:nu });
     });
@@ -1098,6 +1104,7 @@ function viewStart(){
     <div class="row wrap mt12"><button class="btn pri" data-pd="mig">Zet ${nf(migN)} waarden over</button></div></div>` : ''}
   ${gelijkBoven ? poortKaart() + gelijkKaart() : ''}
   ${UI.mig ? `<div class="card" style="border-left:4px solid var(--ok)"><h3>Overgezet</h3><div class="small mt8">${Object.keys(UI.mig.voor).map(k => esc(VELDEN[k].t) + ': vóór <b>' + nf(UI.mig.voor[k]) + '</b>, na <b>' + nf(UI.mig.na[k] || 0) + '</b>' + ((UI.mig.na[k] || 0) === UI.mig.voor[k] ? ' ✓' : ' <span class="badge b-bad">verschil</span>')).join('<br>')}</div></div>` : ''}
+  ${window.WHPDF ? `<a class="card" href="#/productdata/familie" style="display:block;text-decoration:none;color:inherit;border-left:6px solid var(--blue)"><div class="row between wrap"><div><h2 style="font-size:18px">Per familie</h2><div class="small muted mt4">Een hele familie in één keer, alle lagen tegelijk: wat de familie deelt één keer, wat per maat verschilt per maatgroep.</div></div><span class="btn pri">Openen →</span></div></a>` : ''}
   <a class="card" href="#/productdata/afd" style="display:block;text-decoration:none;color:inherit;border-left:6px solid var(--orange)"><div class="row between wrap"><div><h2 style="font-size:18px">Afdelingen doorlopen</h2><div class="small muted mt4">Per afdeling een lijst: per product wat we weten, wat mist en wat geschat is. Tik, nakijken, Opslaan en door naar de volgende.</div></div><span class="btn acc">Begin →</span></div></a>
   <a class="card" href="#/productdata/soort" style="display:block;text-decoration:none;color:inherit;border-left:6px solid #5a3e8f"><div class="row between wrap"><div><h2 style="font-size:18px">Soorten: 1 pallet · 2 deel · 3 mix · 4 pick</h2><div class="small muted mt4">Per product de soort, met een voorstel uit de data. Mix vul je hier verder in (geleverd, max op pick, aanvullen met, mixgroep). Filteren en veel producten tegelijk instellen.</div></div><span class="btn">Openen →</span></div></a>
   ${kgKaart()}
@@ -1365,6 +1372,7 @@ function families(codes){
   }).sort((a, b) => (b.open > 0) - (a.open > 0) || a.rang - b.rang);
 }
 function famTitel(fk, leden){
+  if(S.fcor && S.fcor.naam[fk]) return S.fcor.naam[fk];   // naam die Daan de familie gaf
   const namen = leden.map(c => String((D.P[c] || {}).naam || ''));
   if(namen.length === 1) return namen[0];
   // gemeenschappelijk begin van de namen, anders de familienaam
@@ -3044,6 +3052,7 @@ async function view(delen){
     UI.laag = +arg; bewaar('laag', UI.laag); UI.scope = 'belangrijk'; bewaar('scope2', UI.scope); UI.i = 0;
     huidig.delen = ['kies']; try{ history.replaceState(null, '', '#/productdata/kies'); }catch(e){}
   }
+  if(sub === 'familie' && window.WHPDF) return WHPDF.view(arg ? decodeURIComponent(arg) : '');
   if(sub === 'kies' || sub === 'fam') return viewKies();
   if(sub === 'samen') return viewSamen();
   if(sub === 'basis' || sub === 'regels') return viewRegels();
@@ -3062,5 +3071,6 @@ async function view(delen){
 const herlaad = async () => { S.idx = null; await laad(true); };
 
 const zetLaterMee = v => { S.laterMee = v !== false; S.idx = null; };
-return { view, herlaad, laad, zetLaterMee, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
+const intern = { check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
+return { view, herlaad, laad, zetLaterMee, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();
