@@ -234,6 +234,8 @@ async function rekenFundament(){
           const live = new Set(R.uit.map(r => r.code));
           V = { beide:[...live].filter(c => pdf.has(c)), alleenPdf:[...pdf].filter(c => !live.has(c)), alleenLive:[...live].filter(c => !pdf.has(c)) };
           U = WHAL.uitleg(R);
+          // de PDF bevat ook wat bij Voor orders staat: tel zoals de vergelijking (Voor orders + Aanvulronde)
+          if(U) V = { beide:U.C.beide.map(b => b.code), alleenPdf:U.C.alleenPdf.map(x => x.code), alleenLive:U.C.alleenLive.map(a => a.code) };
         }
       }
     }catch(e){ console.error(e); }

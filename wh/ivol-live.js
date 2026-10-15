@@ -1,7 +1,8 @@
 /* =====================================================================
    IVOL Warehouse 3.0 — Picqer live (alleen lezen), houdt zichzelf bij zolang 3.0 open staat.
      elke 2 min    picklijsten + backorders              (functie: vandaag)              → geheugen
-     elke 10 min   voorraad per locatie van aanvulkandidaten (catalogus 12u + mutaties)  → wh-pq-cat, wh-pickstand
+     elke 10 min   voorraad per locatie van aanvulkandidaten (catalogus 12u + mutaties + dicht bij het niveau en
+                   ouder dan 30 min: reserveringen veranderen zonder mutatie)  → wh-pq-cat, wh-pickstand
      elke 12 uur   alle locaties met bulk/tijdelijk       (functie: locatielijst)         → wh-locaties (productkoppelingen blijven uit de export)
      doorlopend    aanvulniveaus, 240 producten per 5 min (functie: niveaus)              → wh-pq-live; na een volle ronde
                    en als ≥ 90% gelijk is aan de export → ook wh-pq (de waarheid voor alle apps)
@@ -119,7 +120,8 @@ function bronnen(){
     rijen:[
       { t:'Picklijsten en backorders', bron:'live', op:s.data ? new Date(s.data.binnen).toISOString() : null, ritme:'elke 2 minuten', vervangt:'backorder-export' },
       { t:'Producten met voorraad, ABC, picks per dag', bron:'live', op:cat && cat.t, ritme:'elke 12 uur', vervangt:'deel van de productexport' },
-      { t:'Voorraad per locatie (aanvulkandidaten)', bron:'live', op:st && st.bijgewerkt, ritme:'elke 10 minuten', vervangt:'voorraad-per-locatie-export, aanvuladvies-PDF' },
+      { t:'Voorraad per locatie (aanvulkandidaten)', bron:'live', op:st && st.bijgewerkt, ritme:'elke 10 minuten', vervangt:'voorraad-per-locatie-export, aanvuladvies-PDF',
+        extra:(() => { const n = st && st.p ? WHAL.teOud().length : 0; return n ? 'stand van ' + nf(n) + ' producten ouder dan 30 min' : ''; })() },
       { t:'Locaties: pick/bulk, vast/tijdelijk', bron:S.functieOud ? 'export' : 'live', op:(S.meta.loc || {}).t || D.LOCDATUM, ritme:S.functieOud ? 'na functie-update: elke 12 uur' : 'elke 12 uur', vervangt:'locatie-export' },
       { t:'Aanvulniveaus', bron:S.functieOud ? 'export' : 'live', op:n && (n.klaar || n.t), ritme:S.functieOud ? 'na functie-update: doorlopend' : 'doorlopend, ±90 min per ronde', vervangt:'productexport (niveaus)',
         extra:n ? (n.cursor ? 'ronde ' + nf(n.cursor) + ' / ' + nf(n.totaal || 0) : '') + (n.check ? ' · controle: ' + n.check.pct + '% gelijk aan export, ' + n.check.uitkomst : '') : '' },
