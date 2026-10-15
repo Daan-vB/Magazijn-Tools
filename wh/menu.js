@@ -92,9 +92,13 @@ function zet(sleutel){
   const g = GROEPEN.find(x => x.sub.some(s => s[0] === sleutel)) || GROEPEN[0];
   const nav = document.getElementById('nav');
   // Warehouse en Test horen bij elkaar (Daan, Karin); Junior is een losse app en opent apart
-  const rechts = '<span class="sep"></span><span class="appwissel">'
-    + `<a data-app href="./warehouse.html#/" class="${TEST ? '' : 'on'}">Warehouse</a><a data-app href="./test.html#/" class="${TEST ? 'on' : ''}">Test</a></span>`
-    + '<a data-app href="./junior.html#/" target="_blank" rel="noopener" class="klein" title="Opent Junior apart">Junior ↗</a>';
+  // Warehouse is alleen voor Daan en Karin: geen Test- of Junior-knop (Test zit in 3.0, Junior is de vloer-app).
+  // In Test blijft de wissel staan.
+  const rechts = TEST
+    ? '<span class="sep"></span><span class="appwissel">'
+      + '<a data-app href="./warehouse.html#/">Warehouse</a><a data-app href="./test.html#/" class="on">Test</a></span>'
+      + '<a data-app href="./junior.html#/" target="_blank" rel="noopener" class="klein" title="Opent Junior apart">Junior ↗</a>'
+    : '';
   if(nav) nav.innerHTML = GROEPEN.map(x => `<a href="${x.href}" class="${x === g ? 'on' : ''}">${esc(x.t)}</a>`).join('') + rechts;
   let sub = document.getElementById('subnav');
   if(!sub){ sub = document.createElement('nav'); sub.id = 'subnav'; sub.className = 'subnav'; const top = document.querySelector('header.top'); if(top) top.appendChild(sub); }
