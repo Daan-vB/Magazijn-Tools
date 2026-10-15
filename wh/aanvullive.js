@@ -4,7 +4,8 @@
      vrije pickvoorraad op of onder "aanvullen onder" en er staat voorraad op bulk → aanvullen tot "vul aan tot"
      plus wat picklijsten op bulk gereserveerd hebben (vrij = voorraad min gereserveerd voor picklijsten;
      aantal begrensd door de bulkvoorraad). Pick = elke locatie die geen bulk, kar of map is, ook losse namen
-     als BE of Tafel-AA; de vrije pick is de som. Voorraad op een map of een losse naam is een aandachtspunt.
+     als BE of Tafel-AA; de vrije pick is de som ("op de plank"). Picqer telt ook retourkar en "geen specifieke
+     locatie" als pick; dat getal dient alleen om met de PDF te vergelijken. Map, losse naam en zonder locatie: aandachtspunten.
    Gegevens:
      wh-pq-cat     alle producten met voorraad: id, voorraad Hoofdmagazijn / VST   (1× per 12 uur, ±10 verzoeken)
      wh-pickstand  voorraad per locatie van de kandidaten (pick + bulk gekoppeld)   (alleen gewijzigde producten)
@@ -166,26 +167,43 @@ function zetStand(st, c, t, l){
 }
 
 /* ---------- rekenen ---------- */
-function standVan(p){
+// "geen specifieke locatie": rij zonder naam in de stand; zit die er niet in (de functie levert alleen locaties),
+// dan uit de voorraad-per-locatie-export (D.VR[code].geen, zonder reserveringen)
+const isGeen = l => !String(l[0] || '').trim() || /^geen specifieke locatie$/i.test(String(l[0]).trim());
+function geenVan(hm, code){
+  const g = hm.filter(isGeen);
+  if(g.length) return { n:g.reduce((t, l) => t + l[4], 0), r:g.reduce((t, l) => t + (l[5] || 0), 0), bron:'live' };
+  const v = code && D.VR && D.VR[code];
+  return v && v.geen > 0 ? { n:v.geen, r:0, bron:'export', datum:D.VRDATUM } : null;
+}
+function standVan(p, code){
   const hm = p.l.filter(l => l[1] == null || Number(l[1]) === MAG);
-  const eigen = hm.filter(l => l[2] === 0 && !isKar(l));
+  const eigen = hm.filter(l => l[2] === 0 && !isKar(l) && !isGeen(l));
   // standaardnamen eerst, dan losse namen
   const pick = eigen.filter(l => isPick(l[0])).sort((a, b) => (isStd(b[0]) ? 1 : 0) - (isStd(a[0]) ? 1 : 0)), map = eigen.filter(l => isMap(l[0]) && l[4] > 0);
   const los = pick.filter(l => !isStd(l[0]) && l[4] > 0);
   const bulk = hm.filter(l => l[2] === 1 && !isKar(l) && l[4] > 0).sort((a, b) => b[4] - a[4]);
   const kar = hm.filter(l => isKar(l) && l[4] > 0);
-  return { t:p.t, pick, bulk, kar, map, los, std:pick.find(l => isStd(l[0])) || null,
-    pickFys:pick.reduce((s, l) => s + l[4], 0), pickVrij:pick.reduce((s, l) => s + Math.max(0, l[4] - l[5]), 0),
+  const geen = geenVan(hm, code);
+  const pickVrij = pick.reduce((s, l) => s + Math.max(0, l[4] - l[5]), 0), karVrij = kar.reduce((s, l) => s + Math.max(0, l[4] - (l[5] || 0)), 0);
+  // pickVrij = pick op de plank (daar rekent de app mee); pqVrij = pick volgens Picqer: ook retourkar en zonder locatie
+  return { t:p.t, pick, bulk, kar, map, los, geen, std:pick.find(l => isStd(l[0])) || null,
+    pickFys:pick.reduce((s, l) => s + l[4], 0), pickVrij, karVrij, pqVrij:pickVrij + karVrij + (geen ? Math.max(0, geen.n - geen.r) : 0),
     bulkV:bulk.reduce((s, l) => s + l[4], 0), bulkRes:bulk.reduce((s, l) => s + (l[5] || 0), 0), karV:kar.reduce((s, l) => s + l[4], 0) };
 }
+// wat Picqer naast de plank als pick telt, als tekst: "46 zonder locatie", "43 op retourkar Container 2"
+const extraTxt = s => [s.geen ? nf(s.geen.n) + ' zonder locatie' + (s.geen.bron === 'export' ? ' (volgens export van ' + standTxt(tijdMs(s.geen.datum)) + ')' : '') : '',
+  s.kar.length ? nf(s.karV) + ' op retourkar ' + s.kar.map(l => l[0]).join(', ') : ''].filter(Boolean).join(' en ');
+// Picqer adviseert niets omdat het kar of zonder-locatie als pick telt, terwijl de plank wel aangevuld moet worden
+const picqerSlaatOver = (s, lvl, tot) => s.pqVrij > s.pickVrij && !nodigAanvul(Object.assign({}, s, { pickVrij:s.pqVrij }), lvl, tot);
 function stand(code){
   const p = S.st && S.st.p && S.st.p[code]; if(!p) return null;
-  return standVan(p);
+  return standVan(p, code);
 }
 // de stand van vóór de laatste keer ophalen (of null)
 function vorigeStand(code){
   const p = S.st && S.st.p && S.st.p[code];
-  return p && p.o ? standVan(p.o) : null;
+  return p && p.o ? standVan(p.o, code) : null;
 }
 // zoals Picqer: aanvullen bij vrije pick op of onder het niveau, of als picklijsten meer op bulk gereserveerd hebben
 // dan er vrij op pick ligt. Aantal = vul aan tot + gereserveerd op bulk − vrij (begrensd door de bulk, in ronde()).
@@ -197,6 +215,7 @@ function nodigAanvul(s, lvl, tot){
 function ronde(){
   const nuCodes = new Set((window.WHLIVE ? WHLIVE.nuLijst() : []).map(m => m.code));
   const uit = [], leeg = [];
+  const inPdf = new Set(pdfCodes());   // staat hij in de PDF, dan slaat Picqer hem niet over (export kan verouderd zijn)
   kandidaten().forEach(code => {
     const s = stand(code); if(!s || !s.pick.length) return;
     const [lvl, tot, , nivBron] = niveau(code);
@@ -204,7 +223,8 @@ function ronde(){
     if(!nodig) return;
     const naam = (D.P[code] || {}).naam || '';
     if(!s.bulk.length){ leeg.push({ code, naam, s, lvl, tot }); return; }
-    uit.push({ code, naam, s, lvl, tot, nivBron:nivBron || '', aantal:Math.min(s.bulkV, nodig), gang:s.std ? gangVan(s.std[0]) : LOS, voorOrders:nuCodes.has(code) });
+    uit.push({ code, naam, s, lvl, tot, nivBron:nivBron || '', aantal:Math.min(s.bulkV, nodig), gang:s.std ? gangVan(s.std[0]) : LOS, voorOrders:nuCodes.has(code),
+      pqOver:!inPdf.has(code) && picqerSlaatOver(s, lvl, tot) ? extraTxt(s) : '' });
   });
   // looproute op de eerste standaardnaam; alleen losse namen achteraan
   uit.sort((a, b) => (a.s.std ? 0 : 1) - (b.s.std ? 0 : 1) || (a.s.std ? WHL.sortLoc(a.s.std[0], b.s.std[0]) : String(a.s.pick[0][0]).localeCompare(String(b.s.pick[0][0]))));
@@ -288,9 +308,6 @@ const verschiltNiv = (c, lvl, tot) => { const n = niveauPicqer(c); return n && (
 // de Pickvoorraad in de PDF is de fysieke voorraad op pick (bueno-bruin: PDF 33, vrij 3)
 const pickVeranderd = (pdf, s) => pdf.pickst != null && Number(pdf.pickst) !== s.pickFys;
 // met de retourkar erbij zit de pick boven het niveau (de app telt de kar nooit als pick of bron)
-const karVrij = s => s.kar.reduce((t, l) => t + Math.max(0, l[4] - (l[5] || 0)), 0);
-const karDekt = (s, lvl, tot) => s.kar.length && !nodigAanvul(Object.assign({}, s, { pickVrij:s.pickVrij + karVrij(s) }), lvl, tot);
-const karTxt = ls => ls.map(l => l[0] + ': ' + nf(l[4])).join(', ');
 function redenPdf(x, M){
   const c = x.code, q = niveau(c), lvl = q[0], tot = q[1], pdf = x.pdf || {}, s = stand(c);
   const opMap = opMapTxt(s), pn = niveauPicqer(c);
@@ -327,7 +344,9 @@ function redenLive(a, M){
     // live stand van het product (Picqer live): ligt er genoeg op de retourkar, dan adviseert Picqer niets
     const rij = window.WHLIVE && WHLIVE.rijen ? WHLIVE.rijen().find(x => x.p && x.p.code === c) : null, st = rij && rij.st;
     const kar = st ? st.kar.reduce((t, l) => t + Math.max(0, l.v - (l.r || 0)), 0) : 0;
-    if(st && kar && st.pickVrij + kar >= a.n.stuks) return { r:'Voor orders: de app verplaatst wat de orders vragen (' + nf(a.aantal) + '); de retourkar telt in de app niet als voorraad (' + st.kar.map(l => l.n + ': ' + nf(l.v)).join(', ') + '), met de kar is er genoeg', ok:true };
+    const g = geenVan([], c), geen = g ? g.n : 0;
+    const extra = [geen ? nf(geen) + ' zonder locatie (volgens export van ' + standTxt(tijdMs(g.datum)) + ')' : '', kar ? nf(kar) + ' op retourkar ' + st.kar.map(l => l.n).join(', ') : ''].filter(Boolean).join(' en ');
+    if(st && (kar || geen) && st.pickVrij + kar + geen >= a.n.stuks) return { r:'Voor orders: Picqer telt ' + extra + ' als pick, genoeg voor de orders (op de plank ' + nf(st.pickVrij) + '); de app verplaatst wat de orders vragen (' + nf(a.aantal) + ')', ok:true };
     return { r:'Onverklaard: voor orders (' + nf(a.aantal) + '), niet in de PDF' + (st ? ' (vrij op pick ' + nf(st.pickVrij) + ', bulk ' + nf(st.bulkV) + ')' : ''), ok:false };
   }
   const r = a.r, s = r.s;
@@ -337,7 +356,7 @@ function redenLive(a, M){
   // aangetoond gedaald: een stand van ná de PDF stond nog boven het niveau, de nieuwste niet meer
   const v = vorigeStand(c), vT = v ? tijdMs(v.t) : null;
   if(v && vT >= M.pdfT && !nodigAanvul(v, r.lvl, r.tot)) return { r:'Voorraad gedaald na de PDF: om ' + standTxt(vT) + ' vrij ' + nf(v.pickVrij) + ', nu ' + nf(s.pickVrij) + ' (niveau ' + nf(r.lvl) + ')', ok:true };
-  if(karDekt(s, r.lvl, r.tot)) return { r:'Retourkar telt in de app niet als pick (' + karTxt(s.kar) + '); met de kar zit de pick boven het niveau ' + nf(r.lvl), ok:true };
+  if(picqerSlaatOver(s, r.lvl, r.tot)) return { r:'Picqer telt ' + extraTxt(s) + ' als pick (pick volgens Picqer ' + nf(s.pqVrij) + ', op de plank ' + nf(s.pickVrij) + ', niveau ' + nf(r.lvl) + ')', ok:true };
   if(r.lvl != null && s.pickVrij === r.lvl) return { r:'Onverklaard: vrij ' + nf(s.pickVrij) + ' = niveau, niet in de PDF', ok:false };
   return { r:'Onverklaard: vrij ' + nf(s.pickVrij) + ' onder het niveau ' + nf(r.lvl) + ', bulk ' + nf(s.bulkV) + ', niet in de PDF', ok:false };
 }
@@ -489,6 +508,32 @@ function tabOrders(){
         <td>${m.naar.length ? m.naar.map(v => `<span class="loc">${esc(v)}</span>`).join(' ') : '<span class="badge b-warn">geen specifieke locatie</span>'}</td><td class="n"><b>${nf(m.verpl)}</b></td><td class="n">${nf(m.orders.length)}</td></tr>`).join('')}</table></div>`
       : `<div class="empty">${L.klaar ? 'Niets: geen orders die alleen op een verplaatsing wachten.' : 'Ophalen…'}</div>`}${gedaanHtml('nu')}</div>`;
 }
+// aandachtspunt: producten met een picklocatie én voorraad op "geen specifieke locatie" (tellen en op de juiste plek zetten).
+// Eerst waar de plank leeg of op/onder het niveau is. Live stand waar die er is, anders de voorraad-per-locatie-export.
+function zonderLocatie(){
+  const codes = new Set(Object.keys(D.VR || {}).filter(c => D.VR[c].geen > 0));
+  Object.keys((S.st && S.st.p) || {}).forEach(c => { const s = stand(c); if(s && s.geen) codes.add(c); });
+  return [...codes].map(code => {
+    const s = stand(code), v = (D.VR || {})[code];
+    let pick, plank, g;
+    if(s){ pick = s.pick.map(l => l[0]); plank = s.pickVrij; g = s.geen; }
+    else { pick = Object.keys(v.locs).filter(l => { const L = (D.LOC || {})[l]; return L && !L.bulk && !isMap(l); }); plank = pick.reduce((t, l) => t + (v.locs[l] || 0), 0); g = { n:v.geen, r:0, bron:'export' }; }
+    if(!g || !pick.length) return null;
+    const [lvl, tot] = niveau(code);
+    return { code, naam:(D.P[code] || {}).naam || '', n:g.n, r:g.bron === 'live' ? g.r : null, bron:s ? 'live' : 'export', pick, plank, lvl, tot,
+      krap:plank === 0 || (lvl !== null && lvl !== undefined && plank <= lvl) };
+  }).filter(Boolean).sort((a, b) => (b.krap - a.krap) || ((b.lvl != null) - (a.lvl != null)) || b.n - a.n || a.code.localeCompare(b.code));
+}
+function tabZonderLocatie(){
+  const Z = zonderLocatie(); if(!Z.length) return '';
+  const nKrap = Z.filter(z => z.krap).length, MAX = 300;
+  return `<details class="mt12"><summary>Voorraad zonder locatie (${Z.length}${nKrap ? ', ' + nKrap + ' met lege of krappe plank' : ''})</summary>
+    <div class="small muted mt8">Producten met een picklocatie én voorraad op "geen specifieke locatie". Picqer telt die als pickvoorraad, op de plank ligt hij niet. Tellen en op de juiste plek zetten in Picqer. Zonder locatie uit de voorraad-per-locatie-export van ${esc(standTxt(tijdMs(D.VRDATUM)))}; picklocatie uit de live stand, anders uit de export.</div>
+    <div class="scroll mt8"><table><tr><th>Product</th><th class="n">Zonder locatie</th><th class="n">Op picklijsten</th><th>Picklocatie</th><th class="n">Op de plank</th><th class="n">Onder / tot</th></tr>
+    ${Z.slice(0, MAX).map(z => `<tr><td><span class="code">${esc(z.code)}</span><div class="desc">${esc(z.naam)}</div></td><td class="n"><b>${nf(z.n)}</b></td><td class="n">${z.r == null ? '–' : nf(z.r)}</td>
+      <td>${z.pick.map(l => `<span class="loc">${esc(l)}</span>`).join(' ')}${z.bron === 'export' ? '<div class="desc">export</div>' : ''}</td><td class="n">${nf(z.plank)}${z.krap ? ' <span class="badge b-warn">krap</span>' : ''}</td><td class="n">${nf(z.lvl)} / ${nf(z.tot)}</td></tr>`).join('')}</table></div>
+    ${Z.length > MAX ? `<div class="small muted mt8">+${nf(Z.length - MAX)} meer</div>` : ''}</details>`;
+}
 function tabRonde(R){
   if(!S.st || !S.st.p) return `<div class="card empty">Nog niet uitgerekend. ${isTest() ? 'Klik <b>alles opnieuw</b> (de eerste keer duurt een paar minuten).' : 'Dat gebeurt één keer in Test → Live advies.'}</div>`;
   const gangen = [...new Set(R.uit.map(r => r.gang))];
@@ -499,7 +544,7 @@ function tabRonde(R){
     ${printKop('Aanvulronde' + (S.gang ? ' ' + S.gang : ''))}
     ${lijst.length ? `<div class="scroll mt8"><table><tr><th>Product</th><th>Pick (vrij)</th><th class="n">Onder / tot</th><th>Bulk</th><th class="n">Aanvullen</th></tr>
       ${lijst.map(r => { const g = r.gang !== vorige ? (vorige = r.gang, `<tr class="pgang"><td colspan="5"><b>${esc(r.gang)}</b></td></tr>`) : '';
-        return g + `<tr><td><span class="code">${esc(r.code)}</span>${r.voorOrders ? ' <span class="badge b-bad">ook voor orders</span>' : ''}<div class="desc">${esc(r.naam)}</div></td>
+        return g + `<tr><td><span class="code">${esc(r.code)}</span>${r.voorOrders ? ' <span class="badge b-bad">ook voor orders</span>' : ''}${r.pqOver ? ` <span class="badge b-warn">Picqer slaat dit over: ${esc(r.pqOver)}</span>` : ''}<div class="desc">${esc(r.naam)}</div></td>
           <td>${pickLocs(r.s.pick)}${r.s.pickFys !== r.s.pickVrij ? `<div class="desc">fysiek ${nf(r.s.pickFys)}</div>` : ''}</td><td class="n">${nf(r.lvl)} / ${nf(r.tot)}${r.nivBron === 'picqer' ? '<div class="desc">niveau uit Picqer</div>' : ''}</td>
           <td>${locs(r.s.bulk.slice(0, 3))}${r.s.bulk.length > 3 ? `<div class="desc">+${r.s.bulk.length - 3}</div>` : ''}</td><td class="n"><b style="font-size:16px">${nf(r.aantal)}</b>${r.s.bulkRes ? `<div class="desc">waarvan ${nf(r.s.bulkRes)} voor picklijsten op bulk</div>` : ''}</td></tr>`; }).join('')}</table></div>`
       : '<div class="empty">Niets aan te vullen.</div>'}
@@ -508,7 +553,7 @@ function tabRonde(R){
     ${R.opMap && R.opMap.length ? `<details class="mt12"><summary>Voorraad op een map, telt niet als pick (${R.opMap.length})</summary><div class="small muted mt8">Een map (bv. AD) of een locatie buiten het patroon gang-sectie-plaats-hoogte (bv. AD19A06) is geen picklocatie. Verplaats de voorraad naar een echte locatie in Picqer.</div><div class="scroll mt8"><table><tr><th>Product</th><th>Op een map</th><th>Pick</th><th>Bulk</th></tr>
       ${R.opMap.map(r => `<tr><td><span class="code">${esc(r.code)}</span><div class="desc">${esc(r.naam)}</div></td><td>${locs(r.s.map)}</td><td>${r.s.pick.length ? pickLocs(r.s.pick) : '<span class="desc">geen</span>'}</td><td>${locs(r.s.bulk.slice(0, 2))}</td></tr>`).join('')}</table></div></details>` : ''}
     ${R.losse && R.losse.length ? `<details class="mt12"><summary>Voorraad op een losse naam, voor de locatieronde (${R.losse.length})</summary><div class="small muted mt8">Telt mee als pick (zoals in Picqer), maar heeft geen standaardnaam gang-sectie-plaats-hoogte. Alleen een lijst, geen actie.</div><div class="scroll mt8"><table><tr><th>Product</th><th>Losse naam</th><th>Andere pick</th></tr>
-      ${R.losse.map(r => `<tr><td><span class="code">${esc(r.code)}</span><div class="desc">${esc(r.naam)}</div></td><td>${locs(r.s.los)}</td><td>${r.s.std ? pickLocs(r.s.pick.filter(l => isStd(l[0]))) : '<span class="desc">geen</span>'}</td></tr>`).join('')}</table></div></details>` : ''}${gedaanHtml('ronde')}</div>`;
+      ${R.losse.map(r => `<tr><td><span class="code">${esc(r.code)}</span><div class="desc">${esc(r.naam)}</div></td><td>${locs(r.s.los)}</td><td>${r.s.std ? pickLocs(r.s.pick.filter(l => isStd(l[0]))) : '<span class="desc">geen</span>'}</td></tr>`).join('')}</table></div></details>` : ''}${isTest() ? tabZonderLocatie() : ''}${gedaanHtml('ronde')}</div>`;
 }
 function tabVst(V){
   if(!V) return `<div class="card empty">Wacht op Picqer-gegevens (backorders en productlijst). Klik eventueel <b>Ververs</b>.</div>`;
@@ -535,7 +580,7 @@ function tabVergelijk(R){
     return `<tr${af ? ' style="background:#fff1dc"' : ''}><td><span class="code">${esc(b.code)}</span></td><td>${bronTxt(a)}</td><td class="n">${nf(b.pdf.pickst)} → ${s ? nf(s.pickFys) : '–'}${s && s.pickFys !== s.pickVrij ? `<div class="desc">vrij ${nf(s.pickVrij)}</div>` : ''}</td>
       <td class="n">${nf(b.pdf.aantal)}</td><td class="n"><b>${nf(a.aantal)}</b>${af ? ' <span class="badge b-warn">anders</span>' : ''}</td><td>${leeft(b.code, a.bron)}</td><td class="small">${af ? rd('beide', b.code) : ''}</td></tr>`; };
   const rijLive = a => { const r = a.r, s = r ? r.s : stand(a.code);
-    return `<tr><td><span class="code">${esc(a.code)}</span></td><td>${bronTxt(a)}</td><td>${s ? pickLocs(s.pick) : ''}</td><td class="n">${r ? nivTxt(r.lvl, r.tot) : ''}</td><td class="n">${nf(a.aantal)}</td><td>${leeft(a.code, a.bron)}</td><td class="small">${rd('live', a.code)}</td></tr>`; };
+    return `<tr><td><span class="code">${esc(a.code)}</span></td><td>${bronTxt(a)}</td><td>${s ? pickLocs(s.pick) + (s.pqVrij !== s.pickVrij ? `<div class="desc">volgens Picqer ${nf(s.pqVrij)} (${esc(extraTxt(s))})</div>` : '') : ''}</td><td class="n">${r ? nivTxt(r.lvl, r.tot) : ''}</td><td class="n">${nf(a.aantal)}</td><td>${leeft(a.code, a.bron)}</td><td class="small">${rd('live', a.code)}</td></tr>`; };
   const nAnders = C.beide.filter(b => Number(b.pdf.aantal) !== Number(b.a.aantal)).length;
   return `<div class="card"><h3>Vergelijk met het PDF-advies van Picqer</h3><div class="small muted">PDF van ${esc(tijdTxt(C.datum))} (${nf(C.nPdf)} regels) tegen wat de app adviseert: Voor orders + Aanvulronde. Per product de tijd van de stand; vergelijken telt pas als elke stand van ná de PDF is. Alleen onverklaarde verschillen zijn werk.</div>
     ${U.teOud ? `<div class="status mt8 row wrap between" style="gap:8px;background:#fff1dc;color:#7a4b00;padding:8px 10px;border-radius:8px"><b>${esc(U.teOud)}</b>${S.bezig ? `<span class="small">${esc(S.stap || 'Bezig…')}</span>` : '<button class="btn pri sm" data-al="ververs-pdf">Live stand nu verversen</button>'}</div>` : ''}
@@ -601,5 +646,5 @@ document.addEventListener('click', ev => {
     window.print(); setTimeout(() => { document.title = oud; }, 500);
   }
 });
-return { view, ververs, bijwerken, ronde, rondeLijst, vanVst, kandidaten, stand, gedaan, registreer, laadOpslag, uitleg, momenten, verversPdf, teOud, isPick, opNieuw:f => LUISTER.push(f), S };
+return { view, ververs, bijwerken, ronde, rondeLijst, vanVst, kandidaten, stand, gedaan, registreer, laadOpslag, uitleg, momenten, verversPdf, teOud, isPick, zonderLocatie, opNieuw:f => LUISTER.push(f), S };
 })();
