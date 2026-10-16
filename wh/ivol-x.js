@@ -51,9 +51,9 @@ function stijl(){
   .x-tegel .n{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
   .x-tegel .t{font-weight:700;font-size:14px}.x-tegel .u{font-size:12.5px;color:var(--muted)}
   .x-ritme{display:grid;gap:0}
-  .x-ritme label{display:grid;grid-template-columns:28px 54px 1fr auto;gap:8px;align-items:center;padding:9px 0;border-top:1px solid #eef1f5;cursor:pointer}
+  .x-ritme label{display:grid;grid-template-columns:28px 78px 1fr auto;gap:8px;align-items:center;padding:9px 0;border-top:1px solid #eef1f5;cursor:pointer}
   .x-ritme input{width:20px;height:20px}
-  .x-ritme .tijd{font-variant-numeric:tabular-nums;font-weight:800}
+  .x-ritme .tijd{font-variant-numeric:tabular-nums;font-weight:800;font-size:13px;line-height:1.2}
   .x-ritme .wie{font-size:12.5px;color:var(--muted)}
   .x-ritme label.af .wat{text-decoration:line-through;color:var(--muted)}
   .x-ritme label.nu{background:#fff6e5}
@@ -154,7 +154,10 @@ function viewNakijken(){
       </div>`).join('') + (tw.length > 120 ? `<div class="small muted">Nog ${nf(tw.length - 120)} producten; die komen hier als je deze afrondt.</div>` : '');
   } else if(tab === 'aan'){
     const groepen = [...new Set(WHAAN.LIJST.map(a => a.groep))];
-    body = groepen.map(g => `<section class="blok"><h2>${esc(g)}</h2>${WHAAN.LIJST.filter(a => a.groep === g).map(a => { const k = WHAAN.keus(a.id); return `<div class="x-rij" data-aan="${esc(a.id)}"><b>${esc(a.t)}</b><input class="${k && k.ok ? 'ok' : ''}" value="${esc(WHAAN.waarde(a.id))}" aria-label="${esc(a.t)}"><span class="x-why">${esc(a.waarom)}${a.eenheid ? ' · ' + esc(a.eenheid) : ''}${k && k.ok ? ` · <b style="color:var(--ok)">✓ ${esc(k.door || '')} ${esc(String(k.op || '').slice(0, 10))}</b>` : ''}</span>${k && k.ok ? `<button class="x-btn" data-x="aanterug" data-id="${esc(a.id)}">Opnieuw</button>` : `<button class="x-btn" data-x="aanok" data-id="${esc(a.id)}">Klopt</button>`}</div>`; }).join('')}</section>`).join('');
+    const nOk = WHAAN.LIJST.length - aan.length;
+    body = `<div class="small muted">${nf(aan.length)} open · ${nf(nOk)} ✓ (door jou in de app, of besloten in de chat). Een eigen keuze in de app gaat altijd voor.</div>` + groepen.map(g => { const L = WHAAN.LIJST.filter(a => a.groep === g), nO = L.filter(a => !WHAAN.status(a.id).ok).length;
+      return `<section class="blok"><h2>${esc(g)} <span class="small muted">${nO ? nf(nO) + ' open' : '✓ alles'}</span></h2>${L.map(a => { const k = WHAAN.status(a.id), kern = a.groep === 'Kerncijfers';
+        return `<div class="x-rij" data-aan="${esc(a.id)}"><b>${esc(a.t)}</b><input class="${k.ok ? 'ok' : ''}" value="${esc(WHAAN.waarde(a.id))}" aria-label="${esc(a.t)}"${kern ? ' data-grens="1" inputmode="numeric"' : ''}><span class="x-why">${kern ? `<b class="x-grens" aria-live="polite">${esc(WHAAN.grensTekst(WHAAN.waarde(a.id)))}</b><br>` : ''}${esc(a.waarom)}${a.eenheid ? ' · ' + esc(a.eenheid) : ''}${k.ok ? ` · <b style="color:var(--ok)">✓ ${esc(k.door || '')} ${esc(String(k.op || '').slice(0, 10))}</b>` : ''}</span>${k.ok ? `<button class="x-btn" data-x="aanterug" data-id="${esc(a.id)}">Opnieuw</button>` : `<button class="x-btn" data-x="aanok" data-id="${esc(a.id)}">Klopt</button>`}</div>`; }).join('')}</section>`; }).join('');
   } else {
     const bo = D.BO || [];
     body = `<section class="blok"><h2>Twijfel die uit de gegevens komt</h2><div class="tabel"><table><tbody>
@@ -170,9 +173,31 @@ function viewNakijken(){
 /* ---------- kerncijfers (gedeeld door Dagstart en Stand) ---------- */
 function kleur(n, id, extra){
   if(n === null || n === undefined) return '';
+  if(extra === 'voor12') return '';   // Daan 16-10: vóór 12:00 neutraal, telt vanaf 12:00
   const g = WHAAN.grens(id);
-  if(extra === 'voor12' && n >= g.oranje) return 'oranje';
   return n >= g.rood ? 'rood' : n >= g.oranje ? 'oranje' : 'groen';
+}
+// containers die nog binnenkomen (niet afgerond): productcodes uit de regels en voorboekingen
+function inkomendCodes(){
+  const s = new Set(), vd = vandaag();
+  (D.CONT || []).filter(c => c.status !== 'afgerond' && (!c.losdatum || c.losdatum >= isoDag(Date.now() - 7 * 864e5))).forEach(c => {
+    (c.regels || []).concat(...(c.voorboekingen || []).map(v => v.regels || [])).forEach(r => { const c0 = r && (r.code || r.productcode); if(c0) s.add(D.PLOW[String(c0).toLowerCase()] || c0); });
+  });
+  return s;
+}
+// backorders die wij oplossen: elke regel op voorraad in het Hoofdmagazijn (aanvullen/verplaatsen), of het product komt binnen met een container
+function boOplossen(data){
+  const B = WHLIVE.backorderCijfers(data.backorders), codeVan = {};
+  try{ const ids = (window.WHAL && WHAL.S.cat && WHAL.S.cat.ids) || {}; Object.entries(ids).forEach(([c, id]) => { codeVan[id] = c; }); }catch(e){}
+  try{ WHLIVE.rijen().forEach(r => { if(r.p) codeVan[r.b.id] = r.p.code; }); }catch(e){}
+  const komt = inkomendCodes(), uit = { n:0, bulk:0, inkomend:0, o30:0, echt:0 };
+  B.orderLijst.forEach(o => {
+    const ok = o.regels.every(r => r.v >= r.a || (codeVan[r.p] && komt.has(codeVan[r.p])));
+    if(!ok){ uit.echt++; return; }
+    uit.n++; if(o.vol) uit.bulk++; else uit.inkomend++;
+    if((WHLIVE.uren(o.oudste) ?? 0) >= 30 * 24) uit.o30++;
+  });
+  return uit;
 }
 function cijfers(){
   const st = window.WHLIVE ? WHLIVE.status() : { code:false };
@@ -181,22 +206,25 @@ function cijfers(){
   const B = data ? WHLIVE.backorderCijfers(data.backorders) : null;
   // orders langer dan 30 dagen in backorder (oudste regel van de order)
   if(B) B.o30 = B.orderLijst.filter(o => (WHLIVE.uren(o.oudste) ?? 0) >= 30 * 24).length;
+  let BO = null; try{ BO = data ? boOplossen(data) : null; }catch(e){ console.error(e); }
   let nu = null; try{ nu = data && st.klaar ? WHLIVE.nuLijst().length : null; }catch(e){}
   const vd = vandaag(), tn = tijdNu();
   const takenAchter = Object.values(D.TODO || {}).filter(t => t && t.titel && !t.klaar && (t.datum < vd || (t.datum === vd && t.tijd && t.tijd < tn))).length;
-  const geen = Object.values(D.VR || {}).filter(v => v.geen > 0).length;
+  // voorraad van een opgeboekte container die wacht op lossen/Stockmove telt niet mee (Daan 16-10)
+  const wacht = window.WHLOC && WHLOC.wachtOpLossen ? WHLOC.wachtOpLossen() : {};
+  const geen = Object.entries(D.VR || {}).filter(([c, v]) => v.geen > (wacht[c] || 0)).length;
   const binnen = (D.CONT || []).filter(c => c.losdatum === vd && c.status !== 'afgerond');
   const na12 = tn >= '12:00';
-  return { st, P, B, nu, takenAchter, geen, binnen, na12, live:!!data };
+  return { st, P, B, BO, nu, takenAchter, geen, binnen, na12, live:!!data };
 }
 function tegels(K){
   const KL = { groen:'op schema', oranje:'let op', rood:'nu iets doen' };
   const t = (n, titel, uitleg, kl, href) => `<a class="x-tegel ${kl}" href="${href || '#/dag'}"><span class="n">${n === null || n === undefined ? '–' : nf(n)}</span><span class="t">${esc(titel)}</span><span class="u">${esc(uitleg)}</span>${KL[kl] ? `<span class="x-sr">, ${KL[kl]}</span>` : ''}</a>`;
   const geenLive = K.st.code ? (K.st.laden ? 'laden…' : K.st.fout ? 'Picqer: ' + (K.st.fout.message || 'fout') : 'nog niet geladen') : 'geen koppelcode op dit apparaat';
   return `<div class="x-tegels">
-    ${t(K.P ? K.P.o12 : null, 'Orders ouder dan 12 uur', K.P ? (K.na12 ? 'na 12:00: moet 0 zijn' : 'om 12:00 moet dit 0 zijn') : geenLive, K.P ? kleur(K.P.o12, 'k-o12', K.na12 ? '' : 'voor12') : '', '#/live')}
+    ${t(K.P ? K.P.o12 : null, 'Orders ouder dan 12 uur', K.P ? (K.na12 ? 'na 12:00: moet 0 zijn' : 'telt vanaf 12:00') : geenLive, K.P ? kleur(K.P.o12, 'k-o12', K.na12 ? '' : 'voor12') : '', '#/live')}
     ${t(K.P ? K.P.o24 : null, 'Picklijsten ouder dan 24 uur', K.P ? (K.P.oudsteUur ? 'oudste ' + Math.round(K.P.oudsteUur) + ' uur' : 'geen open') : geenLive, K.P ? kleur(K.P.o24, 'k-o24') : '', '#/live')}
-    ${t(K.B ? K.B.orders : null, 'Backorders', K.B ? nf(K.B.vol) + ' met alles op voorraad · waarvan ' + nf(K.B.o30) + ' > 30 dagen' : geenLive, K.B ? kleur(K.B.orders, 'k-bo') : '', '#/live')}
+    ${t(K.BO ? K.BO.n : null, 'Backorders die wij oplossen', K.BO ? nf(K.BO.bulk) + ' met voorraad hier · ' + nf(K.BO.inkomend) + ' container onderweg' + (K.BO.o30 ? ' · waarvan ' + nf(K.BO.o30) + ' > 30 dagen' : '') : geenLive, K.BO ? kleur(K.BO.n, 'k-bo2') : '', '#/live')}
     ${t(K.nu, 'Nu verplaatsen open', K.nu === null ? (K.live ? 'voorraad laden…' : geenLive) : 'van bulk naar pick voor orders', K.nu === null ? '' : K.na12 ? kleur(K.nu, 'k-nu') : (K.nu ? 'oranje' : 'groen'), '#/aanvullive')}
     ${t(K.takenAchter, 'Taken achter', 'niet afgevinkt op tijd', kleur(K.takenAchter, 'k-taak'), '#/vandaag')}
     ${t(K.binnen.length, 'Inkomend vandaag', K.binnen.length ? K.binnen.map(c => c.leverancier || c.containernummer || '').filter(Boolean).slice(0, 2).join(', ') : 'geen container gepland', K.binnen.length ? 'oranje' : 'groen', '#/containers')}
@@ -204,14 +232,35 @@ function tegels(K){
 }
 
 /* ---------- Dagstart ---------- */
+// containerstap op de dag ten opzichte van de losdag: 0 = losdag, 1 = dag ervoor, 1–3 = vooraf
+function contDagen(w){ w = String(w || '').toLowerCase(); if(/vooraf/.test(w)){ const m = w.match(/(\d+)\D+(\d+)/); return m ? [+m[1], +m[2]] : [1, 3]; } if(/ervoor/.test(w)) return [1, 1]; return [0, 0]; }
+// sorteertijd voor tekst als "hele dag", "ochtend", "bij aankomst"
+function sorteer(w, lostijd){
+  const m = String(w || '').match(/(\d\d):(\d\d)/); if(m) return m[1] + ':' + m[2];
+  w = String(w || '').toLowerCase();
+  if(/hele dag/.test(w)) return '00:00'; if(/ochtend/.test(w)) return '07:45'; if(/aankomst/.test(w)) return /^\d\d:\d\d/.test(lostijd || '') ? lostijd.slice(0, 5) : '10:00';
+  if(/einde dag/.test(w)) return '16:45'; if(/vooraf/.test(w)) return '09:00'; if(/ervoor/.test(w)) return '15:00'; return '99:99';
+}
+const opgeboekt = c => (c.voorboekingen || []).length > 0 || !!(D.TAKEN || {})['cc:' + c.id + ':opgeboekt'];
 function ritme(){
-  const vd = vandaag();
-  const cont = (D.CONT || []).some(c => c.losdatum === vd && c.status !== 'afgerond');
-  const morgen = isoDag(Date.now() + 864e5);
-  const contMorgen = (D.CONT || []).some(c => c.losdatum === morgen && c.status !== 'afgerond');
-  return WHAAN.LIJST.filter(a => a.groep === 'Dagritme gewone dag' || (a.groep === 'Containerdag (extra)' && (cont || (a.id === 'c-01' && contMorgen))))
-    .map(a => { const w = WHAAN.waarde(a.id), p = w.split('·').map(s => s.trim()); return { id:a.id, wat:a.t, tijd:/^\d\d:\d\d$/.test(p[0]) ? p[0] : '', wanneer:p[0], wie:p.slice(1).join(' · '), cont:a.groep !== 'Dagritme gewone dag' }; })
-    .sort((a, b) => (a.tijd || (a.wanneer === 'dag ervoor' ? '00:00' : '99:99')).localeCompare(b.tijd || (b.wanneer === 'dag ervoor' ? '00:00' : '99:99')));
+  const vd = vandaag(), dagen = d => Math.round((new Date(d + 'T12:00') - new Date(vd + 'T12:00')) / 864e5);
+  const conts = (D.CONT || []).filter(c => c.status !== 'afgerond' && c.losdatum && dagen(c.losdatum) >= 0 && dagen(c.losdatum) <= 3);
+  const uit = [];
+  WHAAN.LIJST.forEach(a => {
+    const w = WHAAN.waarde(a.id), p = w.split('·').map(s => s.trim());
+    const r = { id:a.id, wat:a.t, wanneer:p[0], wie:p.slice(1).join(' · '), cont:false };
+    if(a.groep === 'Dagritme gewone dag'){ uit.push(Object.assign(r, { tijd:(p[0].match(/^(\d\d:\d\d)/) || [])[1] || '', sort:sorteer(p[0]) })); return; }
+    if(a.groep !== 'Containerdag (extra)') return;
+    const [van, tot] = contDagen(p[0]);
+    conts.filter(c => { const d = dagen(c.losdatum); return d >= van && d <= tot; }).forEach(c => {
+      const naam = c.leverancier || c.containernummer || 'container';
+      let wie = r.wie;
+      if(a.id === 'c-stock' && !opgeboekt(c)) wie += (wie ? ' · ' : '') + 'wacht op opboeken door Jim';
+      uit.push(Object.assign({}, r, { id:a.id + (conts.length > 1 ? ':' + c.id : ''), wat:a.t + ' · ' + naam + (dagen(c.losdatum) ? ' (' + (dagen(c.losdatum) === 1 ? 'morgen' : 'over ' + dagen(c.losdatum) + ' dagen') + ')' : ''),
+        wie, cont:true, tijd:(p[0].match(/(\d\d:\d\d)/) || [])[1] || '', sort:sorteer(p[0], c.lostijd) }));
+    });
+  });
+  return uit.sort((a, b) => a.sort.localeCompare(b.sort));
 }
 function viewDag(){
   if(!S.dag) laadDag();
@@ -224,7 +273,7 @@ function viewDag(){
     <p class="lede">Zes cijfers, het ritme van de dag en het ochtendoverleg. Groen = op schema, oranje = let op, rood = nu iets doen. Grenzen en tijden staan onder Te controleren (aannames).</p>
     ${tegels(K)}
     <section class="blok"><div class="x-kop"><h2>Ritme van vandaag</h2><span class="small muted">${nf(nAf)} van ${nf(R.length)} gedaan${volgende ? ' · volgende: ' + esc(volgende.tijd) + ' ' + esc(volgende.wat) : ''}</span></div>
-      <div class="x-ritme">${R.map(r => `<label class="${af[r.id] ? 'af' : ''}${volgende && volgende.id === r.id ? ' nu' : ''}"><input type="checkbox" id="x-r-${esc(r.id)}" data-x="ritme" data-id="${esc(r.id)}" ${af[r.id] ? 'checked' : ''}><span class="tijd">${esc(r.tijd || r.wanneer)}</span><span><span class="wat">${esc(r.wat)}</span>${r.cont ? ' <span class="x-abc">container</span>' : ''}<div class="wie">${esc(r.wie)}${af[r.id] ? ' · gedaan ' + esc(String(af[r.id].op || '').slice(11, 16)) + ' door ' + esc(af[r.id].door || '') : ''}</div></span><span></span></label>`).join('')}</div>
+      <div class="x-ritme">${R.map(r => `<label class="${af[r.id] ? 'af' : ''}${volgende && volgende.id === r.id ? ' nu' : ''}"><input type="checkbox" id="x-r-${esc(r.id)}" data-x="ritme" data-id="${esc(r.id)}" ${af[r.id] ? 'checked' : ''}><span class="tijd">${esc(r.wanneer)}</span><span><span class="wat">${esc(r.wat)}</span>${r.cont ? ' <span class="x-abc">container</span>' : ''}<div class="wie">${esc(r.wie)}${af[r.id] ? ' · gedaan ' + esc(String(af[r.id].op || '').slice(11, 16)) + ' door ' + esc(af[r.id].door || '') : ''}</div></span><span></span></label>`).join('')}</div>
     </section>
     <section class="blok"><h2>Ochtendoverleg (Kate en Sala, 07:00)</h2>
       <ul class="small" style="padding-left:18px;display:grid;gap:4px">
@@ -275,7 +324,7 @@ function viewStand(){
       ${p(6, 'Containerdag volgens plan', nf(contN.length) + ' in 14 dagen', contN.length ? '' : 'groen', contN.slice(0, 3).map(c => esc((c.losdatum || '').slice(5) + ' ' + (c.leverancier || ''))).join(' · ') || 'geen gepland', '#/containers')}
       ${p(7, 'Inrichting op logica', pdPct !== null ? pdPct + '% productdata' : '…', pdPct === null ? '' : pdPct >= 100 ? 'groen' : pdPct >= 85 ? 'oranje' : 'rood', 'Belangrijke producten met complete productdata (Poort 0.4)' + (locA !== null ? ' · ' + nf(locA) + ' locatie-aandachtspunten open' : '') + '; herindeling volgt na de analyses', '#/todo')}
       ${p(8, 'Verzenden juist verpakt', '–', '', geenBron + ' (kennisbank E6/E8)', '')}
-      ${p(9, '12:00: orders ouder dan 12 uur verwerkt', K.P ? nf(K.P.o12) : '–', K.P ? kleur(K.P.o12, 'k-o12', K.na12 ? '' : 'voor12') : '', K.na12 ? 'Na 12:00 moet dit 0 zijn' : 'Vóór 12:00: dit moet om 12:00 op 0 staan', '#/live')}
+      ${p(9, '12:00: orders ouder dan 12 uur verwerkt', K.P ? nf(K.P.o12) : '–', K.P ? kleur(K.P.o12, 'k-o12', K.na12 ? '' : 'voor12') : '', K.na12 ? 'Na 12:00 moet dit 0 zijn' : 'Telt vanaf 12:00', '#/live')}
       ${p(10, 'Daan managet in plaats van oplost', nf(daanOpen) + ' taken · ' + (tw === null ? '…' : nf(tw)) + ' te controleren', daanOpen + (tw || 0) ? 'oranje' : 'groen', 'Open taken voor Daan en wat hij nog moet nakijken', '#/nakijken')}
     </div></div>`;
 }
@@ -416,6 +465,7 @@ function bind(){
     herteken();
   });
   document.addEventListener('input', e => {
+    if(e.target.dataset && e.target.dataset.grens){ const g = e.target.closest('[data-aan]'); const s = g && g.querySelector('.x-grens'); if(s) s.textContent = WHAAN.grensTekst(e.target.value); return; }
     if(e.target.id !== 'x-zoek') return;
     S.zoek = e.target.value; S.gekozen = null;
     clearTimeout(S.zt); S.zt = setTimeout(herteken, 150);

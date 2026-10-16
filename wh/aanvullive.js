@@ -539,22 +539,42 @@ function tabZonderLocatie(){
 const in30 = () => { if(isTest()) return true; try{ return window.parent !== window && !!window.parent.IVOL; }catch(e){ return false; } };
 const pdVan = c => (D.PDAAN && D.PD && D.PD[c]) || {};
 const vrijL = l => Math.max(0, l[4] - (l[5] || 0));
-// aanvullen met volle pallets: aantal afronden op hele pallets (min. 1, niet boven max op pick) en een bulkpallet met precies dat aantal kiezen
-function palletAdvies(r){
+// aanvullen met volle pallets (Daan 16-10, aanname a-pal en a-bulk):
+//  - pick onder "bij" → 1 volle pallet;
+//  - orders in backorder vragen meer dan max op pick → wat de orders vragen, ook boven max (hele pallets);
+//  - volle pallet groter dan max op pick → hele dozen plus de losse stuks tot zo dicht mogelijk onder max;
+//  - welke bulkplek: eerst het restje (deelpallet), daarna maakt het niet uit (looproute). Altijd eerst eigen bulk.
+function palletAdvies(r, vraagArg){
   const pd = pdVan(r.code), met = String(pd.met || '').trim().toLowerCase();
   const spp = WHL.sppVan(r.code);
   if(met !== 'pallet' || !(spp > 0)) return null;
-  const maxp = WH.num(pd.maxpick);
-  let n = Math.max(1, Math.round(r.aantal / spp));
-  if(maxp > 0) while(n > 1 && r.s.pickFys + n * spp > maxp) n--;
+  const maxp = WH.num(pd.maxpick) || 0, spd = WH.num(pd.spd) > 1 ? WH.num(pd.spd) : 0;
+  let vraag = vraagArg;
+  if(vraag === undefined){ vraag = 0; try{ const x = (window.WHLIVE ? WHLIVE.nuLijst() : []).find(m => m.code === r.code); if(x) vraag = x.stuks || 0; }catch(e){} }
+  const pickNu = r.s.pickFys != null ? r.s.pickFys : r.s.pickVrij;
   const opRoute = (a, b) => WHL.sortLoc(a[0], b[0]);
-  const exact = r.s.bulk.filter(l => vrijL(l) === spp).sort(opRoute);
-  const meer = r.s.bulk.filter(l => vrijL(l) > spp && vrijL(l) % spp === 0).sort(opRoute);
-  const van = []; let nog = n;
-  exact.forEach(l => { if(nog > 0){ van.push([l[0], 1]); nog--; } });
-  meer.forEach(l => { if(nog > 0){ const k = Math.min(nog, vrijL(l) / spp); van.push([l[0], k]); nog -= k; } });
-  const pal = n - nog;
-  return { spp, n, pal, stuks:pal * spp, van, tekort:nog, geen:!pal, maxp };
+  const rest = r.s.bulk.filter(l => vrijL(l) > 0 && vrijL(l) % spp !== 0).sort((a, b) => vrijL(a) - vrijL(b) || opRoute(a, b));
+  const vol = r.s.bulk.filter(l => vrijL(l) >= spp && vrijL(l) % spp === 0).sort(opRoute);
+  // 1. volle pallet past niet onder max: dozen + losse stuks
+  if(maxp > 0 && !(vraag > maxp) && spp > maxp){
+    const ruimte = Math.max(0, maxp - pickNu);
+    const bron = rest[0] || vol[0] || null;
+    const losOp = spd ? spp % spd : 0;
+    const los = Math.min(losOp, ruimte), dozen = spd ? Math.floor((ruimte - los) / spd) : 0;
+    const stuks = spd ? dozen * spd + los : ruimte;
+    return { soort:'doos', spp, spd, maxp, dozen, los, stuks, na:pickNu + stuks, van:bron && stuks > 0 ? [[bron[0], stuks, 'doos']] : [], geen:!bron || stuks <= 0, tekort:0, pal:0, n:0 };
+  }
+  // 2. orders vragen meer dan max op pick: wat de orders vragen; 3. anders 1 volle pallet
+  const voorOrders = maxp > 0 && vraag > maxp;
+  const n = voorOrders ? Math.max(1, Math.ceil(Math.max(0, vraag - r.s.pickVrij) / spp)) : 1;
+  const nodig = n * spp, van = []; let st = 0;
+  rest.forEach(l => { if(st < nodig && (st === 0 || voorOrders)){ van.push([l[0], vrijL(l), 'rest']); st += vrijL(l); } });
+  // na een restje alleen een volle pallet erbij als de pick dan nog op of onder "bij" zit (aanname a-rest), of als de orders meer vragen
+  const lvl = r.lvl != null ? r.lvl : null;
+  const nogNodig = () => voorOrders ? st < nodig : st === 0 || (lvl !== null && pickNu + st <= lvl);
+  vol.forEach(l => { let k = 0; while(nogNodig() && k < vrijL(l) / spp){ k++; st += spp; } if(k) van.push([l[0], k, 'pal']); });
+  const pal = van.filter(v => v[2] === 'pal').reduce((t, v) => t + v[1], 0), restSt = van.filter(v => v[2] === 'rest').reduce((t, v) => t + v[1], 0);
+  return { soort:voorOrders ? 'orders' : 'pallet', spp, n, pal, rest:restSt, stuks:pal * spp + restSt, van, tekort:voorOrders || !st ? Math.max(0, Math.ceil((nodig - st) / spp)) : 0, geen:!van.length, maxp, vraag };
 }
 function pdRegel(c){
   const pd = pdVan(c), d = [];
@@ -566,8 +586,11 @@ function rijNieuw(r){
   const pd = pdVan(r.code), P = palletAdvies(r), regel = pdRegel(r.code);
   const met = String(pd.met || '').trim().toLowerCase();
   const kolBulk = P && !P.geen ? r.s.bulk.slice().sort((a, b) => (P.van.some(v => v[0] === b[0]) ? 1 : 0) - (P.van.some(v => v[0] === a[0]) ? 1 : 0)).slice(0, 3) : r.s.bulk.slice(0, 3);
-  const bulkHtml = kolBulk.map(l => `<span class="loc">${esc(l[0])}</span> <span class="small">${nf(l[4])}</span>${(() => { const v = P && P.van.find(x => x[0] === l[0]); return v ? ` <span class="badge b-ok">${v[1] > 1 ? v[1] + ' volle pallets' : 'volle pallet'}</span>` : ''; })()}`).join('<br>');
-  const aanv = P && !P.geen ? `<b style="font-size:16px">${plural(P.pal, 'pallet', 'pallets')}</b><div class="desc">${nf(P.stuks)} stuks · ${nf(P.spp)} per pallet</div>${P.tekort ? `<div class="desc">nog ${nf(P.tekort * P.spp)} los: niet genoeg volle pallets</div>` : ''}${P.maxp > 0 && r.s.pickFys + P.stuks > P.maxp ? `<div class="desc" style="color:var(--warn)">boven max op pick (${nf(P.maxp)})</div>` : ''}`
+  const badge = v => v[2] === 'rest' ? 'restje eerst' : v[2] === 'doos' ? 'hieruit' : v[1] > 1 ? v[1] + ' volle pallets' : 'volle pallet';
+  const bulkHtml = kolBulk.map(l => `<span class="loc">${esc(l[0])}</span> <span class="small">${nf(l[4])}</span>${(() => { const v = P && P.van.find(x => x[0] === l[0]); return v ? ` <span class="badge b-ok">${badge(v)}</span>` : ''; })()}`).join('<br>');
+  const wat = P => P.soort === 'doos' ? (P.spd ? plural(P.dozen, 'doos', 'dozen') + (P.los ? ' + ' + nf(P.los) + ' los' : '') : nf(P.stuks) + ' los')
+    : [P.rest ? 'restje ' + nf(P.rest) : '', P.pal ? plural(P.pal, 'pallet', 'pallets') : ''].filter(Boolean).join(' + ');
+  const aanv = P && !P.geen ? `<b style="font-size:16px">${esc(wat(P))}</b><div class="desc">${nf(P.stuks)} stuks${P.soort === 'doos' ? ' · daarna ' + nf(P.na) + ' op pick (max ' + nf(P.maxp) + ')' : ' · ' + nf(P.spp) + ' per pallet'}</div>${P.soort === 'orders' ? `<div class="desc" style="color:var(--warn)">orders vragen ${nf(P.vraag)}: boven max op pick (${nf(P.maxp)})</div>` : ''}${P.tekort ? `<div class="desc">nog ${nf(P.tekort * P.spp)} los: niet genoeg volle pallets</div>` : ''}`
     : `<b style="font-size:16px">${nf(r.aantal)}</b>${P && P.geen ? '<div class="desc">losse stuks: geen volle pallet op bulk</div>' : met === 'deel' ? '<div class="desc">deel van een pallet</div>' : ''}`;
   return `<tr><td><span class="code">${esc(r.code)}</span>${r.voorOrders ? ' <span class="badge b-bad">ook voor orders</span>' : ''}${r.pqOver ? ` <span class="badge b-warn">Picqer slaat dit over: ${esc(r.pqOver)}</span>` : ''}${pd.vn ? `<div><b>${esc(pd.vn)}</b></div>` : ''}<div class="desc">${esc(r.naam)}</div>${regel ? `<div class="desc">${esc(regel)}</div>` : ''}</td>
           <td>${pickLocs(r.s.pick)}${r.s.pickFys !== r.s.pickVrij ? `<div class="desc">fysiek ${nf(r.s.pickFys)}</div>` : ''}</td><td class="n">${nf(r.lvl)} / ${nf(r.tot)}${r.nivBron === 'picqer' ? '<div class="desc">niveau uit Picqer</div>' : ''}</td>
@@ -700,5 +723,5 @@ document.addEventListener('click', ev => {
     window.print(); setTimeout(() => { document.title = oud; }, 500);
   }
 });
-return { view, ververs, bijwerken, ronde, rondeLijst, vanVst, kandidaten, stand, gedaan, registreer, laadOpslag, uitleg, momenten, verversPdf, teOud, isPick, zonderLocatie, opNieuw:f => LUISTER.push(f), S };
+return { palletAdvies, view, ververs, bijwerken, ronde, rondeLijst, vanVst, kandidaten, stand, gedaan, registreer, laadOpslag, uitleg, momenten, verversPdf, teOud, isPick, zonderLocatie, opNieuw:f => LUISTER.push(f), S };
 })();

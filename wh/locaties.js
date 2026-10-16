@@ -72,7 +72,11 @@ const cc = c => D.PLOW[String(c || '').trim().toLowerCase()] || String(c || '').
 const naamP = c => String((D.P[c] || {}).naam || '');
 const kortN = c => { const n = naamP(c); return n.length > 44 ? n.slice(0, 42) + '…' : n; };
 const isKar = n => /^container\s*\d+$/i.test(String(n || '').trim());
-const isMap = n => window.WHAL && WHAL.isPick ? !WHAL.isPick(n) : false;
+// map = tussenniveau: gang (AD), stelling (AD13) of plaats (AD13C), of een bovenliggende locatie (Daan 16-10).
+// Zonder product geen probleem; met product melden. Zelfgemaakte vloerplekken (Sportvloer bulk, BE-tafel …) zijn echte plekken.
+const TUSSEN_RX = /^[A-Z]{2}(\d{2}[A-D]?)?$/i;
+let OUDERS = null, OUDERSVAN = null;
+const isMap = n => { n = String(n || '').trim(); if(TUSSEN_RX.test(n)) return true; if(OUDERSVAN !== D.LOC){ OUDERS = new Set(Object.values(D.LOC || {}).map(L => L.parent).filter(Boolean)); OUDERSVAN = D.LOC; } return OUDERS.has(n); };
 const pqCode = c => { const q = D.PQ[c]; return q && q[3] ? q[3] : c; };   // exacte Picqer-code (soms met spatie)
 const pqId = c => window.WHAL && WHAL.S.cat && WHAL.S.cat.ids ? WHAL.S.cat.ids[c] : null;
 const pqLink = (c, t) => { const id = pqId(c); return id ? `<a href="${PQ}/products/${encodeURIComponent(id)}" target="_blank" rel="noopener">${esc(t || c)} ↗</a>` : `<span class="code">${esc(t || c)}</span>`; };
@@ -89,19 +93,40 @@ function perProduct(){
   if(IDXVAN !== D.LOC){ IDX = {}; Object.values(D.LOC || {}).forEach(L => (L.codes || []).forEach(c => { c = cc(c); (IDX[c] = IDX[c] || []).push(L.naam); })); IDXVAN = D.LOC; }
   return IDX;
 }
-// voorraad hier volgens de laatste stand: de live stand van Picqer als die nieuwer is dan de voorraad-export
+// voorraad hier: de voorraad-export beslist, niet de live stand (Daan 16-10). Zegt de export voorraad, dan niet ontkoppelen.
 function hier(code, loc){
   const v = D.VR[code];
-  let n = v ? (isKar(loc) ? (v.cont || {})[loc] : (v.locs || {})[loc]) || 0 : 0, bron = 'export', t = D.VRDATUM;
-  const p = window.WHAL && WHAL.S.st && WHAL.S.st.p && WHAL.S.st.p[code];
-  if(p && p.t && (!D.VRDATUM || new Date(String(p.t).replace(' ', 'T')) > new Date(D.VRDATUM))){
-    const l = (p.l || []).find(x => x[0] === loc && (x[1] == null || Number(x[1]) === MAG));
-    n = l ? l[4] || 0 : 0; bron = 'live'; t = p.t;
-  }
-  return { n, bron, t };
+  const n = v ? (isKar(loc) ? (v.cont || {})[loc] : (v.locs || {})[loc]) || 0 : 0;
+  return { n, bron:'export', t:D.VRDATUM };
+}
+// voorraad van een opgeboekte container die nog wacht op lossen/Stockmove: { code: aantal } (begrensd door wat er zonder locatie staat)
+function wachtOpLossen(){
+  const uit = {};
+  (D.CONT || []).forEach(c => {
+    if(c.status === 'afgerond') return;
+    (c.voorboekingen || []).forEach(v => (v.regels || []).forEach(r => { const c0 = r && (r.code || r.productcode); if(!c0) return; const code = cc(c0); uit[code] = (uit[code] || 0) + (WH.num(r.aantal) || 0); }));
+  });
+  Object.keys(uit).forEach(c => { uit[c] = Math.min(uit[c], (D.VR[c] || {}).geen || 0); if(!(uit[c] > 0)) delete uit[c]; });
+  return uit;
+}
+// geteld en weggezet, maar de nieuwste export toont nog voorraad zonder locatie: taak voor Kate (één keer per product per export)
+const KATE = new Set();
+function meldKate(lijst){
+  if(!lijst.length || !D.VRDATUM || !window.WH || !WH.catPatch) return;
+  const nieuw = {};
+  lijst.forEach(x => {
+    const id = 'geteld-' + String(x.code).replace(/[^\w-]/g, '_') + '-' + String(D.VRDATUM).slice(0, 16).replace(/\D/g, '');
+    if(KATE.has(id) || (D.TODO || {})[id]) return;
+    KATE.add(id);
+    nieuw[id] = { id, titel:'Nog zonder locatie na tellen: ' + x.code + ' (' + nf(x.n) + ')', noot:kortN(x.code) + ' · geteld en weggezet, maar de voorraad-export van ' + dtTxt(D.VRDATUM) + ' toont nog voorraad op geen specifieke locatie. Opnieuw tellen en in Picqer op de juiste locatie zetten.',
+      wie:['Kate'], datum:vandaag(), tijd:'', herhaal:null, prio:1, door:'app (Locaties)', op:nuIso(), klaar:null };
+  });
+  if(!Object.keys(nieuw).length) return;
+  D.TODO = Object.assign({}, D.TODO, nieuw);
+  WH.catPatch('wh-todo', nieuw).catch(e => { console.error(e); Object.keys(nieuw).forEach(id => KATE.delete(id)); });
 }
 const basisVan = naam => { const L = D.LOC[naam] || {}; const codes = codesVan(naam); return { bulk:!!L.bulk, tijd:!!L.tijd, codes, vr:Object.fromEntries(codes.map(c => [c, hier(c, naam).n])) }; };
-const voorraadTxt = () => `voorraad volgens ${D.VRDATUM ? 'export van ' + dtTxt(D.VRDATUM) : 'geen export'}${window.WHAL && WHAL.S.st && WHAL.S.st.bijgewerkt ? ', live stand ' + dtTxt(WHAL.S.st.bijgewerkt) + ' waar nieuwer' : ''} · locaties ${D.LOCBRON === 'picqer-live' ? 'live ' : ''}${dtTxt(D.LOCDATUM)} · koppelingen ${dtTxt(koppelDatum())}`;
+const voorraadTxt = () => `voorraad volgens ${D.VRDATUM ? 'export van ' + dtTxt(D.VRDATUM) : 'geen export'} (de export beslist) · locaties ${D.LOCBRON === 'picqer-live' ? 'live ' : ''}${dtTxt(D.LOCDATUM)} · koppelingen ${dtTxt(koppelDatum())}`;
 
 /* ---------- de soorten aandachtspunten ---------- */
 const SOORTEN = [
@@ -151,7 +176,7 @@ function problemen(){
       const m = /^([A-Z]{2}\d{2}[A-D])-(\d{2})$/.exec(L.naam);
       if(m && namen.has(m[1] + m[2])){ r.dubbel.push(L.naam); r.info[L.naam] = m[1] + m[2]; }
       else if(isMap(L.naam)) r.opMap.push(L.naam);
-      else r.rommel.push(L.naam);
+      // zelfgemaakte vloerplekken (Sportvloer bulk, BE-tafel …): echte plekken, niet melden (Daan 16-10)
     }
   });
   const al = new Set(r.tijdPick.concat(r.vloerBulk, r.hoogPick));
@@ -214,9 +239,10 @@ function regels(k){
   if(k === 'geen'){
     const uit = [], gezien = new Set();
     let Z = []; try{ Z = window.WHAL && WHAL.zonderLocatie ? WHAL.zonderLocatie() : []; }catch(e){ console.error(e); }
-    Z.forEach(z => { gezien.add(z.code); uit.push({ id:z.code, code:z.code, n:z.n, pick:z.pick, krap:z.krap, plank:z.plank }); });
-    Object.entries(D.VR || {}).filter(([c, v]) => v.geen > 0 && !gezien.has(c)).sort((a, b) => b[1].geen - a[1].geen || a[0].localeCompare(b[0]))
-      .forEach(([c, v]) => uit.push({ id:c, code:c, n:v.geen, pick:[], krap:false }));
+    const W = wachtOpLossen();   // opgeboekte container, wacht op lossen/Stockmove: staat apart
+    Z.forEach(z => { gezien.add(z.code); const n = z.n - (W[z.code] || 0); if(n > 0) uit.push({ id:z.code, code:z.code, n, pick:z.pick, krap:z.krap, plank:z.plank }); });
+    Object.entries(D.VR || {}).filter(([c, v]) => v.geen - (W[c] || 0) > 0 && !gezien.has(c)).sort((a, b) => b[1].geen - a[1].geen || a[0].localeCompare(b[0]))
+      .forEach(([c, v]) => uit.push({ id:c, code:c, n:v.geen - (W[c] || 0), pick:[], krap:false }));
     Object.keys(d.geteld).forEach(c => { if(!uit.some(x => x.code === c)) uit.push({ id:c, code:c, n:0, pick:[], krap:false }); });
     uit.forEach(x => {
       const g = d.geteld[x.code];
@@ -224,6 +250,7 @@ function regels(k){
       x.st = !x.n ? (g ? 'verwerkt' : 'klaar') : g && (!D.VRDATUM || g.op >= D.VRDATUM) ? 'klaar' : 'open';
       x.opnieuw = !!(g && x.n && D.VRDATUM && g.op < D.VRDATUM);
     });
+    meldKate(uit.filter(x => x.opnieuw));
     return uit;
   }
   if(k === 'kar'){
@@ -440,9 +467,15 @@ const bulkTijd = (b, t) => (b ? 'bulk' : 'pick') + ' · ' + (t ? 'tijdelijk' : '
 const prodKort = naam => { const c = codesVan(naam); return c.length ? c.slice(0, 3).map(x => `<span class="code">${esc(x)}</span> ${esc(kort(naamP(x), 28))}`).join('<br>') + (c.length > 3 ? `<div class="desc">+${c.length - 3} meer</div>` : '') : '<span class="desc">geen product</span>'; };
 const vrHier = naam => { const c = codesVan(naam); if(!c.length) return ''; const n = c.reduce((s, x) => s + hier(x, naam).n, 0); return `voorraad hier ${nf(n)}`; };
 
+// hoog (10/20/30) maar pick: uitzondering alleen in AE/AF als een product daar vast ligt, gepickt wordt en geen andere picklocatie heeft (Daan 16-10)
+function hoogUitz(naam){
+  if(!/^A[EF]/i.test(naam)) return false;
+  return codesVan(naam).some(c => !(perProduct()[c] || []).some(l => l !== naam && D.LOC[l] && !D.LOC[l].bulk && !isKar(l) && !isMap(l)));
+}
 function rijLoc(s, x){
   const L = D.LOC[x.naam] || {}, b = B.d.loc[x.naam], info = problemen().info[x.naam];
-  const twijfel = WHL.TWIJFEL.has(x.naam);
+  const uitzH = s.k === 'hoogPick' && hoogUitz(x.naam);
+  const twijfel = WHL.TWIJFEL.has(x.naam) && !(s.k === 'hoogPick' && !uitzH);
   const reg = regelVan(x.naam);
   const doel = s.k === 'regel' ? (reg || {}) : s.a.v;
   const gekA = b && !b.uitz && b.bulk !== undefined && Object.keys(doel).every(k => !!b[k] === !!doel[k]);
@@ -451,7 +484,8 @@ function rijLoc(s, x){
   const nu = s.k === 'regel' ? `nu ${bulkTijd(L.bulk, L.tijd)}${reg ? ' · regel: ' + bulkTijd(reg.bulk, reg.tijd) : ''}` : vrHier(x.naam);
   return `<div class="lk-rij${klaar ? ' klaar' : ''}" data-rij="${esc(x.id)}"><div><span class="loc">${esc(x.naam)}</span>${twijfel ? ' <span class="badge b-warn">twijfel</span>' : ''}${L.excl ? ' <span class="badge b-grey">exclusief</span>' : ''} ${stHtml(x.st)}</div>
     <div class="lk-wat">${s.k === 'regel' ? `<span>${esc(nu)}</span><span class="desc">${codesVan(x.naam).length ? esc(codesVan(x.naam).length + ' product(en) · ' + vrHier(x.naam)) : 'geen product'}</span>` : `<span>${prodKort(x.naam)}</span><span class="desc">${esc(nu)}</span>`}</div>
-    <div class="lk-keus">${keusKnop(`data-lk="loc-a" data-s="${s.k}" data-n="${esc(x.naam)}"`, s.a.t, gekA, !twijfel, x.st === 'weg', true)}${keusKnop(`data-lk="loc-b" data-s="${s.k}" data-n="${esc(x.naam)}"`, s.b.t, gekB, false, x.st === 'weg')}</div></div>`;
+    ${uitzH ? '<span class="desc">Uitzondering AE/AF: het product wordt hier gepickt en heeft geen andere picklocatie</span>' : ''}
+    <div class="lk-keus">${keusKnop(`data-lk="loc-a" data-s="${s.k}" data-n="${esc(x.naam)}"`, s.a.t, gekA, !twijfel && !uitzH, x.st === 'weg', true)}${keusKnop(`data-lk="loc-b" data-s="${s.k}" data-n="${esc(x.naam)}"`, s.b.t, gekB, uitzH, x.st === 'weg')}</div></div>`;
 }
 function rijKop(s, x){
   const h = hier(x.code, x.naam), g = gekozen(x.naam, x.code), klaar = telt[x.st] === 'klaar';
@@ -482,6 +516,12 @@ function rijKar(x){
     <div class="lk-wat"><span>${esc(kortN(x.code))}</span><span class="desc">op de kar <b>${nf(x.n)}</b> (${x.bron}) · terug naar: ${pick.length ? esc(pick.join(', ')) : 'geen picklocatie'}</span></div>
     <div class="lk-keus">${keusKnop(`data-lk="kar" data-id="${esc(x.id)}" data-v="${x.n}"`, 'Teruggezet', x.st === 'klaar', true, false, true)}</div></div>`;
 }
+function wachtBlok(){
+  const W = wachtOpLossen(), L = Object.entries(W).sort((a, b) => a[0].localeCompare(b[0]));
+  if(!L.length) return '';
+  return `<details class="lk-bak mt8"><summary>Wacht op lossen/Stockmove (${nf(L.length)})</summary><div class="small muted mt4">Opgeboekt door Jim, de container is nog niet verwerkt. Telt niet mee in deze lijst en niet in het kerncijfer "geen specifieke locatie".</div>
+    ${L.map(([c, n]) => `<div class="lk-rij"><div><span class="code">${esc(c)}</span><div class="desc">${esc(kortN(c))}</div></div><div class="lk-wat"><span>zonder locatie, uit container <b>${nf(n)}</b></span></div><div></div></div>`).join('')}</details>`;
+}
 function viewPunt(k){
   const s = SOORT[k]; if(!s) return viewOverzicht();
   const r = regels(k), t = tel(k);
@@ -491,7 +531,7 @@ function viewPunt(k){
   const uitz = s.soort === 'loc' ? Object.entries(B.d.loc).filter(([n, x]) => x.uitz && x.soort === k).map(([n]) => n).sort(sortLoc) : [];
   return `${kopBalk(['#/locaties', 'Locaties'], s.t, `${esc(s.probleem)} ${esc(s.picqer)}`)}
     <div class="card"><div class="row wrap between"><b>${esc(vtTekst(t))}</b><span class="small muted">${esc(voorraadTxt())}</span></div>
-      ${s.k === 'geen' ? '<div class="small muted mt4">Eerst producten met een picklocatie en een lege of krappe plank, daarna de rest.</div>' : ''}
+      ${s.k === 'geen' ? '<div class="small muted mt4">Eerst producten met een picklocatie en een lege of krappe plank, daarna de rest.</div>' : ''}${s.k === 'geen' ? wachtBlok() : ''}
       <div class="mt8">${body}</div>${r.length > MAX ? `<div class="small muted mt8">Eerste ${MAX} van ${nf(r.length)}; wat klaar is verdwijnt.</div>` : ''}
       ${uitz.length ? `<details class="mt12"><summary>Uitzonderingen, laten zo (${nf(uitz.length)})</summary>${uitz.map(n => `<div class="lk-rij"><div><span class="loc">${esc(n)}</span></div><div class="lk-wat"><span class="desc">${esc(bulkTijd(D.LOC[n] && D.LOC[n].bulk, D.LOC[n] && D.LOC[n].tijd))} · beslist ${esc(dtTxt(B.d.loc[n].op))}</span></div><div class="lk-keus"><button class="lk-k" data-lk="loc-b" data-s="${k}" data-n="${esc(n)}">Terugzetten</button></div></div>`).join('')}</details>` : ''}
       ${kanImport ? `<div class="row wrap mt12"><a class="lk-knop pri" href="#/locaties/import?punt=${k}">Naar import</a></div>` : ''}</div>`;
@@ -612,7 +652,7 @@ function vergelijk(sel, V){
     const L = V.loc[naam], id = 'L|' + naam, wat = L ? bulkTijd(L.bulk, L.tijd) + ' → ' + bulkTijd(b.bulk, b.tijd) : bulkTijd(b.bulk, b.tijd);
     const r = { id, soort:'loc', naam, b, wat, red:[] };
     if(!L){ r.bak = 'niet'; r.red.push('De locatie bestaat niet meer in Picqer.'); return rijen.push(r); }
-    if(L.bulk === !!b.bulk && L.tijd === !!b.tijd){ r.bak = 'niet'; r.verwerkt = true; r.red.push('Picqer heeft al de gewenste stand. ✓ verwerkt'); return uurOud(b.op) < 24 * 30 ? rijen.push(r) : null; }
+    if(L.bulk === !!b.bulk && L.tijd === !!b.tijd){ r.bak = 'niet'; r.verwerkt = true; r.red.push('Picqer heeft al de gewenste stand. ✓ verwerkt'); return null; }   // verwerkt: alleen ✓ in de gang-tabel (Daan 16-10)
     const codes = L.codes;
     const toen = (b.basis && b.basis.codes) || [];
     if(toen.length !== codes.length || toen.some(c => !codes.includes(c))) r.red.push('Producten veranderd sinds je besluit: toen ' + (toen.join(', ') || 'geen') + ' ↔ nu ' + (codes.join(', ') || 'geen') + '.');
@@ -632,7 +672,7 @@ function vergelijk(sel, V){
     const L = V.loc[naam], id = 'K|' + naam + '|' + code;
     const r = { id, soort:'koppel', naam, code, w, wat:code + ' ontkoppelen van ' + naam, red:[] };
     if(!L){ r.bak = 'niet'; r.red.push('De locatie bestaat niet meer in Picqer.'); return rijen.push(r); }
-    if(!L.codes.includes(code)){ r.bak = 'niet'; r.verwerkt = true; r.red.push('Het product staat al niet meer op deze locatie. ✓ verwerkt'); return uurOud(w.op) < 24 * 30 ? rijen.push(r) : null; }
+    if(!L.codes.includes(code)){ r.bak = 'niet'; r.verwerkt = true; r.red.push('Het product staat al niet meer op deze locatie. ✓ verwerkt'); return null; }
     const n = versHier(V, code, naam);
     if(n > 0){ r.bak = 'niet'; r.red.push('Er ligt nu ' + nf(n) + ' voorraad op deze locatie: eerst verplaatsen in Picqer.'); return rijen.push(r); }
     const rest = (V.per[code] || []).filter(l => l !== naam);
@@ -848,5 +888,5 @@ window.addEventListener('pagehide', () => { if(B.vuil) bewaar(); });
 // in 3.0: de telling bijwerken zodra de besluiten binnen zijn
 B.luister.push(() => { try{ if(window.WHTAAK && WHTAAK.herteken && window.IVOL) WHTAAK.herteken(); if(window.WHX && WHX.herteken) WHX.herteken(); }catch(e){} });
 
-return { view, laad, telling, regels, tel, problemen, SOORTEN, SOORT, locStatus, kopStatus, nagelopen, gangStats, selectie, vergelijk, maakVers, versheid, bestanden, hier, B, UI, opNieuw:f => B.luister.push(f), bewaar };
+return { view, laad, telling, regels, tel, problemen, wachtOpLossen, hoogUitz, SOORTEN, SOORT, locStatus, kopStatus, nagelopen, gangStats, selectie, vergelijk, maakVers, versheid, bestanden, hier, B, UI, opNieuw:f => B.luister.push(f), bewaar };
 })();
