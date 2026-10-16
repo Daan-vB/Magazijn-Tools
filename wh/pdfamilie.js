@@ -38,7 +38,9 @@ const naamUitl = c => /uitlopend/i.test(String((D.P[c] || {}).naam || '')) && !i
 const cor = () => P().S.fcor || (P().S.fcor = X().famCorNorm(null));
 // grenzen uit wh/aannames.js (Daan kan ze in Te controleren aanpassen)
 const aan = (id, std) => { const v = window.WHAAN ? parseFloat(String(WHAAN.waarde(id) || '').replace(',', '.')) : NaN; return isNaN(v) ? std : v; };
-const LIGKG = () => aan('p-ligkg', 2000), DOOSKG = () => aan('p-dooskg', 30), DOOSCM = () => aan('p-dooscm', 50);
+const LIGKG = () => aan('p-ligkg', 2000), DOOSKG = () => aan('p-dooskg', 30), DOOSCM = () => aan('p-dooscm', 50), DPDCM = () => aan('p-dpdcm', 170);
+// breedte van een rol uit de naam ("… 125 cm breed", "Kokos 200 cm …"), voor de doos-lengte
+const breedteNaam = c => { const n = String((D.P[c] || {}).naam || ''); const m = n.match(/(\d{2,3})\s*cm\s*(breed|br\b)/i) || n.match(/breed(?:te)?\s*(\d{2,3})/i) || n.match(/\b(\d{2,3})\s*cm\b/i); return m ? +m[1] : null; };
 // eenheid per familie vastzetten ("cm, Picqer-eenheid negeren"); Kokos op rol staat standaard op cm (besluit Daan 16-10)
 const EH_STD = { 'Kokos op rol':'cm' };
 const ehVast = fk => { const v = (cor().eh || {})[fk]; if(v) return v === 'picqer' ? '' : v; return EH_STD[famNaam(fk)] || ''; };
@@ -157,9 +159,16 @@ function voorstelRij(fk, k, cs, ctx){
     if(lv !== null && sp && w.met === 'pallet') return { v:String(lv + sp), why:'aanvullen bij ' + nf(lv) + ' + volle pallet ' + nf(sp), p:1, r:'maxpick:som' };
   }
   if(k === 'plaatsen' && w.maat && /\d+\s*x\s*\d+/.test(w.maat)) return { v:X().plaatsenUitMaat(w.maat), why:'uit palletmaat ' + w.maat + ' (plaats = 90 cm)', p:1, r:'plaatsen:maat' };
-  if(k === 'spd' && w._eh === 'cm'){
+  // per cm / per meter (Daan 16-10): breder dan de max doos-lengte (DPD 170 cm) → alleen pallet; per cm afronden op 50 cm, per meter alleen hele meters; nooit boven 30 kg
+  if(k === 'spd' && (w._eh === 'cm' || w._eh === 'm')){
+    const br = Math.max(0, ...cs.map(breedteNaam).filter(Boolean));
+    if(br > DPDCM()) return { v:'nvt', why:'rol ' + nf(br) + ' cm breed: langer dan ' + nf(DPDCM()) + ' cm (DPD) → alleen pallet', p:.5, r:'spd:lengte' };
     const gw = num(w.gewicht), sp = num(w.spp);
-    if(gw && sp && gw > 15){ const kg = (gw - 15) / sp, v = Math.floor(DOOSKG() / kg / DOOSCM()) * DOOSCM(); if(v > 0) return { v:String(v), why:'max cm onder ' + nf(DOOSKG()) + ' kg: (' + nf(gw) + ' − 15) / ' + nf(sp) + ' = ' + nf(kg, 3) + ' kg per cm, afgerond op ' + nf(DOOSCM()) + ' cm', p:1, r:'spd:cm' }; }
+    if(gw && sp && gw > 15){
+      const kg = (gw - 15) / sp, stap = w._eh === 'cm' ? DOOSCM() : 1, v = Math.floor(DOOSKG() / kg / stap) * stap;
+      if(v > 0) return { v:String(v), why:'max ' + (w._eh === 'cm' ? 'cm' : 'hele meters') + ' onder ' + nf(DOOSKG()) + ' kg: (' + nf(gw) + ' − 15) / ' + nf(sp) + ' = ' + nf(kg, 3) + ' kg per ' + w._eh + (w._eh === 'cm' ? ', afgerond op ' + nf(DOOSCM()) + ' cm' : ''), p:1, r:'spd:' + w._eh };
+      return { v:'nvt', why:'1 ' + w._eh + ' weegt al ' + nf(kg, 1) + ' kg: meer dan ' + nf(DOOSKG()) + ' kg per doos → pallet', p:.5, r:'spd:zwaar' };
+    }
   }
   if(k === 'met' && MET[w.opslag]) return { v:MET[w.opslag], why:'volgt uit soort ' + w.opslag, p:1, r:'met:klein' };
   // Productdata-voorstellen per lid (getoetst, KANS-tabel)

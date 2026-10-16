@@ -144,6 +144,8 @@ const ABCR = { A:0, B:1, C:2 };
 const rang = code => (ABCR[abcVan(code)] ?? 3) * 1e7 - pdVan(code) * 100 - vkmVan(code);
 function eenheid(code){
   const p = D.P[code] || {}, t = String(p.tags || '').toLowerCase(), n = String(p.naam || '').toLowerCase();
+  // sportvloer/rubber op rol: de productnaam beslist ("… PER meter", "… volle rol"), niet de Picqer-eenheid (Daan 16-10)
+  if(/(sportvloer|rubber)/.test(n) && /\brol\b|rollen/.test(n)){ if(/per meter|per strekkende meter/.test(n)) return { e:'m', mv:'m', t:'per meter' }; if(/volle rol\b/.test(n)) return { e:'rol', mv:'rollen', t:'per rol' }; }
   if(t.includes('meterroll') || /per meter|per strekkende meter/.test(n)) return { e:'m', mv:'m', t:'per meter' };
   if(t.includes('cmroll') || /per cm\b/.test(n)) return { e:'cm', mv:'cm', t:'per cm' };
   if(t.includes('fullroll')) return { e:'rol', mv:'rollen', t:'per rol' };
@@ -364,6 +366,9 @@ function voorstel(code, k, w){
       const lv = num(w('lvl')), spp = num(w('spp'));
       if(lv !== null && spp && w('met') === 'pallet') return uit('maxpick:som', lv + spp, 'aanvullen bij ' + nf(lv) + ' + volle pallet ' + nf(spp));
       if(genoot) return genoot;
+      // als er niets bekend is: max = bij + aanvullen met (minimaal 1 à 2 weken verkoop; Daan 16-10, aanname p-max)
+      const wk2 = pdVan(code) > 0 ? Math.ceil(pdVan(code) * 10) : vkmVan(code) > 0 ? Math.ceil(vkmVan(code) / 2) : 0;
+      if(lv !== null && wk2 > 0) return uit('maxpick:verkoop', lv + wk2, 'bij ' + nf(lv) + ' + ± 2 weken verkoop (' + nf(wk2) + ')');
       const l = locaties(code), m = Math.max(0, ...l.pick.map(a => num(a[1]) || 0));
       if(m > 0) return uit('maxpick:nu', m, 'nu ' + nf(m) + ' op pick');
       return null;
@@ -374,19 +379,18 @@ function voorstel(code, k, w){
       if(a && a.ok && num(a.lvl) > 1) return uit('lvl:aanvulbase', num(a.lvl), 'aanvulbase: aanvullen bij ' + nf(num(a.lvl)));
       if(pq && num(pq[0]) > 1) return uit('lvl:picqer', num(pq[0]), 'Picqer: aanvulniveau ' + nf(num(pq[0])));
       if(genoot) return genoot;
-      // ± 2 dagen picken, nooit meer dan de helft van wat er op pick past
-      const pd = pdVan(code), vk = vkmVan(code), mx = num(w('maxpick'));
-      let v = pd > 0 ? Math.ceil(pd * 2) : vk > 0 ? Math.ceil(vk / 10) : null;
-      if(v === null) return null;
-      if(mx) v = Math.max(1, Math.min(v, Math.floor(mx / 2)));
-      return uit('lvl:verkoop', v, '± 2 dagen picken' + (mx ? ', max de helft van max op pick' : '') + (pq && num(pq[0]) === 1 ? ' · Picqer staat op standaard 1' : ''));
+      // als er niets bekend is: aanvullen bij 1 (Daan 16-10, aanname p-lvl)
+      const lv1 = (() => { const v = window.WHAAN ? parseFloat(String(WHAAN.waarde('p-lvl')).replace(',', '.')) : NaN; return isNaN(v) ? 1 : v; })();
+      return uit('lvl:regel', lv1, 'regel Daan: aanvullen bij ' + nf(lv1) + ' als er niets bekend is');
     }
     case 'opslag': { const k2 = soortVoorstel(code, kleinFeit(code)); return k2.s === 'ok' ? null : { v:k2.v, bron:(k2.s === 'twijfel' ? 'twijfel: ' : '') + k2.why, z:k2.s === 'twijfel' ? 'laag' : 'hoog', r:'soort', p:k2.s === 'twijfel' ? .3 : .9 }; }
     case 'mixgroep': return mixgroepVoorstel(code);
     case 'geleverd': {
       if(genoot) return genoot;
       const r = pbRegels(code).find(r => r.soort !== 'pallet' && num(r.per) > 1);
-      return r ? uit('geleverd:pakbon', num(r.per) * (num(r.factor) || 1), 'pakbon: ' + nf(num(r.per)) + ' per doos') : null;
+      if(r) return uit('geleverd:pakbon', num(r.per) * (num(r.factor) || 1), 'pakbon: ' + nf(num(r.per)) + ' per doos');
+      // mix: nooit/zelden volle pallets, meestal meerdere per doos, verschillende producten op een mixpallet (Daan 16-10)
+      return soortVan(code) === 'mix' ? uit('geleverd:mix', 'wisselt', 'regel Daan: mix = meestal meerdere per doos, verschillende producten op een mixpallet') : null;
     }
     case 'met': {
       { const so = soortVan(code); if(MET[so]) return uit('met:klein', MET[so], 'volgt uit soort ' + KDISP[so]); }
@@ -406,8 +410,9 @@ function voorstel(code, k, w){
       if(r) return uit('maat:pakbon', String(r.palletmaat || r.maat), 'pakbon');
       const f = fam(); if(f) return f;
       const L = num(x.lengte_product_cm), B = num(x.breedte_product_cm);
-      if(L >= 60 && B >= 60){ const m = passendeMaat(L, B); if(m) return uit('maat:afm', m, 'productmaat ' + nf(L) + '×' + nf(B) + ' cm (Picqer)'); }
-      return null;
+      if(L >= 60 && B >= 60){ const m = opslagMaat(L, B); if(m) return uit('maat:afm', m, 'productmaat ' + nf(L) + '×' + nf(B) + ' cm (Picqer)'); }
+      if(NVT(w('spp'))) return null;
+      const R = maatRegel(code); return uit('maat:regel', R.maat, R.why);
     }
     case 'hoogte': {
       if(genoot) return genoot;
@@ -420,14 +425,16 @@ function voorstel(code, k, w){
         const PL = +m[1], PB = +m[2], per = Math.max(Math.floor(PL / L) * Math.floor(PB / B), Math.floor(PL / B) * Math.floor(PB / L), 1), lagen = Math.ceil(spp / per);
         return uit('hoogte:afm', Math.round(lagen * H + 15), 'Picqer-afmetingen: ' + per + ' per laag, ' + lagen + ' lagen × ' + nf(H) + ' cm + 15 cm pallet');
       }
-      return fam();
+      const f = fam(); if(f) return f;
+      if(NVT(w('spp'))) return null;
+      const R = maatRegel(code); return uit('hoogte:regel', R.h, R.why + ' (hoogte incl. pallet)');
     }
     case 'gewicht': {
       if(genoot) return genoot;
       const r = pbRegels(code).find(r => r.soort === 'pallet' && num(r.bruto_per));
       if(r) return uit('gewicht:pakbon', Math.ceil(num(r.bruto_per)), 'pakbon: bruto per pallet');
       const spp = num(w('spp')), kgE = num(w('kgst')), g = kgE || (!kgOnb(code) && num(x.gewicht_product_g) ? num(x.gewicht_product_g) / 1000 : null);
-      if(spp && g) return uit(kgE ? 'gewicht:eigen' : eh.e === 'st' ? 'gewicht:picqer' : 'gewicht:picqerm', Math.ceil(spp * g + 15), nf(spp) + ' ' + eh.mv + ' × ' + nf(g, 3) + ' kg' + (kgE ? '' : ' (Picqer)') + ' + 15 kg pallet');
+      if(spp && g){ const afw = kgE ? '' : gewichtAfwijkend(code); return uit(kgE ? 'gewicht:eigen' : eh.e === 'st' ? 'gewicht:picqer' : 'gewicht:picqerm', Math.ceil(spp * g + 15), nf(spp) + ' ' + eh.mv + ' × ' + nf(g, 3) + ' kg' + (kgE ? '' : ' (Picqer)') + ' + 15 kg pallet' + (afw ? ' · ' + afw : ''), afw ? { z:'laag', p:.3, afw } : null); }
       return kgOnb(code) ? null : fam();   // gewicht staat op uitzoeken: geen gok uit een ander product
     }
     case 'plaatsen': {
@@ -492,6 +499,54 @@ function vnVanGenoot(code){
     return uit('vn:genoot', st.v.replace(re, nw), 'zoals ' + g + ' (' + st.v + ')');
   }
   return null;
+}
+/* ---------- schattingsregels van Daan (16-10) als er niets bekend is: palletmaat L×B×H ---------- */
+// alleen opslag-palletmaten; nooit 40x120/40x200 (halve pallets, transport) of 130x210/130x250/120x210 (transport)
+const OPSLAG = ['80x120', '90x120', '100x100', '100x150', '110x110', '120x150', '120x180', '100x200', '120x200', '120x240'];
+function opslagMaat(L, B, lijst){
+  const a = Math.max(L, B), b = Math.min(L, B);
+  const kand = (lijst || OPSLAG).map(m => m.split('x').map(Number)).map(([x, y]) => [Math.max(x, y), Math.min(x, y)]).filter(([x, y]) => x >= a - 7 && y >= b - 7).sort((p, q) => p[0] * p[1] - q[0] * q[1]);
+  return kand.length ? kand[0][1] + 'x' + kand[0][0] : null;
+}
+// productmaat uit de naam ("… 120x240 cm", "… 100 x 150"): [lang, kort] in cm
+function maatUitNaam(code){
+  const n = String((D.P[code] || {}).naam || '') + ' ' + String((S.extra[code] || {}).omschrijving || '');
+  const m = n.match(/(\d{2,3})(?:[.,]\d)?\s*[x×]\s*(\d{2,3})(?:[.,]\d)?(?!\s*mm)/i);
+  if(!m) return null;
+  const a = +m[1], b = +m[2]; return a >= 20 && b >= 20 ? [Math.max(a, b), Math.min(a, b)] : null;
+}
+const breedteUitNaam = code => { const n = String((D.P[code] || {}).naam || ''); const m = n.match(/(\d{2,3})\s*cm\s*(breed|br\b)/i) || n.match(/breed(?:te)?\s*(\d{2,3})/i) || n.match(/\b(\d{2,3})\s*cm\b/i); return m ? +m[1] : null; };
+// midden-product = Picqer-tag "Batch midden" (isMidden, verderop)
+function maatRegel(code){
+  const n = String((D.P[code] || {}).naam || '').toLowerCase(), locs = String((D.P[code] || {}).locaties_hm || '');
+  const R = (maat, h, why) => ({ maat, h, why });
+  if(/bureaustoel/.test(n)) return R('80x120', 180, 'regel Daan: bureaustoel 80x120x180');
+  if(/whiteboard/.test(n)){
+    const m = maatUitNaam(code);
+    if(m && m[0] <= 120 && m[1] <= 80) return R('80x120', 180, 'regel Daan: whiteboard t/m 80x120 → 80x120x180');
+    const wbh = (() => { const v = window.WHAAN ? parseFloat(String(WHAAN.waarde('p-wbh')).replace(',', '.')) : NaN; return isNaN(v) ? 140 : v; })();
+    if(m){ const pm = opslagMaat(m[0], m[1], ['100x150', '120x150', '120x180', '100x200']); if(pm) return R(pm, wbh, 'regel Daan: whiteboard ' + m[0] + 'x' + m[1] + ' → kleinste van 100x150, 120x150, 120x180, 100x200 waar het in past'); }
+    if(m){ const pm = opslagMaat(m[0], m[1]); if(pm) return R(pm, wbh, 'whiteboard ' + m[0] + 'x' + m[1] + ' past op geen van de vier grote maten → kleinste opslagmaat ' + pm); }
+    return R('100x150', 140, 'regel Daan: whiteboard, maat onbekend → 100x150x140');
+  }
+  if(/sportvloer/.test(n) && /tegel/.test(n) || /rubber/.test(n) && /tegel/.test(n) && /(^|[,|]\s*)CE/i.test(locs)) return R('110x110', 160, 'regel Daan: sportvloer tegel / rubber tegel afdeling CE → 110x110x160');
+  if(/ringmat/.test(n) && !isMidden(code)) return R('100x150', 120, 'regel Daan: rubber ringmat → 100x150x120');
+  if(/(rubber|sportvloer)/.test(n) && /\brol\b|rollen|per meter/.test(n)){
+    const b = breedteUitNaam(code);
+    if(b) return b <= 120 ? R('80x120', 140, 'regel Daan: rubber rol ' + b + ' breed (≤ 120) → 80x120x140') : b <= 160 ? R('100x150', 100, 'regel Daan: rubber rol ' + b + ' breed (120–160) → 100x150x100') : R('120x180', 100, 'regel Daan: rubber rol ' + b + ' breed (> 160) → 120x180x100');
+  }
+  if(isMidden(code)) return R('80x120', 160, 'regel Daan: midden-product → 80x120x160');
+  const m = maatUitNaam(code);
+  if(m && m[0] >= 60 && m[1] >= 60 && !(m[0] <= 127 && m[1] <= 87)){ const pm = opslagMaat(m[0], m[1]); if(pm) return R(pm, 180, 'regel Daan: productmaat ' + m[0] + 'x' + m[1] + ' uit de naam → opslagmaat ' + pm); }
+  return R('80x120', 180, 'regel Daan: al het andere → 80x120x180');
+}
+// Picqer-gewicht dat sterk afwijkt van de familie (aanname p-gewafw): tekst of ''
+function gewichtAfwijkend(code){
+  const g = num((S.extra[code] || {}).gewicht_product_g); if(!g) return '';
+  const fam = famLeden(code).map(c => num((S.extra[c] || {}).gewicht_product_g)).filter(x => x > 0).sort((a, b) => a - b);
+  if(fam.length < 3) return '';
+  const med = fam[Math.floor(fam.length / 2)];
+  return g > med * 2 || g < med / 2 ? 'klopt dit gewicht in Picqer? (' + nf(g / 1000, 3) + ' kg, familie meestal ' + nf(med / 1000, 3) + ' kg)' : '';
 }
 function passendeMaat(L, B){
   const a = Math.max(L, B), b = Math.min(L, B);
