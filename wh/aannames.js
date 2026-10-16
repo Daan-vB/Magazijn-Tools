@@ -1,58 +1,69 @@
 /* =====================================================================
-   IVOL Warehouse 3.0 — Aannames (15-10-2026)
+   IVOL Warehouse 3.0 — Aannames (15-10-2026, bijgewerkt 16-10-2026 met de besluiten van Daan)
    Alles wat Claude heeft ingevuld zonder dat Daan het zei, staat hier op één plek.
    3.0 → Te controleren toont elke aanname; Daan zet hem op ✓ of past de waarde aan.
-   Zijn keuze staat in catalog-rij `wh-aannames` = { <id>: { ok:true, waarde, op, door } } en gaat voor op de waarde hieronder.
+   Zijn keuze staat in catalog-rij `wh-aannames` = { <id>: { ok, waarde, op, door } } en gaat altijd voor.
+   `bevestigd` = Daan heeft het in de chat besloten (16-10); telt als ✓ zolang er geen eigen keuze in de catalog staat.
    Geen bedrijfsdata hier (openbare repo): alleen regels en grenzen.
    ===================================================================== */
 window.WHAAN = (function(){
 'use strict';
+const CHAT = { door:'Daan (chat)', op:'2026-10-16' };
 const LIJST = [
   // kerncijfers: [oranje vanaf, rood vanaf]
-  { id:'k-o12', groep:'Kerncijfers', t:'Orders (picklijsten) ouder dan 12 uur', waarde:'1 · 1', eenheid:'oranje vanaf · rood vanaf', waarom:'Daan (kennisbank A1.9): om 12:00 zijn alle orders ouder dan 12 uur verwerkt. Vóór 12:00 oranje, na 12:00 rood.' },
+  { id:'k-o12', groep:'Kerncijfers', t:'Orders (picklijsten) ouder dan 12 uur', waarde:'1 · 1', eenheid:'oranje vanaf · rood vanaf (telt vanaf 12:00)', waarom:'Daan 16-10: vanaf 12:00 de orders van gisteren oppakken, niet pas om 16:00. Vóór 12:00 neutraal.', bevestigd:CHAT },
   { id:'k-o24', groep:'Kerncijfers', t:'Open picklijsten ouder dan 24 uur', waarde:'1 · 1', eenheid:'oranje vanaf · rood vanaf', waarom:'Ouder dan een dag is altijd een probleem.' },
-  { id:'k-bo', groep:'Kerncijfers', t:'Backorders (aantal orders)', waarde:'10 · 25', eenheid:'oranje vanaf · rood vanaf', waarom:'Schatting Claude; nog geen nulmeting.' },
+  { id:'k-bo2', groep:'Kerncijfers', t:'Backorders die wij oplossen', waarde:'1 · 5', eenheid:'oranje vanaf · rood vanaf', waarom:'Daan 16-10: orders in backorder waarvan de voorraad in eigen bulk ligt (aanvullen/verplaatsen lost ze op), plus backorders waarvoor een container binnenkomt. Echte backorders (wachten op inkoop) tellen niet. Grens: schatting Claude.' },
   { id:'k-nu', groep:'Kerncijfers', t:'Nu verplaatsen open (na 12:00)', waarde:'1 · 5', eenheid:'oranje vanaf · rood vanaf', waarom:'Wat een klantorder vrijmaakt, hoort vóór de middag gedaan te zijn.' },
   { id:'k-taak', groep:'Kerncijfers', t:'Taken achter', waarde:'1 · 3', eenheid:'oranje vanaf · rood vanaf', waarom:'Schatting Claude.' },
-  { id:'k-geen', groep:'Kerncijfers', t:'Producten met voorraad op "geen specifieke locatie"', waarde:'1 · 50', eenheid:'oranje vanaf · rood vanaf', waarom:'Daan (A1.2): niets staat op geen specifieke locatie. Doel 0.' },
-  // dagritme: waarde = "uu:mm · wie · wat"
+  { id:'k-geen', groep:'Kerncijfers', t:'Producten met voorraad op "geen specifieke locatie"', waarde:'1 · 50', eenheid:'oranje vanaf · rood vanaf', waarom:'Daan (A1.2): niets staat op geen specifieke locatie. Doel 0. Voorraad van een opgeboekte container die wacht op lossen/Stockmove telt niet mee.' },
+  // dagritme: waarde = "wanneer · wie · extra"
   { id:'d-01', groep:'Dagritme gewone dag', t:'Ochtendoverleg coördinatoren', waarde:'07:00 · Kate, Sala', waarom:'Daan (A1.1): planning, taken, prioriteiten en aandachtspunten verdeeld.' },
-  { id:'d-02', groep:'Dagritme gewone dag', t:'Nu verplaatsen (wat een order vrijmaakt)', waarde:'07:15 · rijder', waarom:'Eerst de klant: oudste order eerst (besluit 1.2).' },
+  { id:'d-rij', groep:'Dagritme gewone dag', t:'Aanvullen en verplaatsen: aanvuladvies op de scanner volgen', waarde:'hele dag · rijder · 1e prioriteit', waarom:'Daan 16-10: één doorlopende taak van de rijder, feitelijk elk 1–2 uur (was: Nu verplaatsen, aanvulronde 1 en 2).', bevestigd:CHAT },
+  { id:'d-rij2', groep:'Dagritme gewone dag', t:'Extra rijderstaken: container wegrijden, ruimte maken voor container, inkomende goederen op locatie zetten', waarde:'hele dag · rijder', waarom:'Daan 16-10.', bevestigd:CHAT },
   { id:'d-03', groep:'Dagritme gewone dag', t:'Picken op prioriteit', waarde:'07:30 · pickers', waarom:'Daan (A1.5).' },
-  { id:'d-04', groep:'Dagritme gewone dag', t:'Aanvulronde 1', waarde:'10:00 · rijder', waarom:'Schatting Claude.' },
-  { id:'d-05', groep:'Dagritme gewone dag', t:'Check: orders ouder dan 12 uur', waarde:'11:30 · Kate', waarom:'Zodat om 12:00 alles ouder dan 12 uur weg is (A1.9).' },
+  { id:'d-08a', groep:'Dagritme gewone dag', t:'VST-mail: alles wat we vandaag willen ontvangen', waarde:'ochtend · Karin', waarom:'Daan 16-10.', bevestigd:CHAT },
+  { id:'d-05', groep:'Dagritme gewone dag', t:'Oude orders oppakken (wachten op spullen, driver, zoekwerk)', waarde:'12:00–13:00 · Kate, Sala', waarom:'Daan 16-10: rond 12/13:00 oppakken voorkomt stress, afboekingen en een dag later bestellen.', bevestigd:CHAT },
   { id:'d-06', groep:'Dagritme gewone dag', t:'Kerncijfers lezen', waarde:'12:00 · Daan', waarom:'Schatting Claude.' },
-  { id:'d-07', groep:'Dagritme gewone dag', t:'Aanvulronde 2', waarde:'13:00 · rijder', waarom:'Schatting Claude.' },
-  { id:'d-08', groep:'Dagritme gewone dag', t:'Van VST en VST-mail', waarde:'14:00 · Karin', waarom:'Schatting Claude; ritdagen nog onbekend (kennisbank J3).' },
-  { id:'d-09', groep:'Dagritme gewone dag', t:'Verzendklaar voor de cut-off', waarde:'15:30 · Sala', waarom:'Cut-off-tijden nog onbekend (kennisbank C4).' },
+  { id:'d-08b', groep:'Dagritme gewone dag', t:'VST-mail: aanvulling voor morgen', waarde:'16:30 · Karin', waarom:'Daan 16-10.', bevestigd:CHAT },
   { id:'d-10', groep:'Dagritme gewone dag', t:'Einde dag: vloer vrij, gangen berijdbaar, geen rommel/bandjes/hout', waarde:'16:30 · Kate', waarom:'Daan (A1.4).' },
-  { id:'c-01', groep:'Containerdag (extra)', t:'Ruimte vrijmaken en labels printen', waarde:'dag ervoor · Kate', waarom:'Daan (A1.6): ruimte vooraf vrij, labels klaar.' },
-  { id:'c-02', groep:'Containerdag (extra)', t:'Stockmove en VST-lijst', waarde:'07:00 · Karin', waarom:'Masterdocument §3.5.' },
-  { id:'c-03', groep:'Containerdag (extra)', t:'Lossen volgens de 7 stappen', waarde:'na aankomst · Kate + rijder', waarom:'Containers → Containerdag.' },
-  { id:'c-04', groep:'Containerdag (extra)', t:'Controle: alles op een plek in Picqer', waarde:'einde dag · Kate', waarom:'Containers → Controle.' },
-  // productdata: de regels achter de schattingen
-  { id:'p-lvl', groep:'Productdata-schattingen', t:'Aanvullen bij (als er niets bekend is)', waarde:'± 1 week verkoop, minimaal 1', waarom:'Regel uit het masterdocument §10.' },
-  { id:'p-max', groep:'Productdata-schattingen', t:'Max op pick (als er niets bekend is)', waarde:'bij + volle pallet; anders ± 3 weken verkoop', waarom:'Afspraak 8-10 (max = bij + wat je bijvult) en masterdocument §10.' },
-  { id:'p-maat', groep:'Productdata-schattingen', t:'Palletmaat (als er niets bekend is)', waarde:'80x120, of de kleinste maat waar het product in past', waarom:'Schatting Claude.' },
-  { id:'p-hoogte', groep:'Productdata-schattingen', t:'Hoogte incl. pallet (als er niets bekend is)', waarde:'hal A 120 cm · hal B/C 150 cm', waarom:'Max bulk hal A 140, hal B/C 220 (masterdocument §2).' },
-  { id:'p-gew', groep:'Productdata-schattingen', t:'Gewicht volle pallet', waarde:'stuks × Picqer-gewicht + 15 kg', waarom:'Getoetst 82% (productdata-bronnen).' },
-  { id:'p-lig', groep:'Productdata-schattingen', t:'Max pallets per ligger', waarde:'2000 kg per ligger; 3 plaatsen (hal A), 4 (hal B/C)', waarom:'Bulkvoorstel containerdag (masterdocument §10).' },
-  // locaties (ronde 3, 16-10): keuzes van Claude bij het bouwen van Locaties opruimen
-  { id:'l-map', groep:'Locaties opruimen', t:'Wat is een map', waarde:'bovenliggende locatie, of gang-/sectie-/plaatsnaam op tijdelijk', waarom:'Uit ronde 1c (Live advies). Container 1–6 telt als retourkar, niet als losse naam.' },
-  { id:'l-hoog', groep:'Locaties opruimen', t:'Hoge pick op tijdelijk', waarde:'alleen onder Hoog maar pick', waarom:'Schatting Claude: één locatie hoort in één tabel, anders botsen "moet vast" en "wordt bulk, tijdelijk".' },
-  { id:'l-vr', groep:'Locaties opruimen', t:'Voorraad hier', waarde:'live stand als die nieuwer is dan de voorraad-export', waarom:'Schatting Claude: de nieuwste stand beslist of ontkoppelen kan.' },
-  { id:'l-geteld', groep:'Locaties opruimen', t:'Geteld en weggezet / Teruggezet', waarde:'klaar tot een nieuwere voorraad-export het weer laat zien', waarom:'Schatting Claude: het is alleen een notitie; de volgende export controleert het.' },
-  { id:'l-waar', groep:'Locaties opruimen', t:'Waarden in de locatie-import', waarde:'WAAR / ONWAAR', waarom:'Zelfde formaat als de locatie-import die Picqer op 30-9 accepteerde.' },
-  { id:'l-30d', groep:'Locaties opruimen', t:'Verwerkte besluiten in "gaat niet mee"', waarde:'30 dagen zichtbaar', waarom:'Schatting Claude: daarna alleen nog als ✓ in de tabellen.' },
-  // aanvullen (ronde C, 16-10)
-  { id:'a-pal', groep:'Aanvullen', t:'Aanvullen met volle pallet: hoeveel pallets', waarde:'afronden op hele pallets, minimaal 1, niet boven max op pick', waarom:'Schatting Claude: afspraak 8-10 (max = bij + een volle pallet).' },
-  { id:'a-bulk', groep:'Aanvullen', t:'Welke bulkpallet', waarde:'eerst een plek met precies één pallet, dan een plek met een veelvoud; in looproute', waarom:'Schatting Claude; reserveringen op bulk tellen niet als volle pallet.' },
-  // Per familie (16-10): regelcontrole in de cel en eenheid per familie
-  { id:'p-ligkg', groep:'Productdata-regels', t:'Max gewicht per ligger', waarde:'2000', eenheid:'kg per ligger', waarom:'Bulkvoorstel containerdag (masterdocument §10): max pallets per ligger × gewicht volle pallet mag hier niet boven.' },
-  { id:'p-dooskg', groep:'Productdata-regels', t:'Max gewicht per doos', waarde:'30', eenheid:'kg per doos', waarom:'Regel Daan: tot 30 kg een doos via DPD/DHL pakket, boven 30 kg een pallet via VST/DHL Freight. Uitzonderingen bestaan: Deze houden.' },
-  { id:'p-dooscm', groep:'Productdata-regels', t:'Stuks per doos bij producten per cm', waarde:'50', eenheid:'cm, naar beneden afronden', waarom:'Max cm onder het doosgewicht, met gewicht per cm = (gewicht volle pallet − 15 kg pallet) / stuks per pallet. Schatting Claude: afronden op 50 cm.' },
-  { id:'p-ehcm', groep:'Productdata-regels', t:'Eenheid vast per familie', waarde:'Kokos op rol: cm (Picqer-eenheid negeren)', waarom:'Besluit Daan 16-10: de 24 mm-rollen staan in Picqer per stuk, maar alles is per cm. Per familie aan of uit te zetten in Per familie.' },
-  { id:'p-mix', groep:'Productdata-schattingen', t:'Mix: geleverd', waarde:'wisselt, tot de inkoop het aantal per doos bevestigt', waarom:'Schatting Claude.' }
+  // containerdag: wanneer t.o.v. de losdag
+  { id:'c-ruimte', groep:'Containerdag (extra)', t:'Ruimte vrijmaken', waarde:'1–3 dagen vooraf · rijder, Sala of Daan', waarom:'Daan 16-10.', bevestigd:CHAT },
+  { id:'c-labels', groep:'Containerdag (extra)', t:'Labels printen', waarde:'dag ervoor · Karin of Daan', waarom:'Daan 16-10.', bevestigd:CHAT },
+  { id:'c-stock', groep:'Containerdag (extra)', t:'Stockmove en VST-lijst', waarde:'dag ervoor ± 17:00 · Karin', waarom:'Daan 16-10: kan pas als Jim de container in Picqer heeft opgeboekt en de voorraad op "geen specifieke locatie" staat; dan via de Stockmove-app naar VST verplaatsen en palletnummers printen.', bevestigd:CHAT },
+  { id:'c-los', groep:'Containerdag (extra)', t:'Lossen, uitrijden, sealen', waarde:'bij aankomst · magazijnmedewerkers', waarom:'Daan 16-10.', bevestigd:CHAT },
+  { id:'c-stuur', groep:'Containerdag (extra)', t:'Aansturen, controleren, labelen', waarde:'bij aankomst · Kate (anders Daan of Sala)', waarom:'Daan 16-10.', bevestigd:CHAT },
+  { id:'c-weg', groep:'Containerdag (extra)', t:'Wegrijden en op locatie zetten', waarde:'bij aankomst · rijder', waarom:'Daan 16-10.', bevestigd:CHAT },
+  { id:'c-controle', groep:'Containerdag (extra)', t:'Controle: alles op een plek in Picqer', waarde:'einde dag · Daan, anders Karin', waarom:'Daan 16-10.', bevestigd:CHAT },
+  // productdata: de regels achter de schattingen (als er niets bekend is)
+  { id:'p-lvl', groep:'Productdata-schattingen', t:'Aanvullen bij (als er niets bekend is)', waarde:'1', waarom:'Daan 16-10: de echte waarde hangt af van product, locatie, ruimte en pallet/doos/los.', bevestigd:CHAT },
+  { id:'p-max', groep:'Productdata-schattingen', t:'Aanvullen met en max op pick (als er niets bekend is)', waarde:'aanvullen met minimaal 1 à 2 weken verkoop; max op pick = bij + aanvullen met', waarom:'Daan 16-10.', bevestigd:CHAT },
+  { id:'p-maat', groep:'Productdata-schattingen', t:'Palletmaat L×B×H (als er niets bekend is)', waarde:'midden 80x120x160 · bureaustoel 80x120x180 · whiteboard t/m 80x120: 80x120x180, groter: kleinste van 100x150, 120x150, 120x180, 100x200 (onbekend 100x150x140) · sportvloer tegel en rubber tegel CE 110x110x160 · rubber ringmat 100x150x120 · rubber rol ≤120 breed 80x120x140, 120–160 100x150x100, >160 120x180x100 · rest 80x120x180', waarom:'Daan 16-10. Productmaat uit naam/omschrijving; alleen opslagmaten 80x120, 90x120, 100x100, 100x150, 110x110, 120x150, 120x180, 100x200, 120x200, 120x240 (nooit 40x120/40x200, 130x210, 130x250, 120x210: alleen transport).', bevestigd:CHAT },
+  { id:'p-wbh', groep:'Productdata-schattingen', t:'Hoogte pallet grote whiteboards (maat bekend)', waarde:'140', eenheid:'cm incl. pallet', waarom:'Schatting Claude: zelfde als bij onbekende maat (100x150x140). Past een board op geen van de vier grote maten (bijv. 120x240), dan de kleinste opslagmaat waar het wel op past.' },
+  { id:'p-hoogte', groep:'Productdata-schattingen', t:'Hoogte incl. pallet (als er niets bekend is)', waarde:'de H uit de palletmaat-regel', waarom:'Daan 16-10 (L×B×H).', bevestigd:CHAT },
+  { id:'p-gew', groep:'Productdata-schattingen', t:'Gewicht volle pallet', waarde:'stuks × Picqer-gewicht + 15 kg', waarom:'Daan 16-10. Sterk afwijkend van de familie: gemarkeerd met "klopt dit gewicht in Picqer?".', bevestigd:CHAT },
+  { id:'p-gewafw', groep:'Productdata-schattingen', t:'Wanneer is een Picqer-gewicht afwijkend', waarde:'meer dan 2× of minder dan de helft van de mediaan van de familie', waarom:'Schatting Claude bij het besluit van Daan (16-10) om afwijkende gewichten te markeren.' },
+  { id:'p-lig', groep:'Productdata-schattingen', t:'Max pallets per ligger', waarde:'2000 kg per ligger; past de laatste pallet er niet onder → andere ligger', waarom:'Daan 16-10.', bevestigd:CHAT },
+  { id:'p-mix', groep:'Productdata-schattingen', t:'Mix: geleverd', waarde:'nooit/zelden volle pallets; meestal meerdere per doos; verschillende producten op een mixpallet', waarom:'Daan 16-10.', bevestigd:CHAT },
+  { id:'p-gesch', groep:'Productdata-schattingen', t:'Leren uit de verplaatsingen', waarde:'vast aantal ≥ 3× van bulk naar pick = volle pallet; kleiner dan stuks per pallet = deel; retourkar telt niet', waarom:'Schatting Claude bij het besluit van Daan (16-10) om uit de Picqer-geschiedenis te leren.' },
+  // locaties opruimen
+  { id:'l-map', groep:'Locaties opruimen', t:'Wat is een map', waarde:'tussenniveau (gang AD, stelling AD13) zonder product: geen probleem; product op een tussenniveau: melden; zelfgemaakte vloerplekken (Sportvloer bulk, BE-tafel …): niet melden', waarom:'Daan 16-10. Echte locatie = gang + stelling + plaats A–D + hoogte 00–30 (AA02A00, AD13C10). Container 1–6 = retourkar.', bevestigd:CHAT },
+  { id:'l-hoog', groep:'Locaties opruimen', t:'Hoog (10/20/30)', waarde:'altijd bulk + tijdelijk, ook leeg in AE/AF; uitzondering alleen AE/AF met een vast product dat daar gepickt wordt en geen andere picklocatie heeft', waarom:'Daan 16-10.', bevestigd:CHAT },
+  { id:'l-vr', groep:'Locaties opruimen', t:'Voorraad hier', waarde:'de voorraad-export beslist, niet de live stand', waarom:'Daan 16-10: zegt de laatste export voorraad, dan niet ontkoppelen (eerst een nieuwe export), ook als live 0 zegt.', bevestigd:CHAT },
+  { id:'l-geteld', groep:'Locaties opruimen', t:'Geteld en weggezet', waarde:'nieuwe export 0 → ✓ houden; nog voorraad → weer open en taak voor Kate', waarom:'Daan 16-10. Voorraad van een opgeboekte container die wacht op lossen/Stockmove staat apart.', bevestigd:CHAT },
+  { id:'l-waar', groep:'Locaties opruimen', t:'Waarden in de locatie-import', waarde:'WAAR / ONWAAR', waarom:'Daan 16-10: klopt.', bevestigd:CHAT },
+  { id:'l-30d', groep:'Locaties opruimen', t:'Verwerkte besluiten', waarde:'niet in "Gaat niet mee"; alleen ✓ in de gang-tabel', waarom:'Daan 16-10.', bevestigd:CHAT },
+  // aanvullen
+  { id:'a-pal', groep:'Aanvullen', t:'Aanvullen met volle pallet: hoeveel', waarde:'onder "bij" → 1 volle pallet; orders vragen meer dan max → wat de orders vragen, ook boven max; pallet groter dan max → hele dozen plus de losse stuks tot zo dicht mogelijk onder max', waarom:'Daan 16-10 (voorbeeld: 10 per doos, pallet 13 dozen + 3 los, pick 3, max 50 → 4 dozen + 3 los = 46).', bevestigd:CHAT },
+  { id:'a-rest', groep:'Aanvullen', t:'Na het restje', waarde:'alleen een volle pallet erbij als de pick dan nog op of onder "bij" zit, of als de orders meer vragen', waarom:'Schatting Claude bij het besluit van Daan (16-10): eerst het restje (deelpallet) weg.' },
+  { id:'a-bulk', groep:'Aanvullen', t:'Welke bulkpallet', waarde:'eerst het restje (deelpallet); daarna maakt het niet uit. Altijd eerst eigen bulk, VST pas als eigen bulk op is', waarom:'Daan 16-10.', bevestigd:CHAT },
+  // productdata-regels
+  { id:'p-ligkg', groep:'Productdata-regels', t:'Max gewicht per ligger', waarde:'2000', eenheid:'kg per ligger', waarom:'Daan 16-10: overal; past de laatste pallet er niet onder → andere ligger.', bevestigd:CHAT },
+  { id:'p-dooskg', groep:'Productdata-regels', t:'Max gewicht per doos', waarde:'30', eenheid:'kg per doos', waarom:'Daan 16-10: t/m 30 kg doos, erboven pallet. Whiteboards t/m 90x120 altijd pakket (uitzondering verrijdbaar 90x120). Verzendregels bepaalt Picqer.', bevestigd:CHAT },
+  { id:'p-dooscm', groep:'Productdata-regels', t:'Stuks per doos bij producten per cm', waarde:'50', eenheid:'cm, naar beneden afronden', waarom:'Daan 16-10: alleen als Picqer duidelijk "per cm" zegt; nooit boven 30 kg. Rubber rollen per meter: alleen hele meters. Lengte telt ook: DPD max 170 cm.', bevestigd:CHAT },
+  { id:'p-dpdcm', groep:'Productdata-regels', t:'Max lengte doos (DPD)', waarde:'170', eenheid:'cm', waarom:'Daan 16-10: DPD max 170 cm; DHL geen max maar toeslagen.', bevestigd:CHAT },
+  { id:'p-kokos', groep:'Productdata-regels', t:'Grens breedte kokos doos/pallet', waarde:'', eenheid:'cm breed: breder = pallet', waarom:'Daan 16-10: 200 breed → pallet, 100 breed → doos. De vaste grens volgt nog.' },
+  { id:'p-ehcm', groep:'Productdata-regels', t:'Eenheid vast per familie', waarde:'kokos op rol: cm · sportvloer op rol: per meter of per volle rol zoals de productnaam zegt', waarom:'Daan 16-10 ("… volle rol", "… PER meter"); Picqer-eenheid niet volgen als de naam het zegt.', bevestigd:CHAT }
 ];
 const S = { keus:null, laden:null };
 async function laad(vers){
@@ -60,17 +71,48 @@ async function laad(vers){
   S.laden = (async () => { try{ const r = await WH.catHaal('wh-aannames'); S.keus = (r && r.data) || {}; }catch(e){ S.keus = S.keus || {}; } return S.keus; })();
   return S.laden;
 }
+const item = id => LIJST.find(x => x.id === id) || null;
 const keus = id => (S.keus || {})[id] || null;
-const waarde = id => { const k = keus(id), a = LIJST.find(x => x.id === id); return k && k.waarde ? k.waarde : a ? a.waarde : ''; };
-const open = () => LIJST.filter(a => !(keus(a.id) && keus(a.id).ok));
-// grenzen "oranje · rood" als getallen
-const grens = id => { const p = String(waarde(id)).split(/[·;,/]/).map(s => parseFloat(s)); return { oranje:isNaN(p[0]) ? 1 : p[0], rood:isNaN(p[1]) ? (isNaN(p[0]) ? 1 : p[0]) : p[1] }; };
+// ✓ of open: een eigen keuze in de catalog gaat altijd voor, anders telt een besluit uit de chat als ✓
+function status(id){
+  const k = keus(id);
+  if(k) return k.ok ? { ok:true, door:k.door || '', op:k.op || '', bron:'app' } : { ok:false };
+  const a = item(id);
+  return a && a.bevestigd ? { ok:true, door:a.bevestigd.door, op:a.bevestigd.op, bron:'chat' } : { ok:false };
+}
+const waarde = id => { const k = keus(id), a = item(id); return k && k.waarde ? k.waarde : a ? a.waarde : ''; };
+const open = () => LIJST.filter(a => !status(a.id).ok);
+// grenzen "oranje · rood" als getallen; 6.10, 6/10, 6 · 10, 6-10, 6,10 en 6 10 betekenen allemaal 6 en 10
+const getallen = s => (String(s || '').match(/\d+/g) || []).map(Number);
+function grens(id){
+  const p = getallen(waarde(id));
+  const o = p.length ? p[0] : 1, r = p.length > 1 ? p[1] : o;
+  return { oranje:o, rood:Math.max(o, r) };
+}
+// in gewone taal: "0–5 goed · 6–9 let op · 10+ probleem"
+function grensTekst(o, r){
+  if(o === undefined){ return ''; }
+  if(typeof o === 'string'){ const p = getallen(o); if(!p.length) return ''; r = p.length > 1 ? p[1] : p[0]; o = p[0]; }
+  r = Math.max(o, r);
+  const deel = (a, b, t) => a > b ? '' : (a === b ? a : a + '–' + b) + ' ' + t;
+  return [deel(0, o - 1, 'goed'), deel(o, r - 1, 'let op'), r + '+ probleem'].filter(Boolean).join(' · ');
+}
+const normGrens = s => { const p = getallen(s); return p.length >= 2 ? p[0] + ' · ' + p[1] : p.length ? String(p[0]) : String(s || '').trim(); };
 async function zet(id, w){
   const door = (() => { try{ return localStorage.getItem('ivol-ik') || 'Daan'; }catch(e){ return 'Daan'; } })();
-  const item = { ok:true, waarde:w, op:new Date().toISOString(), door };
-  S.keus = Object.assign({}, S.keus, { [id]:item });
-  await WH.catPatch('wh-aannames', { [id]:item });
+  const a = item(id);
+  if(a && a.groep === 'Kerncijfers') w = normGrens(w);
+  const it = { ok:true, waarde:w, op:new Date().toISOString(), door };
+  S.keus = Object.assign({}, S.keus, { [id]:it });
+  await WH.catPatch('wh-aannames', { [id]:it });
 }
-async function terug(id){ const n = Object.assign({}, S.keus); delete n[id]; S.keus = n; await WH.catPatch('wh-aannames', { [id]:null }); }
-return { LIJST, laad, keus, waarde, open, grens, zet, terug };
+// opnieuw: eigen keuze weg; een besluit uit de chat gaat weer open (ok:false), zodat hij opnieuw te beoordelen is
+async function terug(id){
+  const a = item(id), n = Object.assign({}, S.keus);
+  if(a && a.bevestigd){
+    const door = (() => { try{ return localStorage.getItem('ivol-ik') || 'Daan'; }catch(e){ return 'Daan'; } })();
+    n[id] = { ok:false, op:new Date().toISOString(), door }; S.keus = n; await WH.catPatch('wh-aannames', { [id]:n[id] });
+  }else{ delete n[id]; S.keus = n; await WH.catPatch('wh-aannames', { [id]:null }); }
+}
+return { LIJST, laad, keus, status, waarde, open, grens, grensTekst, getallen, zet, terug, S };
 })();
