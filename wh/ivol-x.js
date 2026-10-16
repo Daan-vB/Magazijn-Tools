@@ -239,7 +239,16 @@ function sorteer(w, lostijd){
   const m = String(w || '').match(/(\d\d):(\d\d)/); if(m) return m[1] + ':' + m[2];
   w = String(w || '').toLowerCase();
   if(/hele dag/.test(w)) return '00:00'; if(/ochtend/.test(w)) return '07:45'; if(/aankomst/.test(w)) return /^\d\d:\d\d/.test(lostijd || '') ? lostijd.slice(0, 5) : '10:00';
-  if(/einde dag/.test(w)) return '16:45'; if(/vooraf/.test(w)) return '09:00'; if(/ervoor/.test(w)) return '15:00'; return '99:99';
+  if(/einde dag/.test(w)) return '17:30'; if(/vooraf/.test(w)) return '09:00'; if(/ervoor/.test(w)) return '15:00'; return '99:99';
+}
+// ochtendoverleg en einde dag uit de aannames (d-01a, d-01b, d-10); de planning hoort er een half uur na het laatste overleg te staan
+const OVERLEG = ['d-01a', 'd-01b'];
+const delen = id => String(WHAAN.waarde(id) || '').split('·').map(s => s.trim());
+const overlegTekst = () => OVERLEG.map(delen).filter(p => p[0]).map(p => p[0] + ' ' + p.slice(1).join(', ')).join(' en ');
+function planningUiterlijk(){
+  const m = OVERLEG.map(id => delen(id)[0].match(/^(\d\d):(\d\d)/)).filter(Boolean).map(x => +x[1] * 60 + +x[2] + 30);
+  if(!m.length) return '09:30';
+  const n = Math.max(...m); return String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
 }
 const opgeboekt = c => (c.voorboekingen || []).length > 0 || !!(D.TAKEN || {})['cc:' + c.id + ':opgeboekt'];
 function ritme(){
@@ -275,7 +284,7 @@ function viewDag(){
     <section class="blok"><div class="x-kop"><h2>Ritme van vandaag</h2><span class="small muted">${nf(nAf)} van ${nf(R.length)} gedaan${volgende ? ' · volgende: ' + esc(volgende.tijd) + ' ' + esc(volgende.wat) : ''}</span></div>
       <div class="x-ritme">${R.map(r => `<label class="${af[r.id] ? 'af' : ''}${volgende && volgende.id === r.id ? ' nu' : ''}"><input type="checkbox" id="x-r-${esc(r.id)}" data-x="ritme" data-id="${esc(r.id)}" ${af[r.id] ? 'checked' : ''}><span class="tijd">${esc(r.wanneer)}</span><span><span class="wat">${esc(r.wat)}</span>${r.cont ? ' <span class="x-abc">container</span>' : ''}<div class="wie">${esc(r.wie)}${af[r.id] ? ' · gedaan ' + esc(String(af[r.id].op || '').slice(11, 16)) + ' door ' + esc(af[r.id].door || '') : ''}</div></span><span></span></label>`).join('')}</div>
     </section>
-    <section class="blok"><h2>Ochtendoverleg (Kate en Sala, 07:00)</h2>
+    <section class="blok"><h2>Ochtendoverleg (${esc(overlegTekst())})</h2>
       <ul class="small" style="padding-left:18px;display:grid;gap:4px">
         <li>Oudste open picklijst: <b>${K.P && K.P.oudsteUur ? Math.round(K.P.oudsteUur) + ' uur' : '–'}</b> · urgent: <b>${K.P ? nf(K.P.urgent) : '–'}</b></li>
         <li>Backorders die met verplaatsen vrijkomen: <b>${K.B ? nf(K.B.vol) : '–'}</b> orders → <a href="#/aanvullive">Nu verplaatsen</a></li>
@@ -316,10 +325,10 @@ function viewStand(){
     <p class="lede">De tien punten waarop Daan het magazijn beoordeelt, met het cijfer dat de app er nu over kan geven. Alleen lezen. Grijs = nog niet meetbaar.</p>
     ${tegels(K)}
     <div class="x-punten">
-      ${p(1, 'Ochtend: planning staat', dg.notitie ? '✓ verdeeld' : '–', dg.notitie ? 'groen' : (tijdNu() > '07:30' ? 'oranje' : ''), dg.notitie ? 'Ochtendoverleg ingevuld om ' + esc(String(dg.notitieOp || '').slice(11, 16)) : 'Verdeling van vandaag nog niet ingevuld', '#/dag')}
+      ${p(1, 'Ochtend: planning staat', dg.notitie ? '✓ verdeeld' : '–', dg.notitie ? 'groen' : (tijdNu() > planningUiterlijk() ? 'oranje' : ''), dg.notitie ? 'Ochtendoverleg ingevuld om ' + esc(String(dg.notitieOp || '').slice(11, 16)) : 'Verdeling van vandaag nog niet ingevuld', '#/dag')}
       ${p(2, 'Picqer klopt: niets op geen specifieke locatie', nf(K.geen) + ' producten', kleur(K.geen, 'k-geen'), 'Voorraad op geen specifieke locatie (export ' + esc(D.VRDATUM ? String(D.VRDATUM).slice(0, 10) : '–') + ')' + (locA !== null ? ' · ' + nf(locA) + ' locatie-aandachtspunten' : ''), '#/locaties')}
       ${p(3, 'Verpakking en maatpallets op orde', '–', '', geenBron + ' (kennisbank E5)', '')}
-      ${p(4, 'Vloer vrij en berijdbaar', (gis.af || {})['d-10'] ? '✓ gisteren' : '–', (gis.af || {})['d-10'] ? 'groen' : '', 'Einde-dag-check (16:30) afgevinkt in Dagstart', '#/dag')}
+      ${p(4, 'Vloer vrij en berijdbaar', (gis.af || {})['d-10'] ? '✓ gisteren' : '–', (gis.af || {})['d-10'] ? 'groen' : '', 'Einde-dag-check (' + esc(delen('d-10')[0]) + ') afgevinkt in Dagstart', '#/dag')}
       ${p(5, 'Pickers op prioriteit', K.P ? nf(K.P.urgent) + ' urgent open' : '–', K.P ? (K.P.urgent ? 'oranje' : 'groen') : '', 'Urgente picklijsten die nog open staan', '#/live')}
       ${p(6, 'Containerdag volgens plan', nf(contN.length) + ' in 14 dagen', contN.length ? '' : 'groen', contN.slice(0, 3).map(c => esc((c.losdatum || '').slice(5) + ' ' + (c.leverancier || ''))).join(' · ') || 'geen gepland', '#/containers')}
       ${p(7, 'Inrichting op logica', pdPct !== null ? pdPct + '% productdata' : '…', pdPct === null ? '' : pdPct >= 100 ? 'groen' : pdPct >= 85 ? 'oranje' : 'rood', 'Belangrijke producten met complete productdata (Poort 0.4)' + (locA !== null ? ' · ' + nf(locA) + ' locatie-aandachtspunten open' : '') + '; herindeling volgt na de analyses', '#/todo')}
@@ -394,7 +403,7 @@ const HULP = [
     'Vink in het ritme af wat gedaan is, zoals Van VST om 14:00 en op containerdag de Stockmove; bij Containers zie je wat er binnenkomt.',
     'Aanvullen en Product zoeken staan in het menu; wijzigingen doe je zelf in Picqer, de app leest alleen.'] },
   { rol:'vloer', t:'Vloer (Kate, Sala, Valerii, pickers)', z:[
-    'Je start op Dagstart: de cijfers van vandaag en het ritme; Kate en Sala verdelen om 07:00 het werk en vullen Verdeling vandaag in.',
+    'Je start op Dagstart: de cijfers van vandaag en het ritme; na het ochtendoverleg (08:00 en 09:00) staat de verdeling van het werk in Verdeling vandaag.',
     'Rijders doen eerst Nu verplaatsen (wat een order vrijmaakt), dan de aanvulronde: eerst de retourkar terugzetten, en een volle pallet pakken waar dat bij het product staat.',
     'Klopt er iets niet, zoek het product op in Product zoeken en tik de meldknop; Kate en Sala krijgen dan een taak.'] },
   { rol:'mgmt', t:'Management (Jim, Maxime, Ryan, Gino)', z:[
