@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Warehouse</title>
+<meta name="description" content="Zelfsturend magazijnmodel van Claude: rekent uit de IVOL-data zelf wat er moet gebeuren, zonder handmatige instellingen. Alleen lezen.">
+<style>
+:root{--bg:#f4f5f7;--kaart:#fff;--tekst:#14171c;--zacht:#5d6573;--lijn:#e3e6eb;--acc:#0f6e5c;--acc2:#e6f3f0;--rood:#b42318;--rood2:#fdecea;--oranje:#b45309;--oranje2:#fef3e2;--blauw:#1d4ed8;--blauw2:#e8eefc}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1115;--kaart:#171a21;--tekst:#e7e9ee;--zacht:#9aa3b2;--lijn:#2a2f3a;--acc:#4cc3a6;--acc2:#16302a;--rood:#f2877c;--rood2:#3a1d1b;--oranje:#f0b35a;--oranje2:#3a2c16;--blauw:#8aa8ff;--blauw2:#1b2440}}
+:root[data-theme="dark"]{--bg:#0f1115;--kaart:#171a21;--tekst:#e7e9ee;--zacht:#9aa3b2;--lijn:#2a2f3a;--acc:#4cc3a6;--acc2:#16302a;--rood:#f2877c;--rood2:#3a1d1b;--oranje:#f0b35a;--oranje2:#3a2c16;--blauw:#8aa8ff;--blauw2:#1b2440}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tekst);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--kaart);border-bottom:1px solid var(--lijn)}
+.kop{max-width:1180px;margin:0 auto;padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.logo{font-weight:800;letter-spacing:-.01em}.logo span{color:var(--acc)}
+.stand{font-size:13px;color:var(--zacht);margin-left:auto}
+nav{max-width:1180px;margin:0 auto;padding:0 12px;display:flex;gap:4px;overflow-x:auto}
+nav button{border:0;background:none;color:var(--zacht);padding:10px 12px;font:inherit;font-weight:600;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;min-height:44px}
+nav button[aria-selected="true"]{color:var(--tekst);border-color:var(--acc)}
+main{max-width:1180px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 4px}h2{font-size:17px;margin:22px 0 8px}
+.sub{color:var(--zacht);margin:0 0 14px}
+.tegels{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.tegel{background:var(--kaart);border:1px solid var(--lijn);border-radius:12px;padding:12px 14px}
+.tegel b{display:block;font-size:26px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.tegel small{color:var(--zacht)}
+.tegel.r{border-color:var(--rood);background:var(--rood2)}.tegel.o{border-color:var(--oranje);background:var(--oranje2)}.tegel.g{border-color:var(--acc);background:var(--acc2)}
+.kaart{background:var(--kaart);border:1px solid var(--lijn);border-radius:12px;padding:4px 0;margin-bottom:12px}
+.rij{display:grid;grid-template-columns:28px 1fr auto;gap:10px;padding:10px 14px;border-top:1px solid var(--lijn);align-items:start}
+.rij:first-child{border-top:0}
+.nr{color:var(--zacht);font-variant-numeric:tabular-nums;font-size:13px;padding-top:2px}
+.wat{font-weight:600}.waarom{color:var(--zacht);font-size:13px}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:var(--zacht)}
+.hoev{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+.lab{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:999px;margin-right:6px;vertical-align:1px}
+.lab.r{background:var(--rood2);color:var(--rood)}.lab.o{background:var(--oranje2);color:var(--oranje)}.lab.g{background:var(--acc2);color:var(--acc)}.lab.b{background:var(--blauw2);color:var(--blauw)}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
+.filters button{border:1px solid var(--lijn);background:var(--kaart);color:var(--tekst);border-radius:999px;padding:6px 12px;font:inherit;font-size:13.5px;cursor:pointer;min-height:36px}
+.filters button[aria-pressed="true"]{background:var(--tekst);color:var(--kaart);border-color:var(--tekst)}
+input[type=search]{width:100%;max-width:520px;padding:11px 12px;border:1px solid var(--lijn);border-radius:10px;background:var(--kaart);color:var(--tekst);font:inherit}
+.twin{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px}
+.twin div{background:var(--bg);border-radius:8px;padding:8px 10px}.twin small{display:block;color:var(--zacht);font-size:12px}
+.meer{display:block;margin:6px auto 10px;border:1px solid var(--lijn);background:var(--kaart);color:var(--tekst);border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer;min-height:40px}
+.laden{padding:40px 0;text-align:center;color:var(--zacht)}
+.balk{height:8px;border-radius:4px;background:var(--lijn);overflow:hidden;margin-top:6px}.balk i{display:block;height:100%;background:var(--acc)}
+.uitleg p,.uitleg li{max-width:760px}
+.fout{color:var(--rood)}
+@media (max-width:560px){.rij{grid-template-columns:1fr auto}.nr{display:none}.tegel b{font-size:22px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="kop"><div class="logo">Claude <span>Warehouse</span></div><div class="stand" id="stand">laden…</div></div>
+  <nav role="tablist" id="tabs"></nav>
+</header>
+<main id="app"><div class="laden">Data ophalen uit de database (alleen lezen)…</div></main>
+<script>
+'use strict';
+/* =====================================================================
+   Claude Warehouse — zelfsturend model (16-10-2026)
+   Eén pagina, los van Warehouse 3.0. Leest de database Palletlabels (alleen lezen) en rekent alles zelf:
+   vraag per dag, dekking, wat uit VST moet komen, welke backorders nu op te lossen zijn, eigen ABC,
+   dode en te veel voorraad, en fouten in de data. Geen instellingen, geen invoer, geen schrijven.
+   Elke actie heeft een reden in één zin, zodat je kunt zien waarom het model iets vindt.
+   ===================================================================== */
+const URL_ = 'https://jarbgetbwkjtxwtcfwmq.supabase.co/rest/v1/';
+const KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';   // publieke sleutel, ook in wh/core.js
+// Het model (eigen keuzes van Claude, geen instellingen):
+const M = {
+  werkdagen: 21,        // werkdagen per maand
+  doelDagen: 15,        // zoveel werkdagen verkoop wil het model in het hoofdmagazijn hebben
+  haalBij: 7,           // onder zoveel dagen dekking: uit VST halen
+  teVeel: 120,          // boven zoveel dagen dekking in het hoofdmagazijn: te veel, terug naar VST
+  dood: 0.25,           // minder dan dit per maand verkocht = staat stil
+  abcA: 0.80, abcB: 0.95 // eigen ABC: A = de producten die samen 80% van de stuks maken, B tot 95%
+};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const nf = (n, d = 0) => (n == null || isNaN(n)) ? '–' : Number(n).toLocaleString('nl-NL', { maximumFractionDigits:d, minimumFractionDigits:0 });
+const num = v => { const n = parseFloat(String(v ?? '').replace(',', '.')); return isNaN(n) ? null : n; };
+const D = { P:[], byCode:{}, VK:{}, BO:[], PD:{}, IN:{}, op:null };
+let TAB = 'nu', FILT = 'alles', ZOEK = '', TOON = {};
+
+async function haal(tabel, select){
+  const uit = []; const stap = 1000;
+  for(let i = 0; i < 40; i++){
+    const r = await fetch(URL_ + tabel + '?select=' + select, { headers:{ apikey:KEY, Authorization:'Bearer ' + KEY, Range:`${i * stap}-${(i + 1) * stap - 1}`, 'Range-Unit':'items' } });
+    if(!r.ok && r.status !== 206) throw new Error(tabel + ': HTTP ' + r.status);
+    const deel = await r.json(); uit.push(...deel);
+    if(deel.length < stap) break;
+  }
+  return uit;
+}
+async function laad(){
+  const [P, VK, BO, PD, CT] = await Promise.all([
+    haal('producten', 'productcode,naam,leverancier,abc,actief,uitlopend,locaties_hm,voorraad_hm,vrij_hm,gereserveerd_hm,voorraad_vst,gewicht_product_g,picqer_datum'),
+    haal('verkoop', 'productcode,per_maand'),
+    haal('backorders', 'bestelling,productcode,aantal,beschikbaar,besteld_op,leverancier,product'),
+    haal('productdata', 'productcode,data'),
+    haal('containers', 'containernummer,status,losdatum,data')
+  ]);
+  // wat er binnenkomt: containers die nog niet afgerond zijn
+  CT.filter(c => c.status !== 'afgerond').forEach(c => ((c.data && c.data.regels) || []).forEach(r => { const k = r.productcode; if(!k) return; const x = D.IN[k] = D.IN[k] || { n:0, datum:null, cont:c.containernummer }; x.n += num(r.totaal) || 0; if(c.losdatum && (!x.datum || c.losdatum < x.datum)){ x.datum = c.losdatum; x.cont = c.containernummer; } }));
+  VK.forEach(v => { D.VK[v.productcode] = num(v.per_maand) || 0; });
+  PD.forEach(r => { D.PD[r.productcode] = r.data || {}; });
+  D.BO = BO;
+  D.P = P.filter(p => p.actief !== false);
+  D.P.forEach(p => { D.byCode[p.productcode] = p; });
+  D.op = D.P.reduce((m, p) => p.picqer_datum && (!m || p.picqer_datum > m) ? p.picqer_datum : m, null);
+  model();
+}
+const pdv = (c, k) => { const v = (D.PD[c] || {})[k]; const x = v && typeof v === 'object' ? v.v : v; return x == null || String(x).trim() === '' ? null : String(x).trim(); };
+
+/* ---------- het model ---------- */
+const A = { acties:[], data:[], abc:{}, kpi:{}, twin:{} };
+function model(){
+  const act = [], dat = [];
+  // eigen ABC op stuks per maand
+  const vr = D.P.map(p => [p.productcode, D.VK[p.productcode] || 0]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
+  const tot = vr.reduce((s, x) => s + x[1], 0); let cum = 0;
+  vr.forEach(([c, v]) => { cum += v; A.abc[c] = cum / tot <= M.abcA ? 'A' : cum / tot <= M.abcB ? 'B' : 'C'; });
+  // backorders per product
+  const boP = {}, orders = {};
+  D.BO.forEach(b => { const c = b.productcode; (boP[c] = boP[c] || []).push(b); (orders[b.bestelling] = orders[b.bestelling] || []).push(b); });
+  const nu = Date.now();
+  const leeftijd = b => b.besteld_op ? Math.floor((nu - new Date(b.besteld_op)) / 864e5) : null;
+
+  D.P.forEach(p => {
+    const c = p.productcode, mnd = D.VK[c] || 0, dag = mnd / M.werkdagen;
+    const hm = num(p.voorraad_hm) || 0, vrij = num(p.vrij_hm) ?? hm, res = num(p.gereserveerd_hm) || 0, vst = num(p.voorraad_vst) || 0;
+    const dek = dag > 0 ? vrij / dag : (vrij > 0 ? Infinity : 0);
+    const spp = num(pdv(c, 'spp'));
+    const t = A.twin[c] = { mnd, dag, hm, vrij, res, vst, dek, spp, abc:A.abc[c] || (hm + vst > 0 ? 'C' : '–'), bo:(boP[c] || []).reduce((s, b) => s + (num(b.aantal) || 0), 0) };
+    const naam = p.naam || c;
+    // 1. uit VST halen
+    if(dag > 0 && dek < M.haalBij && vst > 0){
+      let n = Math.ceil(dag * M.doelDagen - vrij); if(t.bo) n += t.bo;
+      if(spp && spp > 0) n = Math.ceil(n / spp) * spp;
+      n = Math.min(n, vst);
+      if(n > 0) act.push({ s:dek < 2 ? 0 : 1, soort:'vst', lab:['r', 'Uit VST'], c, naam, hoev:n + (spp ? ' (' + nf(n / spp, 1) + ' pallet)' : ''), waarom:`Nog ${nf(dek, 1)} werkdag voorraad (${nf(vrij)} vrij, ${nf(dag, dag < 1 ? 2 : 1)} per dag)${t.bo ? ', ' + nf(t.bo) + ' in backorder' : ''}. Doel ${M.doelDagen} dagen.`, prio:dek });
+    }
+    // 2. op = op: verkoopt, nergens voorraad
+    // containers tellen Kokos van Wallace in rollen; Picqer in cm (1 rol = 600 cm, kennis Daan)
+    let inn = D.IN[c]; if(inn && /kokos/i.test(c + ' ' + naam) && /wallace/i.test(p.leverancier || '') && inn.n < 1000) inn = Object.assign({}, inn, { n:inn.n * 600 });
+    t.binnen = inn;
+    if(dag > 0 && vrij <= 0 && vst <= 0 && p.uitlopend !== true){
+      const tekort = Math.ceil(dag * 20 - vrij);
+      if(inn && inn.n >= tekort) act.push({ s:2, soort:'binnen', lab:['g', 'Komt binnen'], c, naam, hoev:nf(inn.n), waarom:`Op (${nf(vrij)} vrij${t.bo ? ', ' + nf(t.bo) + ' in backorder' : ''}), maar ${nf(inn.n)} komt binnen met ${inn.cont || 'een container'}${inn.datum ? ' op ' + new Date(inn.datum).toLocaleDateString('nl-NL') : ''}. Bij aankomst eerst deze vrijgeven.`, prio:inn.datum ? +new Date(inn.datum) : 9e15 });
+      else act.push({ s:1, soort:'inkoop', lab:['o', 'Inkoop'], c, naam, hoev:nf(tekort - (inn ? inn.n : 0)) + ' ±', waarom:`Verkoopt ${nf(mnd, 1)} per maand, ${nf(vrij)} vrij en niets in VST${t.bo ? '; ' + nf(t.bo) + ' in backorder' : ''}${inn ? '; ' + nf(inn.n) + ' onderweg is te weinig' : ''}. Hoeveelheid = tekort + ± 1 maand.`, prio:-mnd });
+    }
+    // 3. te veel in het hoofdmagazijn
+    if(dag > 0 && dek > M.teVeel && vrij > 0){
+      const terug = Math.floor((vrij - dag * M.doelDagen) / (spp || 1)) * (spp || 1);
+      if(terug > 0 && terug >= Math.max(spp || 0, mnd * 3, 20)) act.push({ s:3, soort:'ruimte', lab:['b', 'Ruimte'], c, naam, hoev:nf(terug) + (spp ? ' (' + nf(terug / spp, 1) + ' pallet)' : ''), waarom:`${nf(dek, 0)} werkdagen voorraad in het hoofdmagazijn. Naar VST of bulk, ${M.doelDagen} dagen laten staan.`, prio:-dek });
+    }
+    // 4. staat stil
+    if(mnd < M.dood && hm > 0){
+      act.push({ s:4, soort:'stil', lab:['b', 'Staat stil'], c, naam, hoev:nf(hm), waarom:`${mnd ? 'Verkoopt ' + nf(mnd, 2) + ' per maand' : 'Geen verkoop'}, wel ${nf(hm)} in het hoofdmagazijn${p.uitlopend ? ' (uitlopend)' : ''}. Kandidaat om op te ruimen of af te prijzen.`, prio:-hm });
+    }
+    // data: fouten die het model ziet
+    if(hm > 0 && !String(p.locaties_hm || '').trim()) dat.push({ c, naam, lab:['r', 'Geen locatie'], waarom:`${nf(hm)} in voorraad zonder locatie in Picqer.`, s:0, prio:-hm });
+    if(res > hm && hm >= 0 && res > 0) dat.push({ c, naam, lab:['r', 'Meer gereserveerd'], waarom:`${nf(res)} gereserveerd, maar ${nf(hm)} op voorraad.`, s:0, prio:-(res - hm) });
+    if(vrij < 0) dat.push({ c, naam, lab:['r', 'Negatief vrij'], waarom:`Vrije voorraad ${nf(vrij)}.`, s:0, prio:vrij });
+    if(mnd >= 1 && !(num(p.gewicht_product_g) > 0)) dat.push({ c, naam, lab:['o', 'Geen gewicht'], waarom:`Verkoopt ${nf(mnd, 1)} per maand maar heeft geen gewicht in Picqer: doos of pallet kan niet berekend worden.`, s:1, prio:-mnd });
+    const pq = String(p.abc || '').toUpperCase(), mijn = A.abc[c];
+    if(mijn && /^[ABC]$/.test(pq) && pq !== mijn && (mijn === 'A' || pq === 'A')) dat.push({ c, naam, lab:['b', 'ABC'], waarom:`Picqer zegt ${pq}, de verkoop zegt ${mijn} (${nf(mnd, 1)} per maand). Picklocatie herzien.`, s:2, prio:-mnd });
+    if(p.uitlopend === true && vst > 0) dat.push({ c, naam, lab:['o', 'Uitlopend in VST'], waarom:`Uitlopend, nog ${nf(vst)} in VST. Eerst die verkopen of terughalen.`, s:1, prio:-vst });
+  });
+  // 5. backorders die nu op te lossen zijn
+  let nOrd = 0, oudste = 0, oplos = 0;
+  Object.entries(orders).forEach(([ord, rg]) => {
+    nOrd++;
+    const lft = Math.max(0, ...rg.map(b => leeftijd(b) || 0)); oudste = Math.max(oudste, lft);
+    const kan = rg.every(b => { const t = A.twin[b.productcode]; return t && (t.vrij > 0 || t.vst >= (num(b.aantal) || 0)); });
+    if(kan){
+      oplos++;
+      const viaVst = rg.some(b => { const t = A.twin[b.productcode]; return t && t.vrij <= 0; });
+      act.push({ s:lft > 30 ? 0 : 2, soort:'bo', lab:[lft > 30 ? 'r' : 'g', 'Backorder'], c:'order ' + ord, naam:rg.map(b => b.productcode).slice(0, 3).join(', ') + (rg.length > 3 ? ' +' + (rg.length - 3) : ''), hoev:lft + ' d', waarom:viaVst ? 'Alles ligt er, deels in VST: daar ophalen en deze order vrijgeven.' : 'Alle regels liggen vrij in het hoofdmagazijn: kan vandaag de deur uit.', prio:-lft });
+    }
+  });
+  act.sort((a, b) => a.s - b.s || a.prio - b.prio);
+  dat.sort((a, b) => a.s - b.s || a.prio - b.prio);
+  A.acties = act; A.data = dat;
+  const metV = D.P.filter(p => (D.VK[p.productcode] || 0) > 0);
+  const krap = metV.filter(p => A.twin[p.productcode].dek < M.haalBij).length;
+  const goed = D.P.length - new Set(dat.filter(x => x.s === 0).map(x => x.c)).size;
+  A.kpi = { prod:D.P.length, metV:metV.length, krap, krapPct:metV.length ? krap / metV.length : 0, nOrd, oudste, oplos,
+    stuksDag:metV.reduce((s, p) => s + A.twin[p.productcode].dag, 0), stil:act.filter(a => a.soort === 'stil').length,
+    vst:act.filter(a => a.soort === 'vst').length, inkoop:act.filter(a => a.soort === 'inkoop').length, dataGoed:goed / D.P.length };
+}
+
+/* ---------- weergave ---------- */
+const TABS = [['nu', 'Nu doen'], ['stand', 'Stand'], ['product', 'Product'], ['data', 'Data'], ['model', 'Hoe het rekent']];
+function tabs(){ $('tabs').innerHTML = TABS.map(([id, t]) => `<button role="tab" aria-selected="${TAB === id}" data-tab="${id}">${t}</button>`).join(''); }
+function rijen(lijst, sleutel, n0 = 60){
+  const n = TOON[sleutel] || n0;
+  if(!lijst.length) return '<div class="kaart"><div class="rij"><span></span><span class="waarom">Niets te doen.</span><span></span></div></div>';
+  return `<div class="kaart">${lijst.slice(0, n).map((a, i) => `<div class="rij"><span class="nr">${i + 1}</span><span><span class="lab ${a.lab[0]}">${esc(a.lab[1])}</span><span class="wat">${esc(a.naam)}</span> <span class="code">${esc(a.c)}</span><br><span class="waarom">${esc(a.waarom)}</span></span><span class="hoev">${esc(a.hoev || '')}</span></div>`).join('')}</div>${lijst.length > n ? `<button class="meer" data-meer="${sleutel}">Nog ${nf(Math.min(100, lijst.length - n))} tonen (${nf(lijst.length - n)} meer)</button>` : ''}`;
+}
+function tegel(t, w, k, cls){ return `<div class="tegel ${cls || ''}"><small>${t}</small><b>${w}</b><small>${k || ''}</small></div>`; }
+function vNu(){
+  const SO = [['alles', 'Alles'], ['vst', 'Uit VST'], ['bo', 'Backorders'], ['inkoop', 'Inkoop'], ['binnen', 'Komt binnen'], ['ruimte', 'Ruimte'], ['stil', 'Staat stil']];
+  const l = FILT === 'alles' ? A.acties.filter(a => a.soort !== 'stil') : A.acties.filter(a => a.soort === FILT);
+  return `<h1>Nu doen</h1><p class="sub">Het model zet alles op volgorde: eerst wat een klant raakt, dan wat bijna op is, dan ruimte. ${nf(l.length)} acties.</p>
+  <div class="filters">${SO.map(([id, t]) => `<button aria-pressed="${FILT === id}" data-filt="${id}">${t} · ${nf(id === 'alles' ? A.acties.filter(a => a.soort !== 'stil').length : A.acties.filter(a => a.soort === id).length)}</button>`).join('')}</div>${rijen(l, 'nu-' + FILT)}`;
+}
+function vStand(){
+  const k = A.kpi, cls = (v, o, r) => v >= r ? 'r' : v >= o ? 'o' : 'g';
+  return `<h1>Stand van het magazijn</h1><p class="sub">Alles berekend uit de data van ${D.op ? new Date(D.op).toLocaleString('nl-NL', { dateStyle:'medium', timeStyle:'short' }) : 'onbekend'}.</p>
+  <div class="tegels">
+   ${tegel('Backorder-orders', nf(k.nOrd), 'oudste ' + nf(k.oudste) + ' dagen', cls(k.oudste, 14, 30))}
+   ${tegel('Nu op te lossen', nf(k.oplos), 'orders waarvan alles er ligt', k.oplos ? 'o' : 'g')}
+   ${tegel('Krap in het hoofdmagazijn', nf(k.krap), nf(k.krapPct * 100, 1) + '% van wat verkoopt, < ' + M.haalBij + ' dagen', cls(k.krapPct, .05, .12))}
+   ${tegel('Uit VST halen', nf(k.vst), 'producten', k.vst ? 'o' : 'g')}
+   ${tegel('Inkoop nodig', nf(k.inkoop), 'verkoopt, nergens voorraad', k.inkoop ? 'r' : 'g')}
+   ${tegel('Staat stil', nf(k.stil), 'voorraad zonder verkoop')}
+   ${tegel('Stuks per werkdag', nf(k.stuksDag), nf(k.metV) + ' producten verkopen')}
+   ${tegel('Data zonder harde fout', nf(k.dataGoed * 100, 1) + '%', nf(k.prod) + ' actieve producten', cls(1 - k.dataGoed, .02, .05))}
+  </div>
+  <h2>Eigen ABC tegenover Picqer</h2>${abcTabel()}
+  <h2>Top 10 die het snelst opraken</h2>${rijen(A.acties.filter(a => a.soort === 'vst').slice(0, 10), 'top', 10)}`;
+}
+function abcTabel(){
+  const t = { A:{}, B:{}, C:{} };
+  D.P.forEach(p => { const m = A.abc[p.productcode]; if(!m) return; const q = /^[ABC]$/.test(String(p.abc || '').toUpperCase()) ? String(p.abc).toUpperCase() : '–'; t[m][q] = (t[m][q] || 0) + 1; });
+  return `<div class="kaart" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums"><tr><th style="text-align:left;padding:8px 14px">Model ↓ / Picqer →</th>${['A', 'B', 'C', '–'].map(x => `<th style="padding:8px">${x}</th>`).join('')}</tr>${['A', 'B', 'C'].map(m => `<tr style="border-top:1px solid var(--lijn)"><td style="padding:8px 14px"><b>${m}</b></td>${['A', 'B', 'C', '–'].map(q => `<td style="text-align:center;padding:8px;${m === q ? 'font-weight:700' : ''}">${nf(t[m][q] || 0)}</td>`).join('')}</tr>`).join('')}</table></div><p class="sub">Vet = eens. Wat Picqer als C ziet maar het model als A, staat waarschijnlijk te ver van de pickroute.</p>`;
+}
+function vProduct(){
+  const z = ZOEK.trim().toLowerCase();
+  let hits = [];
+  if(z.length >= 2) hits = D.P.filter(p => p.productcode.toLowerCase().includes(z) || String(p.naam || '').toLowerCase().includes(z)).slice(0, 12);
+  return `<h1>Product</h1><p class="sub">Alles wat het model over één product weet en vindt.</p><input type="search" id="zoek" placeholder="code of naam" value="${esc(ZOEK)}" autocomplete="off">
+  <div id="hits">${hits.map(twinKaart).join('') || (z.length >= 2 ? '<p class="sub">Niets gevonden.</p>' : '')}</div>`;
+}
+function twinKaart(p){
+  const c = p.productcode, t = A.twin[c] || {}, mijn = [...A.acties, ...A.data].filter(a => a.c === c);
+  const f = (l, v) => `<div><small>${l}</small>${v}</div>`;
+  return `<div class="kaart" style="padding:12px 14px"><div class="wat">${esc(p.naam || c)}</div><div class="code">${esc(c)} · ${esc(p.leverancier || '')}</div>
+  <div class="twin">${f('Verkoop per maand', nf(t.mnd, 1))}${f('Per werkdag', nf(t.dag, 2))}${f('Vrij hoofdmagazijn', nf(t.vrij))}${f('Gereserveerd', nf(t.res))}${f('VST', nf(t.vst))}${f('Dekking', t.dek === Infinity ? 'geen verkoop' : nf(t.dek, 1) + ' werkdagen')}${f('ABC model / Picqer', esc(t.abc) + ' / ' + esc(p.abc || '–'))}${f('Locaties', esc(p.locaties_hm || 'geen'))}${f('Stuks per pallet', nf(t.spp))}${f('In backorder', nf(t.bo))}${f('Komt binnen', t.binnen ? nf(t.binnen.n) + (t.binnen.datum ? ' · ' + new Date(t.binnen.datum).toLocaleDateString('nl-NL') : '') : '–')}</div>
+  ${mijn.length ? `<div style="margin-top:8px">${mijn.map(a => `<div><span class="lab ${a.lab[0]}">${esc(a.lab[1])}</span><span class="waarom">${esc(a.waarom)}</span></div>`).join('')}</div>` : '<p class="sub" style="margin:8px 0 0">Het model ziet hier niets te doen.</p>'}</div>`;
+}
+function vData(){
+  const s = {}; A.data.forEach(d => { s[d.lab[1]] = (s[d.lab[1]] || 0) + 1; });
+  return `<h1>Data</h1><p class="sub">Wat in de data niet kan kloppen. Rood blokkeert het rekenen, oranje maakt het minder zeker, blauw is een advies.</p>
+  <div class="tegels">${Object.entries(s).map(([k, v]) => tegel(k, nf(v), '')).join('')}</div><h2>Lijst</h2>${rijen(A.data, 'data')}`;
+}
+function vModel(){
+  return `<div class="uitleg"><h1>Hoe het rekent</h1><p class="sub">Dit model heeft geen instellingen. Het rekent alles uit de data, legt per actie uit waarom, en schrijft nergens naar.</p>
+  <ul>
+   <li><b>Vraag:</b> verkoop per maand ÷ ${M.werkdagen} werkdagen.</li>
+   <li><b>Dekking:</b> vrije voorraad in het hoofdmagazijn ÷ vraag per dag.</li>
+   <li><b>Uit VST:</b> onder ${M.haalBij} werkdagen dekking en er ligt iets in VST. Hoeveel: aanvullen tot ${M.doelDagen} werkdagen plus wat in backorder staat, naar boven afgerond op hele pallets als stuks per pallet bekend is.</li>
+   <li><b>Inkoop of Komt binnen:</b> verkoopt wel, vrij is op en niets in VST. Dekt een open container het tekort, dan staat het onder Komt binnen met de losdatum; anders Inkoop (tekort + ± 1 maand).</li>
+   <li><b>Backorders:</b> een order is op te lossen als elke regel vrij in het hoofdmagazijn ligt of genoeg in VST. Ouder dan 30 dagen gaat bovenaan.</li>
+   <li><b>Ruimte:</b> meer dan ${M.teVeel} werkdagen in het hoofdmagazijn: het deel boven ${M.doelDagen} dagen kan naar VST of bulk.</li>
+   <li><b>Staat stil:</b> minder dan ${M.dood} per maand verkocht, wel voorraad.</li>
+   <li><b>Eigen ABC:</b> A = producten die samen ${M.abcA * 100}% van de stuks maken, B tot ${M.abcB * 100}%, de rest C.</li>
+   <li><b>Volgorde:</b> eerst wat een klant raakt (backorder ouder dan 30 dagen, bijna op), dan krap, dan ruimte.</li>
+  </ul><p class="sub">Bronnen: tabellen producten, verkoop, backorders, containers (niet afgerond) en productdata (stuks per pallet). Ververs de pagina voor de nieuwste stand.</p></div>`;
+}
+function teken(){
+  tabs();
+  $('app').innerHTML = ({ nu:vNu, stand:vStand, product:vProduct, data:vData, model:vModel }[TAB] || vNu)();
+  if(TAB === 'product'){ const z = $('zoek'); z.focus(); z.setSelectionRange(z.value.length, z.value.length); }
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-tab],[data-filt],[data-meer]'); if(!t) return;
+  if(t.dataset.tab){ TAB = t.dataset.tab; try{ localStorage.setItem('cw-tab', TAB); }catch(x){} }
+  if(t.dataset.filt) FILT = t.dataset.filt;
+  if(t.dataset.meer){ TOON[t.dataset.meer] = (TOON[t.dataset.meer] || 60) + 100; }
+  teken();
+});
+document.addEventListener('input', e => { if(e.target.id === 'zoek'){ ZOEK = e.target.value; const h = document.createElement('div'); h.innerHTML = vProduct(); $('hits').innerHTML = h.querySelector('#hits').innerHTML; } });
+try{ TAB = localStorage.getItem('cw-tab') || 'nu'; }catch(e){}
+tabs();
+laad().then(() => {
+  $('stand').textContent = nf(A.acties.length) + ' acties · data ' + (D.op ? new Date(D.op).toLocaleString('nl-NL', { dateStyle:'short', timeStyle:'short' }) : '');
+  teken();
+}).catch(e => { $('app').innerHTML = `<p class="fout">Kon de data niet ophalen: ${esc(e.message)}</p>`; $('stand').textContent = 'fout'; });
+</script>
+</body>
+</html>
