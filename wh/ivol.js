@@ -17,6 +17,7 @@ const DV = ['daan'], DK = ['daan', 'karin'], ALLE = ['daan', 'karin', 'vloer'], 
 const GROEPEN = [
   { k:'start', t:'Start' },
   { k:'vandaag', t:'Vandaag' },
+  { k:'kern', t:'Kern (nieuw)' },
   { k:'aanvul', t:'1 · Aanvuladvies', f:1 },
   { k:'loc', t:'2 · Locaties', f:2 },
   { k:'prod', t:'3 · Producten', f:3 },
@@ -42,6 +43,14 @@ const M = [
   { id:'vandaag', g:'vandaag', t:'Vandaag', u:W('#/'), st:'draait', r:DK, data:'wh-taken, wh-todo, Picqer live', uit:'De dag in stappen, taken, leeftijd van de exports.' },
   { id:'live', g:'vandaag', t:'Picqer live', u:T('#/live'), st:'proef', r:DV, data:'functie picqer', uit:'Picklijsten en backorders rechtstreeks uit Picqer.' },
   { id:'planning', g:'vandaag', t:'Planning', u:T('#/planning'), st:'proef', r:DV, data:'wh-taken', uit:'Cijfers per dag en wat nog van Daan nodig is.' },
+
+  // de vier vragen van de warehouse manager + de vloer, uit de nieuwe masterdatabase (wh/kern.js, functie wh-api)
+  { id:'kern-nu', g:'kern', t:'Wat moet nu', native:'k-nu', st:'proef', r:DK, uit:'Aanvullen voor wachtende orders, de ronde per gang, picklijsten en de werklijst. Uit de kern.' },
+  { id:'kern-klopt', g:'kern', t:'Wat klopt niet', native:'k-klopt', st:'proef', r:DK, uit:'Afwijkingen met de cijfers erachter, datakwaliteit per veld, twijfel over codes.' },
+  { id:'kern-komt', g:'kern', t:'Wat komt eraan', native:'k-komt', st:'proef', r:['daan', 'karin', 'mgmt'], uit:'Containers en Europese leveringen, ruimte, vraag die de voorraad overtreft.' },
+  { id:'kern-vast', g:'kern', t:'Waar loopt het vast', native:'k-vast', st:'proef', r:['daan', 'karin', 'mgmt'], uit:'Wachtende orders, oude picklijsten, structurele backorders, tempo per uur.' },
+  { id:'kern-vloer', g:'kern', t:'Aanvullen (vloer)', native:'k-vloer', st:'proef', r:ALLE, uit:'Telefoon: aanvullen per gang, NL/EN/ES/EL, Gedaan tikken.' },
+  { id:'kern-product', g:'kern', t:'Product (kern)', native:'k-product', st:'proef', r:IEDEREEN, verborgen:true, uit:'Alles wat de kern over één product weet, met herkomst.' },
 
   { id:'aanvullen', g:'aanvul', t:'Aanvullen', u:W('#/aanvullen'), st:'draait', r:DK, data:'backorders, wh-advies', uit:'Nu verplaatsen, Aanvulronde, Niet nu, Van VST.' },
   { id:'aanvullive', g:'aanvul', t:'Live advies', u:T('#/aanvullive'), st:'proef', r:DV, data:'wh-pq-cat, wh-pickstand', uit:'Het advies zelf uitgerekend uit Picqer, zonder PDF.' },
@@ -157,6 +166,7 @@ function toon(){
     if(['todo', 'taak', 'bouwplan'].includes(m.native)){ nat.scrollTop = 0; WHTAAK.render(m.native, UI.rest); nat.scrollTop = 0; if(m.native === 'todo' && window.WHX) WHX.banner(nat); }
     else if(m.native === 'kennisbank' && window.WHKB){ WHKB.render(nat); nat.scrollTop = 0; return; }
     else if(/^x-/.test(m.native) && window.WHX){ WHX.render(m.native.slice(2), nat, UI.rest); nat.scrollTop = 0; return; }
+    else if(/^k-/.test(m.native) && window.WHK){ WHK.render(m.native.slice(2), nat, UI.rest); nat.scrollTop = 0; return; }
     else { nat.innerHTML = m.native === 'kaart' ? viewKaart() : m.native === 'bronnen' ? viewBronnen() : m.native === 'naslag' ? viewNaslag() : viewFundament(); nat.scrollTop = 0; }
     if(m.native === 'naslag') laadNaslag();
     if(['fundament', 'todo', 'taak', 'bouwplan'].includes(m.native)) rekenFundament();

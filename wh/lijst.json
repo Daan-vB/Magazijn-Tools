@@ -30,6 +30,9 @@
   "wh/ivol-x.js",
   "wh/kennisbank-vragen.js",
   "wh/kennisbank.js",
+  "wh/kern-taal.js",
+  "wh/kern-model.js",
+  "wh/kern.js",
   "wh/ivol.js"
  ],
  "junior": [
