@@ -325,11 +325,48 @@ function sppBronnen(code){
   const naarVst = modus(mv.filter(m => m.vst).map(m => m.n)); if(naarVst) b.mvvst = { v:naarVst.v, t:'verplaatst naar VST in pallets van ' + nf(naarVst.v) };
   const ontv = modus(mv.filter(m => !m.vst && !m.van && D.LOC[m.naar] && D.LOC[m.naar].bulk).map(m => m.n)); if(ontv) b.mvontv = { v:ontv.v, t:'binnengeboekt op bulk in pallets van ' + nf(ontv.v) };
   const r = pbRegels(code).find(r => r.soort === 'pallet' && num(r.per)); if(r) b.pakbon = { v:num(r.per) * (num(r.factor) || 1), t:'pakbon: ' + nf(num(r.per)) + ' per pallet' };
-  // geschiedenis (wh-verplaatsingen): een vast aantal dat ≥ 3× van bulk naar pick ging = volle pallet (aanname p-gesch); retourkar telt niet
-  const kar = l => /^container\s*\d+$/i.test(String(l || '').trim());
-  const bp = modus(mv.filter(m => !m.vst && m.van && m.naar && !kar(m.van) && !kar(m.naar) && D.LOC[m.van] && D.LOC[m.van].bulk && !(D.LOC[m.naar] && D.LOC[m.naar].bulk)).map(m => m.n).filter(n => n > 1));
-  if(bp && bp.n >= 3) b.mvpick = { v:bp.v, t:'verplaatsingen: ' + bp.n + '× precies ' + nf(bp.v) + ' van bulk naar pick' };
+  // geschiedenis (wh-verplaatsingen, aanname p-gesch): ≥ 3× de hele voorraad van een bulklocatie naar pick = volle pallet
+  const g = mvPatroon(code);
+  if(g.vol) b.mvpick = { v:g.vol.v, t:g.vol.t };
   return b;
+}
+/* Leren uit de verplaatsingen (aanname p-gesch, Daan 16-10). Alleen van een bulklocatie naar pick; retourkar (Container 1–6) telt niet.
+   "Hele voorraad" = de bulklocatie was daarna leeg. Dat rekent de app per bulklocatie terug vanaf de voorraad-export
+   (alleen verplaatsingen tot de exportdatum); klopt het terugrekenen niet (onder 0), dan telt die verplaatsing als niet de hele voorraad.
+   ≥ 3× de hele voorraad → volle pallet (stuks = het meest verplaatste aantal) · ≥ 3× hetzelfde aantal, niet de hele voorraad → deel (stuks = het gemiddelde). */
+const kar = l => /^container\s*\d+$/i.test(String(l || '').trim());
+const isBulkLoc = l => !!(l && D.LOC[l] && D.LOC[l].bulk);
+function mvPatroon(code){
+  const mv = (S.mv[code] || []).filter(m => !m.vst && m.n > 0), tot = D.VRDATUM ? Date.parse(D.VRDATUM) || Infinity : Infinity;
+  const locs = (D.VR[code] || {}).locs || {}, perLoc = {}, leeg = new Map();
+  mv.filter(m => (Date.parse(m.t) || 0) <= tot && m.van !== m.naar).forEach(m => [m.van, m.naar].forEach(l => { if(isBulkLoc(l)) (perLoc[l] = perLoc[l] || []).push(m); }));
+  Object.entries(perLoc).forEach(([l, L]) => {
+    let st = num(locs[l]) || 0;
+    L.slice().sort((a, b) => String(b.t).localeCompare(String(a.t))).forEach(m => {
+      if(st === null) return;
+      if(m.van === l){ leeg.set(m, st === 0); st += m.n; }
+      else { st -= m.n; if(st < 0) st = null; }
+    });
+  });
+  const pick = mv.filter(m => isBulkLoc(m.van) && m.naar && !kar(m.naar) && !isBulkLoc(m.naar));
+  const vol = pick.filter(m => leeg.get(m) === true), rest = pick.filter(m => leeg.get(m) !== true), uit = { vol:null, deel:null };
+  if(vol.length >= 3){
+    const mo = modus(vol.map(m => m.n)), v = mo && mo.n >= 2 ? mo.v : Math.max(...vol.map(m => m.n));
+    uit.vol = { n:vol.length, v, t:'verplaatsingen: ' + vol.length + '× de hele bulkvoorraad naar pick (' + [...new Set(vol.map(m => nf(m.n)))].join(', ') + ')' };
+  }
+  const mo = modus(rest.map(m => m.n));
+  if(mo && mo.n >= 3){
+    const L = rest.filter(m => m.n === mo.v), gem = Math.round(L.reduce((s, m) => s + m.n, 0) / L.length);
+    uit.deel = { n:L.length, gem, t:'verplaatsingen: ' + L.length + '× ' + nf(mo.v) + ' van bulk naar pick, niet de hele voorraad (gemiddeld ' + nf(gem) + ')' };
+  }
+  return uit;
+}
+// volle pallet of deel volgens de verplaatsingen; komen ze allebei voor, dan wat het vaakst gebeurde
+function mvSoort(code){
+  const g = mvPatroon(code);
+  if(g.vol && (!g.deel || g.vol.n >= g.deel.n)) return { soort:'pallet', v:g.vol.v, n:g.vol.n, t:g.vol.t };
+  if(g.deel) return { soort:'deel', gem:g.deel.gem, n:g.deel.n, t:g.deel.t };
+  return null;
 }
 function voorstel(code, k, w){
   const p = D.P[code] || {}, x = S.extra[code] || {}, eh = eenheid(code), kg = kleurgenoten(code);
@@ -370,6 +407,9 @@ function voorstel(code, k, w){
       const lv = num(w('lvl')), spp = num(w('spp'));
       if(lv !== null && spp && w('met') === 'pallet') return uit('maxpick:som', lv + spp, 'aanvullen bij ' + nf(lv) + ' + volle pallet ' + nf(spp));
       if(genoot) return genoot;
+      // deel van een pallet volgens de verplaatsingen: max = bij + wat er gemiddeld per keer bijkomt (aanname p-gesch)
+      const gd = mvSoort(code);
+      if(lv !== null && gd && gd.soort === 'deel') return uit('maxpick:gesch', lv + gd.gem, 'bij ' + nf(lv) + ' + gemiddeld ' + nf(gd.gem) + ' per keer (' + gd.t + ')');
       // als er niets bekend is: max = bij + aanvullen met (minimaal 1 à 2 weken verkoop; Daan 16-10, aanname p-max)
       const wk2 = pdVan(code) > 0 ? Math.ceil(pdVan(code) * 10) : vkmVan(code) > 0 ? Math.ceil(vkmVan(code) / 2) : 0;
       if(lv !== null && wk2 > 0) return uit('maxpick:verkoop', lv + wk2, 'bij ' + nf(lv) + ' + ± 2 weken verkoop (' + nf(wk2) + ')');
@@ -401,6 +441,7 @@ function voorstel(code, k, w){
       const R = regelVan(code); if(R) return uit('regel', R.doel(code).met, 'aanvulregel: ' + R.t);
       if(genoot) return genoot;
       if(NVT(w('spp'))) return uit('met:geenpallet', 'doos', 'komt niet op pallet');
+      { const g = mvSoort(code); if(g) return uit('met:gesch', g.soort, 'regel Daan: ' + g.t); }
       const spp = num(w('spp')), mx = num(w('maxpick')), lv = num(w('lvl')) || 0, bij = mx ? mx - lv : 0;
       if(spp && mx) return bij >= spp ? uit('met:som', 'pallet', 'bijvullen (' + nf(bij) + ') ≥ 1 pallet') : uit('met:som', 'deel', 'bijvullen (' + nf(bij) + ') < 1 pallet (' + nf(spp) + ')');
       // wat er in Picqer van bulk naar pick ging
@@ -2313,6 +2354,7 @@ function soortVoorstel(c, f){
   }
   const R = REGELS.find(R => R.past(c));
   if(R){ const d = R.doel(c); return zeker(d.met === 'pallet' ? 'pallet' : 'deel', 'jouw aanvulregel ' + R.t.toLowerCase()); }
+  { const g = mvSoort(c); if(g) return ja(g.soort, 'regel Daan: ' + g.t); }
   const lab = [...labelSpp(c).keys()].filter(v => num(v) > 0);
   const spoor = sppN > 0 ? 'per pallet ' + nf(sppN) : lab.length ? 'palletlabel ' + nf(num(lab[0])) + ' per pallet' : f.vst > 0 ? nf(f.vst) + ' ' + e.mv + ' op VST' : pbRegels(c).some(r => r.soort === 'pallet') ? 'pakbon met pallets' : '';
   if(spoor){
@@ -3133,6 +3175,6 @@ async function view(delen){
 const herlaad = async () => { S.idx = null; await laad(true); };
 
 const zetLaterMee = v => { S.laterMee = v !== false; S.idx = null; };
-const intern = { levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
+const intern = { mvPatroon, mvSoort, levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
 return { view, herlaad, laad, zetLaterMee, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();

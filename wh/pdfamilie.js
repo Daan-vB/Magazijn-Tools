@@ -318,17 +318,20 @@ function kenmerken(c){
   const pb = X().pbRegels(c).find(r => r.soort !== 'pallet' && num(r.per) > 1);
   const pq = D.PQ[c] || [];
   const soort = P().famNaam(String((D.P[c] || {}).naam || '')).split(' ').filter(w => w.length > 2)[0] || '';
-  return { lev:X().levKort(c), soort, e, abc, ab:/^[AB]$/.test(abc) ? 'A/B' : 'C', vkm:X().vkmVan(c), pd:X().pdVan(c), spp, sppSterk, sppT:sppH ? sppH.t : '', ink, veelvoud, vollePal, aanv, aanvMed:mediaan(aanv), ratio, perMaand:aanv.length / maanden,
+  const gesch = X().mvSoort(c), geschVol = X().mvPatroon(c).vol;
+  return { gesch, geschVol, lev:X().levKort(c), soort, e, abc, ab:/^[AB]$/.test(abc) ? 'A/B' : 'C', vkm:X().vkmVan(c), pd:X().pdVan(c), spp, sppSterk, sppT:sppH ? sppH.t : '', ink, veelvoud, vollePal, aanv, aanvMed:mediaan(aanv), ratio, perMaand:aanv.length / maanden,
     pakbon:pb ? num(pb.per) * (num(pb.factor) || 1) : null, pq0:num(pq[0]), pq1:num(pq[1]), pick:P().locaties(c).pick.length > 0, regel:X().regelVan(c) };
 }
 const EHT = { st:'per stuk', m:'per meter', cm:'per cm', rol:'per rol', m2:'per m²' };
 // regels per veld: vaste regels (f) en een beslistabel (key) die uit Daans keuzes leert
 const REGELS = {
   opslag:[
+    { id:'gesch', t:'3× de hele bulkvoorraad naar pick → 1 Pallet; 3× hetzelfde deel → 2 Deel (regel Daan, p-gesch)', f:x => x.gesch ? { v:x.gesch.soort, why:x.gesch.t } : null },
     { id:'aanv', t:'aanvullingen ≈ 1 pallet → 1 Pallet; minder dan een pallet → 2 Deel', f:x => x.ratio === null || x.aanv.length < 2 ? null : x.ratio >= 0.9 ? { v:'pallet', why:x.aanv.filter(n => n >= 0.9 * x.spp).length + ' van ' + x.aanv.length + ' aanvullingen waren een volle pallet van ' + nf(x.spp) } : { v:'deel', why:'aanvullingen meestal ' + nf(x.aanvMed) + ', minder dan een pallet van ' + nf(x.spp) } },
     { id:'tabel', t:'zelfde eenheid, ABC en picklocatie → wat je bij die producten koos', key:x => x.e + '|' + x.ab + '|' + (x.pick ? 'pick' : 'geen'), kt:k => { const [e, ab, p] = k.split('|'); return (EHT[e] || e) + ', ' + ab + ', ' + (p === 'pick' ? 'met picklocatie' : 'zonder picklocatie'); } }
   ],
   met:[
+    { id:'gesch', t:'3× de hele bulkvoorraad naar pick → volle pallet; 3× hetzelfde deel → deel van pallet (regel Daan, p-gesch)', f:x => x.gesch ? { v:x.gesch.soort, why:x.gesch.t } : null },
     { id:'aanv', t:'aanvullingen ≈ 1 pallet → volle pallet; minder → deel van pallet', f:x => x.ratio === null || x.aanv.length < 2 ? null : x.ratio >= 0.9 ? { v:'pallet', why:x.aanv.filter(n => n >= 0.9 * x.spp).length + ' van ' + x.aanv.length + ' aanvullingen waren een volle pallet van ' + nf(x.spp) } : { v:'deel', why:'aanvullingen meestal ' + nf(x.aanvMed) + ' (pallet ' + nf(x.spp) + ')' } },
     { id:'tabel', t:'zelfde eenheid en ABC → wat je bij die producten koos', key:x => x.e + '|' + x.ab, kt:k => { const [e, ab] = k.split('|'); return (EHT[e] || e) + ', ' + ab; } }
   ],
@@ -343,6 +346,7 @@ const REGELS = {
     { id:'tabel', t:'zelfde eenheid en ABC → het niveau dat je daar meestal koos', key:x => x.e + '|' + x.ab, kt:k => { const [e, ab] = k.split('|'); return (EHT[e] || e) + ', ' + ab; } }
   ],
   maxpick:[
+    { id:'gesch', t:'aanvullen bij + wat er gemiddeld per keer van bulk komt (deel van pallet, p-gesch)', f:x => x.lvlEigen !== null && x.gesch && x.gesch.soort === 'deel' ? { v:String(x.lvlEigen + x.gesch.gem), why:'aanvullen bij ' + nf(x.lvlEigen) + ' + gemiddeld ' + nf(x.gesch.gem) + ' (' + x.gesch.t + ')' } : null },
     { id:'aanv', t:'aanvullen bij + wat je meestal bijvult', f:x => x.lvlEigen !== null && x.aanvMed ? { v:String(x.lvlEigen + x.aanvMed), why:'aanvullen bij ' + nf(x.lvlEigen) + ' + meestal ' + nf(x.aanvMed) + ' bijgevuld (' + x.aanv.length + ' keer)' } : null },
     { id:'picqer', t:'"vul aan tot" dat nu in Picqer staat', f:x => x.pq1 > 1 && !(x.pq0 === 1 && x.pq1 === 11) ? { v:String(x.pq1), why:'Picqer: vul aan tot ' + nf(x.pq1) } : null }
   ],
@@ -350,6 +354,7 @@ const REGELS = {
     { id:'lev', min:1, t:'zelfde leverancier en soort product als een al ingevulde mixgroep', key:x => x.soort ? x.lev + '|' + x.soort : null, kt:k => { const [l, w] = k.split('|'); return 'van ' + l + ' (' + w + ')'; } }
   ],
   spp:[
+    { id:'gesch', t:'3× de hele bulkvoorraad naar pick: dat aantal is een volle pallet (p-gesch)', f:x => x.geschVol ? { v:String(x.geschVol.v), why:x.geschVol.t } : null },
     { id:'bron', t:'minstens 2 pallets op VST of bulk met hetzelfde aantal', f:x => x.sppSterk ? { v:String(x.sppSterk), why:x.sppT } : null },
     { id:'bron1', t:'één pallet op VST of bulk, of de pakbon', f:x => !x.sppSterk && x.spp ? { v:String(x.spp), why:x.sppT + ' (kan een restpallet zijn)' } : null },
     { id:'inkoop', t:'inkoop altijd in volle pallets van x', f:x => x.veelvoud && x.ink.length >= 3 && x.veelvoud >= 20 ? { v:String(x.veelvoud), why:'inkoop altijd een veelvoud van ' + nf(x.veelvoud) } : null }
