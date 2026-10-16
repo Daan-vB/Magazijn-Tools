@@ -1,0 +1,10572 @@
+{
+"naam": "Claude autopiloot: alle open families vooraf ingevuld (te controleren)",
+"datum": "2026-10-16",
+"regels": [
+{
+"code": "2029",
+"zet": [
+[
+"mixgroep",
+"Xiamen Honorchain · inklapbare",
+"familie",
+"Autopiloot familie Inklapbare huishoudtrap: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "2030",
+"zet": [
+[
+"mixgroep",
+"Xiamen Honorchain · inklapbare",
+"familie",
+"Autopiloot familie Inklapbare huishoudtrap: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "5468",
+"zet": [
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Whiteboard Verrijdbaar - Dubbelzijdig - Magnetisch: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "31281",
+"zet": [
+[
+"maxpick",
+"100",
+"maatgroep",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"90",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · inzetborstel ringmat",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "31283",
+"zet": [
+[
+"maxpick",
+"100",
+"maatgroep",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"90",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · inzetborstel ringmat",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "31284",
+"zet": [
+[
+"maxpick",
+"100",
+"maatgroep",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"90",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · inzetborstel ringmat",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "31285",
+"zet": [
+[
+"maxpick",
+"100",
+"maatgroep",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"90",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · inzetborstel ringmat",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "31286",
+"zet": [
+[
+"maxpick",
+"100",
+"maatgroep",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"90",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · inzetborstel ringmat",
+"familie",
+"Autopiloot familie Inzetborstel Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "1410110",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Borderrand - BERA Flex Border - Lengte 10 m - Hoogte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "549-1-180-007",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Schoonloopmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "549-1-402-007",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Schoonloopmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "549-1-601-007",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Schoonloopmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "549-1-603-007",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Schoonloopmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "549-1-803-007",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Schoonloopmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "549-1-901-007",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Schoonloopmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "549-1-903-007",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Schoonloopmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST110-BLACK",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST110-GREY",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST110-GREEN",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST110-GREY-17",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST110-GREEN-17",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST210-Blue",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST210-GREY",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST210-Grey-17",
+"zet": [
+[
+"spp",
+"1",
+"maatgroep",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST210-Black-R-17",
+"zet": [
+[
+"spp",
+"1",
+"maatgroep",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST210-Black-17",
+"zet": [
+[
+"spp",
+"1",
+"maatgroep",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST210-Blue-17",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST210-Green-17",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"1",
+"maatgroep",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST210-Black-B-17",
+"zet": [
+[
+"spp",
+"1",
+"maatgroep",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST105-BLACK",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"78",
+"maatgroep",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST105-GREEN",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST105-GREY",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"78",
+"maatgroep",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST105-BLUE",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"78",
+"maatgroep",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST155-GREEN",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST155-BLUE",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST155-GREY",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST155-BLACK",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST155-Black-17",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST155-Black-B-17",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST155-Black-R-17",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST155-Blue-17",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST155-Green-17",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ST155-Grey-17",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Sprinttrack kunstgras: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "luego-beige",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-883",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-881",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-264",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-879",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-885",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-877",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-880",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-878",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-882",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100030-685",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-266",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100030-859",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-886",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100030-335",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100030-684",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100030-860",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-275",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-887",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100031-888",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GRANU5050110Z",
+"zet": [
+[
+"maxpick",
+"58",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber tegel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GRANU505020G",
+"zet": [
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber tegel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GRANU505020R",
+"zet": [
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber tegel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GRANU505025R",
+"zet": [
+[
+"maxpick",
+"190",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber tegel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GRANU505030R",
+"zet": [
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber tegel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GRANU505030G",
+"zet": [
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber tegel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GRANU505045GREY",
+"zet": [
+[
+"maxpick",
+"130",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber tegel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GRANU505055R",
+"zet": [
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber tegel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GRANU505055G",
+"zet": [
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber tegel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GRANU505075R",
+"zet": [
+[
+"maxpick",
+"82",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber tegel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GRANU505075G",
+"zet": [
+[
+"maxpick",
+"82",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber tegel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GRANU505075GR",
+"zet": [
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.4",
+"zet": [
+[
+"maxpick",
+"20",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"vn",
+"Rubbermat op rol - Fijne ribbel - Dikte 3mm - Breedte 40cm - Lengte 1m",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.4-3",
+"zet": [
+[
+"vn",
+"Rubbermat op rol - Fijne ribbel - Dikte 3mm - Breedte 40cm - Lengte 3m",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.4-4",
+"zet": [
+[
+"vn",
+"Rubbermat op rol - Fijne ribbel - Dikte 3mm - Breedte 40cm - Lengte 4m",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.4-5",
+"zet": [
+[
+"vn",
+"Rubbermat op rol - Fijne ribbel - Dikte - 3mm - Breedte 40cm - Lengte 5m",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.4-6",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"100",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"20",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"90",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"235",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.4-8",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-2",
+"zet": [
+[
+"maxpick",
+"7",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"155",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5",
+"zet": [
+[
+"maxpick",
+"7",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"155",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-4",
+"zet": [
+[
+"maxpick",
+"7",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"155",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-3",
+"zet": [
+[
+"maxpick",
+"7",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"155",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-10",
+"zet": [
+[
+"maxpick",
+"7",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"155",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-5",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"100",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"7",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"90",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"155",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-6",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"100",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"7",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"90",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"155",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-8",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"7",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"155",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-7",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"7",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"155",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Rubbermat op rol - Fijne ribbel - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "588-1-506-051",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Droogloopmat Aquastop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "588-1-601-002",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Droogloopmat Aquastop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RH100x100-16",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RH100x150-16",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RH100x200-16",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"2",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"1",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "Ring-roll-3m",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "Ring-roll-6m",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RH40x60",
+"zet": [
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"1",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "rh50x100",
+"zet": [
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"1",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RH50x100-16",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "rh50x80",
+"zet": [
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"1",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RH60x100",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "11103.299",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Whiteboard: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Whiteboard: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Whiteboard: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"160",
+"maatgroep",
+"Autopiloot familie Whiteboard: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"1",
+"maatgroep",
+"Autopiloot familie Whiteboard: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "11103.265",
+"zet": [
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Whiteboard: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"160",
+"maatgroep",
+"Autopiloot familie Whiteboard: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"1",
+"maatgroep",
+"Autopiloot familie Whiteboard: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "design-100-black",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Design: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "design-150-black",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Design: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "design-175-black",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Design: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "design-50-black",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Design: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "design-90-black",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Design: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Design: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "TRLBLACK-175",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Zwarte Trapleuning: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "574-1-402-052",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Droogloopmat Twister: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "574-1-803-052",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Droogloopmat Twister: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "574-1-903-052",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Droogloopmat Twister: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "TD-10010015",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "TD-10010020",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "TD-15015010",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "TD-15015015",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "TD-15015020",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"140",
+"maatgroep",
+"Autopiloot familie Rubber tegeldrager: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Rubber tegeldrager: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "TD-20010010",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "TD-20010015",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "TD-20010020",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "TD-20020010",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "TD-20020020",
+"zet": [
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Rubber tegeldrager: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "14019.210",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Whiteboard Magneten: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "14019.170",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Whiteboard Magneten: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "14019.165",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Whiteboard Magneten: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "14019.205",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Whiteboard Magneten: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "14019.100",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Whiteboard Magneten: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "14019.145",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Whiteboard Magneten: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GSBW-100x180",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Frameless glassboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"2",
+"maatgroep",
+"Autopiloot familie Frameless glassboard Premium: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GSBW-100x200",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Frameless glassboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"26",
+"maatgroep",
+"Autopiloot familie Frameless glassboard Premium: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Frameless glassboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GSBW-120x180",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Frameless glassboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"26",
+"maatgroep",
+"Autopiloot familie Frameless glassboard Premium: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Frameless glassboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GSBW-120x240",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Frameless glassboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"26",
+"maatgroep",
+"Autopiloot familie Frameless glassboard Premium: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Frameless glassboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GSTBS-60x90",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Frameless glassboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Frameless glassboard Premium: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "GSTBS-90x120",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Frameless glassboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Frameless glassboard Premium: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "0815",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "grvsc-oprol",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"110",
+"maatgroep",
+"Autopiloot familie Gravel scrape: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Gravel scrape: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "0816",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "0811",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "0807",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "0810",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"110",
+"maatgroep",
+"Autopiloot familie Gravel scrape: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Gravel scrape: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "0809",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"110",
+"maatgroep",
+"Autopiloot familie Gravel scrape: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Gravel scrape: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "0806",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"110",
+"maatgroep",
+"Autopiloot familie Gravel scrape: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Gravel scrape: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "0801",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "0802",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Gravel scrape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"110",
+"maatgroep",
+"Autopiloot familie Gravel scrape: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Gravel scrape: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "588-0-100-051",
+"zet": [
+[
+"lvl",
+"600",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "588-0-100-002",
+"zet": [
+[
+"lvl",
+"600",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "588-0-100-060",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"600",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "588-0-100-006",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"600",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "588-0-100-050",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"600",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "588-0-200-051",
+"zet": [
+[
+"lvl",
+"600",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "588-0-200-060",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"600",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "588-0-200-006",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"600",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "588-0-200-050",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"600",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "588-0-200-002",
+"zet": [
+[
+"lvl",
+"600",
+"familie",
+"Autopiloot familie Aqua stop: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "25x25x135",
+"zet": [
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Trapprofiel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "25X25X270-1",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Trapprofiel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Trapprofiel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "25X25X90",
+"zet": [
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Trapprofiel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "42x21x100ALU",
+"zet": [
+[
+"maxpick",
+"14",
+"maatgroep",
+"Autopiloot familie Trapprofiel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "42x22rub100-black",
+"zet": [
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Trapprofiel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "42x22rub100",
+"zet": [
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Trapprofiel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "42x22x1350rub",
+"zet": [
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Trapprofiel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "42x22rub135-black",
+"zet": [
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Trapprofiel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "42x22rub270-black",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Trapprofiel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Trapprofiel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "46x30x1350",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Trapprofiel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Trapprofiel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PEW100200E",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Whiteboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Whiteboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"28",
+"maatgroep",
+"Autopiloot familie Whiteboard Premium: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Whiteboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PEW120120E",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Whiteboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Whiteboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Whiteboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PEW120240E",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Whiteboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Whiteboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"23",
+"maatgroep",
+"Autopiloot familie Whiteboard Premium: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Whiteboard Premium: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"397",
+"maatgroep",
+"Autopiloot familie Whiteboard Premium: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "FWB120180-GREY",
+"zet": [
+[
+"plaatsen",
+"2",
+"maatgroep",
+"Autopiloot familie Whiteboard zonder rand: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "CS65SX-2.7-0-0.7",
+"zet": [
+[
+"maxpick",
+"40",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"1",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "CS65SX-2.7-0-0.8",
+"zet": [
+[
+"maxpick",
+"40",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"1",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WE-100x180",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Whiteboard met zwart frame - Emaille - Magnetisch: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"28",
+"maatgroep",
+"Autopiloot familie Whiteboard met zwart frame - Emaille - Magnetisch: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Whiteboard met zwart frame - Emaille - Magnetisch: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WE-100x200",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Whiteboard met zwart frame - Emaille - Magnetisch: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"28",
+"maatgroep",
+"Autopiloot familie Whiteboard met zwart frame - Emaille - Magnetisch: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Whiteboard met zwart frame - Emaille - Magnetisch: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WE-90x120",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Whiteboard met zwart frame - Emaille - Magnetisch: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"53",
+"maatgroep",
+"Autopiloot familie Whiteboard met zwart frame - Emaille - Magnetisch: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Whiteboard met zwart frame - Emaille - Magnetisch: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BGB100100-WHI",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Glassboard met blinde bevestiging: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BGB100150-WHI",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Glassboard met blinde bevestiging: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BGB100150-BLA",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Glassboard met blinde bevestiging: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BGB6090-WHI",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Glassboard met blinde bevestiging: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BGB6090-BLA",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Glassboard met blinde bevestiging: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BGB90120-BLA",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Glassboard met blinde bevestiging: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Glassboard met blinde bevestiging: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KB-6kg-blk",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Kettlebell: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Kettlebell: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Kettlebell: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KB-8kg-blk",
+"zet": [
+[
+"maxpick",
+"12",
+"maatgroep",
+"Autopiloot familie Kettlebell: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Kettlebell: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Kettlebell: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KB-2kg-blk",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Kettlebell: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Kettlebell: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Kettlebell: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KB-4kg-blk",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Kettlebell: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Kettlebell: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Kettlebell: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KB-12kg-blk",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Kettlebell: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"12",
+"maatgroep",
+"Autopiloot familie Kettlebell: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Kettlebell: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KB-20kg-blk",
+"zet": [
+[
+"maxpick",
+"12",
+"maatgroep",
+"Autopiloot familie Kettlebell: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Kettlebell: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MTPWB001001",
+"zet": [
+[
+"geleverd",
+"100",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MTPWB001002",
+"zet": [
+[
+"geleverd",
+"100",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"SAM · matrix",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MTPWB001003",
+"zet": [
+[
+"geleverd",
+"100",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"SAM · matrix",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MTPWB003002",
+"zet": [
+[
+"geleverd",
+"100",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"SAM · matrix",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MTPWB003003",
+"zet": [
+[
+"geleverd",
+"100",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"SAM · matrix",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MTPWB003007",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"100",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"SAM · matrix",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MTPWB003008",
+"zet": [
+[
+"geleverd",
+"100",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"SAM · matrix",
+"familie",
+"Autopiloot familie Matrix tape: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "CD65SX3-0-1.0",
+"zet": [
+[
+"maxpick",
+"40",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol Traanplaat 3mm - Breedte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol Traanplaat 3mm - Breedte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "CM3-0-2",
+"zet": [
+[
+"maxpick",
+"30",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol Traanplaat 3mm - Breedte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol Traanplaat 3mm - Breedte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "CD65SX3-0-0.4",
+"zet": [
+[
+"maxpick",
+"40",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol Traanplaat 3mm - Breedte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol Traanplaat 3mm - Breedte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "CD65SX3-0-0.5",
+"zet": [
+[
+"maxpick",
+"40",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol Traanplaat 3mm - Breedte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol Traanplaat 3mm - Breedte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "CD65SX3-0-0.6",
+"zet": [
+[
+"maxpick",
+"40",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol Traanplaat 3mm - Breedte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol Traanplaat 3mm - Breedte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RP01500",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubberplaat - SBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Rubberplaat - SBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Rubberplaat - SBR -  Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Rubberplaat - SBR -  Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RP1000",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Rubberplaat - SBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RP0400",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Rubberplaat - SBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RP0500",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Rubberplaat - SBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RP0600",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Rubberplaat - SBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RP0800",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Rubberplaat - SBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100150VW-red",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Verrijdbaar whiteboard - Dubbelzijdig en magnetisch: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"2",
+"maatgroep",
+"Autopiloot familie Verrijdbaar whiteboard - Dubbelzijdig en magnetisch: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100150VW-blu",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Verrijdbaar whiteboard - Dubbelzijdig en magnetisch: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"2",
+"maatgroep",
+"Autopiloot familie Verrijdbaar whiteboard - Dubbelzijdig en magnetisch: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KOKOS4060NAT",
+"zet": [
+[
+"maxpick",
+"201",
+"maatgroep",
+"Autopiloot familie Kokosmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Kokosmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KOKOS4060BLK",
+"zet": [
+[
+"maxpick",
+"201",
+"maatgroep",
+"Autopiloot familie Kokosmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Kokosmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KOKOS80120BLK",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Kokosmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Kokosmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"55",
+"maatgroep",
+"Autopiloot familie Kokosmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Kokosmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Kokosmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"115",
+"maatgroep",
+"Autopiloot familie Kokosmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Kokosmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"3",
+"maatgroep",
+"Autopiloot familie Kokosmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Kokosmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KOKOS80120GREY-24",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Kokosmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Kokosmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "HM-10-0-2.5-5M",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol Hamerslag: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol Hamerslag: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "HM-10-0-2.5",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol Hamerslag: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol Hamerslag: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "HM-10-0-2.5-2M",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol Hamerslag: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol Hamerslag: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RR200-10",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Rubber ringmat op rol: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber ringmat op rol: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"70",
+"maatgroep",
+"Autopiloot familie Rubber ringmat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber ringmat op rol: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "Ring-rol-150-5",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Rubber ringmat op rol: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber ringmat op rol: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"7",
+"maatgroep",
+"Autopiloot familie Rubber ringmat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber ringmat op rol: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"100x150",
+"maatgroep",
+"Autopiloot familie Rubber ringmat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"165",
+"maatgroep",
+"Autopiloot familie Rubber ringmat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"765",
+"maatgroep",
+"Autopiloot familie Rubber ringmat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"2",
+"maatgroep",
+"Autopiloot familie Rubber ringmat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Rubber ringmat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Rubber ringmat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MFL505025R",
+"zet": [
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MFL505025G",
+"zet": [
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MFL505025-GREY",
+"zet": [
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PS-SBR50-DH-003-25",
+"zet": [
+[
+"maxpick",
+"124",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"12",
+"familie",
+"Autopiloot familie Rubber tegel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"939",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PS-SBR50-DH-002-25",
+"zet": [
+[
+"maxpick",
+"124",
+"maatgroep",
+"Autopiloot familie Rubber tegel: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"12",
+"familie",
+"Autopiloot familie Rubber tegel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPEPDM1000",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPEPDM0200",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPEPDM0400",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPEPDM0500",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPEPDM0600",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPEPDM0800",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubberplaat - EPDM - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPNBR0100",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPNBR1500",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPNBR0200",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPNBR0500",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPNBR0600",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPNBR0800",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Rubberplaat - NBR -  Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SI60120BR-1-0",
+"zet": [
+[
+"spp",
+"nvt",
+"maatgroep",
+"Autopiloot familie Rubberplaat - Siliconen FDA: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"40",
+"maatgroep",
+"Autopiloot familie Rubberplaat - Siliconen FDA: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubberplaat - Siliconen FDA: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"opm",
+"Extra rollen op mixpallet",
+"familie",
+"Autopiloot familie Rubberplaat - Siliconen FDA: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SI60120BR-2-0",
+"zet": [
+[
+"maxpick",
+"40",
+"maatgroep",
+"Autopiloot familie Rubberplaat - Siliconen FDA: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubberplaat - Siliconen FDA: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SI60120TP-2-0",
+"zet": [
+[
+"maxpick",
+"40",
+"maatgroep",
+"Autopiloot familie Rubberplaat - Siliconen FDA: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubberplaat - Siliconen FDA: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SI60120TP-4-0",
+"zet": [
+[
+"maxpick",
+"40",
+"maatgroep",
+"Autopiloot familie Rubberplaat - Siliconen FDA: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubberplaat - Siliconen FDA: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SX70150-20-0-1x1",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie SBR rubberplaat - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie SBR rubberplaat - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100030-970",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Trapmaantje Spurt: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100030-971",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Trapmaantje Spurt: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Trapmaantje Spurt: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100030-977",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Trapmaantje Spurt: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100030-976",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Trapmaantje Spurt: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "14019.160",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Whiteboard Magneten: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PM-0109400329",
+"zet": [
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Beschermmat *standaard* - rol van 12,5 m2 - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PM-0109400331",
+"zet": [
+[
+"maxpick",
+"4",
+"maatgroep",
+"Autopiloot familie Beschermmat *standaard* - rol van 12,5 m2 - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Beschermmat *standaard* - rol van 12,5 m2 - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PM-0109400332",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Beschermmat *standaard* - rol van 12,5 m2 - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Beschermmat *standaard* - rol van 12,5 m2 - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"3",
+"maatgroep",
+"Autopiloot familie Beschermmat *standaard* - rol van 12,5 m2 - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Beschermmat *standaard* - rol van 12,5 m2 - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"140",
+"maatgroep",
+"Autopiloot familie Beschermmat *standaard* - rol van 12,5 m2 - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Beschermmat *standaard* - rol van 12,5 m2 - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PM-0109400327",
+"zet": [
+[
+"maxpick",
+"12",
+"maatgroep",
+"Autopiloot familie Beschermmat *standaard* - rol van 12,5 m2 - Dikte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Beschermmat *standaard* - rol van 12,5 m2 - Dikte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "DT140-9016",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Bureaublad: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"2",
+"maatgroep",
+"Autopiloot familie Bureaublad: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SE121M2-SF1105",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "Se121m2-BLUE",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SE121M2-WHI",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"8",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"0",
+"familie",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"180",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"133",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"1",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "Se121m2-RED",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"8",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"0",
+"familie",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"180",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"133",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"1",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Bureaustoel Cádiz: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "FWB100200-GREY",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Frameless Whiteboard: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Frameless Whiteboard: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"53",
+"maatgroep",
+"Autopiloot familie Frameless Whiteboard: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Frameless Whiteboard: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"100x200",
+"maatgroep",
+"Autopiloot familie Frameless Whiteboard: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Frameless Whiteboard: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"1115",
+"maatgroep",
+"Autopiloot familie Frameless Whiteboard: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"3",
+"maatgroep",
+"Autopiloot familie Frameless Whiteboard: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"1",
+"maatgroep",
+"Autopiloot familie Frameless Whiteboard: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"1",
+"maatgroep",
+"Autopiloot familie Frameless Whiteboard: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "2031-BLK",
+"zet": [
+[
+"mixgroep",
+"Xiamen Honorchain · inklapbare",
+"familie",
+"Autopiloot familie Inklapbare huishoudtrap: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "2030-BLK",
+"zet": [
+[
+"mixgroep",
+"Xiamen Honorchain · inklapbare",
+"familie",
+"Autopiloot familie Inklapbare huishoudtrap: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "2029-BLK",
+"zet": [
+[
+"mixgroep",
+"Xiamen Honorchain · inklapbare",
+"familie",
+"Autopiloot familie Inklapbare huishoudtrap: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PD-L-WHI",
+"zet": [
+[
+"geleverd",
+"20",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · kattenluik",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PD-M-BLA",
+"zet": [
+[
+"geleverd",
+"20",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · kattenluik",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PD-M-WHI",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"20",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · kattenluik",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PD-M-BRO",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"22",
+"maatgroep",
+"Autopiloot familie Kattenluik: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"20",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · kattenluik",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PD-L-BRO",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"22",
+"maatgroep",
+"Autopiloot familie Kattenluik: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"20",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · kattenluik",
+"familie",
+"Autopiloot familie Kattenluik: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MM-BLK-10x120",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Roostermat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MM-BLK-4x120",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Roostermat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MM-BLUE-10x120",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Roostermat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MM-BLUE-4x120",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Roostermat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MM-GRY-10x120",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Roostermat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MM-GRY-4x120",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Roostermat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SR-50-W",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Schoenenrek voor: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SR-50-B",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Schoenenrek voor: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Schoenenrek voor: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SR-20-GR",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Schoenenrek voor: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"60",
+"maatgroep",
+"Autopiloot familie Schoenenrek voor: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"8",
+"maatgroep",
+"Autopiloot familie Schoenenrek voor: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Schoenenrek voor: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Schoenenrek voor: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"160",
+"maatgroep",
+"Autopiloot familie Schoenenrek voor: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"75",
+"maatgroep",
+"Autopiloot familie Schoenenrek voor: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Schoenenrek voor: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"6",
+"maatgroep",
+"Autopiloot familie Schoenenrek voor: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Schoenenrek voor: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SR-50-GR",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Schoenenrek voor: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SMAT-120-RED",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Ultra Grip rastermat met s-structuur: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Ultra Grip rastermat met s-structuur: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"7",
+"maatgroep",
+"Autopiloot familie Ultra Grip rastermat met s-structuur: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SMAT-120-BLUE",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Ultra Grip rastermat met s-structuur: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Ultra Grip rastermat met s-structuur: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"7",
+"maatgroep",
+"Autopiloot familie Ultra Grip rastermat met s-structuur: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SMAT-90-RED",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Ultra Grip rastermat met s-structuur: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Ultra Grip rastermat met s-structuur: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"10",
+"maatgroep",
+"Autopiloot familie Ultra Grip rastermat met s-structuur: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "FC-N-GRY220",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Vliegengordijn / Deurgordijn - Noah: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "FC-N-WHI220",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Vliegengordijn / Deurgordijn - Noah: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "1711-black-set",
+"zet": [
+[
+"geleverd",
+"100",
+"familie",
+"Autopiloot familie Whiteboard magneten 20 mm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "1711-white-set",
+"zet": [
+[
+"geleverd",
+"100",
+"familie",
+"Autopiloot familie Whiteboard magneten 20 mm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "1711-blue-set",
+"zet": [
+[
+"geleverd",
+"100",
+"familie",
+"Autopiloot familie Whiteboard magneten 20 mm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "1711-green-set",
+"zet": [
+[
+"geleverd",
+"100",
+"familie",
+"Autopiloot familie Whiteboard magneten 20 mm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Xiamen Honorchain · whiteboard",
+"familie",
+"Autopiloot familie Whiteboard magneten 20 mm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "Q1",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Gasveer voor bureaustoel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"20",
+"familie",
+"Autopiloot familie Gasveer voor bureaustoel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · gasveer",
+"familie",
+"Autopiloot familie Gasveer voor bureaustoel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "Q5",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Gasveer voor bureaustoel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"20",
+"familie",
+"Autopiloot familie Gasveer voor bureaustoel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · gasveer",
+"familie",
+"Autopiloot familie Gasveer voor bureaustoel: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "549-0-120-027",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"16000",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"15000",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"300",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"90x120",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"335",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"vn",
+"Mars 120 cm - Beige",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"10000",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "549-0-120-001",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"16000",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"15000",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"300",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"90x120",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"335",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"vn",
+"Mars 120 cm - Rood",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"10000",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "549-0-120-010",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"16000",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"15000",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"300",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"90x120",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"335",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"vn",
+"Mars 120 cm - Blauw",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"10000",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "549-0-120-017",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"16000",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"15000",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"300",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"90x120",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"335",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"vn",
+"Mars 120 cm - Bruin",
+"familie",
+"Autopiloot familie Mars 120 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"10000",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Mars 120 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "6000-4",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Opstapkruk: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Opstapkruk: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "6000-9",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Opstapkruk: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"42",
+"maatgroep",
+"Autopiloot familie Opstapkruk: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Opstapkruk: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"47",
+"maatgroep",
+"Autopiloot familie Opstapkruk: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Opstapkruk: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Opstapkruk: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"190",
+"maatgroep",
+"Autopiloot familie Opstapkruk: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"129",
+"maatgroep",
+"Autopiloot familie Opstapkruk: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Opstapkruk: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"vn",
+"Opstapkruk - Lichtgrijs - Verrijdbaar",
+"familie",
+"Autopiloot familie Opstapkruk: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"6",
+"maatgroep",
+"Autopiloot familie Opstapkruk: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Opstapkruk: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PBC-45x60",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Prikbord kurk: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Prikbord kurk: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PBC-60x90",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Prikbord kurk: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Prikbord kurk: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "sx70150c3-0-170",
+"zet": [
+[
+"maxpick",
+"30",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol SBR Cobra: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol SBR Cobra: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol SBR Cobra: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol SBR Cobra: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "sx70150c5-0",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol SBR Cobra: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol SBR Cobra: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SP-135-GR",
+"zet": [
+[
+"geleverd",
+"20",
+"familie",
+"Autopiloot familie Antislip rubber trap strip zelfklevend: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · antislip",
+"familie",
+"Autopiloot familie Antislip rubber trap strip zelfklevend: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SP-270-GR",
+"zet": [
+[
+"geleverd",
+"20",
+"familie",
+"Autopiloot familie Antislip rubber trap strip zelfklevend: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · antislip",
+"familie",
+"Autopiloot familie Antislip rubber trap strip zelfklevend: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "vanlock5018",
+"zet": [
+[
+"maxpick",
+"8",
+"maatgroep",
+"Autopiloot familie Bestelwagen: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"6",
+"familie",
+"Autopiloot familie Bestelwagen: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · bestelwagen",
+"familie",
+"Autopiloot familie Bestelwagen: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "IV1615-3",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Bestelwagen: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"8",
+"maatgroep",
+"Autopiloot familie Bestelwagen: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Bestelwagen: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"6",
+"familie",
+"Autopiloot familie Bestelwagen: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · bestelwagen",
+"familie",
+"Autopiloot familie Bestelwagen: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SL006-500",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Bureaustoel/Eetkamerstoel Volos: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SL006-Grey",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Bureaustoel/Eetkamerstoel Volos: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SL006-Green-351",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Bureaustoel/Eetkamerstoel Volos: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "AK2017(26)-40x60",
+"zet": [
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Kokosmat 'Welcome': waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "AK2017(40)-40x60",
+"zet": [
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Kokosmat 'Welcome': waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "AK2017(26)-50x80",
+"zet": [
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Kokosmat 'Welcome': waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Kokosmat 'Welcome': waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "AK2017(40)-50x80",
+"zet": [
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Kokosmat 'Welcome': waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Kokosmat 'Welcome': waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RH100x150Green",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"2",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0-0.8",
+"zet": [
+[
+"maxpick",
+"40",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "DCD65-3-0-1.8",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol – Diamant motief zwart: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol – Diamant motief zwart: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "DCD65-3-0-2.2",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol – Diamant motief zwart: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol – Diamant motief zwart: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.4-7",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol ribbel 3mm - Breedte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"25",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol ribbel 3mm - Breedte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"5",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol ribbel 3mm - Breedte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol ribbel 3mm - Breedte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"110x110",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol ribbel 3mm - Breedte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"60",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol ribbel 3mm - Breedte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"268",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol ribbel 3mm - Breedte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol ribbel 3mm - Breedte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"25",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol ribbel 3mm - Breedte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.4-9",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol ribbel 3mm - Breedte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber loper / rubbermat op rol ribbel 3mm - Breedte: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-9",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol ribbel 3mm - Breedte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Rubber loper / rubbermat op rol ribbel 3mm - Breedte: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "OB100-SBR50-002",
+"zet": [
+[
+"maxpick",
+"110",
+"maatgroep",
+"Autopiloot familie Rubber opsluitband 100x25 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber opsluitband 100x25 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber opsluitband 100x25 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "OB100-SBR50-003",
+"zet": [
+[
+"maxpick",
+"110",
+"maatgroep",
+"Autopiloot familie Rubber opsluitband 100x25 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Rubber opsluitband 100x25 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber opsluitband 100x25 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SWB-165-WHI",
+"zet": [
+[
+"geleverd",
+"25",
+"familie",
+"Autopiloot familie Skitas - lengte max.: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · skitas",
+"familie",
+"Autopiloot familie Skitas - lengte max.: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SWB-195-WHI",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Skitas - lengte max.: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Skitas - lengte max.: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"25",
+"familie",
+"Autopiloot familie Skitas - lengte max.: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · skitas",
+"familie",
+"Autopiloot familie Skitas - lengte max.: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100004-319",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Trapmaantje Paris Rib: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100004-049",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Trapmaantje Paris Rib: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "TMSMPT7065X",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Trapmaantje Spurt: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Trapmaantje Spurt: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WBERB000005",
+"zet": [
+[
+"geleverd",
+"50",
+"familie",
+"Autopiloot familie Whiteboard eraser Basic: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WBERB000003",
+"zet": [
+[
+"geleverd",
+"50",
+"familie",
+"Autopiloot familie Whiteboard eraser Basic: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"SAM · whiteboard",
+"familie",
+"Autopiloot familie Whiteboard eraser Basic: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WBERB000004",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Whiteboard eraser Basic: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"50",
+"familie",
+"Autopiloot familie Whiteboard eraser Basic: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"SAM · whiteboard",
+"familie",
+"Autopiloot familie Whiteboard eraser Basic: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "351-2",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Whiteboard Marker: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "351-3",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Whiteboard Marker: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "351-5",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Whiteboard Marker: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "FWB100200-BLUE",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Whiteboard zonder rand: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"53",
+"maatgroep",
+"Autopiloot familie Whiteboard zonder rand: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Whiteboard zonder rand: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "DT140-1820-1",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Bureaublad Eiken: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "DT180-1820-1",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Bureaublad Eiken: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Bureaublad Eiken: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"100",
+"maatgroep",
+"Autopiloot familie Bureaublad Eiken: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Bureaublad Eiken: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "DT160-747",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Bureaublad Taupe: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "DT180-747",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Bureaublad Taupe: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SF207H1S-4D-BLUE",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Bureaustoel Napoli Deluxe 4D - NEN-EN 1335: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SF207H1S-4D-RED",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Bureaustoel Napoli Deluxe 4D - NEN-EN 1335: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "DH-BLK-12.5",
+"zet": [
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Dumbbell hexagon - zwart rubber: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Dumbbell hexagon - zwart rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "DH-BLK-15",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Dumbbell hexagon - zwart rubber: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"50",
+"maatgroep",
+"Autopiloot familie Dumbbell hexagon - zwart rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"4",
+"maatgroep",
+"Autopiloot familie Dumbbell hexagon - zwart rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Dumbbell hexagon - zwart rubber: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"100x100",
+"maatgroep",
+"Autopiloot familie Dumbbell hexagon - zwart rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Dumbbell hexagon - zwart rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"1082",
+"maatgroep",
+"Autopiloot familie Dumbbell hexagon - zwart rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Dumbbell hexagon - zwart rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"1",
+"maatgroep",
+"Autopiloot familie Dumbbell hexagon - zwart rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Dumbbell hexagon - zwart rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "3028-5",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"24",
+"maatgroep",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "3028-4",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"24",
+"maatgroep",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"5",
+"maatgroep",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"160",
+"maatgroep",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"207",
+"maatgroep",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"1",
+"maatgroep",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Ladder - Inklapbaar: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RH100x150-CLOSED",
+"zet": [
+[
+"maxpick",
+"53",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RH40x60-CLOSED",
+"zet": [
+[
+"spp",
+"59",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"100x150",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"715",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"2",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"2",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RH80x120-CLOSED",
+"zet": [
+[
+"maxpick",
+"53",
+"maatgroep",
+"Autopiloot familie Ringmat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Ringmat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "FTSR-010920100",
+"zet": [
+[
+"opslag",
+"pick",
+"familie",
+"Autopiloot familie Rubber rand sportvloer: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "OBNH75-SBR45-003",
+"zet": [
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Schuin aflopende rand rubber - 75x25 cm - 45 mm dik: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "OBNH75-SBR45-002",
+"zet": [
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Schuin aflopende rand rubber - 75x25 cm - 45 mm dik: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPM4575",
+"zet": [
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Toppin: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Toppin: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Toppin: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPM60100",
+"zet": [
+[
+"spp",
+"110",
+"maatgroep",
+"Autopiloot familie Toppin: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Toppin: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Toppin: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Toppin: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"290",
+"maatgroep",
+"Autopiloot familie Toppin: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Toppin: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Toppin: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Toppin: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RPM90150",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Toppin: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"3",
+"familie",
+"Autopiloot familie Toppin: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Toppin: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Toppin: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100025-408",
+"zet": [
+[
+"opslag",
+"mix",
+"familie",
+"Autopiloot familie Trapmaantje Cortona: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"15",
+"familie",
+"Autopiloot familie Trapmaantje Cortona: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Vica · trapmaantje",
+"familie",
+"Autopiloot familie Trapmaantje Cortona: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100027-069",
+"zet": [
+[
+"geleverd",
+"15",
+"familie",
+"Autopiloot familie Trapmaantje Cortona: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Vica · trapmaantje",
+"familie",
+"Autopiloot familie Trapmaantje Cortona: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "HCOMBMAT-120-BLUE",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Ultra Grip rastermat met honingraatstructuur 120 cm - Per strekkende meter: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "HCOMBMAT-120-RED",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Ultra Grip rastermat met honingraatstructuur 120 cm - Per strekkende meter: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ZMAT-120-BLUE",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Ultra Grip rastermat met ruitstructuur 120 cm - Per strekkende meter: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ZMAT-120-RED",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Ultra Grip rastermat met ruitstructuur 120 cm - Per strekkende meter: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PUR-R-BLA",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Zelfklevend PU leer - Leerreparatie / wandbekleding: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Zelfklevend PU leer - Leerreparatie / wandbekleding: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"vn",
+"Zelfklevend PU leer - Leerreparatie / wandbekleding – Zwart – 140 cm * PER METER *",
+"familie",
+"Autopiloot familie Zelfklevend PU leer - Leerreparatie / wandbekleding: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PUR-R-WHI",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Zelfklevend PU leer - Leerreparatie / wandbekleding: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Zelfklevend PU leer - Leerreparatie / wandbekleding: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "PUR-R-GRY",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Zelfklevend PU leer - Leerreparatie / wandbekleding: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Zelfklevend PU leer - Leerreparatie / wandbekleding: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ZJ-007",
+"zet": [
+[
+"maxpick",
+"10",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "CJ-001",
+"zet": [
+[
+"maxpick",
+"10",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ZJ-008",
+"zet": [
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "LM-FA03-grey",
+"zet": [
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Archiefkast - 90x100 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SV615V-White-Cushion",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Berlin Ottoman kussen: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spp",
+"12",
+"maatgroep",
+"Autopiloot familie Berlin Ottoman kussen: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Berlin Ottoman kussen: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"13",
+"maatgroep",
+"Autopiloot familie Berlin Ottoman kussen: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"1",
+"familie",
+"Autopiloot familie Berlin Ottoman kussen: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Berlin Ottoman kussen: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"160",
+"maatgroep",
+"Autopiloot familie Berlin Ottoman kussen: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"39",
+"maatgroep",
+"Autopiloot familie Berlin Ottoman kussen: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Berlin Ottoman kussen: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"vn",
+"Berlin Ottoman kussen - Wit",
+"familie",
+"Autopiloot familie Berlin Ottoman kussen: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"2",
+"maatgroep",
+"Autopiloot familie Berlin Ottoman kussen: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"4",
+"maatgroep",
+"Autopiloot familie Berlin Ottoman kussen: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BRE-60x90",
+"zet": [
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Borstelmat met rand - Rubber: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Borstelmat met rand - Rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Borstelmat met rand - Rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Borstelmat met rand - Rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Borstelmat met rand - Rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Borstelmat met rand - Rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BRE-80x120",
+"zet": [
+[
+"spp",
+"100",
+"maatgroep",
+"Autopiloot familie Borstelmat met rand - Rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"nee",
+"familie",
+"Autopiloot familie Borstelmat met rand - Rubber: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Borstelmat met rand - Rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Borstelmat met rand - Rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Borstelmat met rand - Rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Borstelmat met rand - Rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Borstelmat met rand - Rubber: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "9030-1",
+"zet": [
+[
+"lvl",
+"6",
+"familie",
+"Autopiloot familie Bureaulade voor onder bureau: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"vn",
+"Bureaulade voor onder bureau - Zwart",
+"familie",
+"Autopiloot familie Bureaulade voor onder bureau: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "9030-white",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Bureaulade voor onder bureau: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Bureaulade voor onder bureau: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxpick",
+"31",
+"maatgroep",
+"Autopiloot familie Bureaulade voor onder bureau: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"6",
+"familie",
+"Autopiloot familie Bureaulade voor onder bureau: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RBM60x90-GEEL",
+"zet": [
+[
+"maxpick",
+"60",
+"maatgroep",
+"Autopiloot familie Ergonomische werkplaatsmat - Anti vermoeidheidsmat - Met gele rand: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"10",
+"familie",
+"Autopiloot familie Ergonomische werkplaatsmat - Anti vermoeidheidsmat - Met gele rand: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "Q1-black",
+"zet": [
+[
+"geleverd",
+"20",
+"familie",
+"Autopiloot familie Gasveer: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Ningbo Henri · gasveer",
+"familie",
+"Autopiloot familie Gasveer: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "Barc-cush-white",
+"zet": [
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Kussenset Berlin design chair: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WBFLW067100",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Non-magnetic Whiteboard foil white: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Non-magnetic Whiteboard foil white: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "HL-S1009-Bla",
+"zet": [
+[
+"spd",
+"5",
+"maatgroep",
+"Autopiloot familie Puzzel vloertegels EVA schuim: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "HL-S1009-Grey",
+"zet": [
+[
+"spd",
+"5",
+"maatgroep",
+"Autopiloot familie Puzzel vloertegels EVA schuim: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RT-50100-SBREPDM",
+"zet": [
+[
+"opslag",
+"pallet",
+"familie",
+"Autopiloot familie Rubber tegel looppad plat dak - 50 x 100 cm - 30 mm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"pick",
+"ja",
+"familie",
+"Autopiloot familie Rubber tegel looppad plat dak - 50 x 100 cm - 30 mm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1,3",
+"maatgroep",
+"Autopiloot familie Rubber tegel looppad plat dak - 50 x 100 cm - 30 mm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "100003-152",
+"zet": [
+[
+"maxpick",
+"45",
+"maatgroep",
+"Autopiloot familie Trapmaantje Durban: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmaantje Durban: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"15",
+"familie",
+"Autopiloot familie Trapmaantje Durban: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"mixgroep",
+"Vica · trapmaantje",
+"familie",
+"Autopiloot familie Trapmaantje Durban: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "COINMAT-120-BLACK",
+"zet": [
+[
+"opslag",
+"deel",
+"familie",
+"Autopiloot familie Ultra Grip noppen mat 120 cm - Per strekkende meter: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Ultra Grip noppen mat 120 cm - Per strekkende meter: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "VD-HX-E04-B",
+"zet": [
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Vierdubbel zeshoekig metalen wandrek met 4 houten plankjes: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Vierdubbel zeshoekig metalen wandrek met 4 houten plankjes: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Vierdubbel zeshoekig metalen wandrek met 4 houten plankjes: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Vierdubbel zeshoekig metalen wandrek met 4 houten plankjes: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Vierdubbel zeshoekig metalen wandrek met 4 houten plankjes: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "VD-HX-E04-G",
+"zet": [
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Vierdubbel zeshoekig metalen wandrek met 4 houten plankjes: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Vierdubbel zeshoekig metalen wandrek met 4 houten plankjes: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Vierdubbel zeshoekig metalen wandrek met 4 houten plankjes: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Vierdubbel zeshoekig metalen wandrek met 4 houten plankjes: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Vierdubbel zeshoekig metalen wandrek met 4 houten plankjes: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WBCLS000200",
+"zet": [
+[
+"maxpick",
+"25",
+"maatgroep",
+"Autopiloot familie Whiteboard Cleaner: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Whiteboard Cleaner: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"familie",
+"Autopiloot familie Whiteboard Cleaner: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WBCLS000100",
+"zet": [
+[
+"maxpick",
+"25",
+"maatgroep",
+"Autopiloot familie Whiteboard Cleaner: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Whiteboard Cleaner: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"familie",
+"Autopiloot familie Whiteboard Cleaner: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "14016.400",
+"zet": [
+[
+"geleverd",
+"wisselt",
+"familie",
+"Autopiloot familie Whiteboard Markers - Set: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "14016.401",
+"zet": [
+[
+"geleverd",
+"wisselt",
+"familie",
+"Autopiloot familie Whiteboard Markers - Set: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "D76-GREY",
+"zet": [
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Auto luchtbed voor achterbank - met 12v elektrische pomp, 2 kussens en plakset: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Auto luchtbed voor achterbank - met 12v elektrische pomp, 2 kussens en plakset: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Auto luchtbed voor achterbank - met 12v elektrische pomp, 2 kussens en plakset: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"vn",
+"Auto luchtbed voor achterbank - met 12v elektrische pomp, 2 kussens en plakset",
+"familie",
+"Autopiloot familie Auto luchtbed voor achterbank - met 12v elektrische pomp, 2 kussens en plakset: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Auto luchtbed voor achterbank - met 12v elektrische pomp, 2 kussens en plakset: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Auto luchtbed voor achterbank - met 12v elektrische pomp, 2 kussens en plakset: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "HN3188-black",
+"zet": [
+[
+"maxpick",
+"222",
+"maatgroep",
+"Autopiloot familie Design trapleuning houder - Zwart: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"22",
+"familie",
+"Autopiloot familie Design trapleuning houder - Zwart: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"familie",
+"Autopiloot familie Design trapleuning houder - Zwart: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "368-1-402-302",
+"zet": [
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Deurmat klassiek halfrond 40x60 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Deurmat klassiek halfrond 40x60 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Deurmat klassiek halfrond 40x60 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Deurmat klassiek halfrond 40x60 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Deurmat klassiek halfrond 40x60 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "368-1-441-001",
+"zet": [
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Deurmat klassiek rechthoek 45x75 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Deurmat klassiek rechthoek 45x75 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Deurmat klassiek rechthoek 45x75 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Deurmat klassiek rechthoek 45x75 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Deurmat klassiek rechthoek 45x75 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Deurmat klassiek rechthoek 45x75 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KJCRB711",
+"zet": [
+[
+"spp",
+"68",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Halfrond: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Halfrond: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Halfrond: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"83",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Halfrond: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Halfrond: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Halfrond: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Halfrond: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "KJCRB705",
+"zet": [
+[
+"spp",
+"60",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Streep: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Streep: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Streep: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"75",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Streep: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Streep: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Streep: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Deurmat rubber/kokos 40x70 cm - Streep: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "C4001",
+"zet": [
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie ForzaFit Aerobic step: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie ForzaFit Aerobic step: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie ForzaFit Aerobic step: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie ForzaFit Aerobic step: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie ForzaFit Aerobic step: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie ForzaFit Aerobic step: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "holder-black-square",
+"zet": [
+[
+"maxpick",
+"45",
+"maatgroep",
+"Autopiloot familie Houder voor design trapleuning zwart vierkant: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Houder voor design trapleuning zwart vierkant: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"familie",
+"Autopiloot familie Houder voor design trapleuning zwart vierkant: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "single-mounting-pin",
+"zet": [
+[
+"mixgroep",
+"GREEN TYRE · korte",
+"familie",
+"Autopiloot familie Korte kunststof pen - Rubber tegel pen- en gat verbinding Blauw + Rubber rand speelplaats / opsluitband L-vormig: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "LT805",
+"zet": [
+[
+"geleverd",
+"wisselt",
+"familie",
+"Autopiloot familie Laptopkussen kunststof / badstof - verstelbaar - zwart: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WBMPH000000",
+"zet": [
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Magnetic boardmarker holder (4 lvl): waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"familie",
+"Autopiloot familie Magnetic boardmarker holder (4 lvl): waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BWM61x91",
+"zet": [
+[
+"spp",
+"78",
+"maatgroep",
+"Autopiloot familie Rubber deurmat Weave - 61 x 91 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"2",
+"familie",
+"Autopiloot familie Rubber deurmat Weave - 61 x 91 cm: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Rubber deurmat Weave - 61 x 91 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Rubber deurmat Weave - 61 x 91 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"gewicht",
+"327",
+"maatgroep",
+"Autopiloot familie Rubber deurmat Weave - 61 x 91 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Rubber deurmat Weave - 61 x 91 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Rubber deurmat Weave - 61 x 91 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Rubber deurmat Weave - 61 x 91 cm: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "BTMSD4080",
+"zet": [
+[
+"lvl",
+"7",
+"familie",
+"Autopiloot familie RUBBER LAARZENMAT / BOOT TRAY 40X80 CM: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie RUBBER LAARZENMAT / BOOT TRAY 40X80 CM: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie RUBBER LAARZENMAT / BOOT TRAY 40X80 CM: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie RUBBER LAARZENMAT / BOOT TRAY 40X80 CM: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie RUBBER LAARZENMAT / BOOT TRAY 40X80 CM: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie RUBBER LAARZENMAT / BOOT TRAY 40X80 CM: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "VD-ZJ-201",
+"zet": [
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Set van 2 zwart metalen wandrekjes met houten plankje: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Set van 2 zwart metalen wandrekjes met houten plankje: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Set van 2 zwart metalen wandrekjes met houten plankje: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Set van 2 zwart metalen wandrekjes met houten plankje: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Set van 2 zwart metalen wandrekjes met houten plankje: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SWH01",
+"zet": [
+[
+"mixgroep",
+"Ningbo Henri · skate",
+"familie",
+"Autopiloot familie Skate wieltjes voor bureaustoel - Set van 5 stuks: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "WBSKB000001",
+"zet": [
+[
+"lvl",
+"5",
+"familie",
+"Autopiloot familie Starter kit whiteboards Basic: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"familie",
+"Autopiloot familie Starter kit whiteboards Basic: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "holder-black-flat",
+"zet": [
+[
+"maxpick",
+"179",
+"maatgroep",
+"Autopiloot familie Trapleuning houder zwart plat: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"16",
+"familie",
+"Autopiloot familie Trapleuning houder zwart plat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"familie",
+"Autopiloot familie Trapleuning houder zwart plat: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "RGM1",
+"zet": [
+[
+"lvl",
+"11",
+"familie",
+"Autopiloot familie Trapmaantje rubber - Deco 1: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Trapmaantje rubber - Deco 1: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Trapmaantje rubber - Deco 1: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Trapmaantje rubber - Deco 1: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Trapmaantje rubber - Deco 1: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"2",
+"maatgroep",
+"Autopiloot familie Trapmaantje rubber - Deco 1: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "SSRTEARHR",
+"zet": [
+[
+"lvl",
+"15",
+"familie",
+"Autopiloot familie Trapmaantje rubber - Tear - HALFROND: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Trapmaantje rubber - Tear - HALFROND: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Trapmaantje rubber - Tear - HALFROND: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Trapmaantje rubber - Tear - HALFROND: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Trapmaantje rubber - Tear - HALFROND: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Trapmaantje rubber - Tear - HALFROND: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "IWW01",
+"zet": [
+[
+"maxpick",
+"11",
+"maatgroep",
+"Autopiloot familie Whiteboard wisser magnetisch: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"lvl",
+"6",
+"familie",
+"Autopiloot familie Whiteboard wisser magnetisch: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"geleverd",
+"wisselt",
+"familie",
+"Autopiloot familie Whiteboard wisser magnetisch: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "thansen-40790",
+"zet": [
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Wielklem slot: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Wielklem slot: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Wielklem slot: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"vn",
+"Wielklem slot",
+"familie",
+"Autopiloot familie Wielklem slot: waarde van de familie, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Wielklem slot: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Wielklem slot: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "ZJ-017",
+"zet": [
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met 4 houten plankjes - Rechthoek: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met 4 houten plankjes - Rechthoek: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met 4 houten plankjes - Rechthoek: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met 4 houten plankjes - Rechthoek: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met 4 houten plankjes - Rechthoek: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+},
+{
+"code": "VD-CJ-202",
+"zet": [
+[
+"maat",
+"80x120",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met 4 plankjes - Rond: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"hoogte",
+"120",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met 4 plankjes - Rond: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"plaatsen",
+"1",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met 4 plankjes - Rond: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"spd",
+"nvt",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met 4 plankjes - Rond: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+],
+[
+"maxlig",
+"3",
+"maatgroep",
+"Autopiloot familie Zwart metalen wandrek met 4 plankjes - Rond: waarde van de maatgroep, te controleren in Per familie",
+null,
+"twijfel"
+]
+]
+}
+]
+}
