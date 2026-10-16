@@ -325,6 +325,10 @@ function sppBronnen(code){
   const naarVst = modus(mv.filter(m => m.vst).map(m => m.n)); if(naarVst) b.mvvst = { v:naarVst.v, t:'verplaatst naar VST in pallets van ' + nf(naarVst.v) };
   const ontv = modus(mv.filter(m => !m.vst && !m.van && D.LOC[m.naar] && D.LOC[m.naar].bulk).map(m => m.n)); if(ontv) b.mvontv = { v:ontv.v, t:'binnengeboekt op bulk in pallets van ' + nf(ontv.v) };
   const r = pbRegels(code).find(r => r.soort === 'pallet' && num(r.per)); if(r) b.pakbon = { v:num(r.per) * (num(r.factor) || 1), t:'pakbon: ' + nf(num(r.per)) + ' per pallet' };
+  // geschiedenis (wh-verplaatsingen): een vast aantal dat ≥ 3× van bulk naar pick ging = volle pallet (aanname p-gesch); retourkar telt niet
+  const kar = l => /^container\s*\d+$/i.test(String(l || '').trim());
+  const bp = modus(mv.filter(m => !m.vst && m.van && m.naar && !kar(m.van) && !kar(m.naar) && D.LOC[m.van] && D.LOC[m.van].bulk && !(D.LOC[m.naar] && D.LOC[m.naar].bulk)).map(m => m.n).filter(n => n > 1));
+  if(bp && bp.n >= 3) b.mvpick = { v:bp.v, t:'verplaatsingen: ' + bp.n + '× precies ' + nf(bp.v) + ' van bulk naar pick' };
   return b;
 }
 function voorstel(code, k, w){
@@ -343,11 +347,11 @@ function voorstel(code, k, w){
       for(const r of ['mvvst', 'vst2', 'bulk2']) if(b[r]) return uit('spp:' + r, b[r].v, b[r].t);
       if(genoot) return genoot;
       // twee losse bronnen die hetzelfde zeggen
-      const los = ['vstmax', 'vst1', 'bulk1', 'mvontv', 'pakbon'].filter(r => b[r]), tel = {};
+      const los = ['vstmax', 'vst1', 'bulk1', 'mvontv', 'mvpick', 'pakbon'].filter(r => b[r]), tel = {};
       los.forEach(r => (tel[b[r].v] = tel[b[r].v] || []).push(r));
       const eens = Object.entries(tel).filter(([, rs]) => rs.length >= 2).sort((a, z) => z[1].length - a[1].length)[0];
       if(eens) return uit('spp:eens', eens[0], eens[1].map(r => b[r].t).join(' + '));
-      for(const r of ['pakbon', 'vstmax', 'vst1', 'mvontv', 'bulk1']) if(b[r]) return uit('spp:' + r, b[r].v, b[r].t + (r === 'vst1' || r === 'bulk1' ? ' (kan een restpallet zijn)' : ''));
+      for(const r of ['pakbon', 'vstmax', 'vst1', 'mvontv', 'mvpick', 'bulk1']) if(b[r]) return uit('spp:' + r, b[r].v, b[r].t + (r === 'vst1' || r === 'bulk1' ? ' (kan een restpallet zijn)' : ''));
       return fam();
     }
     case 'pick': {
