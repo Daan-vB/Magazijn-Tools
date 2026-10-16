@@ -47,6 +47,11 @@ const LIJST = [
   // aanvullen (ronde C, 16-10)
   { id:'a-pal', groep:'Aanvullen', t:'Aanvullen met volle pallet: hoeveel pallets', waarde:'afronden op hele pallets, minimaal 1, niet boven max op pick', waarom:'Schatting Claude: afspraak 8-10 (max = bij + een volle pallet).' },
   { id:'a-bulk', groep:'Aanvullen', t:'Welke bulkpallet', waarde:'eerst een plek met precies één pallet, dan een plek met een veelvoud; in looproute', waarom:'Schatting Claude; reserveringen op bulk tellen niet als volle pallet.' },
+  // Per familie (16-10): regelcontrole in de cel en eenheid per familie
+  { id:'p-ligkg', groep:'Productdata-regels', t:'Max gewicht per ligger', waarde:'2000', eenheid:'kg per ligger', waarom:'Bulkvoorstel containerdag (masterdocument §10): max pallets per ligger × gewicht volle pallet mag hier niet boven.' },
+  { id:'p-dooskg', groep:'Productdata-regels', t:'Max gewicht per doos', waarde:'30', eenheid:'kg per doos', waarom:'Regel Daan: tot 30 kg een doos via DPD/DHL pakket, boven 30 kg een pallet via VST/DHL Freight. Uitzonderingen bestaan: Deze houden.' },
+  { id:'p-dooscm', groep:'Productdata-regels', t:'Stuks per doos bij producten per cm', waarde:'50', eenheid:'cm, naar beneden afronden', waarom:'Max cm onder het doosgewicht, met gewicht per cm = (gewicht volle pallet − 15 kg pallet) / stuks per pallet. Schatting Claude: afronden op 50 cm.' },
+  { id:'p-ehcm', groep:'Productdata-regels', t:'Eenheid vast per familie', waarde:'Kokos op rol: cm (Picqer-eenheid negeren)', waarom:'Besluit Daan 16-10: de 24 mm-rollen staan in Picqer per stuk, maar alles is per cm. Per familie aan of uit te zetten in Per familie.' },
   { id:'p-mix', groep:'Productdata-schattingen', t:'Mix: geleverd', waarde:'wisselt, tot de inkoop het aantal per doos bevestigt', waarom:'Schatting Claude.' }
 ];
 const S = { keus:null, laden:null };

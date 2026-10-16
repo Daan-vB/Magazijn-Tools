@@ -11,6 +11,9 @@
    als "schatting Claude" in de cel, en na Opslaan is tw weg (bron familie, maatgroep of invul).
    Indeling corrigeren, familienaam, niveaus en uitzonderingen: catalog-rij wh-pd-fam (index() in productdata.js geeft
    die voorrang). Uitlopend = productdata.uitlopend (datum): geen velden meer nodig, telt nergens mee.
+   Regel (16-10): elke fout of afwijking los je op waar je hem ziet. Elke melding (oranje stip, "x wijkt af",
+   "al ingevuld bij x van y", rode regel) opent onder de cel een paneel met de producten, de reden en de knoppen;
+   die werken direct (opslaan per product). Regels in de cel: ligger- en doosgewicht (grenzen in wh/aannames.js).
    Leren: per veld een paar uitlegbare regels uit inkoop, aanvullingen, eenheid en ABC, getoetst per familie
    (doe alsof de hele familie leeg is). ≥ 75% goed = vooraf ingevuld (geel), daaronder schatting met Gebruik.
    ===================================================================== */
@@ -33,6 +36,14 @@ const bronVan = (c, k) => { const r = P().S.pd[c]; return (r && r.meta && r.meta
 const isUitl = c => !!X().pdWaarde(c, 'uitlopend');
 const naamUitl = c => /uitlopend/i.test(String((D.P[c] || {}).naam || '')) && !isUitl(c);   // voorstel "Uitlopend?", nooit automatisch
 const cor = () => P().S.fcor || (P().S.fcor = X().famCorNorm(null));
+// grenzen uit wh/aannames.js (Daan kan ze in Te controleren aanpassen)
+const aan = (id, std) => { const v = window.WHAAN ? parseFloat(String(WHAAN.waarde(id) || '').replace(',', '.')) : NaN; return isNaN(v) ? std : v; };
+const LIGKG = () => aan('p-ligkg', 2000), DOOSKG = () => aan('p-dooskg', 30), DOOSCM = () => aan('p-dooscm', 50);
+// eenheid per familie vastzetten ("cm, Picqer-eenheid negeren"); Kokos op rol staat standaard op cm (besluit Daan 16-10)
+const EH_STD = { 'Kokos op rol':'cm' };
+const ehVast = fk => { const v = (cor().eh || {})[fk]; if(v) return v === 'picqer' ? '' : v; return EH_STD[famNaam(fk)] || ''; };
+const EHT2 = { cm:{ e:'cm', mv:'cm', t:'per cm' }, m:{ e:'m', mv:'m', t:'per meter' }, st:{ e:'st', mv:'st.', t:'per stuk' } };
+const ehProd = (fk, c) => { const v = ehVast(fk); return v && EHT2[v] ? EHT2[v] : P().eenheid(c); };
 
 /* ---------- indeling ---------- */
 const famVan = c => P().index().famVan[c];
@@ -44,7 +55,13 @@ const famNaam = fk => { const n = cor().naam[fk]; return n || X().famTitel(fk, l
 function maatgroepen(fk){
   const m = new Map();
   actiefLeden(fk).forEach(c => { const k = maatVan(c); if(!m.has(k)) m.set(k, []); m.get(k).push(c); });
-  return [...m.entries()].map(([k, cs]) => ({ k, cs, t:k || 'zonder maat' }));
+  // naam: de volledigste maat die bij de producten hoort ("200 cm · 17 mm", ook als de groep na samenvoegen "200 cm" heet)
+  const delen = x => String(x || '').split('·').filter(y => y.trim()).length;
+  return [...m.entries()].map(([k, cs]) => {
+    const nat = cs.map(c => P().maatSig(String((D.P[c] || {}).naam || ''))).filter(x => x && (!k || x.startsWith(k)));
+    const t = [k].concat(nat).filter(Boolean).sort((a, b) => delen(b) - delen(a) || b.length - a.length)[0];
+    return { k, cs, t:t || 'zonder maat' };
+  });
 }
 // open velden laag 1–3 van de leden (voor de lijst en de voortgang)
 function telOpen(fk){
@@ -93,7 +110,7 @@ async function bewaarCor(fn, tekst){
 }
 // voorstel voor de twee proeffamilies (Daan neemt het over met één klik, of niet)
 const VOORSTEL = [
-  { id:'kokos', naam:'Kokos op rol', uit:'Kokos 100 en 200 cm, 17 en 24 mm (rollen per cm) uit twee families samen; de deurmatten blijven apart.',
+  { id:'kokos', naam:'Kokos op rol', eh:'cm', uit:'Kokos 100 en 200 cm, 17 en 24 mm (rollen per cm) uit twee families samen; de deurmatten blijven apart.',
     codes:() => Object.values(D.P).filter(p => /^(kokos\s+(100|200)\s*cm|kokos\s+rol|kokosmat\s+op\s+rol)/i.test(String(p.naam || '').trim())).map(p => p.productcode) },
   { id:'trapmat', naam:'Trapmat', uit:'Alle trapmatten van Vica (Bueno, Luego, Baleno, Novelle, Turbo, Lines, Multi Stripes) in één familie, maatgroepen per maat; Bueno en Luego samen in 16x56. Turbo 25x60 en Novelle bruin 20x56 gaan op uitlopend (Daan, 16-10). Pakketten van 15 (BOL-) en rubber/aluminium blijven apart.',
     codes:() => Object.values(D.P).filter(p => /^vica/i.test(String(p.leverancier || '')) && /^trapmat\b/i.test(String(p.naam || '').trim())).map(p => p.productcode),
@@ -124,7 +141,7 @@ function start(fk, k, cs, ctx){
   if(ok.length){
     const m = meest(ok), alle = ok.length === cs.length && m.n === ok.length;
     // nog niet bij iedereen ingevuld: geel, de waarde van de rest wordt bij opslaan de familiewaarde
-    return { v:m.v, s:alle ? 'ok' : 'voorstel', n:ok.length, van:cs.length, wijkt:ok.length - m.n, p:1, why:alle ? '' : 'al ingevuld bij ' + m.n + ' van ' + cs.length };
+    return { v:m.v, s:alle ? 'ok' : 'voorstel', n:ok.length, van:cs.length, wijkt:ok.length - m.n, p:1, why:ok.length < cs.length ? 'al ingevuld bij ' + ok.length + ' van ' + cs.length : '' };
   }
   // geen invoer van Daan, wel een schatting van Claude: geel, de familie neemt hem over bij Opslaan
   const tw = cs.map(c => twVan(c, k)).filter(v => v !== null).map(v => norm(k, v)).filter(Boolean);
@@ -140,6 +157,10 @@ function voorstelRij(fk, k, cs, ctx){
     if(lv !== null && sp && w.met === 'pallet') return { v:String(lv + sp), why:'aanvullen bij ' + nf(lv) + ' + volle pallet ' + nf(sp), p:1, r:'maxpick:som' };
   }
   if(k === 'plaatsen' && w.maat && /\d+\s*x\s*\d+/.test(w.maat)) return { v:X().plaatsenUitMaat(w.maat), why:'uit palletmaat ' + w.maat + ' (plaats = 90 cm)', p:1, r:'plaatsen:maat' };
+  if(k === 'spd' && w._eh === 'cm'){
+    const gw = num(w.gewicht), sp = num(w.spp);
+    if(gw && sp && gw > 15){ const kg = (gw - 15) / sp, v = Math.floor(DOOSKG() / kg / DOOSCM()) * DOOSCM(); if(v > 0) return { v:String(v), why:'max cm onder ' + nf(DOOSKG()) + ' kg: (' + nf(gw) + ' − 15) / ' + nf(sp) + ' = ' + nf(kg, 3) + ' kg per cm, afgerond op ' + nf(DOOSCM()) + ' cm', p:1, r:'spd:cm' }; }
+  }
   if(k === 'met' && MET[w.opslag]) return { v:MET[w.opslag], why:'volgt uit soort ' + w.opslag, p:1, r:'met:klein' };
   // Productdata-voorstellen per lid (getoetst, KANS-tabel)
   const vs = cs.map(c => { try{ return P().voorstel(c, k, P().waardeFn(c)); }catch(e){ return null; } }).filter(v => v && !leeg(v.v) && v.r !== 'conflict');
@@ -165,7 +186,8 @@ function rek(fk){
   const famCtx = {};
   velden.filter(k => niv(fk, k) === 'fam').forEach(k => { R.fam[k] = rijWaarde(fk, 'fam', k, ls, famCtx); if(R.fam[k].s !== 'schatting') famCtx[k] = R.fam[k].v; });
   mg.forEach(g => {
-    const ctx = Object.assign({}, famCtx), r = R.maat[g.k] = {};
+    const ehs = [...new Set(g.cs.map(c => ehProd(fk, c).e))];
+    const ctx = Object.assign({}, famCtx, { _eh:ehs.length === 1 ? ehs[0] : '' }), r = R.maat[g.k] = {};
     // volgorde: eerst wat andere velden nodig hebben (spp en maat voor max en plaatsen)
     ['spp', 'maat', 'hoogte'].concat(velden).filter((k, i, a) => a.indexOf(k) === i && niv(fk, k) === 'maat').forEach(k => { r[k] = rijWaarde(fk, 'm:' + g.k, k, g.cs, ctx); if(r[k].s !== 'schatting') ctx[k] = r[k].v; });
     g.cs.forEach(c => {
@@ -175,6 +197,25 @@ function rek(fk){
     });
   });
   return R;
+}
+
+/* ---------- regels in de cel: ligger- en doosgewicht ---------- */
+function regels(fk, g, R){
+  const r = R.maat[g.k] || {}, c0 = g.cs[0], eff = R.eff[c0], uit = {};
+  if(!eff) return uit;
+  const n = k => { const v = eff(k); return v === '' || X().NVT(v) ? null : num(v); };
+  const lig = n('maxlig'), gw = n('gewicht'), sp = n('spp'), spd = n('spd'), kgst = n('kgst'), eh = ehProd(fk, c0).e;
+  if(lig && gw && lig * gw > LIGKG()){
+    const z = Math.max(1, Math.floor(LIGKG() / gw));
+    uit.maxlig = { t:nf(lig) + ' × ' + nf(gw) + ' kg = ' + nf(lig * gw) + ' kg, meer dan ' + nf(LIGKG()) + ' kg per ligger', zet:String(z) };
+  }
+  // gewicht per stuk/cm: eigen kg per stuk, bij per cm uit de pallet, anders Picqer
+  const kg = kgst || (eh === 'cm' && gw && sp && gw > 15 ? (gw - 15) / sp : P().kgPicqer ? P().kgPicqer(c0) : null);
+  if(spd && kg && spd * kg > DOOSKG()){
+    const z = eh === 'cm' ? Math.floor(DOOSKG() / kg / DOOSCM()) * DOOSCM() : Math.floor(DOOSKG() / kg);
+    uit.spd = { t:nf(spd) + ' ' + ehProd(fk, c0).mv + ' × ' + nf(kg, 3) + ' kg = ' + nf(spd * kg, 1) + ' kg, meer dan ' + nf(DOOSKG()) + ' kg per doos (pakket via DPD/DHL; zwaarder = pallet)', zet:z > 0 ? String(z) : '' };
+  }
+  return uit;
 }
 
 /* ---------- opslaan: per product, eigen invoer nooit stil overschrijven ---------- */
@@ -230,7 +271,7 @@ async function opslaan(fk){
 // voorstel-indeling overnemen: familie, naam, vaste maatgroepen en (op aanwijzing van Daan) uitlopend
 async function neemOver(id){
   const x = voorstelInfo(VOORSTEL.find(v => v.id === id) || {}); if(!x) return null;
-  await bewaarCor(d => { x.cs.forEach(c => { d.fam[c] = x.doel; const m = x.v.maat && x.v.maat(c); if(m) d.maat[c] = m; }); d.naam[x.doel] = x.v.naam; }, 'Indeling ' + x.v.naam + ' overgenomen');
+  await bewaarCor(d => { x.cs.forEach(c => { d.fam[c] = x.doel; const m = x.v.maat && x.v.maat(c); if(m) d.maat[c] = m; }); d.naam[x.doel] = x.v.naam; if(x.v.eh) d.eh[x.doel] = x.v.eh; }, 'Indeling ' + x.v.naam + ' overgenomen');
   const u = x.v.uitl ? x.cs.filter(c => x.v.uitl(c) && !isUitl(c)) : [];
   if(u.length) await zetUitlopend(u, true);
   return { doel:x.doel, n:x.cs.length, uitl:u };
@@ -408,6 +449,19 @@ function stijl(){
   .pf-mt .pf-in{min-width:0;width:100%;padding:5px 6px}
   .pf-mt .pf-why{max-width:none;overflow-wrap:anywhere}
   .pf-mt .pf-acties select{width:100%}
+  .pf-mld{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:3px;color:inherit;border-bottom:1px dashed currentColor;line-height:1.4}
+  .pf-mld:hover,.pf-mld:focus-visible{color:var(--blue);outline:none}
+  .pf-mld.rood{color:var(--bad);font-size:12.5px;display:block;border-bottom:0;text-decoration:underline dashed}
+  .pf-regel{margin-top:4px;font-size:12px;color:var(--bad);background:#fff3f2;border:1px solid #f0c3be;border-radius:6px;padding:4px 6px;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
+  .pf-in.regel{border:2px solid var(--bad)}
+  .pf-paneel{margin-top:6px;background:#fffdf5;border:1px solid #e6d27a;border-radius:8px;padding:8px 10px;font-size:13px;box-shadow:0 2px 8px rgba(19,32,44,.08)}
+  .pf-pzin{font-weight:600;margin-bottom:6px}
+  .pf-ptab{width:100%;border-collapse:collapse} .pf-ptab td{padding:4px 6px;border-top:1px solid #eee3b8;vertical-align:top}
+  .pf-ptab tr.gelijk td{color:#7a8795}
+  .pf-pact{text-align:right} .pf-pzet{display:inline-flex;gap:4px;align-items:center}
+  .pf-pzet input{width:96px;min-height:34px;padding:4px 6px}
+  .pf-k.pri{background:var(--blue);border-color:var(--blue);color:#fff}
+  .pf-paneelrij td{background:#fffdf5}
   .pf-mg{border-bottom:1px solid #d6dde5} .pf-mg:last-child{border-bottom:0}
   .pf-mgkop{padding:10px 14px;background:#f7f9fb;border-bottom:1px solid #e3e8ee}
   .pf-acties > summary{list-style:none;display:inline-block} .pf-acties > summary::-webkit-details-marker{display:none}
@@ -423,6 +477,9 @@ function stijl(){
     .pf .pf-fam{padding:12px}
     .pf input#pf-naam, .pf select#pf-erbij{max-width:none!important;width:100%}
     .pf .pf-voet .btn{flex:1 1 auto}
+    .pf .pf-mld{min-height:44px} .pf .pf-mld.rood{min-height:0;padding:6px 0}
+    .pf .pf-ptab td{display:block;border-top:0;padding:2px 0} .pf .pf-ptab tr{display:block;border-top:1px solid #eee3b8;padding:6px 0}
+    .pf .pf-pact{text-align:left} .pf .pf-pzet input{width:120px}
   }`;
   document.head.appendChild(s);
 }
@@ -453,16 +510,74 @@ function toetsRapport(){
     <div class="small muted mt8">≥ 75% goed: vooraf ingevuld (geel). Daaronder een schatting met Gebruik. Na elke opgeslagen familie opnieuw getoetst.</div></details>`;
 }
 // één invoercel
+const paneelOpen = (fk, rij, k) => UI.paneel && UI.paneel.fk === fk && UI.paneel.rij === rij && UI.paneel.k === k;
+const melding = (rij, k, t) => `<button class="pf-mld" data-pfa="paneel" data-r="${esc(rij)}" data-k="${k}">${t}</button>`;
 function cel(fk, rij, k, x, opt){
-  const o = opt || {}, id = 'pf-' + X().idVan(rij + '-' + k);
+  const o = opt || {}, id = 'pf-' + X().idVan(rij + '-' + k), cs = o.cs || [];
   const sch = x.s === 'schatting', d = P().VELDEN[k];
   const ph = sch ? x.v : (d.type === 'num' ? 'getal, nvt, onb' : '');
   const val = sch ? '' : x.v;
   const eh = d.eh && o.eh ? o.eh : (d.eh2 || '');
-  const why = x.s === 'ok' || (x.van && x.n) ? (x.why ? `<span>${esc(x.why)}</span>` : '') + (x.wijkt ? `<span><span class="pf-dot"></span>${nf(x.wijkt)} wijkt af</span>` : '') + ''
+  const meer = cs.length > 1;
+  const why = x.s === 'ok' || (x.van && x.n) ? (x.why ? (meer ? melding(rij, k, esc(x.why)) : `<span>${esc(x.why)}</span>`) : '') + (x.wijkt ? melding(rij, k, `<span class="pf-dot"></span>${nf(x.wijkt)} wijkt af`) : '')
+    : x.claude && meer ? melding(rij, k, esc(x.why))
     : x.s === 'voorstel' || sch ? `<span>${esc(x.why || '')}</span>${x.score ? `<span class="sc">${esc(x.score)}</span>` : x.p ? `<span class="sc">klopte ${Math.round(x.p * 100)}%</span>` : ''}${sch ? ` <button class="pf-k" data-pfa="gebruik" data-r="${esc(rij)}" data-k="${k}" data-v="${esc(x.v)}">Gebruik</button>` : ''}`
     : x.s === 'fout' ? '<span style="color:var(--bad)">' + esc((() => { try{ X().check(k, x.v); return ''; }catch(e){ return e.message; } })()) + '</span>' : '';
-  return `<input id="${id}" class="pf-in ${x.s}" data-pf="1" data-r="${esc(rij)}" data-k="${k}" value="${esc(val)}" placeholder="${esc(ph)}" ${d.type === 'num' ? 'inputmode="decimal"' : ''} autocomplete="off" ${UI.bezig ? 'disabled' : ''}>${eh ? `<span class="small muted"> ${esc(eh)}</span>` : ''}${why ? `<div class="pf-why">${why}</div>` : ''}${o.knop || ''}`;
+  const rg = o.regel ? `<div class="pf-regel"><span>${esc(o.regel.t)}</span>${o.regel.zet ? `<button class="pf-k" data-pfa="gebruik" data-r="${esc(rij)}" data-k="${k}" data-v="${esc(o.regel.zet)}">Zet op ${esc(o.regel.zet)}</button>` : ''}</div>` : '';
+  return `<input id="${id}" class="pf-in ${x.s}${o.regel ? ' regel' : ''}" data-pf="1" data-r="${esc(rij)}" data-k="${k}" value="${esc(val)}" placeholder="${esc(ph)}" ${d.type === 'num' ? 'inputmode="decimal"' : ''} autocomplete="off" ${UI.bezig ? 'disabled' : ''}>${eh ? `<span class="small muted"> ${esc(eh)}</span>` : ''}${rg}${why ? `<div class="pf-why">${why}</div>` : ''}${o.knop || ''}${!o.geenPaneel && paneelOpen(fk, rij, k) ? paneel(fk, rij, k, x, cs) : ''}`;
+}
+// paneel onder een melding: welke producten, waarom, en direct oplossen
+function paneel(fk, rij, k, x, cs){
+  const d = P().VELDEN[k], uitz = cor().uitz || {}, groep = x && x.s !== 'schatting' && x.s !== 'fout' ? x.v : '';
+  const lab = X().verschilNamen(cs), toon = (c, v) => v === '' || v == null ? '–' : X().toonWaarde(c, k, v);
+  const rijen = cs.map(c => {
+    const st = P().staat(c, k), tw = twVan(c, k), eigen = st.s === 'ok' ? st.v : tw !== null ? norm(k, tw) || tw : '';
+    const st2 = (uitz[c] || {})[k] ? 'uitzondering' : eigen === '' ? 'leeg' : tw !== null && st.s !== 'ok' ? 'schatting Claude' : String(eigen) === String(groep) ? 'gelijk' : 'wijkt af';
+    return { c, eigen, st:st2, bron:X().BRONNAAM[bronVan(c, k)] || bronVan(c, k) || '' };
+  });
+  const nW = rijen.filter(r => r.st === 'wijkt af').length, nL = rijen.filter(r => r.st === 'leeg').length, nC = rijen.filter(r => r.st === 'schatting Claude').length;
+  const zin = nW ? nf(nW) + ' van ' + nf(cs.length) + ' producten hebben een andere ' + d.t.toLowerCase() + ' dan ' + toon(cs[0], groep) + '. Zonder keuze blijft hun eigen waarde staan.'
+    : nL ? 'Bij ' + nf(nL) + ' van ' + nf(cs.length) + ' producten is ' + d.t.toLowerCase() + ' nog leeg; de andere hebben ' + toon(cs[0], groep) + '.'
+    : nC ? nf(nC) + ' waarden zijn een schatting van Claude en nog niet gecontroleerd.' : 'Alle producten hebben dezelfde waarde.';
+  const open = rijen.filter(r => r.st !== 'gelijk').length;
+  return `<div class="pf-paneel" role="region" aria-label="Uitleg ${esc(d.t)}"><div class="pf-pzin">${esc(zin)}</div>
+    <table class="pf-ptab"><tbody>${rijen.map(r => `<tr class="${r.st === 'gelijk' ? 'gelijk' : ''}"><td><b>${esc(lab[r.c] || r.c)}</b><div class="small muted mono">${esc(r.c)}</div></td>
+      <td><b>${esc(toon(r.c, r.eigen))}</b><div class="small muted">${esc(r.st)}${r.bron && r.eigen !== '' ? ' · ' + esc(r.bron) : ''}</div></td>
+      <td class="pf-pact">${r.st === 'wijkt af' ? `<button class="pf-k" data-pfa="houd1" data-c="${esc(r.c)}" data-k="${k}">Deze houden</button>` : ''}
+        <span class="pf-pzet"><input id="pf-pz-${X().idVan(r.c + '-' + k)}" data-pfp="1" data-c="${esc(r.c)}" data-k="${k}" placeholder="aanpassen" ${d.type === 'num' ? 'inputmode="decimal"' : ''} autocomplete="off"><button class="pf-k" data-pfa="zet1" data-c="${esc(r.c)}" data-k="${k}">Zet</button></span></td></tr>`).join('')}</tbody></table>
+    <div class="row wrap mt8" style="gap:6px">${groep !== '' && open ? `<button class="pf-k pri" data-pfa="allesop" data-r="${esc(rij)}" data-k="${k}" data-v="${esc(groep)}">Alles op ${esc(toon(cs[0], groep))}</button>` : ''}<button class="pf-k" data-pfa="paneeldicht">Sluiten</button></div></div>`;
+}
+// eenheid: paneel bij de rode regel
+function paneelEh(fk, ls){
+  const per = {}; ls.forEach(c => { const e = P().eenheid(c).t; (per[e] = per[e] || []).push(c); });
+  const lab = X().verschilNamen(ls), vast = ehVast(fk);
+  return `<div class="pf-paneel"><div class="pf-pzin">${vast ? 'Eenheid staat vast op ' + esc(EHT2[vast].t) + ' voor de hele familie; de eenheid in Picqer wordt genegeerd.' : 'Picqer heeft hier verschillende eenheden. Stuks per pallet, aanvullen bij en max op pick moeten in één eenheid staan.'}</div>
+    ${Object.entries(per).map(([e, cs]) => `<div class="mt4"><b>${esc(e)} in Picqer</b> <span class="small muted">${esc(cs.map(c => (lab[c] || c) + ' (' + c + ')').join(', '))}</span></div>`).join('')}
+    <div class="row wrap mt8" style="gap:6px">${vast ? `<button class="pf-k" data-pfa="ehvast" data-v="picqer">Picqer-eenheid volgen</button>` : `<button class="pf-k pri" data-pfa="ehvast" data-v="cm">cm, Picqer-eenheid negeren</button><button class="pf-k" data-pfa="ehvast" data-v="st">per stuk, Picqer-eenheid negeren</button>`}<button class="pf-k" data-pfa="paneeldicht">Sluiten</button></div></div>`;
+}
+// direct oplossen vanuit het paneel (opslaan per product)
+async function paneelActie(fk, a, b){
+  const k = b.dataset.k, L = (rij => rij === 'fam' ? 'fam' : rij && rij.startsWith('m:') ? 'maat' : 'prod')(b.dataset.r || ''), bron = L === 'fam' ? 'familie' : L === 'maat' ? 'maatgroep' : 'invul';
+  if(a === 'allesop'){
+    const rij = b.dataset.r, v = b.dataset.v, cs = rij === 'fam' ? actiefLeden(fk) : rij.startsWith('m:') ? ((maatgroepen(fk).find(g => g.k === rij.slice(2)) || {}).cs || []) : [rij.slice(2)];
+    const wijz = {}; cs.forEach(c => { const st = P().staat(c, k); if(!(st.s === 'ok' && String(st.v) === String(v))) wijz[c] = { [k]:{ v, bron } }; });
+    try{ const n = await P().opslaan(wijz, bron); await bewaarCor(d => { cs.forEach(c => { if(d.uitz[c]){ delete d.uitz[c][k]; if(!Object.keys(d.uitz[c]).length) delete d.uitz[c]; } }); });
+      const c0 = con(fk); cs.forEach(c => { if(c0.keuze[c]) delete c0.keuze[c][k]; }); bewaarCon(); vers();
+      toast(plural(n, 'product', 'producten') + ' op ' + X().toonWaarde(cs[0], k, v), 3500); }catch(e){ toast('Opslaan mislukt: ' + e.message, 6000); }
+    UI.paneel = null; X().rerender(); return;
+  }
+  const c = b.dataset.c;
+  if(a === 'houd1'){ const c0 = con(fk); (c0.keuze[c] = c0.keuze[c] || {})[k] = 'houd'; bewaarCon(); await bewaarCor(d => { (d.uitz[c] = d.uitz[c] || {})[k] = true; }, c + ': eigen waarde blijft'); return; }
+  if(a === 'zet1'){
+    const inp = $('pf-pz-' + X().idVan(c + '-' + k)), raw = inp ? inp.value : '';
+    let v; try{ v = X().check(k, raw); }catch(e){ toast(e.message, 4000); return; }
+    if(v === ''){ toast('Vul eerst een waarde in', 3000); return; }
+    try{ await P().opslaan({ [c]:{ [k]:{ v, bron:'invul' } } }, 'invul'); vers();
+      const R = rek(fk), groep = R.eff[c] ? R.eff[c](k) : '';
+      // anders dan de groep: bewaren als uitzondering, zodat de familie hem later niet overschrijft
+      await bewaarCor(d => { if(String(v) !== String(groep)) (d.uitz[c] = d.uitz[c] || {})[k] = true; else if(d.uitz[c]) delete d.uitz[c][k]; }, c + ': ' + X().toonWaarde(c, k, v)); }
+    catch(e){ toast('Opslaan mislukt: ' + e.message, 6000); X().rerender(); }
+  }
 }
 const keusHint = k => { const d = P().VELDEN[k]; return d.opt ? d.opt.map(o => o[0]).join(' · ') : d.type === 'geleverd' ? 'stuk · getal · wisselt' : ''; };
 function viewWerkblad(fk){
@@ -471,7 +586,8 @@ function viewWerkblad(fk){
   // alleen velden die bij minstens één product nodig zijn (soort, picklocatie en eenheid bepalen dat)
   const nodigIem = k => ls.some(c => pl.nodigVan[c] && pl.nodigVan[c].has(k));
   const velden = VELD().filter(nodigIem), famV = velden.filter(k => niv(fk, k) === 'fam'), maatV = velden.filter(k => niv(fk, k) === 'maat'), prodV = velden.filter(k => niv(fk, k) === 'prod');
-  const ehAlle = (() => { const m = {}; ls.forEach(c => { const e = P().eenheid(c).t; (m[e] = m[e] || []).push(c); }); return m; })();
+  const ehAlle = (() => { const m = {}; ls.forEach(c => { const e = ehProd(fk, c).t; (m[e] = m[e] || []).push(c); }); return m; })();
+  const ehPicqer = new Set(ls.map(c => P().eenheid(c).t)).size > 1;
   const I = P().index(), t = telOpen(fk);
   const vkm = ls.reduce((s, c) => s + X().vkmVan(c), 0), pdd = ls.reduce((s, c) => s + X().pdVan(c), 0);
   const abc = ls.reduce((m, c) => { const a = X().abcVan(c) || '–'; m[a] = (m[a] || 0) + 1; return m; }, {});
@@ -489,9 +605,9 @@ function viewWerkblad(fk){
     return vals.length <= 1 && (L === 'maat' || mg.length === 1 || mg.every(g => { const v = [...new Set(g.cs.map(c => R.prod[c][k]).filter(x => x && x.s !== 'schatting').map(x => x.v))]; return v.length <= 1; }))
       ? `<button class="pf-k" data-pfa="niv" data-k="${k}" data-v="${naar}">geldt voor de hele ${naar === 'fam' ? 'familie' : 'maatgroep'}</button>` : '';
   };
-  const ehVan = cs => [...new Set(cs.map(c => P().eenheid(c).mv))];
+  const ehVan = cs => [...new Set(cs.map(c => ehProd(fk, c).mv))];
   const mgKop = g => { const eh = ehVan(g.cs);
-    return `<b>${esc(g.t)}</b><div class="small muted">${plural(g.cs.length, 'product', 'producten')} · ${esc(eh.join(' / '))}</div>${eh.length > 1 ? `<div class="small" style="color:var(--bad)">Eenheid verschilt (${esc(g.cs.map(c => c + ': ' + P().eenheid(c).t).join(', '))}): controleer dat stuks per pallet in de eenheid van Picqer staat.</div>` : ''}
+    return `<b>${esc(g.t)}</b><div class="small muted">${plural(g.cs.length, 'product', 'producten')} · ${esc(eh.join(' / '))}</div>${eh.length > 1 ? `<button class="pf-mld rood" data-pfa="ehpaneel">Eenheid verschilt (${esc(g.cs.map(c => c + ': ' + ehProd(fk, c).t).join(', '))}): controleer dat stuks per pallet in de eenheid van Picqer staat.</button>` : ''}
       <details class="pf-acties mt4"><summary class="pf-k">acties</summary><div class="row wrap mt4" style="gap:4px">${g.cs.length > 1 ? `<button class="pf-k" data-pfa="splits" data-m="${esc(g.k)}">splitsen</button>` : ''}${mg.length > 1 ? `<select class="pf-k" data-pfa="voeg" data-m="${esc(g.k)}"><option value="">samenvoegen met…</option>${mg.filter(h => h.k !== g.k).map(h => `<option value="${esc(h.k)}">${esc(h.t)}</option>`).join('')}</select>` : ''}<button class="pf-k" data-pfa="uitl" data-codes="${esc(g.cs.join('\n'))}" data-aan="1">uitlopend</button></div></details>`; };
   const famOpts = (() => { const lev = fk.split('|')[0], woorden = fk.split('|')[1].split(' ').filter(w => w.length > 3);
     return Object.keys(I.fam).filter(f => f !== fk && f.split('|')[0] === lev && woorden.some(w => f.includes(w)) && actiefLeden(f).length).slice(0, 40); })();
@@ -502,18 +618,22 @@ function viewWerkblad(fk){
     <div class="row wrap" style="gap:8px"><input id="pf-naam" data-pfnaam="1" value="${esc(cor().naam[fk] || '')}" placeholder="Naam voor deze familie (bijv. Kokos)" style="max-width:280px"><button class="btn sm" data-pfa="naam">Naam bewaren</button>
       ${famOpts.length ? `<select id="pf-erbij" style="max-width:280px"><option value="">Familie erbij…</option>${famOpts.map(f => `<option value="${esc(f)}">${esc(famNaam(f))} (${actiefLeden(f).length})</option>`).join('')}</select><button class="btn sm" data-pfa="erbij">Samenvoegen</button>` : ''}</div>
     ${(() => { const u = ls.filter(naamUitl); return u.length ? `<div class="pf-keus"><b>Uitlopend?</b> ${plural(u.length, 'product heeft', 'producten hebben')} UITLOPEND in de naam: ${esc(u.map(c => lab[c] || c).join(', '))}<button class="pf-k" data-pfa="uitl" data-codes="${esc(u.join('\n'))}" data-aan="1">${u.length > 1 ? 'Alle ' + u.length + ' op uitlopend' : 'Op uitlopend'}</button></div>` : ''; })()}
-    ${Object.keys(ehAlle).length > 1 ? `<div class="small" style="color:var(--bad)"><b>Eenheid verschilt in Picqer:</b> ${Object.entries(ehAlle).map(([e, cs]) => nf(cs.length) + ' ' + esc(e) + (cs.length <= 4 ? ' (' + esc(cs.join(', ')) + ')' : '')).join(' · ')}. Controleer dat stuks per pallet, aanvullen bij en max op pick in de eenheid van Picqer staan.</div>` : ''}
+    ${Object.keys(ehAlle).length > 1 ? `<button class="pf-mld rood" data-pfa="ehpaneel"><b>Eenheid verschilt in Picqer:</b> ${Object.entries(ehAlle).map(([e, cs]) => nf(cs.length) + ' ' + esc(e) + (cs.length <= 4 ? ' (' + esc(cs.join(', ')) + ')' : '')).join(' · ')}. Controleer dat stuks per pallet, aanvullen bij en max op pick in de eenheid van Picqer staan.</button>`
+      : ehVast(fk) && ehPicqer ? `<div class="small muted">Eenheid: <b>${esc(EHT2[ehVast(fk)].t)}</b> voor de hele familie, Picqer-eenheid genegeerd <button class="pf-k" data-pfa="ehpaneel">wijzigen</button></div>` : ''}
+    ${UI.paneel && UI.paneel.fk === fk && UI.paneel.eh ? paneelEh(fk, ls) : ''}
     ${UI.uitslag && UI.uitslag.fk === fk && Date.now() - UI.uitslag.op < 6e5 ? `<div class="small" style="color:var(--ok)"><b>Opgeslagen: ${plural(UI.uitslag.n, 'product', 'producten')} bijgewerkt, ${plural(UI.uitslag.uitz, 'uitzondering', 'uitzonderingen')}${UI.uitslag.open ? ' · ' + nf(UI.uitslag.open) + ' keuzes nog open' : ''}</b></div>` : ''}</div>
 
   <section class="pf-sec"><h3>1 · Familie <span class="u">geldt voor alle ${plural(ls.length, 'product', 'producten')}</span></h3>
-    ${famV.map(k => `<div class="pf-rij"><label for="pf-${X().idVan('fam-' + k)}">${esc(P().VELDEN[k].t)}${keusHint(k) ? `<div class="small muted" style="font-weight:400">${esc(keusHint(k))}</div>` : ''}</label><div>${cel(fk, 'fam', k, R.fam[k], { eh:ehVan(ls).join('/') })}</div><div class="pf-why" style="padding-top:8px">${zak(k, 'fam')}</div></div>`).join('') || '<div class="pf-rij"><span class="muted small">Alle velden verschillen per maat of product.</span></div>'}
+    ${famV.map(k => `<div class="pf-rij"><label for="pf-${X().idVan('fam-' + k)}">${esc(P().VELDEN[k].t)}${keusHint(k) ? `<div class="small muted" style="font-weight:400">${esc(keusHint(k))}</div>` : ''}</label><div>${cel(fk, 'fam', k, R.fam[k], { eh:ehVan(ls).join('/'), cs:ls })}</div><div class="pf-why" style="padding-top:8px">${zak(k, 'fam')}</div></div>`).join('') || '<div class="pf-rij"><span class="muted small">Alle velden verschillen per maat of product.</span></div>'}
   </section>
 
   <section class="pf-sec"><h3>2 · Maatgroepen <span class="u">per maat dezelfde palletgegevens</span></h3>
     ${maatKaarten() ? mg.map((g, i) => `<div class="pf-mg"><div class="pf-mgkop">${mgKop(g)}</div>
-      ${maatV.map(k => `<div class="pf-rij"><label for="pf-${X().idVan('m:' + g.k + '-' + k)}">${esc(P().VELDEN[k].t)}</label><div>${cel(fk, 'm:' + g.k, k, R.maat[g.k][k], { eh:ehVan(g.cs).join('/') })}</div><div class="pf-why" style="padding-top:8px">${i === 0 ? terug(k, 'maat') + zak(k, 'maat') : ''}</div></div>`).join('')}</div>`).join('')
+      ${maatV.map(k => `<div class="pf-rij"><label for="pf-${X().idVan('m:' + g.k + '-' + k)}">${esc(P().VELDEN[k].t)}</label><div>${cel(fk, 'm:' + g.k, k, R.maat[g.k][k], { eh:ehVan(g.cs).join('/'), cs:g.cs, regel:regels(fk, g, R)[k] })}</div><div class="pf-why" style="padding-top:8px">${i === 0 ? terug(k, 'maat') + zak(k, 'maat') : ''}</div></div>`).join('')}</div>`).join('')
     : `<table class="pf-t pf-mt"><colgroup><col class="kopcol">${maatV.map(() => '<col>').join('')}</colgroup><thead><tr><th>Maat</th>${maatV.map(k => `<th>${esc(P().VELDEN[k].t)}${terug(k, 'maat')}${zak(k, 'maat')}</th>`).join('')}</tr></thead><tbody>
-    ${mg.map(g => `<tr><td class="kop">${mgKop(g)}</td>${maatV.map(k => `<td>${cel(fk, 'm:' + g.k, k, R.maat[g.k][k], { eh:ehVan(g.cs).join('/') })}</td>`).join('')}</tr>`).join('')}
+    ${mg.map(g => { const rg = regels(fk, g, R), pk = UI.paneel && UI.paneel.fk === fk && UI.paneel.rij === 'm:' + g.k && maatV.includes(UI.paneel.k) ? UI.paneel.k : null;
+      return `<tr><td class="kop">${mgKop(g)}</td>${maatV.map(k => `<td>${cel(fk, 'm:' + g.k, k, R.maat[g.k][k], { eh:ehVan(g.cs).join('/'), cs:g.cs, regel:rg[k], geenPaneel:true })}</td>`).join('')}</tr>
+      ${pk ? `<tr class="pf-paneelrij"><td colspan="${maatV.length + 1}"><b>${esc(g.t)} · ${esc(P().VELDEN[pk].t)}</b>${paneel(fk, 'm:' + g.k, pk, R.maat[g.k][pk], g.cs)}</td></tr>` : ''}`; }).join('')}
     </tbody></table>`}</section>
 
   <details class="pf-sec" ${Object.keys(keuzeVan).length || UI.open[fk] ? 'open' : ''} data-pfdet="${esc(fk)}"><summary style="padding:10px 14px;font-weight:700;cursor:pointer">3 · Producten <span class="small muted">vloernaam, opmerking en uitzonderingen${pl.keuzes.length ? ' · ' + nf(pl.keuzes.length) + ' keuzes open' : ''}</span></summary>
@@ -522,7 +642,7 @@ function viewWerkblad(fk){
       return `<tr><td class="kop">${kz.length || ux.length ? '<span class="pf-dot" title="wijkt af"></span>' : ''}<b>${esc(lab[c] || c)}</b><div class="small muted mono">${esc(c)} ${X().abcBadge(c)}</div><div class="small muted">${esc(maatVan(c) || 'zonder maat')}</div>
         ${kz.map(x => `<div class="pf-keus"><b>${esc(P().VELDEN[x.k].t)}</b> eigen <b>${esc(X().toonWaarde(c, x.k, x.eigen))}</b> · ${esc(NIVNAAM[x.L])} <b>${esc(X().toonWaarde(c, x.k, x.fam))}</b><button class="pf-k" data-pfa="keus" data-c="${esc(c)}" data-k="${x.k}" data-v="fam">${esc(NIVNAAM[x.L])} volgen</button><button class="pf-k" data-pfa="keus" data-c="${esc(c)}" data-k="${x.k}" data-v="houd">deze houden</button></div>`).join('')}
         ${ux.length ? `<div class="small" style="color:#9a4205">Uitzondering: ${esc(ux.map(k => P().VELDEN[k] ? P().VELDEN[k].t + ' ' + X().toonWaarde(c, k, P().staat(c, k).v) : k).join(', '))} <button class="pf-k" data-pfa="uitzweg" data-c="${esc(c)}">familie volgen</button></div>` : ''}</td>
-        ${prodV.map(k => `<td>${cel(fk, 'p:' + c, k, R.prod[c][k], {})}</td>`).join('')}
+        ${prodV.map(k => `<td>${cel(fk, 'p:' + c, k, R.prod[c][k], { cs:[c] })}</td>`).join('')}
         <td><select class="pf-k" data-pfa="naarfam" data-c="${esc(c)}"><option value="">hoort niet in deze familie…</option><option value="eigen|${esc(c)}">eigen familie</option>${famOpts.map(f => `<option value="${esc(f)}">${esc(famNaam(f))}</option>`).join('')}</select>
           <div class="mt4"><button class="pf-k" data-pfa="uitl" data-codes="${esc(c)}" data-aan="1">${naamUitl(c) ? 'Uitlopend? (staat in de naam)' : 'uitlopend'}</button></div></td></tr>`; }).join('')}
     ${uitl.map(c => `<tr class="pf-uitl"><td class="kop"><b>${esc(lab[c] || c)}</b><div class="small mono">${esc(c)}</div><div class="small">uitlopend sinds ${esc(String(X().pdWaarde(c, 'uitlopend')))}</div></td>${prodV.map(() => '<td></td>').join('')}<td><button class="pf-k" data-pfa="uitl" data-codes="${esc(c)}" data-aan="">terugzetten</button></td></tr>`).join('')}
@@ -536,8 +656,10 @@ const KAART_ONDER = 1100;
 const maatKaarten = () => window.innerWidth < KAART_ONDER;
 let kaartNu = null, resizeT = null;
 window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { const k = maatKaarten(); if(kaartNu !== null && k !== kaartNu && fkNu()) X().rerender(); }, 150); });
+let aanGeladen = false;
 function view(arg){
   kaartNu = maatKaarten();
+  if(!aanGeladen && window.WHAAN){ aanGeladen = true; WHAAN.laad().then(() => { if(location.hash.indexOf('#/productdata/familie') === 0) X().rerender(); }).catch(() => {}); }
   stijl();
   if(!P().S.fcor) P().S.fcor = X().famCorNorm(null);
   if(arg) return viewWerkblad(arg);
@@ -568,11 +690,20 @@ document.addEventListener('change', ev => {
   const t = ev.target; if(!t || !t.dataset) return;
   if(t.dataset.pf){ X().rerender(); return; }
   const fk = fkNu(); if(!fk) return;
-  if(t.dataset.pfa === 'voeg' && t.value){ const g = maatgroepen(fk).find(x => x.k === t.dataset.m), naar = t.value; if(g) bewaarCor(d => { g.cs.forEach(c => { d.maat[c] = naar; }); }, 'Maatgroepen samengevoegd'); }
+  if(t.dataset.pfa === 'voeg' && t.value){
+    const mg = maatgroepen(fk), g = mg.find(x => x.k === t.dataset.m), h = mg.find(x => x.k === t.value);
+    // de volledigste naam blijft staan ("200 cm · 17 mm", niet "200 cm"), welke kant je ook kiest
+    const delen = k => String(k || '').split('·').filter(x => x.trim()).length;
+    const naam = [g && g.k, h && h.k].filter(x => x !== undefined).sort((a, b) => delen(b) - delen(a) || String(b).length - String(a).length)[0];
+    if(g && h) bewaarCor(d => { g.cs.concat(h.cs).forEach(c => { d.maat[c] = naam; }); }, 'Samengevoegd: ' + (naam || 'zonder maat'));
+  }
   if(t.dataset.pfa === 'naarfam' && t.value){ const c = t.dataset.c, naar = t.value; bewaarCor(d => { d.fam[c] = naar; delete d.maat[c]; }, c + ' naar ' + (naar.startsWith('eigen|') ? 'een eigen familie' : famNaam(naar))); }
 });
 document.addEventListener('keydown', ev => {
-  const t = ev.target; if(ev.key !== 'Enter' || !t || !t.dataset || !t.dataset.pf) return;
+  const t = ev.target;
+  if(ev.key === 'Enter' && t && t.dataset && t.dataset.pfp){ ev.preventDefault(); const b = t.parentNode.querySelector('[data-pfa="zet1"]'); if(b) b.click(); return; }
+  if(ev.key === 'Escape' && UI.paneel && fkNu()){ UI.paneel = null; X().rerender(); return; }
+  if(ev.key !== 'Enter' || !t || !t.dataset || !t.dataset.pf) return;
   ev.preventDefault();
   // Enter = volgende cel
   const alle = [...document.querySelectorAll('input[data-pf]')], i = alle.indexOf(t), id = alle[i + 1] && alle[i + 1].id;
@@ -587,6 +718,11 @@ document.addEventListener('click', ev => {
   if(a === 'voorstel'){ neemOver(b.dataset.id); return; }
   if(!fk) return;
   if(a === 'gebruik'){ zetConcept(fk, b.dataset.r, b.dataset.k, b.dataset.v); X().rerender(); return; }
+  if(a === 'paneel'){ const zelfde = UI.paneel && UI.paneel.fk === fk && UI.paneel.rij === b.dataset.r && UI.paneel.k === b.dataset.k; UI.paneel = zelfde ? null : { fk, rij:b.dataset.r, k:b.dataset.k }; X().rerender(); return; }
+  if(a === 'ehpaneel'){ UI.paneel = UI.paneel && UI.paneel.eh ? null : { fk, eh:true }; X().rerender(); return; }
+  if(a === 'paneeldicht'){ UI.paneel = null; X().rerender(); return; }
+  if(a === 'ehvast'){ const v = b.dataset.v; UI.paneel = null; bewaarCor(d => { d.eh[fk] = v; }, v === 'picqer' ? 'Eenheid volgt Picqer' : 'Eenheid vast: ' + EHT2[v].t); return; }
+  if(a === 'allesop' || a === 'houd1' || a === 'zet1'){ paneelActie(fk, a, b); return; }
   if(a === 'niv'){ zetNiv(fk, b.dataset.k, b.dataset.v); return; }
   if(a === 'keus'){ const c = con(fk); (c.keuze[b.dataset.c] = c.keuze[b.dataset.c] || {})[b.dataset.k] = b.dataset.v; bewaarCon(); X().rerender(); return; }
   if(a === 'uitzweg'){ const code = b.dataset.c, ks = Object.keys((cor().uitz || {})[code] || {}), c = con(fk); c.keuze[code] = Object.assign(c.keuze[code] || {}, Object.fromEntries(ks.map(k => [k, 'fam']))); bewaarCor(d => { delete d.uitz[code]; }); return; }
@@ -598,5 +734,5 @@ document.addEventListener('click', ev => {
   if(a === 'opslaan'){ opslaan(fk); return; }
 });
 
-return { view, opslaan, neemOver, naamUitl, zetUitlopend, bewaarCor, famLijst, volgende, voortgang, leer, rek, plan, famNaam, maatgroepen, actiefLeden, leden, con, niv, zetNiv, VOORSTEL, voorstelInfo, kenmerken, REGELS, EIGEN, LEER };
+return { view, regels, paneelActie, ehVast, opslaan, neemOver, naamUitl, zetUitlopend, bewaarCor, famLijst, volgende, voortgang, leer, rek, plan, famNaam, maatgroepen, actiefLeden, leden, con, niv, zetNiv, VOORSTEL, voorstelInfo, kenmerken, REGELS, EIGEN, LEER };
 })();

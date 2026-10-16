@@ -57,7 +57,7 @@ const NVT = v => String(v ?? '').trim().toLowerCase() === 'nvt';
 
 /* ---------- toestand ---------- */
 const S = { pd:{}, extra:{}, cat:null, labels:{}, mv:{}, toets:null, klaar:false, laden:null, mist:false, fout:null, idx:null, laterMee:true, fcor:null };
-const famCorNorm = d => { d = d && typeof d === 'object' ? d : {}; ['fam', 'maat', 'naam', 'niv', 'uitz'].forEach(k => { if(!d[k] || typeof d[k] !== 'object') d[k] = {}; }); return d; };
+const famCorNorm = d => { d = d && typeof d === 'object' ? d : {}; ['fam', 'maat', 'naam', 'niv', 'uitz', 'eh'].forEach(k => { if(!d[k] || typeof d[k] !== 'object') d[k] = {}; }); return d; };
 const bewaard = k => { try{ return localStorage.getItem('wh-pd-' + k); }catch(e){ return null; } };
 const bewaar = (k, v) => { try{ localStorage.setItem('wh-pd-' + k, v); }catch(e){} };
 const UI = { afdModus:bewaard('afdmodus') || 'tabel', scope:bewaard('scope2') || 'belangrijk', laag:+(bewaard('laag') || 1), lev:bewaard('lev') || '', zoek:'', over:new Set(), i:0, concept:{}, alles:{}, mig:null };
