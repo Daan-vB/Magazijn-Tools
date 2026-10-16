@@ -1,0 +1,5492 @@
+{
+"naam": "Claude autopiloot: regels Daan (ligger 2000 kg, doos 30 kg)",
+"datum": "2026-10-16",
+"regels": [
+{
+"code": "15009",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 77 kg per pallet → 25 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "13-302420",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1015 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "13-452420",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1001 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "13-302820",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1015 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBVF-100x150-GREY",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 410 kg per pallet → 4 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "13-453020",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1001 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "13-452820",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1001 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "13-303020",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1015 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "13-552820",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 987 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "17-401100",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 415 kg per pallet → 4 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "2025-1-black",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 252 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "75.BUR.KLA.BLA",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 123 kg per pallet → 16 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "75.BUR.KLA.WHI",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 90 kg per pallet → 22 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "75.WER.GL.BL",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 90 kg per pallet → 22 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "75.WER.KU.OA.BL.140",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 105 kg per pallet → 19 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "AD-30-HX-03GY",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 240 kg per pallet → 8 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "0802",
+"zet": [
+[
+"spd",
+"16",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 1800 g per m → max 17 m, afgerond",
+null
+]
+]
+},
+{
+"code": "zen-CD65G3-0-1.4",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4680 g per m → max 6 m, afgerond",
+null
+]
+]
+},
+{
+"code": "Barc-cush-brown",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 24 kg per pallet → 83 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "BS-07",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 273 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CY-MW05",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1121 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Chrgl-12-black",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 515 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Chrglck-base",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 55 kg per pallet → 36 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Chrgl-8-black",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 175 kg per pallet → 11 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "DIP-SBR25-SH-04-00",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 960 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "FTC-10010020-BLK",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 865 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "EPDM505045-R9004",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1005 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "EPDM505045-R1012",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1197 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "EPDM505045-R3016",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1144 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "FWB100150-YELLOW",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 515 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "FWB90120-YELLOW",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 390 kg per pallet → 5 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HM1018-2-1of2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 280 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HCOMBMAT-120-RED",
+"zet": [
+[
+"spd",
+"8",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3400 g per m → max 9 m, afgerond",
+null
+]
+]
+},
+{
+"code": "HJ-cm17-36",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 100 kg per pallet → 20 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HJ-CM17-36UV-C",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 100 kg per pallet → 20 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HJ-CM65-24-SWISS",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 90 kg per pallet → 22 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HJ-YJ23",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 115 kg per pallet → 17 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MR65SX2.7-0-0.9",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2500 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "MFL505025Z-c",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 996 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SI60120BR-2-0",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 10000 g per m → max 3 m, afgerond",
+null
+]
+]
+},
+{
+"code": "HPS-521025NS",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 287 kg per pallet → 6 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HM1018-2-2of2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 299 kg per pallet → 6 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "IRT90x9014",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 515 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HTY20-3506-45L",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 109 kg per pallet → 18 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "JGBC1018-3-1of3",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 280 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "JGBC212-2-ANTRA-1of2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 301 kg per pallet → 6 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "LC-9R-B",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 130 kg per pallet → 15 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "LC-9R",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 130 kg per pallet → 15 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "LK-2312-black-blue",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 195 kg per pallet → 10 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MC-1149E-BLACK",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 149 kg per pallet → 13 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "LP-1236",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 45 kg per pallet → 44 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MFL505025R-c",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 996 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MTC211016",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 135 kg per pallet → 14 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MIRO-C-ALU",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 222 kg per pallet → 9 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "NT33-2AR2-B-box1",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 105 kg per pallet → 19 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "NT33-2AR2-B-box2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 105 kg per pallet → 19 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "NT33-2AR2-W-box1",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 215 kg per pallet → 9 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "OB100-SBR50-002",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1085 kg per pallet → 1 pallets op gewicht (stond op 2: te zwaar)",
+"2"
+]
+]
+},
+{
+"code": "PBKPK000008",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 344 kg per pallet → 5 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Partition1880-gre",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 270 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBPST000037",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 16 kg per pallet → 125 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Partition1480-green",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 270 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Outlet604148",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 35 kg per pallet → 57 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PM-0109400334",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 660 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBVF-45x60-GREY",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 100 kg per pallet → 20 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PC03A-36U",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 88 kg per pallet → 22 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PR-SBR50-DH-003-25",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 575 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PS-EPDM25-SHR9004",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1023 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PR-SBR50-DH-002-25",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 575 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "VIDINBLACKM",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 129 kg per pallet → 15 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "ring-rol-120-16",
+"zet": [
+[
+"spd",
+"4",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 6500 g per m → max 5 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RING-Roll-heavy-80",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 8000 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SE121H-BLA",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 135 kg per pallet → 14 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SE121M2-BLA-B",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 115 kg per pallet → 17 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Safecart26",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 55 kg per pallet → 36 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "safecart26-WHI",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 55 kg per pallet → 36 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "safelock2-usb",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 29 kg per pallet → 68 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SF205M",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 281 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "ELS50000G4.5-0-1.2",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 8190 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SL-001-COG",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 123 kg per pallet → 16 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SF212M",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 195 kg per pallet → 10 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SF226m1S",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 165 kg per pallet → 12 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "spag-120-BLK",
+"zet": [
+[
+"spd",
+"1100",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 27 g per cm → max 1111 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "spag-120-RED",
+"zet": [
+[
+"spd",
+"1100",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 27 g per cm → max 1111 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "SPACOLZWA",
+"zet": [
+[
+"spd",
+"850",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 35 g per cm → max 857 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "SMAT-90-RED",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2430 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SPACOLBLA",
+"zet": [
+[
+"spd",
+"850",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 35 g per cm → max 857 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "SR517H-PU",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 245 kg per pallet → 8 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "ST-011020100100FB",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 965 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "STT-011020100100SG",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 940 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "VD-HX-E04-G",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 59 kg per pallet → 33 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Tabletop1480-T03",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 105 kg per pallet → 19 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "WBMMR030010",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 25 kg per pallet → 80 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PK-EPDM25-SHR9004",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1023 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "RCPM90150",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 915 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "ST-011020100100PB",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 908 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "2066000210050",
+"zet": [
+[
+"spd",
+"252",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 119 g per m → max 252 m, afgerond",
+null
+]
+]
+},
+{
+"code": "sx70150c5-0",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 15000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "CS65SX-2.7-0-0.5",
+"zet": [
+[
+"spd",
+"15",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2000 g per m → max 15 m, afgerond",
+null
+]
+]
+},
+{
+"code": "588-0-200-051",
+"zet": [
+[
+"spd",
+"1500",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 20 g per cm → max 1500 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "sx70150c3-0-170",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 7650 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "MR65G3-0-1",
+"zet": [
+[
+"spd",
+"7",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4170 g per m → max 7 m, afgerond",
+null
+]
+]
+},
+{
+"code": "588-0-100-052",
+"zet": [
+[
+"spd",
+"1500",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 20 g per cm → max 1500 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "588-0-200-052",
+"zet": [
+[
+"spd",
+"1500",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 20 g per cm → max 1500 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "CD65SX3-0-1.6",
+"zet": [
+[
+"spd",
+"4",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 7500 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SI60120TP-1-0",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 8000 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RM-021200010",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 5000 g per m → max 6 m, afgerond",
+null
+]
+]
+},
+{
+"code": "2066000105100",
+"zet": [
+[
+"spd",
+"252",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 119 g per m → max 252 m, afgerond",
+null
+]
+]
+},
+{
+"code": "CD65SX3-0-0.8",
+"zet": [
+[
+"spd",
+"10",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2900 g per m → max 10 m, afgerond",
+null
+]
+]
+},
+{
+"code": "2066000050100",
+"zet": [
+[
+"spd",
+"500",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 60 g per m → max 500 m, afgerond",
+null
+]
+]
+},
+{
+"code": "CS65SX-3-0-150",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 9000 g per m → max 3 m, afgerond",
+null
+]
+]
+},
+{
+"code": "PBVF-45x60-ANTRA",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 100 kg per pallet → 20 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MR65SX2.7-0-1.4",
+"zet": [
+[
+"spd",
+"8",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3750 g per m → max 8 m, afgerond",
+null
+]
+]
+},
+{
+"code": "ZMAT-120-GREY",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4600 g per m → max 7 m, afgerond",
+null
+]
+]
+},
+{
+"code": "FTE-EPDM-bk-GREY",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1087 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "safelock1-plug",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 99 kg per pallet → 20 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PM-0109400337",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 657 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "01061203",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4500 g per m → max 7 m, afgerond",
+null
+]
+]
+},
+{
+"code": "ELS30000B3-0-1",
+"zet": [
+[
+"spd",
+"8",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3600 g per m → max 8 m, afgerond",
+null
+]
+]
+},
+{
+"code": "ELS1000V",
+"zet": [
+[
+"spd",
+"15",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 1900 g per m → max 16 m, afgerond",
+null
+]
+]
+},
+{
+"code": "MR65SX2.7-0.6",
+"zet": [
+[
+"spd",
+"18",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 1600 g per m → max 19 m, afgerond",
+null
+]
+]
+},
+{
+"code": "MR65SX2.7-0.3",
+"zet": [
+[
+"spd",
+"33",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 900 g per m → max 33 m, afgerond",
+null
+]
+]
+},
+{
+"code": "MR65SX2.7-0.2",
+"zet": [
+[
+"spd",
+"50",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 600 g per m → max 50 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SMAT-120-RED",
+"zet": [
+[
+"spd",
+"9",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3240 g per m → max 9 m, afgerond",
+null
+]
+]
+},
+{
+"code": "MFL505025G-c",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 996 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "K03",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 237 kg per pallet → 8 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "bur-glijders-alu",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 165 kg per pallet → 12 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "NB60140F-3-0",
+"zet": [
+[
+"spd",
+"5",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 6000 g per m → max 5 m, afgerond",
+null
+]
+]
+},
+{
+"code": "DTG-2-0-1.2",
+"zet": [
+[
+"spd",
+"10",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3000 g per m → max 10 m, afgerond",
+null
+]
+]
+},
+{
+"code": "ELS50000G4.5-0-1",
+"zet": [
+[
+"spd",
+"4",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 6300 g per m → max 5 m, afgerond",
+null
+]
+]
+},
+{
+"code": "PBVF-902x120-GREY",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 305 kg per pallet → 6 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "DAK200BLA216",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2500 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "VD-HX-A01-B",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 59 kg per pallet → 33 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-10",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1415 kg per pallet → 1 pallets op gewicht, 1 plaatsen (stond op 4: te zwaar)",
+"4"
+]
+]
+},
+{
+"code": "SMAT-120-BLUE",
+"zet": [
+[
+"spd",
+"9",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3240 g per m → max 9 m, afgerond",
+null
+]
+]
+},
+{
+"code": "CD65SX3-0-1.5",
+"zet": [
+[
+"spd",
+"4",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 7500 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "CS80-3-0-1",
+"zet": [
+[
+"spd",
+"7",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3900 g per m → max 8 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SF222M",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 135 kg per pallet → 14 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "st90x90",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 540 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "zen-CS80BR3-0-1.2",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4500 g per m → max 7 m, afgerond",
+null
+]
+]
+},
+{
+"code": "ESDW01",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 108 kg per pallet → 18 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "WSF017",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 70 kg per pallet → 28 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "FWB90120-GREEN",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 390 kg per pallet → 5 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "RPEPDM0300",
+"zet": [
+[
+"spd",
+"4",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 7000 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "EPP0104",
+"zet": [
+[
+"spd",
+"200",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 150 g per m → max 200 m, afgerond",
+null
+]
+]
+},
+{
+"code": "01052312",
+"zet": [
+[
+"spd",
+"4",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 7500 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "EPP0608",
+"zet": [
+[
+"spd",
+"200",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 150 g per m → max 200 m, afgerond",
+null
+]
+]
+},
+{
+"code": "DCD65-3-0-1.8",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 7850 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "ST-011020100100FG",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 921 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "VD-HX-D03-B",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 51 kg per pallet → 39 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "17-401300",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 415 kg per pallet → 4 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CS65SX-2.7-0-0.6",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2400 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "0808",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2400 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "TL65-4.5-0-2",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 13500 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "588-0-100-051",
+"zet": [
+[
+"spd",
+"1500",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 20 g per cm → max 1500 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "561-0-120-007",
+"zet": [
+[
+"spd",
+"500",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 55 g per cm → max 545 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "SPACOLRO",
+"zet": [
+[
+"spd",
+"850",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 35 g per cm → max 857 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "SPACOLGRIJ",
+"zet": [
+[
+"spd",
+"850",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 35 g per cm → max 857 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "364-0-120-014",
+"zet": [
+[
+"spd",
+"750",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 40 g per cm → max 750 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "spag-120-GRY",
+"zet": [
+[
+"spd",
+"1100",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 27 g per cm → max 1111 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "5510135001",
+"zet": [
+[
+"spd",
+"750",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 38 g per cm → max 789 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "364-0-120-001",
+"zet": [
+[
+"spd",
+"750",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 40 g per cm → max 750 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "364-0-120-007",
+"zet": [
+[
+"spd",
+"750",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 40 g per cm → max 750 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "364-0-120-016",
+"zet": [
+[
+"spd",
+"750",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 40 g per cm → max 750 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "TMSMPT7065X",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 765 kg per pallet → 2 pallets op gewicht (stond op 4: te zwaar)",
+"4"
+]
+]
+},
+{
+"code": "588-0-100-002",
+"zet": [
+[
+"spd",
+"1500",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 20 g per cm → max 1500 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "GRANU505030R",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1176 kg per pallet → 1 pallets op gewicht (stond op 2: te zwaar)",
+"2"
+]
+]
+},
+{
+"code": "GRANU505020G",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1101 kg per pallet → 1 pallets op gewicht (stond op 2: te zwaar)",
+"2"
+]
+]
+},
+{
+"code": "5870100012",
+"zet": [
+[
+"spd",
+"2100",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 14 g per cm → max 2143 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "rtm50x50x8",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1515 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "364-0-120-006",
+"zet": [
+[
+"spd",
+"750",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 40 g per cm → max 750 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "splitmatS60",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 95 kg per pallet → 21 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "0332155",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 265 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MFL50PGRA-M",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 951 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "561-0-120-012",
+"zet": [
+[
+"spd",
+"500",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 55 g per cm → max 545 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "GRANU505030G",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1176 kg per pallet → 1 pallets op gewicht (stond op 2: te zwaar)",
+"2"
+]
+]
+},
+{
+"code": "100001",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 955 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "OB100-SBR50-003",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1085 kg per pallet → 1 pallets op gewicht (stond op 2: te zwaar)",
+"2"
+]
+]
+},
+{
+"code": "MFL505025Z-s",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 988 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PK-SBR50-DH-003-25",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 575 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MFL5050GRASS",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 870 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "luego-beige",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 240 kg per pallet → 8 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "ST-011020100100FD",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 965 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HCOMBMAT-120-BLUE",
+"zet": [
+[
+"spd",
+"8",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3400 g per m → max 9 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SSXL",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1075 kg per pallet → 1 pallets op gewicht, 2 plaatsen",
+null
+]
+]
+},
+{
+"code": "ZMAT-120-BLUE",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 636 kg per pallet → 3 pallets op gewicht (stond op 4: te zwaar)",
+"4"
+],
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4600 g per m → max 7 m, afgerond",
+null
+]
+]
+},
+{
+"code": "CY-MW02",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1121 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "KOKOS80120BLK",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 327 kg per pallet → 6 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HPS-771025NS",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 315 kg per pallet → 6 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "01070605",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1215 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "120006",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 978 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PK-SBR50-DH-002-25",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 575 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "GRANU505020R",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1101 kg per pallet → 1 pallets op gewicht (stond op 2: te zwaar)",
+"2"
+]
+]
+},
+{
+"code": "TORR100BLA116",
+"zet": [
+[
+"spd",
+"40",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 750 g per m → max 40 m, afgerond",
+null
+]
+]
+},
+{
+"code": "LM-MP04-Black",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 71 kg per pallet → 28 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "DTDB-2-0-1.2",
+"zet": [
+[
+"spd",
+"10",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3000 g per m → max 10 m, afgerond",
+null
+]
+]
+},
+{
+"code": "CS80-3-0-1.2",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4500 g per m → max 7 m, afgerond",
+null
+]
+]
+},
+{
+"code": "EPP0912",
+"zet": [
+[
+"spd",
+"142",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 210 g per m → max 143 m, afgerond",
+null
+]
+]
+},
+{
+"code": "MFL505055Grass",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 515 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CS65SX-2.7-0-0.7",
+"zet": [
+[
+"spd",
+"11",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2700 g per m → max 11 m, afgerond",
+null
+]
+]
+},
+{
+"code": "ST-011020100100STM",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 965 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "0815",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2400 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SF-0109400244",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 12000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "zen-CS80G3-0-1.2",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4500 g per m → max 7 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SE112M-BLK",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 145 kg per pallet → 13 pallets op gewicht, 1 plaatsen",
+null
+]
+]
+},
+{
+"code": "DAK100BLA216",
+"zet": [
+[
+"spd",
+"24",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 1250 g per m → max 24 m, afgerond",
+null
+]
+]
+},
+{
+"code": "ELS30000G3-0-1.2",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4300 g per m → max 7 m, afgerond",
+null
+]
+]
+},
+{
+"code": "1300211-perstuk",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 141 kg per pallet → 14 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CD65SX3-0-0.5",
+"zet": [
+[
+"spd",
+"15",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 1900 g per m → max 16 m, afgerond",
+null
+]
+]
+},
+{
+"code": "MFL505025G-s",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 988 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CS65SX-3-0-140",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 8800 g per m → max 3 m, afgerond",
+null
+]
+]
+},
+{
+"code": "01080880",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 15000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "110001",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 750 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "DAK100RED210",
+"zet": [
+[
+"spd",
+"24",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 1250 g per m → max 24 m, afgerond",
+null
+]
+]
+},
+{
+"code": "TORR100RED110",
+"zet": [
+[
+"spd",
+"40",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 750 g per m → max 40 m, afgerond",
+null
+]
+]
+},
+{
+"code": "grvsc-oprol",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 5000 g per m → max 6 m, afgerond",
+null
+]
+]
+},
+{
+"code": "HJ-CM65-24",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 90 kg per pallet → 22 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "0816",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2400 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RT0318",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 5000 g per m → max 6 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RTDIAM0315",
+"zet": [
+[
+"spd",
+"5",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 5750 g per m → max 5 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RTRIJST0315",
+"zet": [
+[
+"spd",
+"4",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 7500 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RPNBR0300PM",
+"zet": [
+[
+"spd",
+"4",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 7000 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RTCHECK0314",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4680 g per m → max 6 m, afgerond",
+null
+]
+]
+},
+{
+"code": "01010300",
+"zet": [
+[
+"spd",
+"4",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 7100 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "HCOMBMAT-120-GREY",
+"zet": [
+[
+"spd",
+"8",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3400 g per m → max 9 m, afgerond",
+null
+]
+]
+},
+{
+"code": "COINMAT-120-GREY",
+"zet": [
+[
+"spd",
+"8",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3375 g per m → max 9 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RTMINIDIAM0312",
+"zet": [
+[
+"spd",
+"5",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 6000 g per m → max 5 m, afgerond",
+null
+]
+]
+},
+{
+"code": "MR65SX2.7-0-1.2",
+"zet": [
+[
+"spd",
+"8",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3750 g per m → max 8 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RTB0610",
+"zet": [
+[
+"spd",
+"4",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 7500 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RTB0310",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 5000 g per m → max 6 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RT0310",
+"zet": [
+[
+"spd",
+"8",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3500 g per m → max 9 m, afgerond",
+null
+]
+]
+},
+{
+"code": "B-7331",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 155 kg per pallet → 12 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CS65SX-3-0-1.0",
+"zet": [
+[
+"spd",
+"8",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3700 g per m → max 8 m, afgerond",
+null
+]
+]
+},
+{
+"code": "ELS30000G3-0-1",
+"zet": [
+[
+"spd",
+"8",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3600 g per m → max 8 m, afgerond",
+null
+]
+]
+},
+{
+"code": "MR65SX2.7-0-0.7",
+"zet": [
+[
+"spd",
+"15",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 1900 g per m → max 16 m, afgerond",
+null
+]
+]
+},
+{
+"code": "Charglock24",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 105 kg per pallet → 19 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "01080620",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 15000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "DCD65-3-0-2",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 8700 g per m → max 3 m, afgerond",
+null
+]
+]
+},
+{
+"code": "01080820",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 15000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SM3-0-2",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 9000 g per m → max 3 m, afgerond",
+null
+]
+]
+},
+{
+"code": "DCD65-5-0-2",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 14500 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "01080680",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 15000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SF251S",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 135 kg per pallet → 14 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HPS-1025P",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 195 kg per pallet → 10 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SI60120TP-2-0",
+"zet": [
+[
+"spd",
+"7",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4000 g per m → max 8 m, afgerond",
+null
+]
+]
+},
+{
+"code": "NB70106-0-1.2",
+"zet": [
+[
+"spd",
+"1",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 18000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "TORR200RED110",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2500 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SI60120BR-1-0",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 8000 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "ZMAT-120-RED",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 636 kg per pallet → 3 pallets op gewicht (stond op 4: te zwaar)",
+"4"
+],
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4600 g per m → max 7 m, afgerond",
+null
+]
+]
+},
+{
+"code": "VIDINDBLUE",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 129 kg per pallet → 15 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "VD-HX-A01-G",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 59 kg per pallet → 33 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SE121H-COG",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 135 kg per pallet → 14 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "0801",
+"zet": [
+[
+"spd",
+"8",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3600 g per m → max 8 m, afgerond",
+null
+]
+]
+},
+{
+"code": "MFL505025R-s",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 988 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "ZJ-009",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 68 kg per pallet → 29 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "01061263",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4700 g per m → max 6 m, afgerond",
+null
+]
+]
+},
+{
+"code": "LM-CB04-BLK",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 400 kg per pallet → 5 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "DAK200RED210",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2500 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "sx70150c8-1",
+"zet": [
+[
+"spd",
+"1",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 24000 g per m → max 1 m, afgerond",
+null
+]
+]
+},
+{
+"code": "CD65B3-0-1.5",
+"zet": [
+[
+"spd",
+"4",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 7500 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RM-030400030",
+"zet": [
+[
+"spd",
+"22",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 1330 g per m → max 23 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SE112M-WHI",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 145 kg per pallet → 13 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SB80145G-2.5-0",
+"zet": [
+[
+"spd",
+"7",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4000 g per m → max 8 m, afgerond",
+null
+]
+]
+},
+{
+"code": "CHLKWF-90x120",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 183 kg per pallet → 10 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "NB60140F-1-0",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 8000 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RM-030600030",
+"zet": [
+[
+"spd",
+"15",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2000 g per m → max 15 m, afgerond",
+null
+]
+]
+},
+{
+"code": "charglock24-kp",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 105 kg per pallet → 19 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "BD-004",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 135 kg per pallet → 14 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SR511H-BLK",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 135 kg per pallet → 14 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "RPM4575",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 390 kg per pallet → 5 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SE121H-100WHI",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 135 kg per pallet → 14 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "NB60140F-2-0",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 10000 g per m → max 3 m, afgerond",
+null
+]
+]
+},
+{
+"code": "NB70103-0-1.2",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 9000 g per m → max 3 m, afgerond",
+null
+]
+]
+},
+{
+"code": "0811",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2400 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "HPS-1050P",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 195 kg per pallet → 10 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "0807",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2400 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "BS-06",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 239 kg per pallet → 8 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CS80GN-3-0-1.2",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4500 g per m → max 7 m, afgerond",
+null
+]
+]
+},
+{
+"code": "PBVF-100x200-GREY",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 283 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SE121M-BLA",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 115 kg per pallet → 17 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "sx70150c4-2",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 12000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "CD65SX3-0-0.6",
+"zet": [
+[
+"spd",
+"13",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2300 g per m → max 13 m, afgerond",
+null
+]
+]
+},
+{
+"code": "CD65SX3-0-1.0",
+"zet": [
+[
+"spd",
+"7",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4250 g per m → max 7 m, afgerond",
+null
+]
+]
+},
+{
+"code": "NB60140F-4-0",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 14000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "FTE-010915920",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 975 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CHLKWF-60x90",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 200 kg per pallet → 10 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "TORR200BLA116",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2500 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SV639",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 65 kg per pallet → 30 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBVF-100x200-ANTRA",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 283 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBVF-902x120-ANTRA",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 305 kg per pallet → 6 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBVF-60x90-ANTRA",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 165 kg per pallet → 12 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "FWB120180-GREY",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1115 kg per pallet → 1 pallets op gewicht (stond op 2: te zwaar)",
+"2"
+]
+]
+},
+{
+"code": "RPM90150",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 265 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SF216MS",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 175 kg per pallet → 11 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBVF-60x90-GREY",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 165 kg per pallet → 12 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "TD-10010010A",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 621 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CYM47HR-1-4D",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 150 kg per pallet → 13 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CHLKWF-100x150",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 243 kg per pallet → 8 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PR-EPDM25-SHR9004",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 519 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "FWB100200-GREEN",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 615 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SE121H2-BLA",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 127 kg per pallet → 15 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SD65-3-0-1PM",
+"zet": [
+[
+"spd",
+"8",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3500 g per m → max 9 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SF286A",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 87 kg per pallet → 22 pallets op gewicht, 1 plaatsen",
+null
+]
+]
+},
+{
+"code": "sx70150c6-2",
+"zet": [
+[
+"spd",
+"1",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 18000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "zen-CS80BL3-0-1.2",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4500 g per m → max 7 m, afgerond",
+null
+]
+]
+},
+{
+"code": "Chrgl-10-black",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 415 kg per pallet → 4 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CYM19",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 115 kg per pallet → 17 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SF249HW",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 165 kg per pallet → 12 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "FWB6090-YELLOW",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 165 kg per pallet → 12 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CHLKWF-100x200",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 303 kg per pallet → 6 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SE121M-100WHI",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 115 kg per pallet → 17 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBPST000035",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 166 kg per pallet → 12 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "VD-HX-C02-B",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 66 kg per pallet → 30 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SF251",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 175 kg per pallet → 11 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "0810",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2400 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RM-031200040",
+"zet": [
+[
+"spd",
+"7",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4000 g per m → max 8 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SI60120TP-3-0",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 12000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "DH-BLK-12.5",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1082 kg per pallet → 1 pallets op gewicht (stond op 2: te zwaar)",
+"2"
+]
+]
+},
+{
+"code": "VD-HX-D03-G",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 51 kg per pallet → 39 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "RM-031200020",
+"zet": [
+[
+"spd",
+"7",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4000 g per m → max 8 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SI60120TP-4-0",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 14000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SE121M2-SF1105-B",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 115 kg per pallet → 17 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SP369M",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 143 kg per pallet → 13 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "VD-WR-404",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 113 kg per pallet → 17 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "VIDINPINK",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 129 kg per pallet → 15 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Charglock24-Lock-Key",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 105 kg per pallet → 19 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBVF-100x150-ANTRA",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 213 kg per pallet → 9 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CS65SX-2.7-0-0.8",
+"zet": [
+[
+"spd",
+"9",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3100 g per m → max 10 m, afgerond",
+null
+]
+]
+},
+{
+"code": "BS-03",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 236 kg per pallet → 8 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "VD-HX-C02-G",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 66 kg per pallet → 30 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SI60120BR-3-0",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 12000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "VD-ZJ-010",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 68 kg per pallet → 29 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SAFECART16PRO",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 65 kg per pallet → 30 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "BS-05",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 275 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "FWB6090-GREEN",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 165 kg per pallet → 12 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CHRG-LOCK-5",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 75 kg per pallet → 26 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Partition1680-gry",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 270 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CYE255-3-COG",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 127 kg per pallet → 15 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "RWB-B-89-5",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 215 kg per pallet → 9 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Collapwb100x150E",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 278 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "RWB-B-59-5",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 87 kg per pallet → 22 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MR65SX2.7-0.4-9",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 268 kg per pallet → 7 pallets op gewicht (stond op 25: te zwaar)",
+"25"
+]
+]
+},
+{
+"code": "RWB-B-119",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 178 kg per pallet → 11 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "ZJ-008",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 54 kg per pallet → 37 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Charglock12",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 435 kg per pallet → 4 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SF207V-GREY",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 105 kg per pallet → 19 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Chrgl-12-BLK-WT-lock",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 465 kg per pallet → 4 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SPACOLGRO",
+"zet": [
+[
+"spd",
+"850",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 35 g per cm → max 857 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "561-0-120-014",
+"zet": [
+[
+"spd",
+"500",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 55 g per cm → max 545 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "5870100070",
+"zet": [
+[
+"spd",
+"2100",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 14 g per cm → max 2143 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "561-0-120-001",
+"zet": [
+[
+"spd",
+"500",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 55 g per cm → max 545 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "MR65SX2.7-0-0.8",
+"zet": [
+[
+"spd",
+"13",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2200 g per m → max 14 m, afgerond",
+null
+]
+]
+},
+{
+"code": "588-0-200-002",
+"zet": [
+[
+"spd",
+"1500",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 20 g per cm → max 1500 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "5870200070",
+"zet": [
+[
+"spd",
+"100",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 280 g per cm → max 107 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "SPACOLGEE",
+"zet": [
+[
+"spd",
+"850",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 35 g per cm → max 857 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "WPM-rol-yellow",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 9000 g per m → max 3 m, afgerond",
+null
+]
+]
+},
+{
+"code": "364-0-120-004",
+"zet": [
+[
+"spd",
+"750",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 40 g per cm → max 750 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "CS80R-3-0-1.2",
+"zet": [
+[
+"spd",
+"6",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 4500 g per m → max 7 m, afgerond",
+null
+]
+]
+},
+{
+"code": "MFL505050Z-s",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1023 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "561-0-120-010",
+"zet": [
+[
+"spd",
+"500",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 55 g per cm → max 545 cm, afgerond",
+null
+]
+]
+},
+{
+"code": "EPDM505045-R5017",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1118 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SE121V-COG",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 128 kg per pallet → 15 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MFL50PGRA-S",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 969 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MFL505050Z-c",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1079 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SMC120180",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1815 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CD65SX3-0-0.4",
+"zet": [
+[
+"spd",
+"20",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 1500 g per m → max 20 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RM-031200030",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2500 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "COINMAT-120-BLACK",
+"zet": [
+[
+"spd",
+"8",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3375 g per m → max 9 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SL-001-BLK",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 123 kg per pallet → 16 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "0809",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2400 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "MFL50PGRA-C",
+"zet": [
+[
+"maxlig",
+"2",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 996 kg per pallet → 2 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "0818",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2400 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "CD65SX3-0-0.7",
+"zet": [
+[
+"spd",
+"11",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2600 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RTDIAM0316",
+"zet": [
+[
+"spd",
+"4",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 7500 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "Tabletop1880-bla",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 435 kg per pallet → 4 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "DRH-124-A",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1140 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CD65Y3-0-1.5",
+"zet": [
+[
+"spd",
+"4",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 7500 g per m → max 4 m, afgerond",
+null
+]
+]
+},
+{
+"code": "HPS771005NS-1of2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 271 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HPS771005NS-2of2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 252 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "DUR100BLU50",
+"zet": [
+[
+"spd",
+"13",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2150 g per m → max 14 m, afgerond",
+null
+]
+]
+},
+{
+"code": "FPG72190G-2-0",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 10000 g per m → max 3 m, afgerond",
+null
+]
+]
+},
+{
+"code": "FWB100200-YELLOW",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 615 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "JGBC212-1-ANTRA-1of2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 276 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "JGBC212-1-ANTRA-2of2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 119 kg per pallet → 16 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "RT-50100-SBREPDM",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1115 kg per pallet → 1 pallets op gewicht (stond op 2: te zwaar)",
+"2"
+]
+]
+},
+{
+"code": "Tabletop1480-T10",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 105 kg per pallet → 19 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Tabletop1680-T03",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 383 kg per pallet → 5 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "0806",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2400 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "0817",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2400 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "17-401200",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 415 kg per pallet → 4 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "CYM47HR-1-4D-BLACK",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 195 kg per pallet → 10 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "DUR100RED40",
+"zet": [
+[
+"spd",
+"13",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2150 g per m → max 14 m, afgerond",
+null
+]
+]
+},
+{
+"code": "FWB100150-GREEN",
+"zet": [
+[
+"maxlig",
+"3",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 515 kg per pallet → 3 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Tabletop1880-T03",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 435 kg per pallet → 4 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBPST000036",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 168 kg per pallet → 11 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBVF-100x150-BLUE",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 213 kg per pallet → 9 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Partition1680-bla",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 270 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HJ-CM65-24UV-C",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 95 kg per pallet → 21 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBVF-100x200-BLUE",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 283 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBVF-45x60-BLUE",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 100 kg per pallet → 20 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SAFECART-40",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 30 kg per pallet → 66 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "DRP-229-DR",
+"zet": [
+[
+"spd",
+"1",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 17200 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "HJ-CM09-17inch",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 105 kg per pallet → 19 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HM1018-1-1of2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 280 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HM1018-1-2of2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 16 kg per pallet → 125 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "PBVF-60x90-BLUE",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 165 kg per pallet → 12 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Partition1880-gry",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 270 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SAFECART-40UV-C",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 115 kg per pallet → 17 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "HJ-cm17-30",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 95 kg per pallet → 21 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "JGBC213-1-WOOD-1of2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 281 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "JGBC213-1-WOOD-2of2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 119 kg per pallet → 16 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "NB70103-0-1.4",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 10000 g per m → max 3 m, afgerond",
+null
+]
+]
+},
+{
+"code": "NB70106-0-1.4",
+"zet": [
+[
+"spd",
+"1",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 20000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "CHLKWF-100x180",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 275 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "DUR100BLA95",
+"zet": [
+[
+"spd",
+"13",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2150 g per m → max 14 m, afgerond",
+null
+]
+]
+},
+{
+"code": "JGBC1018-3-2of3",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 305 kg per pallet → 6 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "JGBC1018-3-3of3",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 16 kg per pallet → 125 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Partition1480-gry",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 270 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "IRATM90X9014",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 1015 kg per pallet → 1 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Partition18100-bla",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 390 kg per pallet → 5 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SAFECART24PRO",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 65 kg per pallet → 30 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SF280M",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 183 kg per pallet → 10 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "sprinttrack-combi-18m2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 365 kg per pallet → 5 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "0804",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2400 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "75.WER.GL.WH",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 115 kg per pallet → 17 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "75.WER.KU.OA.BL",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 65 kg per pallet → 30 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MC-1149E-GREY",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 149 kg per pallet → 13 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Partition1480-bla",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 270 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "01010300-",
+"zet": [
+[
+"spd",
+"10",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3000 g per m → max 10 m, afgerond",
+null
+]
+]
+},
+{
+"code": "0814",
+"zet": [
+[
+"spd",
+"12",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 2400 g per m → max 12 m, afgerond",
+null
+]
+]
+},
+{
+"code": "17-402300",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 415 kg per pallet → 4 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "75.WER.KU.OA.WH",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 90 kg per pallet → 22 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "75.WER.KU.OA.WH.140",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 105 kg per pallet → 19 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "75.WER.KU.WH.140",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 105 kg per pallet → 19 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "BUR.003.GR",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 55 kg per pallet → 36 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "DRH-126-JR",
+"zet": [
+[
+"spd",
+"2",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 13000 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "DRH-126-KR",
+"zet": [
+[
+"spd",
+"1",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 16500 g per m → max 2 m, afgerond",
+null
+]
+]
+},
+{
+"code": "EPP0502",
+"zet": [
+[
+"spd",
+"375",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 80 g per m → max 375 m, afgerond",
+null
+]
+]
+},
+{
+"code": "EPP0815",
+"zet": [
+[
+"spd",
+"428",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 70 g per m → max 429 m, afgerond",
+null
+]
+]
+},
+{
+"code": "M-RWB-60",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 174 kg per pallet → 11 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "NT33-2AR2-W-box2",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 165 kg per pallet → 12 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Partition14100-bla",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 315 kg per pallet → 6 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Partition16100-bla",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 345 kg per pallet → 5 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "Partition1680-gre",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 270 kg per pallet → 7 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "RP0300-",
+"zet": [
+[
+"spd",
+"10",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 3000 g per m → max 10 m, afgerond",
+null
+]
+]
+},
+{
+"code": "RPepdm0300-1",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 10000 g per m → max 3 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SAFECART16PRO-SWISS",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 65 kg per pallet → 30 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SAFECART24PRO-SWISS",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 65 kg per pallet → 30 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SAFECART36PRO",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 30 kg per pallet → 66 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SAFECART40PRO-SWISS",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 75 kg per pallet → 26 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SAFELOCK1-SWISS",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 29 kg per pallet → 68 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SD010707",
+"zet": [
+[
+"spd",
+"3",
+"auto",
+"Regel Daan: doos max 30 kg (DPD/DHL pakket). 9070 g per m → max 3 m, afgerond",
+null
+]
+]
+},
+{
+"code": "SE101H-black-R",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 135 kg per pallet → 14 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "SF207H1S-4D-LIME",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 165 kg per pallet → 12 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "icart36",
+"zet": [
+[
+"maxlig",
+"4",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 30 kg per pallet → 66 pallets op gewicht",
+null
+]
+]
+},
+{
+"code": "MR65SX2.7-0.5-4",
+"zet": [
+[
+"maxlig",
+"1",
+"auto",
+"Regel Daan: max 2.000 kg per ligger. 575 kg per pallet → 3 pallets op gewicht, 1 plaatsen (stond op 4: te zwaar)",
+"4"
+]
+]
+}
+]
+}
