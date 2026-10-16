@@ -4,19 +4,22 @@
    3.0 → Te controleren toont elke aanname; Daan zet hem op ✓ of past de waarde aan.
    Zijn keuze staat in catalog-rij `wh-aannames` = { <id>: { ok, waarde, op, door } } en gaat altijd voor.
    `bevestigd` = Daan heeft het in de chat besloten (16-10); telt als ✓ zolang er geen eigen keuze in de catalog staat.
+   `bevestigd.sinds` = Daan besliste in de chat iets nieuws (ronde 2, 16-10): een keuze in de app van vóór dat moment telt dan niet meer,
+   een latere keuze (Klopt, aanpassen, Opnieuw) wel. De rij in de catalog blijft staan.
    Geen bedrijfsdata hier (openbare repo): alleen regels en grenzen.
    ===================================================================== */
 window.WHAAN = (function(){
 'use strict';
 const CHAT = { door:'Daan (chat)', op:'2026-10-16' };
+const CHAT2 = { door:'Daan (chat)', op:'2026-10-16', sinds:'2026-10-16T14:35:00.000Z' };   // ronde 2: nieuwer dan eerdere keuzes in de app
 const LIJST = [
   // kerncijfers: [oranje vanaf, rood vanaf]
   { id:'k-o12', groep:'Kerncijfers', t:'Orders (picklijsten) ouder dan 12 uur', waarde:'1 · 1', eenheid:'oranje vanaf · rood vanaf (telt vanaf 12:00)', waarom:'Daan 16-10: vanaf 12:00 de orders van gisteren oppakken, niet pas om 16:00. Vóór 12:00 neutraal.', bevestigd:CHAT },
-  { id:'k-o24', groep:'Kerncijfers', t:'Open picklijsten ouder dan 24 uur', waarde:'1 · 1', eenheid:'oranje vanaf · rood vanaf', waarom:'Ouder dan een dag is altijd een probleem.' },
-  { id:'k-bo2', groep:'Kerncijfers', t:'Backorders die wij oplossen', waarde:'1 · 5', eenheid:'oranje vanaf · rood vanaf', waarom:'Daan 16-10: orders in backorder waarvan de voorraad in eigen bulk ligt (aanvullen/verplaatsen lost ze op), plus backorders waarvoor een container binnenkomt. Echte backorders (wachten op inkoop) tellen niet. Grens: schatting Claude.' },
-  { id:'k-nu', groep:'Kerncijfers', t:'Nu verplaatsen open (na 12:00)', waarde:'1 · 5', eenheid:'oranje vanaf · rood vanaf', waarom:'Wat een klantorder vrijmaakt, hoort vóór de middag gedaan te zijn.' },
-  { id:'k-taak', groep:'Kerncijfers', t:'Taken achter', waarde:'1 · 3', eenheid:'oranje vanaf · rood vanaf', waarom:'Schatting Claude.' },
-  { id:'k-geen', groep:'Kerncijfers', t:'Producten met voorraad op "geen specifieke locatie"', waarde:'1 · 50', eenheid:'oranje vanaf · rood vanaf', waarom:'Daan (A1.2): niets staat op geen specifieke locatie. Doel 0. Voorraad van een opgeboekte container die wacht op lossen/Stockmove telt niet mee.' },
+  { id:'k-o24', groep:'Kerncijfers', t:'Open picklijsten ouder dan 24 uur', waarde:'4 · 8', eenheid:'oranje vanaf · rood vanaf', waarom:'Daan 16-10: tot 3 goed, 4–7 oranje, boven 7 rood.', bevestigd:CHAT2 },
+  { id:'k-bo2', groep:'Kerncijfers', t:'Backorders die wij oplossen', waarde:'5 · 10', eenheid:'oranje vanaf · rood vanaf', waarom:'Daan 16-10: orders in backorder waarvan de voorraad in eigen bulk ligt (aanvullen/verplaatsen lost ze op), plus backorders waarvoor een container binnenkomt. Echte backorders (wachten op inkoop) tellen niet. Grens: Daan 16-10.', bevestigd:CHAT2 },
+  { id:'k-nu', groep:'Kerncijfers', t:'Nu verplaatsen open (na 12:00)', waarde:'5 · 11', eenheid:'oranje vanaf · rood vanaf', waarom:'Daan 16-10: tot 4 goed, 5–10 oranje, boven 10 rood. Wat een klantorder vrijmaakt, hoort vóór de middag gedaan te zijn.', bevestigd:CHAT2 },
+  { id:'k-taak', groep:'Kerncijfers', t:'Taken achter', waarde:'4 · 6', eenheid:'oranje vanaf · rood vanaf', waarom:'Daan 16-10: tot 3 goed, 4–5 oranje, boven 5 rood.', bevestigd:CHAT2 },
+  { id:'k-geen', groep:'Kerncijfers', t:'Producten met voorraad op "geen specifieke locatie"', waarde:'26 · 76', eenheid:'oranje vanaf · rood vanaf', waarom:'Daan 16-10: tot 25 goed, 26–75 oranje, boven 75 rood. Doel blijft 0 (A1.2). Voorraad van een opgeboekte container die wacht op lossen/Stockmove telt niet mee.', bevestigd:CHAT2 },
   // dagritme: waarde = "wanneer · wie · extra"
   { id:'d-01', groep:'Dagritme gewone dag', t:'Ochtendoverleg coördinatoren', waarde:'07:00 · Kate, Sala', waarom:'Daan (A1.1): planning, taken, prioriteiten en aandachtspunten verdeeld.' },
   { id:'d-rij', groep:'Dagritme gewone dag', t:'Aanvullen en verplaatsen: aanvuladvies op de scanner volgen', waarde:'hele dag · rijder · 1e prioriteit', waarom:'Daan 16-10: één doorlopende taak van de rijder, feitelijk elk 1–2 uur (was: Nu verplaatsen, aanvulronde 1 en 2).', bevestigd:CHAT },
@@ -72,7 +75,12 @@ async function laad(vers){
   return S.laden;
 }
 const item = id => LIJST.find(x => x.id === id) || null;
-const keus = id => (S.keus || {})[id] || null;
+// een eigen keuze in de catalog, tenzij Daan daarna in de chat anders besloot (bevestigd.sinds)
+function keus(id){
+  const k = (S.keus || {})[id] || null, a = item(id);
+  if(k && a && a.bevestigd && a.bevestigd.sinds && (Date.parse(k.op) || 0) < Date.parse(a.bevestigd.sinds)) return null;
+  return k;
+}
 // ✓ of open: een eigen keuze in de catalog gaat altijd voor, anders telt een besluit uit de chat als ✓
 function status(id){
   const k = keus(id);

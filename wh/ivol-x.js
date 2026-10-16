@@ -155,7 +155,7 @@ function viewNakijken(){
   } else if(tab === 'aan'){
     const groepen = [...new Set(WHAAN.LIJST.map(a => a.groep))];
     const nOk = WHAAN.LIJST.length - aan.length;
-    body = `<div class="small muted">${nf(aan.length)} open · ${nf(nOk)} ✓ (door jou in de app, of besloten in de chat). Een eigen keuze in de app gaat altijd voor.</div>` + groepen.map(g => { const L = WHAAN.LIJST.filter(a => a.groep === g), nO = L.filter(a => !WHAAN.status(a.id).ok).length;
+    body = `<div class="small muted">${nf(aan.length)} open · ${nf(nOk)} ✓ (door jou in de app, of besloten in de chat). Een eigen keuze in de app gaat voor, behalve als je daarna in de chat iets anders besloot.</div>` + groepen.map(g => { const L = WHAAN.LIJST.filter(a => a.groep === g), nO = L.filter(a => !WHAAN.status(a.id).ok).length;
       return `<section class="blok"><h2>${esc(g)} <span class="small muted">${nO ? nf(nO) + ' open' : '✓ alles'}</span></h2>${L.map(a => { const k = WHAAN.status(a.id), kern = a.groep === 'Kerncijfers';
         return `<div class="x-rij" data-aan="${esc(a.id)}"><b>${esc(a.t)}</b><input class="${k.ok ? 'ok' : ''}" value="${esc(WHAAN.waarde(a.id))}" aria-label="${esc(a.t)}"${kern ? ' data-grens="1" inputmode="numeric"' : ''}><span class="x-why">${kern ? `<b class="x-grens" aria-live="polite">${esc(WHAAN.grensTekst(WHAAN.waarde(a.id)))}</b><br>` : ''}${esc(a.waarom)}${a.eenheid ? ' · ' + esc(a.eenheid) : ''}${k.ok ? ` · <b style="color:var(--ok)">✓ ${esc(k.door || '')} ${esc(String(k.op || '').slice(0, 10))}</b>` : ''}</span>${k.ok ? `<button class="x-btn" data-x="aanterug" data-id="${esc(a.id)}">Opnieuw</button>` : `<button class="x-btn" data-x="aanok" data-id="${esc(a.id)}">Klopt</button>`}</div>`; }).join('')}</section>`; }).join('');
   } else {
