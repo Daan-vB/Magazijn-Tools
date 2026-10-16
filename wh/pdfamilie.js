@@ -161,6 +161,12 @@ function voorstelRij(fk, k, cs, ctx){
   if(k === 'plaatsen' && w.maat && /\d+\s*x\s*\d+/.test(w.maat)) return { v:X().plaatsenUitMaat(w.maat), why:'uit palletmaat ' + w.maat + ' (plaats = 90 cm)', p:1, r:'plaatsen:maat' };
   // per cm / per meter (Daan 16-10): breder dan de max doos-lengte (DPD 170 cm) → alleen pallet; per cm afronden op 50 cm, per meter alleen hele meters; nooit boven 30 kg
   if(k === 'spd' && (w._eh === 'cm' || w._eh === 'm')){
+    // kokos (Daan 16-10, p-kokos): eigen regel in plaats van de DPD-lengte
+    if(w._eh === 'cm'){
+      const gw0 = num(w.gewicht), sp0 = num(w.spp), pq = cs.map(c => P().kgPicqer(c)).filter(Boolean).sort((a, b) => a - b);
+      const kk = X().kokosDoos(cs, num(w.kgst) || (gw0 > 15 && sp0 ? (gw0 - 15) / sp0 : null) || (pq.length ? pq[Math.floor(pq.length / 2)] : null));
+      if(kk) return Object.assign({ r:'spd:kokos' }, kk);
+    }
     const br = Math.max(0, ...cs.map(breedteNaam).filter(Boolean));
     if(br > DPDCM()) return { v:'nvt', why:'rol ' + nf(br) + ' cm breed: langer dan ' + nf(DPDCM()) + ' cm (DPD) → alleen pallet', p:.5, r:'spd:lengte' };
     const gw = num(w.gewicht), sp = num(w.spp);

@@ -361,6 +361,28 @@ function mvPatroon(code){
   }
   return uit;
 }
+/* Kokos op rol: doos of pallet (aanname p-kokos, Daan 16-10; vervangt de eerdere kokosregels en de DPD-lengte voor kokos).
+   Boven 30 kg altijd pallet · breder dan 100 cm (200 breed): t/m 200 cm lang in een doos, langer = pallet · 100 breed: het gewicht beslist.
+   Uitkomst = max cm per doos (stuks per doos, afgerond op p-dooscm), 'nvt' = alleen pallet. De getallen komen uit de tekst van p-kokos. */
+const aanGetal = (id, std) => { const v = window.WHAAN ? parseFloat(String(WHAAN.waarde(id) || '').replace(',', '.')) : NaN; return isNaN(v) ? std : v; };
+const isKokosRol = c => { const n = String((D.P[c] || {}).naam || '').trim(); return !/deurmat/i.test(n) && (/^(kokos\s+\d{2,3}\s*cm|kokos\s+rol|kokosmat\s+op\s+rol)/i.test(n) || (/^kokos/i.test(n) && eenheid(c).e === 'cm')); };
+const breedteVan = c => { const n = String((D.P[c] || {}).naam || ''); const m = n.match(/(\d{2,3})\s*cm\s*(breed|br\b)/i) || n.match(/breed(?:te)?\s*(\d{2,3})/i) || n.match(/\b(\d{2,3})\s*cm\b/i); return m ? +m[1] : null; };
+function kokosRegel(){
+  const t = window.WHAAN ? String(WHAAN.waarde('p-kokos') || '') : '', g = (re, std) => { const m = t.match(re); return m ? +m[1] : std; };
+  return { smal:g(/(\d+)\s*breed:\s*gewicht/i, 100), lengte:g(/lengte boven\s*(\d+)/i, 200), kg:g(/boven\s*(\d+)\s*kg/i, 30) };
+}
+function kokosDoos(cs, kgCm){
+  cs = [].concat(cs).filter(Boolean); if(!cs.length || !cs.every(isKokosRol)) return null;
+  const R = kokosRegel(), stap = aanGetal('p-dooscm', 50) || 50, br = Math.max(0, ...cs.map(breedteVan).filter(Boolean)), kg = num(kgCm);
+  const smal = br > 0 && br <= R.smal, lmax = smal ? Infinity : R.lengte, wat = br ? 'kokos ' + nf(br) + ' breed' : 'kokos (breedte onbekend)';
+  if(!kg){
+    if(smal) return null;   // 100 breed: zonder gewicht geen uitspraak
+    return { v:String(R.lengte), why:wat + ': t/m ' + nf(R.lengte) + ' cm in een doos, langer = pallet; gewicht onbekend (boven ' + nf(R.kg) + ' kg altijd pallet)', p:.5 };
+  }
+  const v = Math.min(Math.floor(R.kg / kg / stap) * stap, lmax);
+  if(v <= 0) return { v:'nvt', why:wat + ': ' + nf(stap) + ' cm weegt al ' + nf(kg * stap, 1) + ' kg, boven ' + nf(R.kg) + ' kg → pallet', p:1 };
+  return { v:String(v), why:wat + ': max ' + nf(v) + ' cm per doos (' + (smal ? 'gewicht beslist, ' : '') + (v < lmax ? 'onder ' + nf(R.kg) + ' kg bij ' + nf(kg, 3) + ' kg per cm' : 'lengte t/m ' + nf(R.lengte) + ' cm') + '), langer = pallet', p:1 };
+}
 // volle pallet of deel volgens de verplaatsingen; komen ze allebei voor, dan wat het vaakst gebeurde
 function mvSoort(code){
   const g = mvPatroon(code);
@@ -495,6 +517,8 @@ function voorstel(code, k, w){
       if(genoot) return genoot;
       const r = pbRegels(code).find(r => r.soort !== 'pallet' && num(r.per) > 1);
       if(r) return uit('spd:pakbon', num(r.per) * (num(r.factor) || 1), 'pakbon: ' + nf(num(r.per)) + ' per pak');
+      { const gw = num(w('gewicht')), sp = num(w('spp')), kk = kokosDoos(code, num(w('kgst')) || (gw > 15 && sp ? (gw - 15) / sp : null) || kgPicqer(code));
+        if(kk) return uit('spd:kokos', kk.v, 'regel Daan: ' + kk.why, { p:kk.p, z:kk.p >= ZEKER ? 'hoog' : 'laag' }); }
       return fam();
     }
     case 'maxlig': return genoot || fam();
@@ -3175,6 +3199,6 @@ async function view(delen){
 const herlaad = async () => { S.idx = null; await laad(true); };
 
 const zetLaterMee = v => { S.laterMee = v !== false; S.idx = null; };
-const intern = { mvPatroon, mvSoort, levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
+const intern = { mvPatroon, mvSoort, kokosDoos, levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
 return { view, herlaad, laad, zetLaterMee, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();
