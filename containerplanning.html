@@ -15,6 +15,7 @@
 <script src="bestanden.js?v=2"></script>
 <script src="wh/menu.js?v=9"></script>
 <script src="wh/cache.js?v=1"></script>
+<script src="wh/pdbron.js?v=1"></script>
 <style>
   :root{--blue:#1d4ea0;--orange:#e8590c;--ink:#10151c;--bg:#eef1f5;--line:#cdd5df;--soft:#f6f8fb;--muted:#5b6673;--ok:#1c7a4a;--warn:#b86e00;--bad:#b3261e}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -421,6 +422,7 @@ function indexProducten(rows){
     P[r.productcode] = r; PLOW[r.productcode.toLowerCase()] = r.productcode;
     if(r.leverancier) (BYLEV[r.leverancier] = BYLEV[r.leverancier] || []).push(r.productcode);
   });
+  if(window.PDBRON && PDBRON.aan()) PDBRON.overlayProducten(P);   // palletgegevens eerst uit productdata, leeg of onb = oude plek
 }
 function indexCatalog(cat){
   CAT = cat || {}; GEH = {};
@@ -429,6 +431,7 @@ function indexCatalog(cat){
     const k = String(x.sub).trim().toLowerCase();
     (GEH[k] = GEH[k] || []).push(x);
   });
+  if(window.PDBRON && PDBRON.aan()) PDBRON.overlayGeh(GEH);   // stuks per pallet eerst uit productdata
 }
 function indexVerkoop(rows){ VK = {}; rows.forEach(r => VK[r.productcode] = r); }
 function indexBackorders(rows){
@@ -459,6 +462,7 @@ async function load(){
       safe('containers', T('containers', 'select=*&order=id', ['updated_at'])),
       safe('todos', getAll('todos', 'select=*'))
     ]);
+    if(window.PDBRON) await PDBRON.laad(true);   // schakelaar "Andere apps gebruiken productdata" (standaard uit); uit = niets verandert
     indexProducten(prod);
     indexCatalog(cat && cat.length ? cat[0].data : {});
     indexVerkoop(vk);
@@ -2676,8 +2680,10 @@ async function productenOpslaan(codes, bron){
         const e = eenheidVan(code); if(e === 'm') row.eenheid = 'meter'; else if(e === 'rol') row.eenheid = 'rol';
         const saved = await upsert('producten', [row], 'productcode');
         P[code] = Object.assign({}, P[code], saved[0] || row);
+        if(window.PDBRON) PDBRON.schrijfRij(code, row, 'Containers: palletgegevens');   // schakelaar aan: ook naar productdata
       }
       if(catPlan){ catPlan(); catW = true; }
+      if(window.PDBRON && qNieuw && (qtySoort(qNieuw) === 'nvt' || (qtySoort(qNieuw) === 'aantal' && num(qNieuw) > 0))) PDBRON.schrijf(code, { spp:qNieuw }, 'Containers: stuks per pallet');
       pool.regels.forEach(r => {
         if(fac[r.id] !== undefined){ r.factor = fac[r.id]; r.factor_bron = 'bevestigd'; }
         else if(r.factor_bron === 'voorstel') r.factor_bron = 'bevestigd';
@@ -3623,6 +3629,7 @@ async function palletOpslaan(code){
     st('Opslaan…');
     const saved = await upsert('producten', [row], 'productcode');
     P[code] = Object.assign({}, P[code] || {}, saved[0] || row);
+    if(window.PDBRON) PDBRON.schrijfRij(code, row, 'Containers: palletgegevens');   // schakelaar aan: ook naar productdata
     const nieuweNaam = $('pe_vn').value.replace(/\s+/g, ' ').trim(), qRaw = $('pe_spp').value.trim(), qs = qtySoort(qRaw);
     if(qs === 'fout') throw new Error('stuks per pallet: vul een getal in, of 0, nvt of onb');
     if(qs === 'weg') throw new Error('uitfaseren (X) doe je op de pagina Vloernamen');
@@ -3638,6 +3645,7 @@ async function palletOpslaan(code){
       await api('POST', 'catalog?on_conflict=key', [{ key:'catalog-ean', mode:'ean', data:cat, updated_at:new Date().toISOString() }], { Prefer:'resolution=merge-duplicates,return=minimal' });
       indexCatalog(cat);
     }
+    if(window.PDBRON && qNieuw && (qtySoort(qNieuw) === 'nvt' || (qtySoort(qNieuw) === 'aantal' && num(qNieuw) > 0))) PDBRON.schrijf(code, { spp:qNieuw }, 'Containers: stuks per pallet');
     UI.pe = null;
     rerender();
     toast(code + ' opgeslagen.');

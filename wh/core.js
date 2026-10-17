@@ -127,6 +127,7 @@ function catPatch(key, patch){
     await catZet(key, d);
     const veld = { 'wh-aanvul':'AANVUL', 'wh-taken':'TAKEN', 'wh-triage':'TRIAGE', 'wh-stellingen':'STEL', 'wh-todo':'TODO', 'wh-leveringen':'LEV' }[key];
     if(veld) D[veld] = d;
+    if(key === 'wh-aanvul' && window.PDBRON) PDBRON.spiegelAanvul(patch);   // schakelaar aan: pick, bij en max ook naar productdata
     setSaved('Opgeslagen ' + new Date().toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' }));
     return d;
   });
@@ -151,19 +152,24 @@ async function load(){
     // via WHC: alleen ophalen wat sinds de vorige keer veranderd is (scheelt dataverkeer)
     const T = window.WHC ? WHC.tabel : (t, q) => getAll(t, q);
     const PK = ['picqer_datum', 'updated_at'];
-    const pdAan = pdBron();
+    const pdAan0 = pdBron();
+    // schakelaar "Andere apps gebruiken productdata" (catalog wh-pd-bron, standaard uit): zie wh/pdbron.js. Uit = niets verandert.
+    const pdb = window.PDBRON ? PDBRON.laad(true, pdAan0) : Promise.resolve(false);
     const [prod, cat, vk, bo, co, pd] = await Promise.all([
       safe('producten', T('producten', 'select=' + PROD_SEL + '&order=productcode', PK).catch(e => /column/i.test(e.body || '') ? T('producten', 'select=*&order=productcode', PK) : Promise.reject(e))),
       window.WHC ? WHC.catalog(['catalog-ean'].concat(CAT_KEYS)) : api('GET', 'catalog?key=in.(' + encodeURIComponent(keys) + ')&select=key,data,updated_at'),
       safe('verkoop', T('verkoop', 'select=*', ['geimporteerd_op'])),
       safe('backorders', T('backorders', 'select=*', ['geimporteerd_op'])),
       safe('containers', T('containers', 'select=id,leverancier,pakbon_ref,containernummer,losdatum,lostijd,status,updated_at,verwacht:data->verwacht,regels:data->regels,voorboekingen:data->voorboekingen,geleverd:data->geleverd,verdeling:data->verdeling&order=losdatum', ['updated_at'])),
-      pdAan ? safe('productdata', T('productdata', 'select=productcode,data,updated_at', ['updated_at'])) : Promise.resolve([])
+      pdAan0 ? safe('productdata', T('productdata', 'select=productcode,data,updated_at', ['updated_at'])) : Promise.resolve([])
     ]);
+    await pdb;
+    const viaSchakelaar = !pdAan0 && !!window.PDBRON && PDBRON.aan(), pdAan = pdAan0 || viaSchakelaar;
     D.PD = {}; D.PDAAN = pdAan;
-    (pd || []).forEach(r => { if(r && r.productcode) D.PD[r.productcode] = r.data || {}; });
+    (viaSchakelaar ? PDBRON.rijen() : pd || []).forEach(r => { if(r && r.productcode) D.PD[r.productcode] = r.data || {}; });
     D.P = {}; D.PLOW = {};
     prod.forEach(r => { if(!r.productcode) return; D.P[r.productcode] = r; D.PLOW[r.productcode.toLowerCase()] = r.productcode; });
+    if(viaSchakelaar) PDBRON.overlayProducten(D.P);   // palletmaat, hoogte, gewicht, plaatsen en max per ligger eerst uit productdata; leeg of onb = oude plek
     D.VK = {}; vk.forEach(r => D.VK[r.productcode] = r);
     D.BO = bo;
     D.CONT = co || [];
@@ -586,6 +592,7 @@ async function zetStuksPerPallet(code, stuks){
   }
   await api('POST', 'catalog?on_conflict=key', [{ key:'catalog-ean', mode:'ean', data:cat, updated_at:new Date().toISOString() }], { Prefer:'resolution=merge-duplicates,return=minimal' });
   D.GEH[k] = Object.values(cat).filter(x => x && String(x.sub || '').trim().toLowerCase() === k);
+  if(window.PDBRON) PDBRON.schrijf(code, { spp:String(stuks) }, 'Warehouse: stuks per pallet');   // schakelaar aan: ook naar productdata (alleen leeg of auto)
 }
 
 /* ---------- import: Picqer-aanvuladvies (PDF) ---------- */

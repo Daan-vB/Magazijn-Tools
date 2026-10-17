@@ -2,6 +2,7 @@
  "warehouse": [
   "wh/menu.js",
   "wh/cache.js",
+  "wh/pdbron.js",
   "wh/core.js",
   "wh/logica.js",
   "wh/planning.js",
@@ -16,6 +17,7 @@
  ],
  "ivol": [
   "wh/cache.js",
+  "wh/pdbron.js",
   "wh/core.js",
   "wh/logica.js",
   "wh/triage.js",
@@ -34,6 +36,7 @@
  ],
  "junior": [
   "wh/cache.js",
+  "wh/pdbron.js",
   "wh/core.js",
   "wh/logica.js",
   "wh/triage.js",
@@ -47,6 +50,7 @@
  "test": [
   "wh/menu.js",
   "wh/cache.js",
+  "wh/pdbron.js",
   "wh/core.js",
   "wh/logica.js",
   "wh/planning.js",

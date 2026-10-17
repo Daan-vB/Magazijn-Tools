@@ -11,6 +11,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="bestanden.js?v=2"></script>
+<script src="wh/pdbron.js?v=1"></script>
 <style>
   :root{
     --rack-blue:#1d4ea0;
@@ -400,7 +401,22 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
   /* ---------- Productgeheugen (cloud, eigen database, apart per modus) ---------- */
   function getCatalog(){ return catalogs[mode]; }
 
+  // schakelaar "Andere apps gebruiken productdata" (standaard uit): stuks per pallet eerst uit productdata, leeg of onb = het productgeheugen
+  function qtyVan(p){
+    if(mode !== 'ean' || !p || !window.PDBRON || !PDBRON.aan()) return p ? p.qty : '';
+    const x = PDBRON.leesLos(p.sub, 'spp');
+    return x !== null && (/^nvt$/i.test(x) || parseFloat(x.replace(',', '.')) > 0) ? x : p.qty;
+  }
+  // naar productdata schrijven (alleen als de schakelaar aan staat, leeg of auto; Daans invoer blijft)
+  function naarPd(rec){
+    if(!window.PDBRON || !PDBRON.aan() || mode !== 'ean' || !rec || !rec.sub) return;
+    const q = String(rec.qty || '').trim(), w = {};
+    if(/^nvt$/i.test(q) || parseFloat(q.replace(',', '.')) > 0) w.spp = q;
+    if(rec.name) w.vn = rec.name;
+    if(Object.keys(w).length) PDBRON.schrijf(rec.sub.trim(), w, 'Palletlabels');
+  }
   async function loadCatalogs(){
+    if(window.PDBRON) await PDBRON.laad(true);
     for(const m of Object.keys(KEYS)){
       try{
         catalogs[m] = await sbGet(KEYS[m]);
@@ -434,6 +450,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       }
     });
     await saveCatalog();
+    if(mode === 'ean') rows.forEach(r => naarPd({ name:r.name, qty:r.qty, sub:r.sub }));
     return added;
   }
 
@@ -493,12 +510,13 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       cur[newKey] = rec;
       editingKey = null;
       await saveCatalog();
+      naarPd(rec);
     }));
   }
 
   function renderViewRow(k, p){
     const meta = mode === 'ean'
-      ? 'EAN ' + esc(p.ean) + ' · standaard ' + esc(p.qty) + ' stuks' + (p.sub ? ' · ' + esc(p.sub) : '')
+      ? 'EAN ' + esc(p.ean) + ' · standaard ' + esc(qtyVan(p)) + ' stuks' + (p.sub ? ' · ' + esc(p.sub) : '')
       : 'art. ' + esc(p.art) + ' · standaard ' + esc(p.qty) + ' stuks' + (p.maat ? ' · ' + esc(p.maat) : '');
     const naam = mode === 'ean' ? p.name : p.floor;
     return '<div class="cat-item">' +
@@ -593,6 +611,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     }
     cat[key] = rec;
     await saveCatalog();
+    naarPd(rec);
     const ta = $('data');
     ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/,'') + '\n' : '') + line + '\n';
     renderNewProdFields();
@@ -620,7 +639,7 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       const metaR = mode === 'ean' ? esc(p.ean) : esc(p.art);
       return '<button type="button" data-k="' + esc(k) + '">' +
         '<span>' + esc(naam) + '</span>' +
-        '<span class="meta">' + (mode === 'ean' && !heeftAantal(p.qty) ? (String(p.qty).trim() === '0' ? 'geen aantal' : esc(p.qty || '–')) : esc(p.qty) + ' st') + ' · ' + metaR + '</span></button>';
+        '<span class="meta">' + (mode === 'ean' && !heeftAantal(qtyVan(p)) ? (String(qtyVan(p)).trim() === '0' ? 'geen aantal' : esc(qtyVan(p) || '–')) : esc(qtyVan(p)) + ' st') + ' · ' + metaR + '</span></button>';
     }).join('');
     sugg.hidden = false;
     sugg.querySelectorAll('button').forEach(b => b.addEventListener('click', async () => {
@@ -629,13 +648,13 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
       const ta = $('data');
       const aan = mode === 'ean' && $('aanvulChk').checked;
       const line = mode === 'ean'
-        ? [p.name, p.ean, aan ? 'AANVUL' : p.qty, p.sub].filter((v,i) => i < 3 || v).join('\t')
+        ? [p.name, p.ean, aan ? 'AANVUL' : qtyVan(p), p.sub].filter((v,i) => i < 3 || v).join('\t')
         : [p.floor, p.maat||'', p.art, p.qty].join('\t');
       ta.value = (ta.value.trim() ? ta.value.replace(/\s+$/,'') + '\n' : '') + line + '\n';
       search.value = ''; sugg.hidden = true;
       $('aanvulChk').checked = false;   // geldt maar voor die ene keer
       const naam = mode === 'ean' ? p.name : p.floor;
-      setStatus('Toegevoegd: ' + naam + (aan ? ' (1 label AANVULPALLET)' : mode === 'ean' && !heeftAantal(p.qty) ? ' (label zonder aantal)' : ' (' + p.qty + ' stuks)') + (aan ? '' : ' — aantal aanpassen kan in de regel zelf.'), 'ok');
+      setStatus('Toegevoegd: ' + naam + (aan ? ' (1 label AANVULPALLET)' : mode === 'ean' && !heeftAantal(qtyVan(p)) ? ' (label zonder aantal)' : ' (' + qtyVan(p) + ' stuks)') + (aan ? '' : ' — aantal aanpassen kan in de regel zelf.'), 'ok');
     }));
   }
   search.addEventListener('input', showSuggestions);

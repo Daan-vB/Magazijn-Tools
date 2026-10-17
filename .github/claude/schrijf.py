@@ -1,12 +1,18 @@
 # Schrijft door Claude verwerkte productdata weg (alleen tabel productdata, read-merge-upsert).
 # Invoer: .github/claude/<naam>.json  { naam, datum, regels:[{code, zet:[[veld, waarde, bron, reden, verwacht]]}] }
+# Zet-element: [veld, waarde, bron, reden, verwacht, vlag, vlag]. Vlaggen (in elke volgorde): "twijfel" (schatting, onder Te controleren)
+# en "park" (besproken, telt als compleet, blijft zichtbaar in Notities; waarde null = data van het veld blijft zoals het is).
 # Veiligheid: een veld wordt alleen gezet als het leeg is, of automatisch ingevuld (bron auto),
 # of als "verwacht" is opgegeven en de huidige waarde daar precies gelijk aan is.
-# Wat Daan zelf heeft ingevuld wordt nooit overschreven. Het log toont alleen aantallen en codes.
+# "verwacht" mag een lijst zijn (elke waarde die nu mag staan); "" in die lijst of een leeg veld zonder eigen invoer telt ook.
+# Wat Daan zelf heeft ingevuld (bron invul, spraak, tabel, overgezet) wordt nooit overschreven. Het log toont alleen aantallen en codes.
 import json, sys, os, datetime, urllib.request, urllib.parse
 
 URL = "https://jarbgetbwkjtxwtcfwmq.supabase.co/rest/v1/"
 KEY = "sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA"   # publieke sleutel, staat ook in wh/core.js
+
+
+EIGEN = {"invul", "spraak", "tabel", "overgezet"}
 
 
 def samenvoegen(rij, zet, nu):
@@ -14,17 +20,29 @@ def samenvoegen(rij, zet, nu):
     gezet, overgeslagen = [], []
     for item in zet:
         veld, waarde, bron, reden, verwacht = item[:5]
-        twijfel = len(item) > 5 and item[5] == "twijfel"
+        vlaggen = {x for x in item[5:] if isinstance(x, str)}
+        twijfel, park = "twijfel" in vlaggen, "park" in vlaggen
         cv = data.get(veld)
         cv = cv.get("v") if isinstance(cv, dict) else cv
         cb = (meta.get(veld) or {}).get("bron")
         leeg = cv is None or str(cv).strip() == ""
-        if verwacht is not None:
-            mag = str(cv) == str(verwacht)
+        if cb in EIGEN and not leeg:
+            mag = False   # eigen invoer van Daan: nooit overschrijven
+        elif park and waarde is None:
+            mag = True    # alleen de notitie: de waarde die er staat blijft zoals hij is
+        elif verwacht is not None:
+            kand = verwacht if isinstance(verwacht, list) else [verwacht]
+            mag = any(str(cv) == str(v) for v in kand) or (leeg and (cb not in EIGEN))
         else:
             mag = leeg or cb == "auto"
         if not mag:
             overgeslagen.append(veld)
+            continue
+        if park:
+            if waarde is not None:
+                data[veld] = str(waarde)
+            meta[veld] = {"op": nu, "bron": bron, "uit": reden, "park": 1}   # besproken: telt als compleet, staat in Notities
+            gezet.append(veld)
             continue
         data[veld] = str(waarde)
         meta[veld] = {"op": nu, "bron": bron, "uit": reden}

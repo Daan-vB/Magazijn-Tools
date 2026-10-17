@@ -12,6 +12,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="bestanden.js?v=2"></script>
+<script src="wh/pdbron.js?v=1"></script>
 <style>
   :root{
     --rack-blue:#1d4ea0;
@@ -164,6 +165,7 @@ RH90x150HD	5"></textarea>
       if(!res.ok) throw new Error(res.status);
       const r = await res.json();
       catalog = r.length ? r[0].data : {};
+      if(window.PDBRON){ await PDBRON.laad(true); PDBRON.overlayCatalog(catalog); }   // schakelaar "Andere apps gebruiken productdata" (standaard uit): stuks per pallet eerst uit productdata
       indexCatalog();
       s.textContent = Object.keys(catalog).length + ' producten';
       s.className = 'sync ok';
