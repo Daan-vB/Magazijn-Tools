@@ -139,6 +139,8 @@ function norm(k, v){ try{ return X().check(k, v); }catch(e){ return null; } }
 // startwaarde van een rij (nog niets getypt): wat vastligt bij de leden, anders een voorstel
 const twVan = (c, k) => { const r = P().S.pd[c], m = r && r.meta && r.meta[k]; return m && m.tw && r.data && !leeg(r.data[k]) ? String(r.data[k]) : null; };
 function start(fk, k, cs, ctx){
+  // stuks per pallet van of naar een ribbel op maat telt niet mee voor de familie (p-ribbel-spp)
+  if(k === 'spp'){ cs = cs.filter(c => !X().ribbelMaat(c)); if(!cs.length) return { v:'', s:'open' }; }
   const sts = cs.map(c => P().staat(c, k)), ok = sts.filter(st => st.s === 'ok').map(st => st.v);
   if(ok.length){
     const m = meest(ok), alle = ok.length === cs.length && m.n === ok.length;
@@ -250,6 +252,7 @@ function plan(fk){
       const L = niv(fk, k), x = L === 'fam' ? R.fam[k] : L === 'maat' ? R.maat[maatVan(code)][k] : R.prod[code][k];
       if(x && x.s === 'fout'){ fouten.push(code + ' · ' + P().VELDEN[k].t); return; }
       const v = eff(k); if(v === '') return;
+      if(X().verworpen(code, k) || (k === 'spp' && X().ribbelMaat(code))) return;   // door Daan bewust leeg, of ribbel op maat: de familie vult dit niet in
       const st = P().staat(code, k), bron = bronVan(code, k), ke = (c.keuze[code] || {})[k];
       if(st.s === 'ok' && String(st.v) === String(v)) return;
       if(st.s === 'ok' && EIGEN.has(bron)){

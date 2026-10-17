@@ -197,8 +197,18 @@ function labelSpp(code){
   return m;
 }
 function labelNamen(code){ return [...new Set(labelRegels(code).map(g => String(g.name || '').replace(/\s+/g, ' ').trim()).filter(Boolean))]; }
+/* Verworpen = geen voorstel (Daan 17-10, aanname p-verworpen): een veld dat leeg staat met meta-bron `daan` heeft Daan bewust leeggemaakt
+   (de 100 per pallet van de ribbel, de mixgroep van de pennen). Dan geen voorstel, geen familie- of kleurgenootwaarde, geen overzetten uit
+   palletlabels en niets voorgevuld; het veld telt wel als open zolang het nodig is. Typt Daan er later zelf iets in, dan is het niet meer verworpen. */
+function verworpen(code, k){
+  const r = S.pd[code], m = r && r.meta && r.meta[k];
+  return !!(m && m.bron === 'daan' && !m.park && (!r.data || leeg(r.data[k])));
+}
+// ribbel 40 en 50 cm op maat: eigen pallet-indeling per lengte, geen stuks per pallet van of naar andere producten (aanname p-ribbel-spp)
+const ribbelMaat = c => /^MR65SX2\.7-0\.[45](-\d+)?$/i.test(c);
 function oudeWaarde(code, k){
   if(S.toets && S.toets.code === code && S.toets.k === k) return null;
+  if(verworpen(code, k)) return null;
   const g = geh1(code), p = D.P[code] || {}, a = D.AANVUL[code], lr = labelRegels(code);
   switch(k){
     case 'spp': { const m = labelSpp(code), ks = [...m.keys()]; if(!ks.length) return null; if(ks.length > 1) return { conflict:ks.map(v => ({ v, waar:m.get(v) })), bron:'palletlabels' }; return { v:ks[0], bron:'palletlabels' }; }
@@ -373,6 +383,7 @@ function uit(r, v, bron, extra){
   return Object.assign({ v:String(v), bron:bron + (k && k[1] ? ' · klopte bij ' + Math.round(p * 100) + '% van ' + k[1] + ' getoetst' : ''), r, p, z:p === null ? 'mid' : p >= ZEKER ? 'hoog' : 'laag' }, extra || {});
 }
 function vanGenoten(lijst, k, bron, r){
+  if(k === 'spp') lijst = lijst.filter(x => !ribbelMaat(x));   // stuks per pallet van een ribbel op maat gaat nooit naar een ander product (p-ribbel-spp)
   const vals = {};
   lijst.forEach(x => { const st = staat(x, k); if(st.s !== 'open' && !NVT(st.v)) (vals[st.v] = vals[st.v] || []).push(x); });
   const best = Object.entries(vals).sort((a, b) => b[1].length - a[1].length)[0];
@@ -482,6 +493,8 @@ function voorstel(code, k, w){
   const p = D.P[code] || {}, x = S.extra[code] || {}, eh = eenheid(code), kg = kleurgenoten(code);
   // SAM Europe (aanname p-sam): alleen picklocatie en aanvulniveau; nooit iets schatten of overnemen van of naar andere artikelen
   if(isSam(code) && !SAM_VELDEN.includes(k)) return null;
+  // door Daan bewust leeggemaakt (aanname p-verworpen): geen voorstel, ook niet van kleurgenoten of de familie
+  if(verworpen(code, k)) return null;
   // alles op pick, geen bulk (aanname p-pick): geen aanvulniveau voorstellen
   if((k === 'lvl' || k === 'maxpick') && (soortVan(code) === 'pick' || alleenPick(code))) return null;
   const oud = oudeWaarde(code, k);
@@ -491,8 +504,9 @@ function voorstel(code, k, w){
   }
   if(oud && !LEEGWAARDE(oud.v) && pdWaarde(code, k) === null) return { v:oud.v, bron:'stond al in ' + oud.bron, z:'hoog', r:'oud', p:1 };
   if(wachtOpLevering(code)) return wachtVoorstel(code, k);   // zonder voorraad alleen wat de pakbon zegt
-  const genoot = kg.length ? vanGenoten(kg, k, 'zelfde als', k + ':genoot') : null;
-  const fam = () => vanGenoten(famLeden(code).filter(c => !kg.includes(c)), k, 'familie:', k + ':fam');
+  const rib = k === 'spp' && ribbelMaat(code);   // ribbel op maat: geen "zelfde als" voor stuks per pallet (aanname p-ribbel-spp)
+  const genoot = kg.length && !rib ? vanGenoten(kg, k, 'zelfde als', k + ':genoot') : null;
+  const fam = () => rib ? null : vanGenoten(famLeden(code).filter(c => !kg.includes(c)), k, 'familie:', k + ':fam');
   switch(k){
     case 'spp': {
       if(zelfGebouwd(code)){ const z = zelfbouwSpp(code); if(z) return z; }
@@ -571,6 +585,8 @@ function voorstel(code, k, w){
       if(genoot) return genoot;
       const r = pbRegels(code).find(r => r.palletmaat || r.maat);
       if(r) return uit('maat:pakbon', String(r.palletmaat || r.maat), 'pakbon');
+      // de bevestigde maatregels (whiteboard, ringmat, trap, stoel, tegel, rol) gaan voor een familievoorstel (Daan 17-10, aanname p-maatvolgorde)
+      if(!NVT(w('spp'))){ const RR = maatRegel(code, true); if(RR) return uit('maat:regel', RR.maat, RR.why); }
       const f = fam(); if(f) return f;
       const L = num(x.lengte_product_cm), B = num(x.breedte_product_cm);
       if(L >= 60 && B >= 60){ const m = opslagMaat(L, B); if(m) return uit('maat:afm', m, 'productmaat ' + nf(L) + '×' + nf(B) + ' cm (Picqer)'); }
@@ -588,6 +604,7 @@ function voorstel(code, k, w){
         const PL = +m[1], PB = +m[2], per = Math.max(Math.floor(PL / L) * Math.floor(PB / B), Math.floor(PL / B) * Math.floor(PB / L), 1), lagen = Math.ceil(spp / per);
         return uit('hoogte:afm', Math.round(lagen * H + 15), 'Picqer-afmetingen: ' + per + ' per laag, ' + lagen + ' lagen × ' + nf(H) + ' cm + 15 cm pallet');
       }
+      if(!NVT(w('spp'))){ const RR = maatRegel(code, true); if(RR) return uit('hoogte:regel', RR.h, RR.why + ' (hoogte incl. pallet)'); }   // zelfde volgorde als de palletmaat
       const f = fam(); if(f) return f;
       if(NVT(w('spp'))) return null;
       const R = maatRegel(code); return uit('hoogte:regel', R.h, R.why + ' (hoogte incl. pallet)');
@@ -691,7 +708,7 @@ function maatUitNaam(code){
 }
 const breedteUitNaam = code => { const n = String((D.P[code] || {}).naam || ''); const m = n.match(/(\d{2,3})\s*cm\s*(breed|br\b)/i) || n.match(/breed(?:te)?\s*(\d{2,3})/i) || n.match(/\b(\d{2,3})\s*cm\b/i); return m ? +m[1] : null; };
 // midden-product = Picqer-tag "Batch midden" (isMidden, verderop). De vaste maat 80x120x160 voor midden vervalt (Daan 17-10): de hoogte hangt af van hal en ligger, dus geen vaste schatting.
-function maatRegel(code){
+function maatRegel(code, alleenRegel){
   const n = String((D.P[code] || {}).naam || '').toLowerCase(), locs = String((D.P[code] || {}).locaties_hm || '');
   const R = (maat, h, why) => ({ maat, h, why });
   // pallets (Daan 17-10, aanname p-pallets): basis losse producten 80x120x180; omdozen breder dan 80 cm = 90x120 (2 pallets op een 3-ligger, 3 op een 4-ligger);
@@ -703,16 +720,16 @@ function maatRegel(code){
     const m = maatUitNaam(code);
     if(m && m[0] <= 120 && m[1] <= 80) return R('80x120', 180, 'regel Daan: whiteboard t/m 80x120 → 80x120x180');
     const wbh = (() => { const v = window.WHAAN ? parseFloat(String(WHAAN.waarde('p-wbh')).replace(',', '.')) : NaN; return isNaN(v) ? 140 : v; })();
-    if(m){ const pm = opslagMaat(m[0], m[1], ['100x150', '120x150', '120x180', '100x200']); if(pm) return R(pm, wbh, 'regel Daan: whiteboard ' + m[0] + 'x' + m[1] + ' → kleinste van 100x150, 120x150, 120x180, 100x200 waar het in past'); }
-    if(m){ const pm = opslagMaat(m[0], m[1]); if(pm) return R(pm, wbh, 'whiteboard ' + m[0] + 'x' + m[1] + ' past op geen van de vier grote maten → kleinste opslagmaat ' + pm); }
+    if(m){ const pm = opslagMaat(m[0], m[1]); if(pm) return R(pm, wbh, 'regel Daan: whiteboard ' + m[0] + 'x' + m[1] + ' (groter dan 80x120) → kleinste opslagmaat waar het bord in past: ' + pm); }
     return R('100x150', 140, 'regel Daan: whiteboard, maat onbekend → 100x150x140');
   }
   if(/sportvloer/.test(n) && /tegel/.test(n) || /rubber/.test(n) && /tegel/.test(n) && /(^|[,|]\s*)CE/i.test(locs)) return R('110x110', 160, 'regel Daan: sportvloer tegel / rubber tegel afdeling CE → 110x110x160');
-  if(/ringmat/.test(n) && !isMidden(code)) return R('100x150', 120, 'regel Daan: rubber ringmat → 100x150x120');
+  if((/ringmat/.test(n) || (/rubber/.test(n) && /\bmet rand\b/.test(n))) && !isMidden(code)) return R('100x150', 120, 'regel Daan: rubber ringmat met rand (niet de kleine matten met midden-pick) → 100x150x120');
   if(/(rubber|sportvloer)/.test(n) && /\brol\b|rollen|per meter/.test(n)){
     const b = breedteUitNaam(code);
     if(b) return b <= 120 ? R('80x120', 140, 'regel Daan: rubber rol ' + b + ' breed (≤ 120) → 80x120x140') : b <= 160 ? R('100x150', 100, 'regel Daan: rubber rol ' + b + ' breed (120–160) → 100x150x100') : R('120x180', 100, 'regel Daan: rubber rol ' + b + ' breed (> 160) → 120x180x100');
   }
+  if(alleenRegel) return null;   // alleen de benoemde maatregels; productmaat en "al het andere" komen pas na een familievoorstel
   const m = maatUitNaam(code);
   if(m && m[0] >= 60 && m[1] >= 60 && !(m[0] <= 127 && m[1] <= 87)){ const pm = opslagMaat(m[0], m[1]); if(pm) return R(pm, 180, 'regel Daan: productmaat ' + m[0] + 'x' + m[1] + ' uit de naam → opslagmaat ' + pm); }
   return R('80x120', 180, 'regel Daan: al het andere → 80x120x180');
@@ -1311,6 +1328,7 @@ function kaartPlan(code, alle, ks, opt){
     Object.entries(eigen).forEach(([k, v]) => {
       if(!GROEP.has(k)) return;
       if(k !== 'kgst' && !nodig(g, k, fg) && !NVT(v)) return;
+      if(verworpen(g, k) || (k === 'spp' && ribbelMaat(g))) return;   // door Daan bewust leeg / ribbel op maat: niets overnemen
       const st = staat(g, k);
       if(st.s === 'ok' && st.v === v) return;
       if(st.s === 'ok' && !LEEGWAARDE(st.v)) over.push({ code:g, k, van:st.v, naar:v });
@@ -1896,7 +1914,8 @@ const WB_NIET = /marker|wisser|houder|\bkit\b|magne(et|ten)|sheets|ezel|onderste
 // outlet = losse retourstukken: geen aanvulregel
 const isOutlet = c => /outlet/i.test(c) || /outlet/i.test(naamVan(c));
 const isMidden = c => !PUR_LEER.test(c) && /batch midden/i.test(String((D.P[c] || {}).tags || ''));   // PU-leer per meter hoort bij CF rubber rollen per meter, niet bij midden (Daan 17-10)
-// ribbel 40 en 50 cm op maat (1 t/m 10 m) in de stellingkasten: concept nog in ontwikkeling, slaan we nu over (afspraak Daan 9-10-2026)
+// ribbel 40 en 50 cm op maat (1 t/m 10 m) in de stellingkasten: telt mee in de poort (Daan 17-10, aanname p-rol; afspraak 9-10 "slaan we over" vervalt).
+// Alleen de schakelaar "Later en Op maat tellen mee in de poort" (standaard aan) kan dit uitzetten.
 const isOpMaat = c => /^MR65SX2\.7-0\.[45](-\d+)?$/i.test(c) || /stellingkast/i.test(String((D.P[c] || {}).locaties_hm || ''));
 const isLater = c => isMidden(c) || isOpMaat(c);
 // alleen pick: ligt op één picklocatie, nooit bulk/VST/pallets (bv. CONRRM). Zelf gekozen (opslag = pick) of afgeleid uit de data
@@ -3524,6 +3543,6 @@ function notities(){
   Object.keys(S.pd).forEach(code => { const m = (S.pd[code] && S.pd[code].meta) || {}; if(!D.P[code]) return; Object.keys(m).forEach(k => { if(m[k] && m[k].park){ const t = m[k].uit || ''; (g[t] = g[t] || []).push({ code, k }); } }); });
   return Object.entries(g).map(([tekst, items]) => ({ tekst, items, codes:[...new Set(items.map(i => i.code))] })).sort((a, b) => b.codes.length - a.codes.length);
 }
-const intern = { isSam, heeftPark, parkMeta, wachtOpLevering, zelfGebouwd, mvPatroon, mvSoort, kokosDoos, levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
-return { view, viewOpen, openData, herlaad, laad, zetLaterMee, notities, regelLijst, regelFout, wachtOpLevering, isSam, heeftPark, appsZelftest, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
+const intern = { verworpen, ribbelMaat, isSam, heeftPark, parkMeta, wachtOpLevering, zelfGebouwd, mvPatroon, mvSoort, kokosDoos, levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
+return { view, viewOpen, openData, herlaad, laad, zetLaterMee, notities, regelLijst, regelFout, verworpen, ribbelMaat, wachtOpLevering, isSam, heeftPark, appsZelftest, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();
