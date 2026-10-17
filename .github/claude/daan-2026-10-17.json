@@ -1,0 +1,3807 @@
+{
+ "naam": "Daan 17-10: besluiten uit de controlesessie (schattingen)",
+ "datum": "2026-10-17",
+ "regels": [
+  {
+   "code": "single-mounting-pin",
+   "zet": [
+    [
+     "mixgroep",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "GREEN TYRE · korte"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "SSRTEARHR",
+   "zet": [
+    [
+     "maat",
+     "100x150",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "spd",
+     "5",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "nvt"
+     ]
+    ],
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "lvl",
+     "15",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "15"
+     ]
+    ],
+    [
+     "maxpick",
+     "31",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "maxlig",
+     "1",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 2 plaatsen per pallet = 1 pallet per ligger",
+     [
+      "3"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "RGM1",
+   "zet": [
+    [
+     "maat",
+     "100x150",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "spd",
+     "5",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "nvt"
+     ]
+    ],
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "lvl",
+     "11",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "11"
+     ]
+    ],
+    [
+     "maxpick",
+     "26",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "maxlig",
+     "1",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 2 plaatsen per pallet = 1 pallet per ligger",
+     [
+      "2"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "RH40x60",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "1",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "spd",
+     "nvt",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "HN3188-black",
+   "zet": [
+    [
+     "opslag",
+     "pick",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "22"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "222"
+     ]
+    ],
+    [
+     "geleverd",
+     "wisselt",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "wisselt"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "holder-black-flat",
+   "zet": [
+    [
+     "opslag",
+     "pick",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "16"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "179"
+     ]
+    ],
+    [
+     "geleverd",
+     "wisselt",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "wisselt"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "holder-black-square",
+   "zet": [
+    [
+     "opslag",
+     "pick",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "5"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "45"
+     ]
+    ],
+    [
+     "geleverd",
+     "wisselt",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "wisselt"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "HL-S1009-Bla",
+   "zet": [
+    [
+     "spd",
+     "5",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "5"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4",
+   "zet": [
+    [
+     "lvl",
+     "5",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "5"
+     ]
+    ],
+    [
+     "maxpick",
+     "20",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "20"
+     ]
+    ],
+    [
+     "vn",
+     "Ribbel 40cm lengte 1 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "Rubbermat op rol - Fijne ribbel - Dikte 3mm - Breedte 40cm - Lengte 1m"
+     ]
+    ],
+    [
+     "kgst",
+     "1.1",
+     "daan",
+     "Daan 17-10 (oefening): 1.1 kg per meter × 1 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "rh50x80",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "spp",
+     "100",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "spd",
+     "nvt",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "lvl",
+     "4",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2",
+      "4"
+     ]
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "rh50x100",
+   "zet": [
+    [
+     "maat",
+     "100x150",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "spp",
+     "125",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "plaatsen",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "spd",
+     "nvt",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "lvl",
+     "5",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2",
+      "5"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "RH40x60-CLOSED",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "100x150"
+     ]
+    ],
+    [
+     "spd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "59"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "715"
+     ]
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "2"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "RH100x200-16",
+   "zet": [
+    [
+     "spp",
+     "100",
+     "daan",
+     "Daan 17-10 (oefening), pakbon container NL-301",
+     null
+    ],
+    [
+     "gewicht",
+     "1270",
+     "daan",
+     "Daan 17-10 (oefening), pakbon container NL-301",
+     null
+    ],
+    [
+     "maat",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "spd",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "pick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "ja",
+      "nee"
+     ]
+    ],
+    [
+     "met",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "deel"
+     ]
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2",
+      "1"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ],
+    [
+     "plaatsen",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "1711-black-set",
+   "zet": [
+    [
+     "spd",
+     "100",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "geleverd",
+     "100",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "100"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "1711-white-set",
+   "zet": [
+    [
+     "spd",
+     "100",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "geleverd",
+     "100",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "100"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "1711-blue-set",
+   "zet": [
+    [
+     "spd",
+     "100",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "geleverd",
+     "100",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "100"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "IWW01",
+   "zet": [
+    [
+     "geleverd",
+     "wisselt",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "wisselt"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "14016.400",
+   "zet": [
+    [
+     "spd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "geleverd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "wisselt"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "14016.401",
+   "zet": [
+    [
+     "spd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "geleverd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "wisselt"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "WBSKB000001",
+   "zet": [
+    [
+     "geleverd",
+     "",
+     "daan",
+     "Daan 17-10 (oefening), SAM Europe: alleen picklocatie, bulklocaties en aanvulniveau",
+     [
+      "wisselt"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "WBCLS000200",
+   "zet": [
+    [
+     "geleverd",
+     "",
+     "daan",
+     "Daan 17-10 (oefening), SAM Europe: alleen picklocatie, bulklocaties en aanvulniveau",
+     [
+      "wisselt"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "WBCLS000100",
+   "zet": [
+    [
+     "geleverd",
+     "",
+     "daan",
+     "Daan 17-10 (oefening), SAM Europe: alleen picklocatie, bulklocaties en aanvulniveau",
+     [
+      "wisselt"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "WBERB000005",
+   "zet": [
+    [
+     "geleverd",
+     "",
+     "daan",
+     "Daan 17-10 (oefening), SAM Europe: alleen picklocatie, bulklocaties en aanvulniveau",
+     [
+      "50"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "WBMPH000000",
+   "zet": [
+    [
+     "geleverd",
+     "",
+     "daan",
+     "Daan 17-10 (oefening), SAM Europe: alleen picklocatie, bulklocaties en aanvulniveau",
+     [
+      "wisselt"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "ZJ-007",
+   "zet": [
+    [
+     "lvl",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele omdozen",
+     null
+    ],
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening) (basis)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "180",
+     "daan",
+     "Daan 17-10 (oefening) (basis)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ],
+    [
+     "spd",
+     "8",
+     "daan",
+     "Daan 17-10 (oefening): 8 per omdoos",
+     [
+      "nvt"
+     ]
+    ],
+    [
+     "spp",
+     null,
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     null,
+     "park"
+    ],
+    [
+     "maxpick",
+     null,
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     null,
+     "park"
+    ]
+   ]
+  },
+  {
+   "code": "ZJ-017",
+   "zet": [
+    [
+     "lvl",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele omdozen",
+     null
+    ],
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening) (basis)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "180",
+     "daan",
+     "Daan 17-10 (oefening) (basis)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ],
+    [
+     "spd",
+     "",
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     [
+      "nvt"
+     ],
+     "park"
+    ],
+    [
+     "spp",
+     null,
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     null,
+     "park"
+    ],
+    [
+     "maxpick",
+     null,
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     null,
+     "park"
+    ]
+   ]
+  },
+  {
+   "code": "VD-ZJ-201",
+   "zet": [
+    [
+     "lvl",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele omdozen",
+     null
+    ],
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening) (basis)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "180",
+     "daan",
+     "Daan 17-10 (oefening) (basis)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ],
+    [
+     "spd",
+     "",
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     [
+      "nvt"
+     ],
+     "park"
+    ],
+    [
+     "spp",
+     null,
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     null,
+     "park"
+    ],
+    [
+     "maxpick",
+     null,
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     null,
+     "park"
+    ]
+   ]
+  },
+  {
+   "code": "VD-CJ-202",
+   "zet": [
+    [
+     "lvl",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ],
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele omdozen",
+     null
+    ],
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening) (basis)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "180",
+     "daan",
+     "Daan 17-10 (oefening) (basis)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ],
+    [
+     "spd",
+     "",
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     [
+      "nvt"
+     ],
+     "park"
+    ],
+    [
+     "spp",
+     null,
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     null,
+     "park"
+    ],
+    [
+     "maxpick",
+     null,
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     null,
+     "park"
+    ]
+   ]
+  },
+  {
+   "code": "VD-HX-E04-B",
+   "zet": [
+    [
+     "lvl",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele omdozen",
+     null
+    ],
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening) (basis)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "180",
+     "daan",
+     "Daan 17-10 (oefening) (basis)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ],
+    [
+     "spd",
+     "",
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     [
+      "nvt"
+     ],
+     "park"
+    ],
+    [
+     "spp",
+     null,
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     null,
+     "park"
+    ],
+    [
+     "maxpick",
+     null,
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     null,
+     "park"
+    ]
+   ]
+  },
+  {
+   "code": "CJ-001",
+   "zet": [
+    [
+     "lvl",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele omdozen",
+     null
+    ],
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening) (basis)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "180",
+     "daan",
+     "Daan 17-10 (oefening) (basis)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ],
+    [
+     "spd",
+     "",
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     [
+      "nvt"
+     ],
+     "park"
+    ],
+    [
+     "spp",
+     null,
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     null,
+     "park"
+    ],
+    [
+     "maxpick",
+     null,
+     "daan",
+     "Invulsheet wandrekken, besproken 17-10; huidige max op pick blijft tot de sheet terug is",
+     null,
+     "park"
+    ]
+   ]
+  },
+  {
+   "code": "368-1-441-001",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "spp",
+     "200",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "spd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening): 10 per bundel in plastic",
+     [
+      "nvt"
+     ]
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele bundels/dozen",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ],
+    [
+     "lvl",
+     "5",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen bevestigd",
+     [
+      "5"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "368-1-402-302",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "spp",
+     "200",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "spd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening): 10 per bundel in plastic",
+     [
+      "nvt"
+     ]
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele bundels/dozen",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "AK2017(26)-50x80",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "hoogte",
+     "120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "spp",
+     "100",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "spd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening): 10 per bundel in plastic",
+     [
+      "nvt"
+     ]
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele bundels/dozen",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     null
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     null
+    ],
+    [
+     "lvl",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen bevestigd",
+     [
+      "2"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "BTMSD4080",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "spp",
+     "300",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "spd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening): 10 per bundel in plastic",
+     [
+      "nvt"
+     ]
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele bundels/dozen",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ],
+    [
+     "lvl",
+     "7",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen bevestigd",
+     [
+      "7"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "RPM60100",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "spp",
+     "110",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "110"
+     ]
+    ],
+    [
+     "spd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening): 10 per bundel in plastic",
+     [
+      "nvt"
+     ]
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele bundels/dozen",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ],
+    [
+     "lvl",
+     "3",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen bevestigd",
+     [
+      "3"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "KJCRB711",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "spp",
+     "68",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "68"
+     ]
+    ],
+    [
+     "spd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening): 10 per bundel in plastic",
+     [
+      "nvt"
+     ]
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele bundels/dozen",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "KJCRB705",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "spp",
+     "60",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "60"
+     ]
+    ],
+    [
+     "spd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening): 10 per bundel in plastic",
+     [
+      "nvt"
+     ]
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele bundels/dozen",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "BWM61x91",
+   "zet": [
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "spp",
+     "78",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "78"
+     ]
+    ],
+    [
+     "spd",
+     "5",
+     "daan",
+     "Daan 17-10 (oefening): Weave 5 per doos",
+     [
+      "nvt"
+     ]
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met hele bundels/dozen",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "auto",
+     "Regel Daan: plaats = 90 cm, 80x120 = 1 plaats",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ],
+    [
+     "lvl",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen bevestigd",
+     [
+      "2"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "2031",
+   "zet": [
+    [
+     "maat",
+     "100x150",
+     "daan",
+     "Daan 17-10 (oefening): 4 treden",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "spp",
+     "50",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "50"
+     ]
+    ],
+    [
+     "hoogte",
+     "180",
+     "claude",
+     "Schatting Claude: basis 80x120x180; hoogte niet door Daan genoemd",
+     [
+      "120"
+     ],
+     "twijfel"
+    ],
+    [
+     "maxlig",
+     "1",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 2 plaatsen per pallet = 1 pallet per ligger",
+     [
+      "3"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "2031-BLK",
+   "zet": [
+    [
+     "maat",
+     "100x150",
+     "daan",
+     "Daan 17-10 (oefening): 4 treden",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "spp",
+     "50",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "50"
+     ]
+    ],
+    [
+     "hoogte",
+     "180",
+     "claude",
+     "Schatting Claude: basis 80x120x180; hoogte niet door Daan genoemd",
+     [
+      "120"
+     ],
+     "twijfel"
+    ],
+    [
+     "maxlig",
+     "1",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 2 plaatsen per pallet = 1 pallet per ligger",
+     [
+      "3"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "thansen-40790",
+   "zet": [
+    [
+     "spp",
+     "56",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "180",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "1",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "C4001",
+   "zet": [
+    [
+     "spp",
+     "50",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "180",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "1",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ],
+    [
+     "lvl",
+     "2",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen bevestigd",
+     [
+      "2"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "D76-GREY",
+   "zet": [
+    [
+     "spp",
+     "100",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "180",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "1",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxlig",
+     "3",
+     "auto",
+     "Regel Daan: ligger van 3 plaatsen, max 2000 kg: 1 plaats per pallet = 3 pallets per ligger",
+     [
+      "3"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "LT805",
+   "zet": [
+    [
+     "spd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "geleverd",
+     "10",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "wisselt"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "SWH01",
+   "zet": [
+    [
+     "spd",
+     "50",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "geleverd",
+     "50",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "9030-1",
+   "zet": [
+    [
+     "lvl",
+     "6",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen bevestigd",
+     [
+      "6"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "design-200-black",
+   "zet": [
+    [
+     "opslag",
+     "pick",
+     "daan",
+     "Daan 17-10 (oefening): alles op pick, geen bulk",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "11"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "design-250-black",
+   "zet": [
+    [
+     "opslag",
+     "pick",
+     "daan",
+     "Daan 17-10 (oefening): alles op pick, geen bulk",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "6"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "TRLBLACK-350",
+   "zet": [
+    [
+     "opslag",
+     "pick",
+     "daan",
+     "Daan 17-10 (oefening): alles op pick, geen bulk",
+     null
+    ],
+    [
+     "pick",
+     "ja",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "9"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "42x21x100ALU",
+   "zet": [
+    [
+     "spd",
+     "15",
+     "daan",
+     "Daan 17-10 (oefening): per bundel 15",
+     null
+    ],
+    [
+     "met",
+     "deel",
+     "daan",
+     "Daan 17-10 (oefening): aanvullen met bundels van 15; bulk = 00-locaties AF18",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "PUR-R-BLA",
+   "zet": [
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "10"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "PUR-R-GRY",
+   "zet": [
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "10"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "PUR-R-WHI",
+   "zet": [
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "10"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-2",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 40cm lengte 2 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "kgst",
+     "2.2",
+     "daan",
+     "Daan 17-10 (oefening): 1.1 kg per meter × 2 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-3",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 40cm lengte 3 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "Rubbermat op rol - Fijne ribbel - Dikte 3mm - Breedte 40cm - Lengte 3m"
+     ]
+    ],
+    [
+     "kgst",
+     "3.3",
+     "daan",
+     "Daan 17-10 (oefening): 1.1 kg per meter × 3 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-4",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 40cm lengte 4 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "Rubbermat op rol - Fijne ribbel - Dikte 3mm - Breedte 40cm - Lengte 4m"
+     ]
+    ],
+    [
+     "kgst",
+     "4.4",
+     "daan",
+     "Daan 17-10 (oefening): 1.1 kg per meter × 4 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-5",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 40cm lengte 5 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "Rubbermat op rol - Fijne ribbel - Dikte - 3mm - Breedte 40cm - Lengte 5m"
+     ]
+    ],
+    [
+     "kgst",
+     "5.5",
+     "daan",
+     "Daan 17-10 (oefening): 1.1 kg per meter × 5 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-6",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 40cm lengte 6 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "kgst",
+     "6.6",
+     "daan",
+     "Daan 17-10 (oefening): 1.1 kg per meter × 6 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "235"
+     ]
+    ],
+    [
+     "hoogte",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "90"
+     ]
+    ],
+    [
+     "maxlig",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "4"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-7",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 40cm lengte 7 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "ribbel 3mm - Breedte 40cm - Lengte 7m"
+     ]
+    ],
+    [
+     "kgst",
+     "7.7",
+     "daan",
+     "Daan 17-10 (oefening): 1.1 kg per meter × 7 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "25",
+      "100"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "268"
+     ]
+    ],
+    [
+     "hoogte",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "60"
+     ]
+    ],
+    [
+     "maxlig",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "25"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-8",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 40cm lengte 8 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "kgst",
+     "8.8",
+     "daan",
+     "Daan 17-10 (oefening): 1.1 kg per meter × 8 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "235"
+     ]
+    ],
+    [
+     "hoogte",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "90"
+     ]
+    ],
+    [
+     "maxlig",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "4"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-9",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 40cm lengte 9 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "ribbel 3mm - Breedte 40cm - Lengte 9m"
+     ]
+    ],
+    [
+     "kgst",
+     "9.9",
+     "daan",
+     "Daan 17-10 (oefening): 1.1 kg per meter × 9 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "25",
+      "100"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "268"
+     ]
+    ],
+    [
+     "hoogte",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "60"
+     ]
+    ],
+    [
+     "maxlig",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "4",
+      "25"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 50cm lengte 1 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "kgst",
+     "1.4",
+     "daan",
+     "Daan 17-10 (oefening): 1.4 kg per meter × 1 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "155"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-2",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 50cm lengte 2 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "kgst",
+     "2.8",
+     "daan",
+     "Daan 17-10 (oefening): 1.4 kg per meter × 2 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "155",
+      "295"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-3",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 50cm lengte 3 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "kgst",
+     "4.2",
+     "daan",
+     "Daan 17-10 (oefening): 1.4 kg per meter × 3 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "155",
+      "435"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-4",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 50cm lengte 4 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "kgst",
+     "5.6",
+     "daan",
+     "Daan 17-10 (oefening): 1.4 kg per meter × 4 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "155",
+      "575"
+     ]
+    ],
+    [
+     "maxlig",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "1"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-5",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 50cm lengte 5 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "Rubbermat op rol - Fijne ribbel - Dikte 3mm - Breedte 50cm - Lengte 5m"
+     ]
+    ],
+    [
+     "kgst",
+     "7",
+     "daan",
+     "Daan 17-10 (oefening): 1.4 kg per meter × 5 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "155"
+     ]
+    ],
+    [
+     "hoogte",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "90"
+     ]
+    ],
+    [
+     "maxlig",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "4"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-6",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 50cm lengte 6 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "Rubbermat op rol - Fijne ribbel - Dikte 3mm - Breedte 50cm - Lengte 6m"
+     ]
+    ],
+    [
+     "kgst",
+     "8.4",
+     "daan",
+     "Daan 17-10 (oefening): 1.4 kg per meter × 6 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "155"
+     ]
+    ],
+    [
+     "hoogte",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "90"
+     ]
+    ],
+    [
+     "maxlig",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "4"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-7",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 50cm lengte 7 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "Rubbermat op rol - Fijne ribbel - Dikte 3mm - Breedte 50cm - Lengte 7m"
+     ]
+    ],
+    [
+     "kgst",
+     "9.8",
+     "daan",
+     "Daan 17-10 (oefening): 1.4 kg per meter × 7 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "155"
+     ]
+    ],
+    [
+     "hoogte",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "90"
+     ]
+    ],
+    [
+     "maxlig",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "4"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-8",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 50cm lengte 8 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "Rubbermat op rol - Fijne ribbel - Dikte 3mm - Breedte 50cm - Lengte 8m"
+     ]
+    ],
+    [
+     "kgst",
+     "11.2",
+     "daan",
+     "Daan 17-10 (oefening): 1.4 kg per meter × 8 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "155"
+     ]
+    ],
+    [
+     "hoogte",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "90"
+     ]
+    ],
+    [
+     "maxlig",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "4"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-9",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 50cm lengte 9 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "kgst",
+     "12.6",
+     "daan",
+     "Daan 17-10 (oefening): 1.4 kg per meter × 9 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ],
+    [
+     "hoogte",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "60"
+     ]
+    ],
+    [
+     "maxlig",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "25"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-10",
+   "zet": [
+    [
+     "vn",
+     "Ribbel 50cm lengte 10 Meter",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "kgst",
+     "14",
+     "daan",
+     "Daan 17-10 (oefening): 1.4 kg per meter × 10 m",
+     null
+    ],
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): 100 per pallet vervalt",
+     [
+      "100"
+     ]
+    ],
+    [
+     "gewicht",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "155",
+      "1415"
+     ]
+    ],
+    [
+     "maxlig",
+     "",
+     "daan",
+     "Daan 17-10 (oefening): afgeleid van de vervallen 100 per pallet, dus ook leeg",
+     [
+      "1"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MM-BLK-10x120",
+   "zet": [
+    [
+     "geleverd",
+     "stuk",
+     "daan",
+     "Daan 17-10 (oefening): los geleverd in de container",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "pick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "nee"
+     ]
+    ],
+    [
+     "met",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "deel"
+     ]
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MM-BLK-4x120",
+   "zet": [
+    [
+     "geleverd",
+     "stuk",
+     "daan",
+     "Daan 17-10 (oefening): los geleverd in de container",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "pick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "nee"
+     ]
+    ],
+    [
+     "met",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "deel"
+     ]
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MM-BLUE-10x120",
+   "zet": [
+    [
+     "geleverd",
+     "stuk",
+     "daan",
+     "Daan 17-10 (oefening): los geleverd in de container",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "pick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "nee"
+     ]
+    ],
+    [
+     "met",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "deel"
+     ]
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MM-BLUE-4x120",
+   "zet": [
+    [
+     "geleverd",
+     "stuk",
+     "daan",
+     "Daan 17-10 (oefening): los geleverd in de container",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "pick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "nee"
+     ]
+    ],
+    [
+     "met",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "deel"
+     ]
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MM-GRY-10x120",
+   "zet": [
+    [
+     "geleverd",
+     "stuk",
+     "daan",
+     "Daan 17-10 (oefening): los geleverd in de container",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "pick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "nee"
+     ]
+    ],
+    [
+     "met",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "deel"
+     ]
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MM-GRY-4x120",
+   "zet": [
+    [
+     "geleverd",
+     "stuk",
+     "daan",
+     "Daan 17-10 (oefening): los geleverd in de container",
+     null
+    ],
+    [
+     "opm",
+     "Zelf gebouwde pallet: los geleverd in de container",
+     "daan",
+     "Daan 17-10 (oefening)",
+     null
+    ],
+    [
+     "pick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "nee"
+     ]
+    ],
+    [
+     "met",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "deel"
+     ]
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "BRE-60x90",
+   "zet": [
+    [
+     "pick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "nee"
+     ]
+    ],
+    [
+     "maat",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "spd",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "nvt"
+     ]
+    ],
+    [
+     "maxlig",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ],
+    [
+     "opslag",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "deel"
+     ]
+    ],
+    [
+     "met",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "deel"
+     ]
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "BRE-80x120",
+   "zet": [
+    [
+     "spp",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "100"
+     ]
+    ],
+    [
+     "pick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "nee"
+     ]
+    ],
+    [
+     "maat",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "80x120"
+     ]
+    ],
+    [
+     "hoogte",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "120"
+     ]
+    ],
+    [
+     "plaatsen",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "spd",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "nvt"
+     ]
+    ],
+    [
+     "maxlig",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ],
+    [
+     "opslag",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "deel"
+     ]
+    ],
+    [
+     "met",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "deel"
+     ]
+    ],
+    [
+     "lvl",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "1"
+     ]
+    ],
+    [
+     "maxpick",
+     "",
+     "daan",
+     "Daan 17-10 (oefening)",
+     [
+      "2"
+     ]
+    ]
+   ]
+  }
+ ]
+}
