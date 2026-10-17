@@ -17,6 +17,7 @@ const ik = () => { try{ return localStorage.getItem('ivol-ik') || 'Daan'; }catch
 const VELD = { opslag:'Soort', spp:'Stuks per pallet', pick:'Picklocatie', maxpick:'Max op pick', lvl:'Aanvullen bij', met:'Aanvullen met', geleverd:'Geleverd', mixgroep:'Mixgroep',
   maat:'Palletmaat', hoogte:'Hoogte incl. pallet (cm)', gewicht:'Gewicht volle pallet (kg)', plaatsen:'Plaatsen op ligger', vn:'Vloernaam', spd:'Stuks per doos', maxlig:'Max pallets per ligger', kgst:'Gewicht per stuk (kg)', doos:'Doosmaat', opm:'Opmerking' };
 const VOLG = Object.keys(VELD);
+const VHULP = { spd:'Stuks in één inkoopverpakking (doos, bundel of rol) zoals het binnenkomt. Bij per-cm- of per-meter-producten: cm of m per rol.', geleverd:'Wat er gewoonlijk per levering binnenkomt in totaal (meerdere dozen = meer dan 1 doos), of "wisselt".', spp:'Stuks op een volle pallet.', gewicht:'Gewicht van een volle pallet inclusief pallet.', maxpick:'Hoeveel er maximaal op de picklocatie past.', lvl:'Bij dit aantal op pick wordt aangevuld.', met:'Waarmee je aanvult: hele omdozen, pakketten of pallets.', kgst:'Gewicht van één stuk.', plaatsen:'Hoeveel ligger-plaatsen een pallet inneemt.' };
 const ABC = { A:0, B:1, C:2 };
 const naamVan = c => String((D.P[c] || {}).naam || '');
 const abcVan = c => (D.P[c] || {}).abc || '';
@@ -36,8 +37,8 @@ function stijl(){
   .x-kop .code{font-family:ui-monospace,Consolas,monospace;font-weight:800}
   .x-abc{display:inline-block;font-size:11px;font-weight:800;border-radius:4px;padding:1px 6px;background:#eef1f5;margin-left:6px}
   .x-abc.A{background:#1c7a4a;color:#fff}.x-abc.B{background:#cfe8da}
-  .x-rij{display:grid;grid-template-columns:minmax(120px,190px) minmax(90px,170px) 1fr auto;grid-template-areas:"l i w k";gap:8px;align-items:center;padding:6px 0;border-top:1px solid #eef1f5}
-  .x-rij>b{grid-area:l}.x-rij>input{grid-area:i}.x-rij>.x-why{grid-area:w}.x-rij>button{grid-area:k}
+  .x-rij{display:grid;grid-template-columns:minmax(120px,190px) minmax(90px,170px) 1fr auto;grid-template-areas:"l i w k" ". . e .";gap:8px;align-items:center;padding:6px 0;border-top:1px solid #eef1f5}
+  .x-rij>.x-ex{grid-area:e;display:flex;gap:8px;flex-wrap:wrap}.x-rij>.x-ex .x-btn{min-height:36px;font-size:13px}.x-hulp{display:block;color:#5b6573;font-size:13px;margin-bottom:2px}.x-rij.vast input{background:#fff}.x-rij>b{grid-area:l}.x-rij>input{grid-area:i}.x-rij>.x-why{grid-area:w}.x-rij>button{grid-area:k}
   .x-rij input{width:100%;min-height:44px;border:1px solid var(--lijn);border-radius:6px;padding:7px 9px;font:inherit;font-size:15px;background:#fffbea}
   .x-rij input.ok{background:#fff}
   .x-why{font-size:12.5px;color:var(--muted)}
@@ -77,7 +78,7 @@ function stijl(){
   .x-meld button{padding:14px;font-size:15px}
   .x-feit{list-style:none;display:grid;font-size:14px}.x-feit li{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #eef1f5}.x-feit li:last-child{border-bottom:0}
   .x-notitie{width:100%;min-height:110px;font:inherit;font-size:15px;padding:10px;border:1px solid var(--lijn);border-radius:8px}
-  @media (max-width:640px){ .x-rij{grid-template-columns:1fr auto;grid-template-areas:"l l" "i k" "w w";gap:6px 8px;padding:8px 0} }
+  @media (max-width:640px){ .x-rij{grid-template-columns:1fr auto;grid-template-areas:"l l" "i k" "w w" "e e";gap:6px 8px;padding:8px 0} }
   `;
   document.head.appendChild(s);
 }
@@ -168,6 +169,24 @@ function zaaiTaken(){
   return S.zaaiP;
 }
 
+function overigeVelden(x){
+  const r = (S.pd || {})[x.c]; if(!r) return [];
+  const open = new Set(x.velden.map(f => f.k));
+  return VOLG.filter(k => !open.has(k) && r.data && r.data[k] !== undefined && r.data[k] !== '' && !(r.meta && r.meta[k] && r.meta[k].park))
+    .map(k => ({ k, v:String(r.data[k]), uit:(r.meta && r.meta[k] && r.meta[k].uit) || '' }));
+}
+async function parkeer(c, k, reden){
+  const nu = new Date().toISOString();
+  const vers = await WH.api('GET', 'productdata?productcode=eq.' + encodeURIComponent(c) + '&select=productcode,data,meta');
+  const r = (vers && vers[0]) || { productcode:c, data:{}, meta:{} };
+  const data = Object.assign({}, r.data || {}), meta = Object.assign({}, r.meta || {});
+  delete data[k]; meta[k] = { op:nu, bron:'daan', park:1, uit:reden };
+  await WH.upsert('productdata', [{ productcode:c, data, meta, updated_at:nu }], 'productcode');
+  if(S.pd) S.pd[c] = { data, meta };
+  if(D.PD) D.PD[c] = data;
+  if(window.WHPD && WHPD.S && WHPD.S.pd) WHPD.S.pd[c] = { data, meta, t:nu };
+}
+
 /* ---------- Te controleren ---------- */
 function viewNakijken(){
   const tw = twLijst(), nTw = tw.reduce((s, x) => s + x.velden.length, 0);
@@ -193,7 +212,8 @@ function viewNakijken(){
       tw.slice(0, 120).map(x => `<div class="x-kaart" data-code="${esc(x.c)}">
         <div class="x-kop"><div><span class="code">${esc(x.c)}</span>${abcVan(x.c) ? `<span class="x-abc ${esc(abcVan(x.c))}">${esc(abcVan(x.c))}</span>` : ''}<div class="small muted">${esc(naamVan(x.c).slice(0, 90))}</div></div>
           <button class="x-btn ok" data-x="alles" data-code="${esc(x.c)}">Alles klopt</button></div>
-        ${x.velden.map(f => `<div class="x-rij"><b>${esc(VELD[f.k] || f.k)}</b><input data-k="${esc(f.k)}" value="${esc(f.v)}" aria-label="${esc(VELD[f.k] || f.k)}"><span class="x-why">${esc(f.uit.replace(/^Schatting Claude: /, '').replace(/^Voorstel app \((laag|mid)\): /, 'onzeker voorstel: '))}</span><button class="x-btn" data-x="een" data-code="${esc(x.c)}" data-k="${esc(f.k)}">Klopt</button></div>`).join('')}
+        ${x.velden.map(f => `<div class="x-rij"><b>${esc(VELD[f.k] || f.k)}</b><input data-open="1" data-k="${esc(f.k)}" value="${esc(f.v)}" aria-label="${esc(VELD[f.k] || f.k)}"><span class="x-why">${VHULP[f.k] ? `<span class="x-hulp">${esc(VHULP[f.k])}</span>` : ''}${esc(f.uit.replace(/^Schatting Claude: /, '').replace(/^Voorstel app \((laag|mid)\): /, 'onzeker voorstel: '))}</span><button class="x-btn" data-x="een" data-code="${esc(x.c)}" data-k="${esc(f.k)}">Klopt</button><div class="x-ex"><button class="x-btn" data-x="later" data-code="${esc(x.c)}" data-k="${esc(f.k)}">Later (bij levering)</button><button class="x-btn" data-x="overbodig" data-code="${esc(x.c)}" data-k="${esc(f.k)}">Overbodig nu</button></div></div>`).join('')}
+        ${overigeVelden(x).map(f => `<div class="x-rij vast"><b>${esc(VELD[f.k] || f.k)}</b><input data-k="${esc(f.k)}" value="${esc(f.v)}" aria-label="${esc(VELD[f.k] || f.k)}"><span class="x-why">${VHULP[f.k] ? `<span class="x-hulp">${esc(VHULP[f.k])}</span>` : ''}staat al vast${f.uit ? ' · ' + esc(f.uit.slice(0, 60)) : ''}</span><button class="x-btn" data-x="een" data-code="${esc(x.c)}" data-k="${esc(f.k)}">Opslaan</button></div>`).join('')}
       </div>`).join('') + (tw.length > 120 ? `<div class="small muted">Nog ${nf(tw.length - 120)} producten; die komen hier als je deze afrondt.</div>` : '');
   } else if(tab === 'aan'){
     const groepen = [...new Set(WHAAN.LIJST.map(a => a.groep))];
@@ -508,8 +528,13 @@ function bind(){
       if(x === 'tab'){ S.tab = b.dataset.v; herteken(); }
       else if(x === 'een' || x === 'alles'){
         const kaart = b.closest('.x-kaart'), c = b.dataset.code, w = {};
-        kaart.querySelectorAll('input[data-k]').forEach(i => { if(x === 'alles' || i.dataset.k === b.dataset.k) w[i.dataset.k] = i.value; });
+        kaart.querySelectorAll('input[data-k]').forEach(i => { if(x === 'alles' ? i.dataset.open : i.dataset.k === b.dataset.k) w[i.dataset.k] = i.value; });
         b.disabled = true; await bevestig(c, w); toast(x === 'alles' ? c + ': alles bevestigd' : c + ': ' + (VELD[b.dataset.k] || b.dataset.k) + ' bevestigd'); herteken();
+      }
+      else if(x === 'later' || x === 'overbodig'){
+        const c = b.dataset.code, k = b.dataset.k; b.disabled = true;
+        await parkeer(c, k, x === 'later' ? 'Later, bij volgende levering berekenen' : 'Nu niet nodig');
+        toast(c + ': ' + (VELD[k] || k) + ' geparkeerd'); herteken();
       }
       else if(x === 'aanok'){ const rij = b.closest('[data-aan]'); b.disabled = true; await WHAAN.zet(b.dataset.id, rij.querySelector('input').value.trim()); herteken(); }
       else if(x === 'aanterug'){ await WHAAN.terug(b.dataset.id); herteken(); }
