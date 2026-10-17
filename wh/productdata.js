@@ -1582,7 +1582,7 @@ function poortKaart(){
   return `<a class="card" href="#/productdata/poort" style="display:block;text-decoration:none;color:inherit;border-left:4px solid ${p.groen ? 'var(--ok)' : 'var(--orange)'}">
     <div class="row between wrap"><div><h3>Poort 0.4 · ${p.groen ? 'groen' : n + ' van ' + p.items.length + ' groen'}</h3>
     <div class="small muted mt4">${nf(p.bel.length)} belangrijke producten (A, B en wat binnenkomt). Pas als alles groen is, ga je in je bouwplan verder.</div></div>
-    <span class="btn ${p.groen ? 'ok' : 'acc'}">${p.groen ? 'Poortcode bekijken' : 'Bekijk wat nog moet'} →</span></div></a>`;
+    <span class="btn ${p.groen ? 'ok' : 'acc'}">${p.groen ? 'Poortcode bekijken' : 'Bekijk wat nog moet'} →</span></div></a>` + (window.WHHIST ? WHHIST.kaart() : '');
 }
 function viewPoort(){
   const p = poort(), sp = p.sp;

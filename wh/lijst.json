@@ -30,6 +30,7 @@
   "wh/taak.js",
   "wh/aannames.js",
   "wh/ivol-x.js",
+  "wh/historie.js",
   "wh/kennisbank-vragen.js",
   "wh/kennisbank.js",
   "wh/ivol.js"
@@ -64,6 +65,7 @@
   "wh/testbron.js",
   "wh/aanvullive.js",
   "wh/productdata.js",
+  "wh/historie.js",
   "wh/aannames.js",
   "wh/pdfamilie.js",
   "wh/demo.js",
