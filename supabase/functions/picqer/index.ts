@@ -21,6 +21,8 @@
 //    mutaties    ?sinds=…   → welke producten sinds dat moment een voorraadmutatie hadden (Hoofdmagazijn)
 //    verplaatsingen ?sinds=… → alle verplaatsingen tussen locaties sinds dat moment, met locatie-, product- en gebruikersnamen
 //                              (zelfde inhoud als het bestand van "Verplaatsingen ophalen" op de Mac)
+//    historielicht ?sinds=…&tot=…&paginas=N → alleen verplaatsingen (location-stock-history, max. 10 pagina's van 100), zonder opzoekingen
+//    idindex     ?soort=producten|locaties|gebruikers&offset=0&paginas=N → [id, code/naam], max. 10 pagina's per aanroep
 // =====================================================================
 
 const DOMEIN = (Deno.env.get("PICQER_DOMAIN") || "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -436,6 +438,86 @@ async function niveaus(idsTxt: string) {
   return { opgehaald: new Date().toISOString(), lijst };
 }
 
+// ---------- lichte leesacties voor de geschiedenis (geen opzoekingen per product/locatie/gebruiker) ----------
+// Eigen aanvraagfunctie met een tijdsbudget: nooit langer dan ~100 s wachten, daarna een nette fout in plaats van een time-out (504).
+const LICHT_BUDGET_MS = 100_000;
+async function pqLicht(pad: string, tot: number): Promise<any> {
+  for (let poging = 1; ; poging++) {
+    let r: Response;
+    try {
+      r = await fetch(BASIS + "/" + pad, {
+        method: "GET",
+        headers: { "Authorization": "Basic " + btoa(SLEUTEL + ":"), "Accept": "application/json", "User-Agent": UA },
+      });
+    } catch (_e) {
+      if (poging < 3 && Date.now() + 2000 < tot) { await wacht(1000 * poging); continue; }
+      throw new Fout("Picqer niet bereikbaar (" + pad.split("?")[0] + ")");
+    }
+    if (r.status === 429 || r.status >= 500) {
+      const sec = r.status === 429 ? Math.min(20, Number(r.headers.get("Retry-After")) || 5) : 2 * poging;
+      if (poging < 4 && Date.now() + sec * 1000 < tot) { await wacht(sec * 1000); continue; }
+      throw new Fout(r.status === 429 ? "Picqer gaf status 429 op " + pad.split("?")[0] + ": Rate limit exceeded (probeer later opnieuw)" : "Picqer gaf status " + r.status + " op " + pad.split("?")[0], r.status === 429 ? 429 : 502);
+    }
+    const t = await r.text();
+    if (r.status === 401 || r.status === 403) throw new Fout("Picqer weigert de API-sleutel (status " + r.status + ")", 502);
+    if (!r.ok) throw new Fout("Picqer gaf status " + r.status + " op " + pad.split("?")[0]);
+    try { return JSON.parse(t); } catch (_e) { throw new Fout("Picqer gaf geen geldige gegevens (" + pad.split("?")[0] + ")"); }
+  }
+}
+const MOMENT = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/;
+const volMoment = (t: string) => { const x = t.replace("T", " "); return x.length === 16 ? x + ":00" : x; };
+const aantalPaginas = (txt: string | null, standaard: number) => Math.max(1, Math.min(10, parseInt(txt || "", 10) || standaard));
+
+async function historieLicht(sindsTxt: string, totTxt: string, paginasTxt: string | null) {
+  if (!MOMENT.test(sindsTxt || "")) throw new Fout("Ongeldig moment (sinds)", 400);
+  if (!MOMENT.test(totTxt || "")) throw new Fout("Ongeldig moment (tot)", 400);
+  const sinds = volMoment(sindsTxt), tot = volMoment(totTxt), n = aantalPaginas(paginasTxt, 8);
+  const einde = Date.now() + LICHT_BUDGET_MS;
+  const rijen: any[] = [];
+  let laatste = "", klaar = false;
+  for (let p = 0; p < n && !klaar; p++) {
+    const pagina = await pqLicht("location-stock-history?sincedate=" + encodeURIComponent(sinds) + "&offset=" + (p * 100), einde);
+    if (!Array.isArray(pagina) || !pagina.length) { klaar = true; break; }
+    const eerste = String(pagina[0].changed_at || ""), laatsteRij = String(pagina[pagina.length - 1].changed_at || "");
+    if (eerste && laatsteRij && eerste > laatsteRij) throw new Fout("Picqer geeft de geschiedenis aflopend; venster niet te gebruiken", 502);
+    for (const h of pagina) {
+      const t = String(h.changed_at || "");
+      if (t && t >= tot) { klaar = true; break; }
+      if (t) laatste = t;
+      if (h.change_type === "movement") rijen.push({
+        idproduct_location_stock_history: h.idproduct_location_stock_history, change_type: h.change_type, stock_change: h.stock_change,
+        idlocation: h.idlocation, contra_idlocation: h.contra_idlocation, idproduct: h.idproduct, iduser: h.iduser, changed_at: h.changed_at,
+      });
+    }
+    if (pagina.length < 100) klaar = true;
+  }
+  return { bron: "picqer-historielicht", versie: 1, sinds, tot, opgehaald: new Date().toISOString(), historie: rijen, laatste: laatste || null, vol: !klaar };
+}
+
+// id → code/naam, een paar pagina's per aanroep (de app vraagt door tot volgende = null)
+async function idIndex(soort: string, offsetTxt: string, paginasTxt: string | null) {
+  const pad: Record<string, string> = { producten: "products", locaties: "locations", gebruikers: "users" };
+  if (!pad[soort]) throw new Fout("Onbekende soort: " + soort, 400);
+  const offset = Math.max(0, parseInt(offsetTxt || "0", 10) || 0);
+  const n = aantalPaginas(paginasTxt, 10);
+  const einde = Date.now() + LICHT_BUDGET_MS;
+  const lijst: unknown[] = [];
+  let volgende: number | null = offset;
+  for (let p = 0; p < n; p++) {
+    const off = offset + p * 100;
+    const pagina = await pqLicht(pad[soort] + "?offset=" + off, einde);
+    const rij = Array.isArray(pagina) ? pagina : [];
+    rij.forEach((x: any) => {
+      if (soort === "producten") lijst.push([x.idproduct, x.productcode || ""]);
+      else if (soort === "locaties") lijst.push([x.idlocation, x.name || ""]);
+      else lijst.push([x.iduser, ((x.firstname || x.first_name || "") + " " + (x.lastname || x.last_name || "")).trim() || x.username || ""]);
+    });
+    volgende = rij.length < 100 ? null : off + 100;
+    if (volgende === null) break;
+  }
+  return { soort, offset, volgende, lijst };
+}
+
 // ---------- ingang ----------
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
@@ -461,6 +543,8 @@ Deno.serve(async (req: Request) => {
     if (actie === "keten") return antwoord(await keten(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "ontvangstenlijst") return antwoord(await ontvangstenLijst(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "verplaatsingen") return antwoord(await verplaatsingen(url.searchParams.get("sinds") || ""), 200, origin);
+    if (actie === "historielicht") return antwoord(await historieLicht(url.searchParams.get("sinds") || "", url.searchParams.get("tot") || "", url.searchParams.get("paginas")), 200, origin);
+    if (actie === "idindex") return antwoord(await idIndex(url.searchParams.get("soort") || "", url.searchParams.get("offset") || "0", url.searchParams.get("paginas")), 200, origin);
     if (actie === "mutaties") return antwoord(await mutaties(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "locatielijst") return antwoord(await locatielijst(url.searchParams.get("van") || "0"), 200, origin);
     if (actie === "niveaus") return antwoord(await niveaus(url.searchParams.get("ids") || ""), 200, origin);

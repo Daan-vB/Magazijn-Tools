@@ -2,19 +2,19 @@
    IVOL Warehouse 3.0 — Picqer-geschiedenis ophalen (17-10-2026, alleen lezen)
    Haalt verplaatsingen (vanaf 2025-01-01) en ontvangsten op via de bestaande functie "picqer" (WHLIVE.vraag, koppelcode zoals Vandaag)
    en bewaart ze compact per kwartaal in nieuwe catalog-rijen. Geen enkel scherm laadt deze rijen; alleen de export leest ze.
-     wh-vp-hist-2025q1 …  { v, kw, rows:[[id, tijd, iduser, idproduct, aantal, van-idlocation, naar-idlocation, idwarehouse]], p:{idproduct:code}, l:{idlocation:naam}, u:{iduser:naam} }
-                          (van/naar 0 = geen specifieke locatie)
+     wh-hist-index        { p:{idproduct:code}, l:{idlocation:naam}, u:{iduser:naam} }   (eenmalig, via actie idindex)
+     wh-vp-hist-2025q1 …  { v, kw, rows:[[id, tijd, iduser, idproduct, aantal, van-idlocation, naar-idlocation, 0]] }   (van/naar 0 = geen specifieke locatie; namen via wh-hist-index)
      wh-ont-hist-2025q1 … { v, kw, rows:[[id, nummer, inkooporder, status, aangemaakt, klaar, wie, [[code, aantal], …]]] }
-     wh-hist-voortgang    { vp:{ cursor, vensters:[[van, tot, regels, vol]], klaar, op }, ont:{ n, op } }   (hervatten)
-   De functie heeft geen eindtijd: elke vraag geeft de eerste 6000 regels vanaf "sinds". Is het antwoord vol, dan telt alleen wat zeker
-   compleet is en begint het volgende venster op het laatste moment (het venster is dan zo klein als nodig).
+     wh-hist-voortgang    { idx:{soort:{offset, klaar}}, vp:{ cursor, tot, vensters:[[van, tot, regels, vol]], klaar, op }, ont:{ n, op } }   (hervatten)
+   Verplaatsingen: actie historielicht in vensters van 1 dag (max. 8 pagina's per vraag). Is het antwoord vol (pagina-limiet), dan telt alleen wat zeker
+   compleet is en het venster gaat verder vanaf het laatste moment.
    ===================================================================== */
 window.WHHIST = (function(){
 'use strict';
 const { $, esc, nf, toast } = WH;
 const START = '2025-01-01 00:00:00';
 const PAUZE = 20, FOUT_WACHT = 90, POGINGEN = 12, RONDE_WACHT = 600, DRIE_DAGEN = 3 * 864e5;   // seconden
-const VOORTGANG = 'wh-hist-voortgang';
+const VOORTGANG = 'wh-hist-voortgang', INDEX = 'wh-hist-index';
 const S = { diag:'', eta:'', bezig:false, pct:0, tekst:'', fout:'', klaar:'', stop:false };
 
 const wacht = ms => new Promise(r => setTimeout(r, ms));
@@ -94,34 +94,59 @@ async function bewaarKwartalen(prefix, rijen, tijdVan, sleutel, index){
   }
 }
 
+/* ---------- namen: eenmalig, hervatbaar (idindex), bewaard in wh-hist-index { p:{id:code}, l:{id:naam}, u:{id:naam} } ---------- */
+const SOORTEN = [['producten', 'p'], ['locaties', 'l'], ['gebruikers', 'u']];
+async function haalIndex(vg){
+  const ix = vg.idx = vg.idx || {};
+  const oud = await WH.catHaal(INDEX);
+  const data = (oud && oud.data) || { p:{}, l:{}, u:{} };
+  for(const [soort, k] of SOORTEN){
+    const st = ix[soort] = ix[soort] || { offset:0, klaar:false };
+    while(!st.klaar && !S.stop){
+      zet(1, 'Namen ophalen (' + soort + ')');
+      const r = await vraag('idindex', { soort, offset:st.offset, paginas:10 });
+      (r.lijst || []).forEach(x => { if(x && x[0]) data[k][x[0]] = x[1]; });
+      await WH.catZet(INDEX, data);
+      if(r.volgende == null) st.klaar = true; else st.offset = r.volgende;
+      await WH.catZet(VOORTGANG, vg);
+      if(!st.klaar) await wachtMet(PAUZE, 'Namen ophalen (' + soort + ') · volgende vraag over {s} s');
+    }
+  }
+}
+
+/* ---------- verplaatsingen: vensters van 1 dag via historielicht (≤ 8 pagina's per vraag); vol → verder vanaf het laatste moment ---------- */
+const DAG = 864e5;
+const fmt = t => { const d = new Date(t), z = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()) + ':' + z(d.getSeconds()); };
 async function haalVerplaatsingen(vg){
   const vp = vg.vp = vg.vp || { cursor:START, vensters:[], klaar:false };
   const begin = ms(vp.cursor), t0 = Date.now();
   while(!S.stop){
-    const r = await vraag('verplaatsingen', { sinds:vp.cursor });
+    const nu = Date.now();
+    if(ms(vp.cursor) >= nu){ vp.klaar = true; await WH.catZet(VOORTGANG, vg); break; }
+    const tot = vp.tot && ms(vp.tot) > ms(vp.cursor) ? vp.tot : fmt(ms(vp.cursor) + DAG);
+    const r = await vraag('historielicht', { sinds:vp.cursor, tot, paginas:8 });
     const hist = (r.historie || []).filter(h => h && h.change_type === 'movement');
-    const max = hist.reduce((m, h) => h.changed_at && h.changed_at > m ? h.changed_at : m, '');
-    const nu = ms(r.opgehaald) || Date.now();
-    const vol = !!r.vol || (!!max && nu - ms(max) > DRIE_DAGEN);        // de functie meldt vol alleen als alle 6000 regels verplaatsingen zijn
+    const vol = !!r.vol && !!r.laatste;
     let nuttig = hist;
-    if(vol && max){                                                       // laatste moment kan half zijn: het volgende venster begint daar
-      const zonder = hist.filter(h => h.changed_at !== max);
+    if(vol){                                                              // laatste moment kan half zijn: het volgende venster begint daar
+      const zonder = hist.filter(h => h.changed_at !== r.laatste);
       nuttig = zonder.length ? zonder : hist;
     }
-    const ix = verplaatsingRijen(r);
-    const rows = converteer(nuttig, ix);
-    await bewaarKwartalen('wh-vp-hist-', rows, x => x[1], sleutelVp, { P:ix.P, l:Object.fromEntries(Object.entries(ix.L).map(([k, v]) => [k, v.n])), u:ix.U });
+    const rows = converteer(nuttig, { L:{} });
+    await bewaarKwartalen('wh-vp-hist-', rows, x => x[1], sleutelVp, null);
     const van = vp.cursor;
-    const volgende = !vol || !max ? null : (nuttig === hist && hist.every(h => h.changed_at === max) ? plus1s(max) : stempel(max));
-    vp.vensters.push([van.slice(0, 16), (max || van).slice(0, 16), rows.length, vol ? 1 : 0]);
+    vp.vensters.push([van.slice(0, 16), (vol ? stempel(r.laatste) : tot).slice(0, 16), rows.length, vol ? 1 : 0]);
     vp.op = new Date().toISOString();
-    const nieuwGeen = !hist.length || (volgende && volgende === van);
-    if(!vol || nieuwGeen){ vp.klaar = true; vp.cursor = stempel(max || van); await WH.catZet(VOORTGANG, vg); break; }
-    vp.cursor = volgende;
+    if(vol){
+      const volgende = stempel(r.laatste);
+      vp.cursor = volgende === van || (nuttig === hist && hist.every(h => h.changed_at === r.laatste)) ? plus1s(r.laatste) : volgende;
+      vp.tot = tot;
+    }else{ vp.cursor = tot; vp.tot = null; }
     await WH.catZet(VOORTGANG, vg);
     const deel = Math.max(0.001, Math.min(1, (ms(vp.cursor) - begin) / Math.max(1, nu - begin))), min = Math.ceil((Date.now() - t0) / deel * (1 - deel) / 6e4 + PAUZE / 60);
     S.eta = ' · nog ca. ' + nf(min) + ' min';
-    zet(Math.max(1, Math.min(90, deel * 90)), 'Verplaatsingen tot ' + vp.cursor.slice(0, 10));
+    zet(Math.max(2, Math.min(90, deel * 90)), 'Verplaatsingen tot ' + vp.cursor.slice(0, 10));
+    if(ms(vp.cursor) >= nu){ vp.klaar = true; vp.cursor = fmt(nu); await WH.catZet(VOORTGANG, vg); break; }
     await wachtMet(PAUZE, 'Verplaatsingen tot ' + vp.cursor.slice(0, 10) + ' · volgende vraag over {s} s');
   }
 }
@@ -147,6 +172,8 @@ async function haal(){
         const oud = await WH.catHaal(VOORTGANG);
         const vg = (oud && oud.data) || {};
         if(vg.vp && vg.vp.klaar) vg.vp.klaar = false;                      // nieuwe ronde: verder vanaf de cursor
+        await haalIndex(vg);
+        if(S.stop) break;
         await haalVerplaatsingen(vg);
         if(S.stop) break;
         const o = await haalOntvangsten(vg);
