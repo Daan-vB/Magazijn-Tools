@@ -1,0 +1,409 @@
+{
+ "naam": "Daan 17-10 (b): voorstellen volgen regels (alles op pick, ribbel op maat, pennen geparkeerd)",
+ "datum": "2026-10-17",
+ "regels": [
+  {
+   "code": "HN3188-black",
+   "zet": [
+    [
+     "opslag",
+     "pick",
+     "daan",
+     "Daan 17-10 (regel): alles op pick (B4)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "holder-black-flat",
+   "zet": [
+    [
+     "opslag",
+     "pick",
+     "daan",
+     "Daan 17-10 (regel): alles op pick (B4)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "holder-black-square",
+   "zet": [
+    [
+     "opslag",
+     "pick",
+     "daan",
+     "Daan 17-10 (regel): alles op pick (B4)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "design-200-black",
+   "zet": [
+    [
+     "opslag",
+     "pick",
+     "daan",
+     "Daan 17-10 (regel): alles op pick (B4)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "design-250-black",
+   "zet": [
+    [
+     "opslag",
+     "pick",
+     "daan",
+     "Daan 17-10 (regel): alles op pick (B4)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "TRLBLACK-350",
+   "zet": [
+    [
+     "opslag",
+     "pick",
+     "daan",
+     "Daan 17-10 (regel): alles op pick (B4)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4",
+   "zet": [
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (regel): ribbel 1 m, eigen pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-2",
+   "zet": [
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (regel): ribbel 2 m, eigen pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-3",
+   "zet": [
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (regel): ribbel 3 m, eigen pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-4",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 4 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-5",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 5 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-6",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 6 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-7",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 7 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-8",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 8 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-9",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 9 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.4-10",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 10 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5",
+   "zet": [
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (regel): ribbel 1 m, eigen pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-2",
+   "zet": [
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (regel): ribbel 2 m, eigen pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-3",
+   "zet": [
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 17-10 (regel): ribbel 3 m, eigen pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-4",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 4 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-5",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 5 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-6",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 6 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-7",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 7 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-8",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 8 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-9",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 9 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "MR65SX2.7-0.5-10",
+   "zet": [
+    [
+     "opslag",
+     "mix",
+     "daan",
+     "Daan 17-10 (regel): ribbel 10 m, mix/pick-pallet (B7, p-rol)",
+     [
+      "deel",
+      "mix"
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "single-mounting-pin",
+   "zet": [
+    [
+     "mixgroep",
+     null,
+     "daan",
+     "Pennen: vaste plek bij inpaktafel en mixpallet pennen op bulk (idee, geparkeerd 17-10)",
+     null,
+     "park"
+    ]
+   ]
+  }
+ ]
+}
