@@ -20,3 +20,7 @@
 Echte aantallen staan na het ophalen op het scherm; niet gedraaid tegen Picqer.
 
 **Update rate limit (17-10)**: test met 429 op een venster: zelfde venster herhaald en doorgegaan; altijd 429: stopt na 8 pogingen, rest bewaard; alleen catalog-rijen geschreven.
+
+**Update 504/429 (17-10)**: pauze 20 s; bij elke fout 90 s wachten en hetzelfde venster opnieuw, tot 12 pogingen; daarna wacht de ronde 10 min (aftelling) en begint vanzelf opnieuw vanaf de bewaarde cursor, tot Daan op Stop klikt (knop Stop vervangt de startknop). Eén diagnoseregel: venster (datum+tijd), poging n van 12, laatste status (getal + korte tekst). Test (verzonnen data): 12× 429/504 door elkaar op hetzelfde venster, ronde stopt, 600 s wachten, tweede ronde gaat door, totaal exact, geen dubbelen; Stop bewaart de cursor; alleen catalog-rijen geschreven.
+
+**Niet gedaan: vensters van 3 uur / halveren.** `verplaatsingen` heeft geen eindtijd; elke vraag kost dezelfde ≤60 pagina's plus opzoekingen van producten, locaties en gebruikers, hoe klein het venster ook is. Kleiner venster in de app geeft alleen méér vragen. De oorzaak van de 504 zit dus in de functie. Echte oplossing: in `picqer` een eindtijd (of paginalimiet) toevoegen; dan kan `historie.js` direct met vensters van 3 uur werken. Tot dan: lange wachttijden en 's avonds/'s nachts laten lopen.

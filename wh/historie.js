@@ -13,9 +13,9 @@ window.WHHIST = (function(){
 'use strict';
 const { $, esc, nf, toast } = WH;
 const START = '2025-01-01 00:00:00';
-const PAUZE = 15, FOUT_WACHT = 65, POGINGEN = 8, DRIE_DAGEN = 3 * 864e5;   // seconden
+const PAUZE = 20, FOUT_WACHT = 90, POGINGEN = 12, RONDE_WACHT = 600, DRIE_DAGEN = 3 * 864e5;   // seconden
 const VOORTGANG = 'wh-hist-voortgang';
-const S = { eta:'', bezig:false, pct:0, tekst:'', fout:'', klaar:'', stop:false };
+const S = { diag:'', eta:'', bezig:false, pct:0, tekst:'', fout:'', klaar:'', stop:false };
 
 const wacht = ms => new Promise(r => setTimeout(r, ms));
 const isDaan = () => { try{ return (localStorage.getItem('ivol-ik') || 'Daan') === 'Daan'; }catch(e){ return true; } };
@@ -24,17 +24,25 @@ const ms = t => new Date(String(t || '').replace(' ', 'T')).getTime();
 const stempel = t => String(t || '').replace('T', ' ').slice(0, 19);
 const plus1s = t => { const d = new Date(ms(t) + 1000), z = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()) + ':' + z(d.getSeconds()); };
 
-/* ---------- vragen: bij een fout (429, 5xx, net) 65 s wachten en hetzelfde venster opnieuw, tot 8 keer ---------- */
+/* ---------- vragen: bij een fout (429, 504, 5xx, net) 90 s wachten en hetzelfde venster opnieuw, tot 12 keer ---------- */
 async function wachtMet(sec, tekst){
   for(let i = sec; i > 0 && !S.stop; i--){ zet(null, tekst.replace('{s}', i)); await wacht(1000); }
 }
+const statusVan = e => { const m = /\b([1-5]\d\d)\b/.exec((e && e.message) || ''); return m ? m[1] + (m[1] === '429' ? ' te veel vragen' : m[1] === '504' ? ' tussenstation te langzaam' : '') : /Rate limit/i.test((e && e.message) || '') ? '429 te veel vragen' : 'geen antwoord'; };
 async function vraag(actie, params){
+  const venster = (params && params.sinds ? String(params.sinds).slice(0, 16).replace('T', ' ') : actie);
+  let laatste = '-';
   for(let poging = 1; ; poging++){
-    try{ return await WHLIVE.vraag(actie, params); }
+    S.diag = 'Venster vanaf ' + venster + ' · poging ' + poging + ' van ' + POGINGEN + ' · laatste status: ' + laatste;
+    teken();
+    if(S.stop) throw Object.assign(new Error('Gestopt'), { soort:'stop' });
+    try{ const r = await WHLIVE.vraag(actie, params); S.diag = 'Venster vanaf ' + venster + ' · poging ' + poging + ' van ' + POGINGEN + ' · laatste status: 200 goed'; return r; }
     catch(e){
       if(e && (e.soort === 'code' || e.soort === 'jwt')) throw e;
-      if(poging >= POGINGEN) throw e;
-      await wachtMet(FOUT_WACHT, 'Picqer vraagt even te wachten… nog {s} s (poging ' + poging + ' van ' + POGINGEN + ' mislukt)');
+      laatste = statusVan(e);
+      if(poging >= POGINGEN){ S.diag = 'Venster vanaf ' + venster + ' · ' + POGINGEN + ' pogingen mislukt · laatste status: ' + laatste; throw e; }
+      S.diag = 'Venster vanaf ' + venster + ' · poging ' + poging + ' van ' + POGINGEN + ' mislukt · laatste status: ' + laatste;
+      await wachtMet(FOUT_WACHT, 'Picqer vraagt even te wachten… nog {s} s');
     }
   }
 }
@@ -134,14 +142,25 @@ async function haal(){
   if(S.bezig) return;
   S.bezig = true; S.stop = false; S.fout = ''; S.klaar = ''; S.eta = ''; zet(1, 'Starten…');
   try{
-    const oud = await WH.catHaal(VOORTGANG);
-    const vg = (oud && oud.data) || {};
-    if(vg.vp && vg.vp.klaar) vg.vp.klaar = false;                        // nieuwe ronde: verder vanaf de cursor
-    await haalVerplaatsingen(vg);
-    const o = await haalOntvangsten(vg);
-    const vp = vg.vp, v = vp.vensters;
-    S.klaar = nf(v.length) + ' vensters · ' + nf(v.reduce((s, x) => s + x[2], 0)) + ' verplaatsingen (' + nf(v.filter(x => x[3]).length) + ' vol) · ' + nf(o) + ' ontvangsten';
-    zet(100, '');
+    for(;;){
+      try{
+        const oud = await WH.catHaal(VOORTGANG);
+        const vg = (oud && oud.data) || {};
+        if(vg.vp && vg.vp.klaar) vg.vp.klaar = false;                      // nieuwe ronde: verder vanaf de cursor
+        await haalVerplaatsingen(vg);
+        if(S.stop) break;
+        const o = await haalOntvangsten(vg);
+        const v = vg.vp.vensters;
+        S.klaar = nf(v.length) + ' vensters · ' + nf(v.reduce((s, x) => s + x[2], 0)) + ' verplaatsingen (' + nf(v.filter(x => x[3]).length) + ' vol) · ' + nf(o) + ' ontvangsten';
+        S.fout = ''; zet(100, ''); break;
+      }catch(e){
+        if(S.stop || (e && (e.soort === 'code' || e.soort === 'jwt' || e.soort === 'stop'))){ S.fout = e && e.soort === 'stop' ? '' : (e && e.message) || String(e); break; }
+        S.fout = '';
+        await wachtMet(RONDE_WACHT, 'Mislukt (' + ((e && e.message) || '').slice(0, 60) + '). Nieuwe ronde over {s} s; voortgang is bewaard.');
+        if(S.stop) break;
+      }
+    }
+    if(S.stop && !S.klaar) S.klaar = 'Gestopt. De voortgang is bewaard; de knop gaat verder.';
   }catch(e){ S.fout = (e && e.message) || String(e); }
   finally{ S.bezig = false; teken(); }
 }
@@ -151,7 +170,8 @@ function zet(pct, tekst){ if(pct != null) S.pct = pct; if(tekst != null) S.tekst
 function binnen(){
   return `<div class="row between wrap"><div><h3>Geschiedenis ophalen</h3>
     <div class="small muted mt4">${S.bezig ? esc(S.tekst || 'Bezig…') + esc(S.eta) + '<br>Laat dit scherm open: het kan een uur duren.' : S.fout ? '<span style="color:var(--bad)">' + esc(S.fout) + '</span> Druk nog eens: het gaat verder waar het bleef.' : S.klaar ? esc(S.klaar) : 'Haalt verplaatsingen en ontvangsten sinds 2025 uit Picqer (alleen lezen) en bewaart ze in de database.'}</div></div>
-    <button class="btn" data-hist="haal" ${S.bezig ? 'disabled' : ''}>Geschiedenis ophalen</button></div>
+    ${S.bezig ? '<button class="btn" data-hist="stop">Stop</button>' : '<button class="btn" data-hist="haal">Geschiedenis ophalen</button>'}</div>
+    ${S.diag && (S.bezig || S.fout) ? `<div class="tiny muted mt8">${esc(S.diag)}</div>` : ''}
     ${S.bezig ? `<div style="height:8px;background:#e6eaf0;border-radius:4px;margin-top:12px;overflow:hidden"><div style="height:100%;width:${Math.round(S.pct)}%;background:var(--blue)"></div></div>` : ''}`;
 }
 function teken(){ const e = $('hist-kaart'); if(e) e.innerHTML = binnen(); }
@@ -160,6 +180,7 @@ function kaart(){ return isDaan() ? `<div class="card" id="hist-kaart" style="bo
 document.addEventListener('click', e => {
   const b = e.target.closest && e.target.closest('[data-hist]');
   if(b && b.dataset.hist === 'haal'){ e.preventDefault(); haal(); }
+  if(b && b.dataset.hist === 'stop'){ e.preventDefault(); S.stop = true; }
 });
 
 return { kaart, haal, S, converteer, verplaatsingRijen };
