@@ -456,7 +456,8 @@ function viewBronnen(){
       <p class="muted klein">Aanvulniveaus worden pas de waarheid voor alle apps na een volle ronde én als ze voor minstens 90% gelijk zijn aan de laatste export. Zo weten we zeker dat de velden uit Picqer de goede zijn.</p></section>
     <section class="blok"><h2>Productdata als bron</h2>
       <p>${D.PDAAN ? `<b>Aan</b> op dit scherm: stuks per pallet, aanvullen bij, max op pick en "alleen bulk" komen eerst uit Productdata (${nf(Object.keys(D.PD).length)} producten), daarna pas uit het oude palletgeheugen.` : '<b>Uit</b> op dit scherm: alles komt nog uit het oude palletgeheugen.'}</p>
-      <p class="muted klein">Aan in 3.0 en Test. Warehouse en Junior volgen na jouw akkoord; Palletlabels en Containers lezen het oude geheugen tot Productdata daar is gelijkgezet (Productdata → Gelijkzetten).</p></section>
+      <p>${window.PDBRON && PDBRON.aan() ? '<b>Aan</b>' : '<b>Uit</b>'}: de schakelaar <b>Andere apps gebruiken productdata</b> (Test → Productdata → Poort 0.4). Hij staat standaard uit en alleen Daan zet hem om, er is geen instelling per apparaat. Uit: Warehouse, Junior, Palletlabels en Containers doen precies wat ze deden. Aan: ze lezen stuks per pallet, palletmaat, hoogte, gewicht, plaatsen, max per ligger en stuks per doos eerst uit Productdata (leeg of onb = de oude plek als reserve) en schrijven wat ze zelf opslaan ook naar Productdata (alleen als het veld leeg is of automatisch; jouw invoer blijft staan). De oude plekken blijven ook geschreven.</p>
+      <p class="muted klein">Dit scherm en Test lezen Productdata altijd. Vooraf gelijkzetten kan via Productdata → Gelijkzetten.</p></section>
   </div>`;
 }
 function tekenPill(){

@@ -109,6 +109,12 @@ function twLijst(){
       .map(k => ({ k, v:String(r.data[k]), uit:r.meta[k].uit || '' }));
     if(v.length) uit.push({ c, velden:v });
   });
+  // regelcontrole (Daan 17-10): waarden die tegen een bevestigde regel ingaan staan hier ook (zodra Productdata geladen is); Klopt zet ze op compleet
+  const rc = window.WHPD && WHPD.S && WHPD.S.klaar && !WHPD.S.fout && WHPD.regelLijst ? WHPD.regelLijst() : [];
+  rc.forEach(r => {
+    let x = uit.find(y => y.c === r.c); if(!x){ x = { c:r.c, velden:[] }; uit.push(x); }
+    if(!x.velden.some(f => f.k === r.k)){ x.velden.push({ k:r.k, v:r.v, uit:'Regelcontrole: ' + r.uit }); x.velden.sort((a, b) => VOLG.indexOf(a.k) - VOLG.indexOf(b.k)); }
+  });
   return uit.sort((a, b) => (ABC[abcVan(a.c)] ?? 3) - (ABC[abcVan(b.c)] ?? 3) || naamVan(a.c).localeCompare(naamVan(b.c)));
 }
 async function bevestig(c, waarden){
@@ -121,6 +127,7 @@ async function bevestig(c, waarden){
     v = String(v ?? '').trim(); if(!v) return;
     const was = meta[k] && meta[k].tw ? ' (was schatting Claude' + (String(data[k]) !== v ? ': ' + data[k] : '') + ')' : '';
     data[k] = v; meta[k] = { op:nu, bron:'invul', uit:'gecontroleerd door ' + ik() + was };
+    if(window.WHPD && WHPD.regelFout && WHPD.regelFout(c, k, v)) meta[k].rok = 1;   // tegen een regel in en toch bevestigd: telt als compleet
   });
   await WH.upsert('productdata', [{ productcode:c, data, meta, updated_at:nu }], 'productcode');
   if(S.pd) S.pd[c] = { data, meta };
@@ -179,7 +186,9 @@ function viewNakijken(){
   if(tab === 'pd'){
     if(S.pdFout) body = `<div class="blok let">Productdata laden lukte niet: ${esc(S.pdFout.message || String(S.pdFout))}</div>`;
     else if(!S.pd){ laadPd(); body = '<div class="leeg">Productdata laden…</div>'; }
-    else if(!tw.length) body = '<div class="blok"><b>Niets meer te controleren in Productdata.</b></div>';
+    else if(!(window.WHPD && WHPD.S && WHPD.S.klaar) && window.WHTAAK && !S.rcPoging){ S.rcPoging = true; WHTAAK.pdLaden().then(() => { S.rcKlaar = true; herteken(); }, () => { S.rcKlaar = true; herteken(); }); body = '<div class="leeg">Regelcontrole laden…</div>'; }
+    else if(!tw.length && window.WHPD && WHPD.S && WHPD.S.klaar) body = '<div class="blok"><b>Niets meer te controleren in Productdata.</b></div>';
+    else if(!tw.length) body = S.rcKlaar ? '<div class="blok"><b>Niets meer te controleren in de schattingen van Claude.</b> <span class="muted">De regelcontrole (waarden die tegen een regel ingaan) kon niet laden.</span></div>' : '<div class="leeg">Regelcontrole laden…</div>';
     else body = `<div class="small muted">${nf(tw.length)} producten · ${nf(nTw)} waarden · belangrijkste eerst. Pas aan waar nodig en tik <b>Klopt</b>; de waarde wordt dan jouw invoer.</div>` +
       tw.slice(0, 120).map(x => `<div class="x-kaart" data-code="${esc(x.c)}">
         <div class="x-kop"><div><span class="code">${esc(x.c)}</span>${abcVan(x.c) ? `<span class="x-abc ${esc(abcVan(x.c))}">${esc(abcVan(x.c))}</span>` : ''}<div class="small muted">${esc(naamVan(x.c).slice(0, 90))}</div></div>
@@ -548,7 +557,7 @@ function takenHtml(){
 }
 function maakBanner(){
   const { n, a } = bannerTel;
-  bannerHtml = (n + a ? `<div class="pagina" style="padding-bottom:0"><a class="x-kaart" href="#/nakijken" style="text-decoration:none;color:inherit;border-left:6px solid #e0a100"><div class="x-kop"><div><b>Te controleren</b><div class="small muted">${n ? nf(n) + ' producten met een schatting van Claude' : ''}${n && a ? ' · ' : ''}${a ? nf(a) + ' aannames (kerncijfers, dagritme, regels)' : ''}. Tik Klopt of pas aan; tot dan tellen ze als open.</div></div><span class="x-btn pri">Openen →</span></div></a></div>` : '') + takenHtml();
+  bannerHtml = (n + a ? `<div class="pagina" style="padding-bottom:0"><a class="x-kaart" href="#/nakijken" style="text-decoration:none;color:inherit;border-left:6px solid #e0a100"><div class="x-kop"><div><b>Te controleren</b><div class="small muted">${n ? nf(n) + ' producten met een schatting van Claude of een waarde tegen een regel in' : ''}${n && a ? ' · ' : ''}${a ? nf(a) + ' aannames (kerncijfers, dagritme, regels)' : ''}. Tik Klopt of pas aan; tot dan tellen ze als open.</div></div><span class="x-btn pri">Openen →</span></div></a></div>` : '') + takenHtml();
 }
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-xt="klaar"]'); if(!b) return;

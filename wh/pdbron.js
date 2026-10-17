@@ -7,7 +7,7 @@
               picklocatie, aanvullen bij en max op pick) komen eerst uit `productdata`. Leeg of `onb` = terugvallen op de oude plek (reserve).
      schrijven waar die apps zelf zo'n waarde opslaan, gaat hij ook naar `productdata` (bron invul, alleen als het veld leeg is of bron auto;
               Daans invoer, schattingen en geparkeerde velden worden nooit overschreven). De oude plek blijft ook gewoon geschreven.
-   Per apparaat te overrulen met localStorage 'ivol-pd-bron' = 'aan' of 'uit' (testen).
+   Geen override per apparaat: alleen Daan zet de schakelaar om (Poort 0.4). Testen gaat via de emulator.
    Dit bestand heeft geen afhankelijkheden: Palletlabels en Containers laden het los, de andere apps via wh/lijst.json.
    Schrijft nooit naar Picqer.
    ===================================================================== */
@@ -29,7 +29,6 @@ async function rest(method, pad, body, extra){
   if(!r.ok) throw new Error(method + ' ' + pad.split('?')[0] + ' ' + r.status);
   const t = await r.text(); return t ? JSON.parse(t) : null;
 }
-function apparaat(){ try{ const o = localStorage.getItem('ivol-pd-bron'); return o === 'aan' ? true : o === 'uit' ? false : null; }catch(e){ return null; } }
 
 /* ---------- laden: de schakelaar, en alleen als hij aan staat ook productdata ---------- */
 function laad(vers, alleenSchakelaar){
@@ -39,7 +38,6 @@ function laad(vers, alleenSchakelaar){
       const rij = await rest('GET', 'catalog?key=eq.' + SLEUTEL + '&select=data');
       const d = (rij && rij[0] && rij[0].data) || {};
       S.aan = d.aan === true; S.door = d.door || ''; S.op = d.op || '';
-      const ap = apparaat(); if(ap !== null) S.aan = ap;
       S.pd = {};
       if(S.aan && !alleenSchakelaar){
         for(let van = 0; ; van += 1000){

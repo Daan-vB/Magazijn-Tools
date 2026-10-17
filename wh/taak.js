@@ -47,19 +47,16 @@ function pdLaden(){
   return PD.p;
 }
 
-/* ---------- 0.4: Poort 0.4 uit Productdata ---------- */
-const ZONE_GROEP = { LATER:'later', MIX:'mix', OPMAAT:'opmaat' };
-const GROEPEN04 = [['later', 'Later (weggezet)'], ['mix', 'Mix'], ['opmaat', 'Op maat'], ['overig', 'Overig']];
+/* ---------- 0.4: Poort 0.4 uit Productdata ----------
+   Te doen toont bij stap 0.4 alleen de poort: de regels die nog rood zijn, elk met één knop (Daan 17-10).
+   Het werk zelf (open velden per laag) staat in het scherm "Nog open" in Productdata. */
 function data04(){
   if(!pdKlaar()) return null;
   if(PD.cache && Date.now() - PD.cache.op < 15e3) return PD.cache.d;
   const P = WHPD.poort();
   const open = [];
   P.bel.forEach(c => { const v = [1, 2, 3].flatMap(l => WHPD.open(c, l)); if(v.length) open.push({ c, v }); });
-  const groep = { later:[], mix:[], opmaat:[], overig:[] };
-  open.forEach(x => groep[ZONE_GROEP[WHPD.zoneVan(x.c)] || 'overig'].push(x));
-  const g = WHPD.gelijkPlan();
-  const d = { P, open, groep, gelijk:{ spp:g.spp.length, nieuw:g.nieuw.length, pal:g.pal.length } };
+  const d = { P, open };
   PD.cache = { op:Date.now(), d };
   return d;
 }
@@ -70,32 +67,19 @@ BP.registreer('0.4', () => {
   // vinkje 0 (besluit gelezen) en 8 (apps lezen productdata) blijven handmatig
   return { c:{ 1:ok(0), 2:ok(1), 3:ok(2), 4:ok(3), 5:ok(4), 6:ok(5), 7:ok(6) }, f:Object.assign({ aantal:d.P.bel.length, pdata:pct }, d.P.groen && d.P.code ? { code:d.P.code } : {}) };
 });
-const APPNAAM = { ivol:'3.0', test:'Test', warehouse:'Warehouse', junior:'Junior' };
 function nodig04(id){
   if(PD.fout) return `<div class="melding">Productdata laden lukte niet: ${esc(PD.fout.message || String(PD.fout))}</div>`;
   const d = data04(); if(!d){ pdLaden(); return '<div class="leeg">Productdata laden…</div>'; }
   const it = d.P.items, nGroen = it.filter(x => x.ok).length;
-  const link = (x, i) => i === 1 ? '#/productdata' : i === 2 ? '#/productdata/dubbel' : x.laag ? '#/productdata/kies/' + x.laag : '#/productdata/poort';
-  const knopT = (x, i) => i === 1 ? 'Overzetten' : i === 2 ? 'Kiezen' : x.laag ? 'Invullen' : 'Steekproef';
-  const regels = it.map((x, i) => x.ok ? '' : `<li><span class="nt"><b>${esc(x.t)}</b><span class="muted klein">${esc(x.u || '')}</span></span>${i === 0 ? '' : knop(id, link(x, i), knopT(x, i))}</li>`).join('');
-  const gN = d.gelijk.spp + d.gelijk.nieuw + d.gelijk.pal;
-  const gel = gN ? `<li><span class="nt"><b>Gelijkzetten met Palletlabels en Containers</b><span class="muted klein">${nf(d.gelijk.spp)} aantallen per pallet, ${nf(d.gelijk.nieuw)} producten zonder label, ${nf(d.gelijk.pal)} producten met andere palletgegevens</span></span>${knop(id, '#/productdata/gelijk', 'Gelijkzetten')}</li>` : '';
-  const V = WHPD.VELDEN || {};
-  const groepen = GROEPEN04.map(([k, t]) => { const l = d.groep[k]; if(!l.length) return '';
-    return `<details class="pgroep"><summary><b>${esc(t)}</b> <i class="tel">${nf(l.length)}</i>${k === 'mix' ? ' ' + knop(id, '#/productdata/soort', 'Soorten') : ''}</summary>
-      <ul class="plijst">${l.map(x => `<li><a class="code" href="#/productdata/p/${encodeURIComponent(x.c)}" data-taak="${esc(id)}">${esc(x.c)}</a><span class="muted klein">${esc(x.v.map(v => (V[v] || {}).t || v).join(' · '))}</span></li>`).join('')}</ul></details>`; }).join('');
+  const link = (x, i) => i === 1 ? '#/productdata' : i === 2 ? '#/productdata/dubbel' : x.laag ? '#/productdata/open/' + x.laag : '#/productdata/poort';
+  const knopT = (x, i) => i === 1 ? 'Overzetten' : i === 2 ? 'Kiezen' : x.laag ? 'Invullen' : x.steek ? 'Steekproef' : 'Bekijken';
+  const regels = it.map((x, i) => x.ok ? '' : `<li><span class="nt"><b>${esc(x.t)}</b><span class="muted klein">${esc(x.u || '')}</span></span>${x.steek && !x.kan ? '<span class="knop" aria-disabled="true" style="opacity:.55;cursor:not-allowed">Kan als laag 1–3 klaar zijn</span>' : knop(id, link(x, i), knopT(x, i))}</li>`).join('');
   const later = BP.inst('poortLaterMee') !== false;
-  const apps = Object.keys(APPNAAM).filter(a => (WH.PD_APPS || ['test', 'ivol']).includes(a));
-  // per familie: de volgende open familie direct op het werkblad
-  let fam = '';
-  try{ if(window.WHPDF){ const v = WHPDF.voortgang(), n = WHPDF.volgende(); fam = `<li><span class="nt"><b>Per familie: families klaar ${nf(v.klaar)} van ${nf(v.tot)}</b><span class="muted klein">${n ? 'Volgende: ' + esc(n.naam) + ' · ' + nf(n.gevuld) + ' van ' + nf(n.velden) + ' velden' : 'Alle families klaar'}</span></span>${knop(id, n ? '#/productdata/familie/' + encodeURIComponent(n.fk) : '#/productdata/familie', n ? 'Volgende familie' : 'Per familie', true)}</li>`; } }catch(e){ console.error(e); }
   return `<p class="kern"><b>${nf(nGroen)}</b> van ${nf(it.length)} groen in Poort 0.4 · ${nf(d.P.bel.length)} belangrijke producten · <b>${nf(d.open.length)}</b> producten open</p>
-    <ul class="nog">${fam}${regels}${gel}</ul>
-    ${d.open.length ? `<h3>Open belangrijke producten</h3>${groepen}` : ''}
-    <label class="schakel"><input type="checkbox" data-a="bp-latermee" ${later ? 'checked' : ''}> Later en Op maat tellen mee in de poort</label>
-    <p class="muted klein">Productdata lezen nu: ${esc(apps.map(a => APPNAAM[a]).join(' en ') || 'geen')}. Nog niet: ${esc(Object.keys(APPNAAM).filter(a => !apps.includes(a)).map(a => APPNAAM[a]).concat(['Palletlabels', 'Containers']).join(', '))} (eerst Gelijkzetten).</p>`;
+    <ul class="nog">${regels || '<li><span class="nt"><b>Alle regels van Poort 0.4 zijn groen.</b></span></li>'}</ul>
+    <label class="schakel"><input type="checkbox" data-a="bp-latermee" ${later ? 'checked' : ''}> Later en Op maat tellen mee in de poort</label>`;
 }
-function kort04(){ const d = data04(); if(!d) return PD.fout ? '' : '… producten open'; let f = ''; try{ if(window.WHPDF){ const v = WHPDF.voortgang(); f = ' · families klaar ' + nf(v.klaar) + ' van ' + nf(v.tot); } }catch(e){} return nf(d.open.length) + ' producten open' + f; }
+function kort04(){ const d = data04(); if(!d) return PD.fout ? '' : '… producten open'; return nf(d.open.length) + ' producten open'; }
 
 /* ---------- overige stappen ---------- */
 const SB = 'https://supabase.com/dashboard/project/jarbgetbwkjtxwtcfwmq';

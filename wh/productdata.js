@@ -246,6 +246,47 @@ function nodig(code, k, w){
   if(k === 'gewicht' && kgOnb(code) && LEEGWAARDE(pdWaarde(code, 'gewicht'))) return false;   // x bij kg: eerst wegen (taak), houdt de regel niet open
   return true;
 }
+/* Regelcontrole (Daan 17-10): een vastgelegde waarde die tegen een bevestigde regel ingaat telt als open (zoals een schatting van Claude),
+   met een korte reden. Alleen tonen en tellen: er wordt niets weggeschreven. Daan past het aan of zet het op Klopt (meta.rok = 1, dan telt het als compleet).
+   p-dooscm  per cm of per meter: stuks per doos × gewicht per eenheid boven het maximum per doos (30 kg). Gewicht onbekend = niet controleren.
+   p-maat    palletmaat die geen opslagmaat is (nvt en leeg vallen erbuiten).
+   a-doos    aanvullen met hele omdozen of bundels (deel of doos, per stuk): max op pick kleiner dan één omdoos of bundel. */
+const REGEL_VELDEN = ['spd', 'maat', 'maxpick'];
+const maatSleutel = m => { const x = String(m ?? '').match(/(\d+)\D+(\d+)/); return x ? [+x[1], +x[2]].sort((a, b) => a - b).join('x') : ''; };
+function regelFout(code, k, v){
+  if(!REGEL_VELDEN.includes(k)) return '';
+  v = String(v ?? '').trim(); if(!v || LEEGWAARDE(v) || NVT(v)) return '';
+  if(k === 'maat'){
+    const sl = maatSleutel(v); if(!sl) return '';
+    return OPSLAG.some(m => maatSleutel(m) === sl) ? '' : v + ' is geen opslagmaat';
+  }
+  const e = eenheid(code).e;
+  if(k === 'spd'){
+    if(e !== 'cm' && e !== 'm') return '';
+    const n = num(v); if(!n) return '';
+    const kgS = pdWaarde(code, 'kgst'), kg = kgS !== null && !LEEGWAARDE(kgS) && num(kgS) ? num(kgS) : kgOnb(code) ? null : kgPicqer(code);
+    if(!kg) return '';
+    const max = aanGetal('p-dooskg', 30), tot = n * kg;
+    return tot > max ? nf(n) + ' ' + e + ' × ' + nf(kg, 3) + ' kg = ' + nf(tot, 1) + ' kg per doos, max ' + nf(max) + ' kg' : '';
+  }
+  if(k === 'maxpick'){
+    if(e !== 'st') return '';
+    const met = String(pdWaarde(code, 'met') || MET[soortVan(code)] || '').trim().toLowerCase();
+    if(met !== 'deel' && met !== 'doos') return '';
+    const spdV = pdWaarde(code, 'spd'), s = spdV !== null && !LEEGWAARDE(spdV) && !NVT(spdV) ? num(spdV) : null, m = num(v);
+    return s > 1 && m > 0 && m < s ? 'max op pick ' + nf(m) + ' is kleiner dan één omdoos of bundel (' + nf(s) + ')' : '';
+  }
+  return '';
+}
+// alle waarden die nu door de regelcontrole open staan: voor Te controleren (3.0) en het rapport
+function regelLijst(){
+  const uit = [];
+  Object.keys(S.pd).forEach(c => {
+    if(!D.P[c]) return;
+    REGEL_VELDEN.forEach(k => { const st = staat(c, k); if(st.rc) uit.push({ c, k, v:st.v, uit:st.rc }); });
+  });
+  return uit;
+}
 // huidige toestand van een veld
 function staat(code, k){
   const v = pdWaarde(code, k), o = oudeWaarde(code, k);
@@ -257,6 +298,8 @@ function staat(code, k){
     // schatting van Claude (meta.tw): staat ingevuld klaar, maar telt pas als compleet na controle (Te controleren in 3.0, of Opslaan op de kaart)
     const mk = r && r.meta && r.meta[k];
     if(mk && mk.tw) return { v, s:'oud', bron:'schatting Claude, te controleren' + (mk.uit ? ' · ' + mk.uit : ''), tw:true };
+    // waarde die tegen een bevestigde regel ingaat: telt als open tot Daan hem aanpast of op Klopt zet (meta.rok)
+    if(!(mk && mk.rok)){ const rc = regelFout(code, k, v); if(rc) return { v, s:'oud', bron:'regelcontrole: ' + rc, rc }; }
     return { v, s:'ok' };
   }
   if(o && o.conflict) return { v:'', s:'open', conflict:o.conflict };
@@ -740,7 +783,7 @@ async function opslaan(wijz, bron){
         const extra = v && typeof v === 'object' ? v : null;
         v = String((extra ? extra.v : v) ?? '').trim();
         if(!v){ delete data[k]; delete meta[k]; }
-        else { data[k] = v; meta[k] = Object.assign({ op:nu, bron:(extra && extra.bron) || bron || 'invul' }, extra && extra.uit ? { uit:extra.uit, r:extra.r } : {}); }
+        else { data[k] = v; meta[k] = Object.assign({ op:nu, bron:(extra && extra.bron) || bron || 'invul' }, extra && extra.uit ? { uit:extra.uit, r:extra.r } : {}, extra && extra.rok ? { rok:1 } : {}); }   // rok = Daan zette een waarde die tegen een regel ingaat op Klopt
       });
       rijen.push({ productcode:code, data, meta, updated_at:nu });
     });
@@ -1051,6 +1094,24 @@ function stijl(){
   .k-g input{width:64px;min-height:32px;padding:3px 7px;font-size:14px}
   @media (max-width:760px){ .k-g .pd-pills{flex-wrap:wrap} .k-frij > .l{width:100%} }
   .pd-tl{display:inline-block;padding:1px 6px;border-radius:4px;border:1px solid #e3e8ee}
+  .n-kop{font-size:15px}
+  .pd-nt{border-collapse:separate;border-spacing:0;font-size:13px;width:100%}
+  .pd-nt th{text-align:left;padding:6px 6px;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:700;border-bottom:1px solid #d6dde5;background:#fbfcfd;white-space:nowrap}
+  .pd-nt td{padding:0;border-bottom:1px solid #e3e8ee;border-right:1px solid #eef1f4;vertical-align:top}
+  .pd-nt .n-prod{position:sticky;left:0;z-index:1;background:#fff;padding:5px 8px;min-width:150px;max-width:260px;white-space:normal;border-right:1px solid #d6dde5;overflow-wrap:anywhere}
+  .pd-nt th.n-prod{background:#fbfcfd;z-index:2}
+  .pd-nt .n-naam{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.25}
+  .pd-nt input{border:0;border-radius:0;width:100%;min-width:76px;height:34px;padding:3px 6px;font-size:14px;background:transparent;color:var(--ink)}
+  .pd-nt input:focus{outline:2px solid var(--blue);outline-offset:-2px;background:#fff}
+  .pd-nt .n-act{white-space:nowrap;padding:4px 6px;text-align:right}
+  .pd-nt .n-st{display:inline-block;min-width:18px;text-align:center;font-weight:800;color:var(--ok)} .pd-nt .n-st.n-err{color:var(--bad);cursor:help}
+  .pd-nt tr.r-klaar .n-prod{box-shadow:inset 4px 0 0 var(--ok)}
+  .n-tw{background:#fff1e0} .n-rc{background:#fdebd8;box-shadow:inset 0 0 0 1px #e8a25a} .n-voor{background:#fff8d6} .n-leeg{background:#fff;box-shadow:inset 0 0 0 1px #efc2be} .n-dub{background:#fdebd8} .n-nieuw{background:#eef4fc} .n-fout{background:#fde2e1;box-shadow:inset 0 0 0 2px var(--bad)}
+  .pd-nt td.n-ok{background:#f3f9f5;color:#1c6b3f;font-weight:600;padding:7px 6px;white-space:nowrap} .pd-nt td.n-geen{background:#f7f9fb}
+  .n-why{font-size:11px;line-height:1.3;color:#9a4205;padding:0 6px 5px;min-width:120px;white-space:normal}
+  .n-later > summary{cursor:pointer;list-style:none} .n-later > summary::-webkit-details-marker{display:none}
+  .n-later:not([open]) > summary{border-bottom:0}
+  .n-leg{margin:6px 2px 24px;line-height:1.9}
   .pd-tg td{position:relative} .pd-tg td:has(.pd-alleenpal) input{padding-right:78px}
   .pd-tg input.sel{background:rgba(37,99,235,.16)} .pd-tg input.sel:focus{background:#fff}
   .pd-fh{position:absolute;right:-4px;bottom:-4px;width:8px;height:8px;background:var(--blue);border:1px solid #fff;cursor:crosshair;z-index:3}
@@ -1097,6 +1158,7 @@ function kaartWaarde(code, k, f, opt){
     return { v, s:st.s === 'ok' && v === st.v ? 'ok' : 'nieuw', was:st.s === 'ok' ? st.v : null, conflict:st.conflict, invoer:true };
   }
   if(st.s === 'ok') return st.park ? { v:st.v, s:'ok', park:true, uit:st.uit } : { v:st.v, s:'ok' };
+  if(st.rc) return { v:st.v, s:'schatting', bron:st.bron, rc:st.rc };   // tegen een regel in: de vastgelegde waarde blijft staan, Daan past aan of zet op Klopt
   if(st.conflict) return { v:'', s:'dubbel', conflict:st.conflict };
   if(k === 'kgst') return { v:'', s:'open' };   // optioneel: alleen wat je zelf kiest
   const vs = voorstel(code, k, f);
@@ -1242,7 +1304,7 @@ function kaartPlan(code, alle, ks, opt){
     eigen[k] = i.v;
     const m = S.pd[code] && S.pd[code].meta && S.pd[code].meta[k];
     // opslaan in het invulscherm = jij hebt het gezien: automatisch wordt vastgelegd
-    if(i.s !== 'ok' || (opt && opt.bevestig && m && m.bron === 'auto')) (wijz[code] = wijz[code] || {})[k] = i.v;
+    if(i.s !== 'ok' || (opt && opt.bevestig && m && m.bron === 'auto')) (wijz[code] = wijz[code] || {})[k] = i.rc && String(i.v) === String(staat(code, k).v) ? { v:i.v, rok:1 } : i.v;   // regelcontrole onveranderd laten staan = Klopt
   });
   if(alle) genotenActief(code).forEach(g => {
     const fg = waardeFn(g);
@@ -1338,7 +1400,10 @@ function poort(){
   const mig = telOud(), migOpen = Object.values(mig.t).reduce((a, b) => a + b, 0);
   const dub = dubbel().filter(x => (x.sppConflict && staat(x.code, 'spp').s === 'open') || (x.vnConflict && staat(x.code, 'vn').s === 'open')).length;
   const lagen = [1, 2, 3].map(n => voortgang(bel, n));
-  const sp = steek(), spCodes = sp ? sp.codes || [] : [], spUit = sp ? sp.uit || {} : {};
+  // steekproef pas te trekken als laag 1 t/m 3 op 100% staan (Daan 17-10); een steekproef van vóór deze regel (zonder v:2, getrokken terwijl er nog velden open stonden) vervalt
+  const kan = lagen.every(v => v.tot > 0 && v.vol === v.tot);
+  const sp0 = steek(), sp = sp0 && sp0.v === 2 ? sp0 : null, spVervallen = sp0 && !sp ? sp0 : null;
+  const spCodes = sp ? sp.codes || [] : [], spUit = sp ? sp.uit || {} : {};
   const spGeteld = spCodes.filter(c => spUit[c]).length, spFout = spCodes.filter(c => spUit[c] === 'fout').length;
   const items = [
     { t:'Tabel productdata staat in Supabase', ok:!S.mist, u:S.mist ? 'ontbreekt' : '' },
@@ -1350,11 +1415,11 @@ function poort(){
   items.push({ t:'Andere apps lezen/schrijven productdata', ok:zt.ok, u:zt.ok ? 'code aanwezig, zelftest geslaagd (lezen met terugval, schrijven naar beide plekken) · schakelaar staat nu ' + (zt.aan ? 'aan' : 'uit') : 'zelftest mislukt: ' + zt.tekst });
   const dataKlaar = items.every(x => x.ok);
   items.push({ t:'Steekproef op de vloer: ' + STEEK_N + ' producten, 0 fouten', ok:spCodes.length === STEEK_N && spGeteld === STEEK_N && !spFout,
-    u:!sp ? 'nog niet getrokken' + (dataKlaar ? '' : ' (kan al, ook als hierboven nog iets open staat)') : spFout ? nf(spFout) + ' fout: verbeter en trek een nieuwe steekproef' : nf(spGeteld) + ' van ' + STEEK_N + ' gecontroleerd', a:'#/productdata/poort' });
+    u:!sp ? (spVervallen ? 'de steekproef van ' + new Date(spVervallen.op).toLocaleString('nl-NL', { day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit' }) + ' is vervallen (getrokken terwijl er nog velden open stonden) · ' : '') + (kan ? 'nog niet getrokken' : 'kan als laag 1–3 klaar zijn') : spFout ? nf(spFout) + ' fout: verbeter en trek een nieuwe steekproef' : nf(spGeteld) + ' van ' + STEEK_N + ' gecontroleerd', a:'#/productdata/poort', steek:true, kan });
   const groen = items.every(x => x.ok);
   const pct = lagen.reduce((s, v) => s + v.gevuld, 0) / Math.max(1, lagen.reduce((s, v) => s + v.velden, 0));
   const wacht = bel.filter(wachtOpLevering).length, park = bel.filter(heeftPark).length, sam = bel.filter(isSam).length;
-  return { bel, items, groen, dataKlaar, code:groen ? poortCode(bel.length) : null, pct:Math.floor(pct * 100), sp, wacht, park, sam, zt };
+  return { bel, items, groen, dataKlaar, code:groen ? poortCode(bel.length) : null, pct:Math.floor(pct * 100), sp, spVervallen, kan, wacht, park, sam, zt };
 }
 // zelftest van wh/pdbron.js: lezen uit productdata met terugval op de oude plek, schrijven naar beide plekken, schakelaar uit = niets
 function appsZelftest(){
@@ -1511,8 +1576,9 @@ function viewPoort(){
   const lc = c => locaties(c);
   const pickT = c => { const l = lc(c).pick; return l.length ? l.map(a => esc(a[0]) + (num(a[1]) ? ' <span class="tiny muted">' + nf(num(a[1])) + '</span>' : '')).join('<br>') : '–'; };
   const bulkT = c => { const l = lc(c).bulk; return l.length ? l.slice(0, 4).map(a => esc(a[0]) + (num(a[1]) ? ' <span class="tiny muted">' + nf(num(a[1])) + '</span>' : '')).join('<br>') + (l.length > 4 ? '<br><span class="tiny muted">+' + (l.length - 4) + '</span>' : '') : '–'; };
-  const steekBlok = `<div class="card"><div class="row between wrap"><div><h3>Steekproef op de vloer</h3><div class="small muted mt4">${STEEK_N} willekeurige belangrijke producten (geen SAM Europe, niets geparkeerd, geen product zonder voorraad). Loop ze langs: kijk of picklocatie, bulk, stuks per pallet en per doos en palletmaat kloppen. Eén fout = verbeteren en een nieuwe steekproef. Bij ${STEEK_N} keer goed wordt de regel hierboven groen.</div></div>
-      <button class="btn ${sp ? '' : 'acc'}" data-pd="trek">${sp ? 'Nieuwe steekproef' : 'Steekproef'}</button></div>
+  const steekBlok = `<div class="card"><div class="row between wrap"><div><h3>Steekproef op de vloer</h3><div class="small muted mt4">${STEEK_N} willekeurige belangrijke producten (geen SAM Europe, niets geparkeerd, geen product zonder voorraad, alle getoonde velden gevuld). Loop ze langs: kijk of picklocatie, bulk, stuks per pallet en per doos en palletmaat kloppen. Eén fout = verbeteren en een nieuwe steekproef. Bij ${STEEK_N} keer goed wordt de regel hierboven groen.</div></div>
+      <div style="text-align:right">${p.kan ? `<button class="btn ${sp ? '' : 'acc'}" data-pd="trek">${sp ? 'Nieuwe steekproef' : 'Steekproef'}</button>` : `<button class="btn" disabled style="opacity:.5;cursor:not-allowed">Steekproef</button><div class="small muted mt4">Kan als laag 1–3 klaar zijn</div>`}</div></div>
+    ${p.spVervallen ? `<div class="small mt8" style="color:#9a4205">De steekproef van ${esc(new Date(p.spVervallen.op).toLocaleString('nl-NL', { day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit' }))} is vervallen: hij is getrokken terwijl er nog velden open stonden.</div>` : ''}
     ${sp ? `<div class="small muted mt8">Getrokken ${esc(new Date(sp.op).toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }))} · ${nf(Object.values(sp.uit || {}).filter(v => v === 'ok').length)} goed${Object.values(sp.uit || {}).some(v => v === 'fout') ? ' · ' + nf(Object.values(sp.uit || {}).filter(v => v === 'fout').length) + ' fout' : ''}</div>
     <div class="mt8" style="overflow-x:auto"><table class="pd-steek"><thead><tr><th>Product</th><th>Pick</th><th>Bulk</th><th>Per pallet</th><th>Per doos</th><th>Palletmaat</th><th></th></tr></thead><tbody>
     ${sp.codes.map(c => { const u = (sp.uit || {})[c]; return `<tr class="${u === 'ok' ? 'ok' : u === 'fout' ? 'fout' : ''}"><td><a class="mono" href="#/productdata/p/${encodeURIComponent(c)}">${esc(c)}</a><div class="tiny muted">${esc(String((D.P[c] || {}).naam || '').slice(0, 60))}</div></td><td class="mono">${pickT(c)}</td><td class="mono">${bulkT(c)}</td>${['spp', 'spd', 'maat'].map(k => `<td>${toonV(c, k)}</td>`).join('')}
@@ -1533,14 +1599,16 @@ function viewPoort(){
       : `<div class="small muted mt12">Laag 1 t/m 3 samen: <b>${p.pct}%</b> ingevuld.</div>`}
   </div>${steekBlok}${schakelaar}`;
 }
+// getoonde velden in de steekproef: een product dat een van deze velden nodig heeft en nog niet gevuld heeft, komt er niet in (nooit "–" bij een nodig veld)
+const STEEK_TOON = ['spp', 'spd', 'maat'];
+const steekKlaar = c => { const w = waardeFn(c); return [1, 2, 3].every(n => !open(c, n).length) && STEEK_TOON.every(k => !nodig(c, k, w) || staat(c, k).s === 'ok'); };
 async function trekSteekproef(){
-  // geen SAM Europe, niets geparkeerd, geen product zonder voorraad; liefst producten die al compleet zijn
-  const alle = lijst('belangrijk', false).filter(c => !isSam(c) && !heeftPark(c) && !wachtOpLevering(c));
-  const klaar = alle.filter(c => [1, 2, 3].every(n => !open(c, n).length));
-  const kand = klaar.length >= STEEK_N ? klaar : alle;
-  const pool = kand.slice(), codes = [];
+  if(!poort().kan) return;   // pas als laag 1 t/m 3 op 100% staan
+  // geen SAM Europe, niets geparkeerd, geen product zonder voorraad, alleen producten waarvan alles gevuld is
+  const alle = lijst('belangrijk', false).filter(c => !isSam(c) && !heeftPark(c) && !wachtOpLevering(c) && steekKlaar(c));
+  const pool = alle.slice(), codes = [];
   while(codes.length < STEEK_N && pool.length){ const i = Math.floor(Math.random() * pool.length); codes.push(pool.splice(i, 1)[0]); }
-  const sp = { op:new Date().toISOString(), codes, uit:{} };
+  const sp = { op:new Date().toISOString(), codes, uit:{}, v:2 };
   await WH.catPatch('wh-taken', { 'pd:steekproef':sp });
 }
 async function steekUitslag(code, v){
@@ -2340,7 +2408,7 @@ function tabWijz(tr){
     if(k === 'kgst' && v === 'onb'){ if(!kgOnb(c)) wijz[k] = v; return; }
     if(k === 'kgst' && st.s !== 'ok' && kgPicqer(c) && Math.abs(num(v) - kgPicqer(c)) < 0.0005) return;   // zelfde als Picqer: niets apart bewaren
     if(st.s === 'ok' && st.v === v && !(m && m.bron === 'auto')) return;
-    wijz[k] = v;
+    wijz[k] = st.rc && st.v === v ? { v, rok:1 } : v;   // regel verlaten met een waarde die tegen een regel in ging, onveranderd = Klopt
   });
   if(wijz.opslag) soortExtra(c, wijz.opslag, wijz);
   return { c, wijz, fouten };
@@ -2945,6 +3013,150 @@ function viewProduct(code){
   app.innerHTML = `<a class="small" href="javascript:history.back()">← terug</a><div class="mt8">${productKaart(code, false)}</div>`;
 }
 
+/* ---------- scherm: nog open per laag (Daan 17-10) ----------
+   Eén rustig scherm per laag, bereikt vanuit Poort 0.4 (Invullen) en vanuit Te doen (#/productdata/open/<laag>).
+   Alleen belangrijke producten met open velden in die laag, alleen die velden, per familie (meeste open velden eerst; binnen een familie
+   A-lopers, dan B, dan wat binnenkomt). Rij = product, kolom = veld, Tab = volgend vak. Geen filters of selecties.
+   Een schatting van Claude, een waarde die tegen een regel ingaat en een zeker voorstel staan voorgevuld: Klopt legt de rij vast.
+   Alleen wat je zelf typt wordt opgeslagen als je de regel verlaat; kijken legt niets vast. */
+const ikNaam = () => { try{ return localStorage.getItem('ivol-ik') || 'Daan'; }catch(e){ return 'Daan'; } };
+const ABCO = c => abcVan(c) === 'A' ? 0 : abcVan(c) === 'B' ? 1 : 2;
+function openData(n){
+  const bel = lijst('belangrijk', false), fam = {}, later = [];
+  let prod = 0, velden = 0;
+  bel.forEach(c => {
+    const ks = open(c, n); if(!ks.length) return;
+    prod++; velden += ks.length;
+    const x = { c, ks };
+    if(pdWaarde(c, 'later')) later.push(x); else { const fk = index().famVan[c]; (fam[fk] = fam[fk] || []).push(x); }
+  });
+  const sorteer = l => l.sort((a, b) => ABCO(a.c) - ABCO(b.c) || rang(a.c) - rang(b.c));
+  const fams = Object.entries(fam).map(([fk, rijen]) => ({ fk, rijen:sorteer(rijen), velden:rijen.reduce((s, x) => s + x.ks.length, 0) }))
+    .sort((a, b) => b.velden - a.velden || rang(a.rijen[0].c) - rang(b.rijen[0].c) || a.fk.localeCompare(b.fk));
+  return { prod, velden, fams, later:sorteer(later), n };
+}
+const openKolommen = (rijen, n) => inLaag(n).filter(k => rijen.some(x => x.ks.includes(k)));
+function volgendeLaag(n){
+  const volg = [1, 2, 3].filter(m => m > n).concat([1, 2, 3].filter(m => m < n));
+  const bel = lijst('belangrijk', false);
+  return volg.find(m => bel.some(c => open(c, m).length)) || 0;
+}
+function openCel(c, k, w){
+  const d = VELDEN[k], st = staat(c, k);
+  let v = '', cls = 'n-leeg', titel = '', ph = '', reden = '', opg = '';
+  if(st.tw){ v = st.v; cls = 'n-tw'; titel = st.bron; opg = '1'; }
+  else if(st.rc){ v = st.v; cls = 'n-rc'; titel = st.bron; reden = st.rc; opg = '1'; }
+  else if(st.conflict){ cls = 'n-dub'; ph = st.conflict.map(x => x.v).join(' / '); titel = 'Dubbel in palletlabels: ' + ph + '. Typ de juiste.'; }
+  else {
+    let vs = null, x = null;
+    try{ vs = voorstel(c, k, w); }catch(e){}
+    if(vs && !leeg(vs.v)){ try{ x = check(k, vs.v); }catch(e){} }
+    if(x && vs.z !== 'laag'){ v = x; cls = 'n-voor'; titel = 'Voorstel: ' + vs.bron; }
+    else if(x){ ph = '~' + (k === 'opslag' && KDISP[x] ? KDISP[x] : x); titel = 'Schatting (niet ingevuld): ' + vs.bron; }
+  }
+  if(k === 'opslag' && KDISP[v]) v = KDISP[v];
+  return `<td class="${cls}"><input data-pdn="${k}" data-code="${esc(c)}" data-opg="${opg}" value="${esc(v)}" placeholder="${esc(ph)}" title="${esc(titel)}" aria-label="${esc(d.t)}" autocomplete="off" ${d.type === 'num' ? 'inputmode="decimal"' : ''}>${reden ? `<div class="n-why">${esc(reden)}</div>` : ''}</td>`;
+}
+function openRij(c, kols, n){
+  const p = D.P[c] || {}, ks = open(c, n), w = waardeFn(c), kl = (UI.nKlaar && UI.nKlaar[c]) || new Set();
+  const cellen = kols.map(k => {
+    if(ks.includes(k)) return openCel(c, k, w);
+    if(kl.has(k)){ const st = staat(c, k); return `<td class="n-ok" title="vastgelegd">✓ ${esc(toonWaarde(c, k, st.v))}</td>`; }
+    return '<td class="n-geen"></td>';
+  }).join('');
+  return `<tr data-code="${esc(c)}" class="${ks.length ? '' : 'r-klaar'}"><td class="n-prod"><div><a class="code" href="#/productdata/p/${encodeURIComponent(c)}">${esc(c)}</a> ${abcBadge(c)}</div><div class="tiny muted n-naam" title="${esc(String(p.naam || ''))}">${esc(String(p.naam || ''))}</div></td>${cellen}<td class="n-act"><button type="button" class="btn sm" data-pd="oklopt">Klopt</button><span class="n-st" aria-live="polite">${ks.length ? '' : '✓'}</span></td></tr>`;
+}
+function openTabel(rijen, n, fk){
+  const kols = openKolommen(rijen, n);
+  return `<div class="pd-tab"><table class="pd-nt" data-n="${n}" data-kols="${kols.join(',')}"><thead><tr><th class="n-prod">Product</th>${kols.map(k => `<th title="${esc(VELDEN[k].t)}">${esc(KORT[k] || VELDEN[k].t)}</th>`).join('')}<th></th></tr></thead><tbody>${rijen.map(x => openRij(x.c, kols, n)).join('')}</tbody></table></div>`;
+}
+function openKopTekst(d){
+  return d.prod ? `Laag ${d.n}: ${plural(d.prod, 'product', 'producten')}, ${plural(d.velden, 'veld', 'velden')} open` : `Laag ${d.n} klaar`;
+}
+function viewOpen(n){
+  UI.laag = n; bewaar('laag', n); UI.nKlaar = {};
+  const d = openData(n);
+  const kop = `<a class="small" href="#/productdata/poort">← Poort 0.4</a>
+  <div class="card mt8"><h2>Nog open · laag ${n}</h2>
+    <div class="n-kop mt8" id="pd-nkop"><b>${esc(openKopTekst(d))}</b></div>`;
+  if(!d.prod){
+    const v = volgendeLaag(n);
+    app.innerHTML = kop + `<div class="mt12">${v ? `<a class="btn pri" href="#/productdata/open/${v}">Naar laag ${v} →</a>` : `<a class="btn pri" href="#/productdata/poort">Terug naar Poort 0.4</a>`}</div></div>`;
+    return;
+  }
+  const sec = (x) => { const leden = famZichtbaar(x.fk); const t = famTitel(x.fk, leden.length ? leden : x.rijen.map(r => r.c));
+    return `<section class="pd-sec" data-fk="${esc(x.fk)}"><div class="pd-sec-kop"><div class="l"><h3>${esc(t)}</h3><span class="small muted">${esc(x.fk.split('|')[0])}</span></div><span class="small muted n-fn">${plural(x.velden, 'veld', 'velden')} open</span></div>${openTabel(x.rijen, n, x.fk)}</section>`; };
+  const laterVelden = d.later.reduce((s, x) => s + x.ks.length, 0);
+  app.innerHTML = kop + `</div>
+  ${d.fams.map(sec).join('')}
+  ${d.later.length ? `<details class="pd-sec n-later" data-fk="__later"><summary class="pd-sec-kop"><div class="l"><h3>Later (weggezet)</h3><span class="small muted">${plural(d.later.length, 'product', 'producten')}</span></div><span class="small muted n-fn">${plural(laterVelden, 'veld', 'velden')} open</span></summary>${openTabel(d.later, n, '__later')}</details>` : ''}
+  <div class="tiny muted n-leg"><span class="pd-tl n-tw">schatting Claude</span> <span class="pd-tl n-rc">tegen een regel in</span> <span class="pd-tl n-voor">voorstel</span> <span class="pd-tl n-leeg">leeg</span> · Tab = volgend vak · wat je typt wordt opgeslagen als je de regel verlaat · Klopt legt de hele regel vast zoals hij staat · soort 1–4, pick j/n, met p/d/o, nvt = komt niet op pallet</div>`;
+}
+// wat een regel opslaat: eigen invoer (alles = ook wat voorgevuld staat)
+function openWijz(tr, alles){
+  const c = tr.dataset.code, wijz = {}, fouten = [];
+  tr.querySelectorAll('input[data-pdn]:not([disabled])').forEach(inp => {
+    const k = inp.dataset.pdn, vuil = inp.dataset.vuil === '1';
+    if(!alles && !vuil) return;
+    let v; try{ v = check(k, tabNorm(k, inp.value)); }catch(e){ fouten.push(e.message); inp.parentNode.classList.add('n-fout'); return; }
+    const st = staat(c, k);
+    if(!v){ if(vuil && inp.dataset.opg === '1') wijz[k] = ''; return; }   // lege vak waar een waarde in productdata stond (schatting of regelcontrole): weghalen
+    if(st.s === 'ok' && st.v === v) return;
+    if(st.tw && st.v === v) wijz[k] = { v, bron:'invul', uit:'gecontroleerd door ' + ikNaam() + ' (was schatting Claude)' };
+    else if(st.rc && st.v === v) wijz[k] = { v, rok:1 };
+    else wijz[k] = v;
+  });
+  if(wijz.opslag) soortExtra(c, typeof wijz.opslag === 'object' ? wijz.opslag.v : wijz.opslag, wijz);
+  return { c, wijz, fouten };
+}
+function openKopBij(){
+  const t = app.querySelector('table.pd-nt'); if(!t) return;
+  const n = +t.dataset.n, d = openData(n);
+  if(!d.prod){ rerender(); return; }
+  const kop = $('pd-nkop'); if(kop) kop.innerHTML = `<b>${esc(openKopTekst(d))}</b>`;
+  app.querySelectorAll('[data-fk]').forEach(sec => {
+    const velden = [...sec.querySelectorAll('tr[data-code]')].reduce((s, tr) => s + open(tr.dataset.code, n).length, 0);
+    const el = sec.querySelector('.n-fn'); if(el) el.textContent = plural(velden, 'veld', 'velden') + ' open';
+  });
+}
+const nBezig = new Map();   // code → lopende opslag van die regel
+async function openRijOpslaan(tr, alles){
+  const tab = tr.closest('table'), c = tr.dataset.code, n = +tab.dataset.n, kols = tab.dataset.kols.split(',');
+  const vind = () => [...tab.querySelectorAll('tbody tr')].find(r => r.dataset.code === c) || null;
+  while(nBezig.has(c)) await nBezig.get(c).catch(() => {});   // eerst afwachten wat er al wordt opgeslagen (de regel is dan opnieuw getekend)
+  tr = vind(); if(!tr) return;
+  const { wijz, fouten } = openWijz(tr, alles), st = tr.querySelector('.n-st');
+  if(fouten.length){ st.textContent = '!'; st.title = fouten.join(' · '); st.className = 'n-st n-err'; return; }
+  if(!Object.keys(wijz).length){ delete tr.dataset.vuil; if(alles) toast(c + ': er staat niets ingevuld om vast te leggen. Vul eerst de lege vakken.', 3500); return; }
+  st.textContent = '…';
+  const p = (async () => {
+    try{
+      await opslaan({ [c]:wijz }, 'invul');
+      UI.nKlaar = UI.nKlaar || {}; const kl = UI.nKlaar[c] = UI.nKlaar[c] || new Set();
+      Object.keys(wijz).forEach(k => { if(wijz[k] !== '') kl.add(k); });
+      const nu = vind(); if(!nu) return;
+      delete nu.dataset.vuil;
+      const wrap = document.createElement('tbody'); wrap.innerHTML = openRij(c, kols, n);
+      nu.replaceWith(wrap.firstElementChild);
+      openKopBij();
+    }catch(e){ st.textContent = '!'; st.title = e.message; st.className = 'n-st n-err'; toast(c + ': ' + e.message, 6000); }
+  })();
+  nBezig.set(c, p); await p; nBezig.delete(c);
+}
+if(app) app.addEventListener('input', ev => { const inp = ev.target; if(inp.dataset && inp.dataset.pdn){ inp.dataset.vuil = '1'; inp.closest('tr').dataset.vuil = '1'; inp.parentNode.className = 'n-nieuw'; } });
+if(app) app.addEventListener('focusout', ev => {
+  const inp = ev.target; if(!inp.dataset || !inp.dataset.pdn) return;
+  const tr = inp.closest('tr'), naar = ev.relatedTarget;
+  if(naar && tr.contains(naar)) return;   // nog in dezelfde regel
+  if(tr.dataset.vuil) openRijOpslaan(tr, false);
+});
+if(app) app.addEventListener('keydown', ev => {
+  const inp = ev.target; if(!inp.dataset || !inp.dataset.pdn || ev.key !== 'Enter') return;
+  ev.preventDefault();
+  const rijen = [...inp.closest('table').querySelectorAll('tbody tr')], i = rijen.indexOf(inp.closest('tr'));
+  for(let j = i + 1; j < rijen.length; j++){ const doel = rijen[j].querySelector(`input[data-pdn="${inp.dataset.pdn}"]`); if(doel && !doel.disabled){ doel.focus(); doel.select(); break; } }
+});
+
 /* ---------- opslaan vanaf de kaart ---------- */
 async function bewaarProduct(code, alle, ks, opt){
   const plan = kaartPlan(code, alle, ks, opt);
@@ -2981,7 +3193,8 @@ if(app) app.addEventListener('click', async ev => {
   if(a === 'laag'){ UI.laag = +b.dataset.v; bewaar('laag', UI.laag); UI.i = 0; rerender(); return; }
   if(a === 'over'){ UI.over.add(rij1()[UI.i]); rerender(); window.scrollTo(0, 0); return; }
   if(a === 'terug'){ UI.i = Math.max(0, UI.i - 1); rerender(); window.scrollTo(0, 0); return; }
-  if(a === 'naarlaag'){ UI.laag = +b.dataset.v; bewaar('laag', UI.laag); UI.scope = 'belangrijk'; bewaar('scope2', UI.scope); UI.i = 0; location.hash = '#/productdata/kies'; return; }
+  if(a === 'naarlaag'){ UI.laag = +b.dataset.v; bewaar('laag', UI.laag); UI.scope = 'belangrijk'; bewaar('scope2', UI.scope); UI.i = 0; location.hash = '#/productdata/open/' + UI.laag; return; }
+  if(a === 'oklopt'){ const tr = b.closest('tr'); if(tr) await openRijOpslaan(tr, true); return; }
   if(a === 'neem'){ (UI.concept[b.dataset.code] = UI.concept[b.dataset.code] || {})[b.dataset.k] = b.dataset.v; bewaarConcept(); rerender(); return; }
   if(a === 'selfam'){ const leden = famZichtbaar(b.dataset.fk), alle = leden.every(c => UI.sel.has(c)); leden.forEach(c => alle ? UI.sel.delete(c) : UI.sel.add(c)); bewaarSel(); rerender(); return; }
   if(a === 'selniets'){ UI.sel.clear(); bewaarSel(); rerender(); return; }
@@ -3228,14 +3441,14 @@ document.addEventListener('mouseup', () => {
 });
 
 // vangnet: ook opslaan als je de pagina ververst, sluit of naar een andere app gaat terwijl je nog in een regel zit
-const tabOpen = () => [...document.querySelectorAll('table.pd-tg tbody tr[data-vuil], table.pd-tg tbody tr[data-gezien]')].filter(tr => !tr.dataset.bezig);
+const tabOpen = () => [...document.querySelectorAll('table.pd-tg tbody tr[data-vuil], table.pd-tg tbody tr[data-gezien], table.pd-nt tbody tr[data-vuil]')].filter(tr => !tr.dataset.bezig);
 // in één verzoek dat doorloopt als de pagina weg is (keepalive), op basis van wat de app al weet
 function noodOpslaan(){
   const nu = new Date().toISOString(), rijen = [];
   tabOpen().forEach(tr => {
-    const { c, wijz, fouten } = tr.closest('table[data-klein]') ? kleinWijz(tr) : tabWijz(tr); if(fouten.length || !Object.keys(wijz).length) return;
+    const { c, wijz, fouten } = tr.closest('table[data-klein]') ? kleinWijz(tr) : tr.closest('table.pd-nt') ? openWijz(tr, false) : tabWijz(tr); if(fouten.length || !Object.keys(wijz).length) return;
     const r = S.pd[c] || { data:{}, meta:{} }, data = Object.assign({}, r.data || {}), meta = Object.assign({}, r.meta || {});
-    Object.entries(wijz).forEach(([k, v]) => { if(!v){ delete data[k]; delete meta[k]; } else { data[k] = v; meta[k] = { op:nu, bron:'tabel' }; } });
+    Object.entries(wijz).forEach(([k, v]) => { const rok = v && typeof v === 'object' && v.rok; if(v && typeof v === 'object') v = v.v; if(!v){ delete data[k]; delete meta[k]; } else { data[k] = v; meta[k] = Object.assign({ op:nu, bron:'tabel' }, rok ? { rok:1 } : {}); } });
     rijen.push({ productcode:c, data, meta, updated_at:nu });
     S.pd[c] = { data, meta, t:nu }; delete tr.dataset.vuil; delete tr.dataset.gezien;
   });
@@ -3284,10 +3497,8 @@ async function view(delen){
   document.body.classList.toggle('pd-lock', !!UI.sheet);
   if(sub === 'afd' && arg) return huidig.delen[2] === 'kaart' ? viewAfdeling(arg) : viewTabel(arg);
   if(sub === 'afd') return viewAfdelingen();
-  if(sub === 'kies' && /^[1-4]$/.test(arg || '')){   // #/productdata/kies/2: belangrijke producten, laag 2 (vanuit een taak in 3.0)
-    UI.laag = +arg; bewaar('laag', UI.laag); UI.scope = 'belangrijk'; bewaar('scope2', UI.scope); UI.i = 0;
-    huidig.delen = ['kies']; try{ history.replaceState(null, '', '#/productdata/kies'); }catch(e){}
-  }
+  // #/productdata/open/2 (en de oude link #/productdata/kies/2): het rustige scherm met alleen wat nog open is in laag 2
+  if((sub === 'open' || sub === 'kies') && /^[1-4]$/.test(arg || '')){ UI.scope = 'belangrijk'; bewaar('scope2', UI.scope); UI.i = 0; return viewOpen(+arg); }
   if(sub === 'familie' && window.WHPDF) return WHPDF.view(arg ? decodeURIComponent(arg) : '');
   if(sub === 'kies' || sub === 'fam') return viewKies();
   if(sub === 'samen') return viewSamen();
@@ -3314,5 +3525,5 @@ function notities(){
   return Object.entries(g).map(([tekst, items]) => ({ tekst, items, codes:[...new Set(items.map(i => i.code))] })).sort((a, b) => b.codes.length - a.codes.length);
 }
 const intern = { isSam, heeftPark, parkMeta, wachtOpLevering, zelfGebouwd, mvPatroon, mvSoort, kokosDoos, levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
-return { view, herlaad, laad, zetLaterMee, notities, wachtOpLevering, isSam, heeftPark, appsZelftest, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
+return { view, viewOpen, openData, herlaad, laad, zetLaterMee, notities, regelLijst, regelFout, wachtOpLevering, isSam, heeftPark, appsZelftest, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();
