@@ -376,7 +376,7 @@ function eigenWaarde(c, k){
 // alles leren en per familie toetsen (lokaal, geen server)
 function leer(){
   if(LEER.x) return LEER.x;
-  const I = P().index(), codes = Object.keys(P().S.pd).filter(c => D.P[c]);
+  const I = P().index(), codes = Object.keys(P().S.pd).filter(c => D.P[c] && !X().isSam(c));   // SAM Europe telt nooit mee als voorbeeld voor andere artikelen
   const kx = {}; const K = c => kx[c] || (kx[c] = Object.assign(kenmerken(c), { c, lvlEigen:eigenWaarde(c, 'lvl') !== null ? num(eigenWaarde(c, 'lvl')) : null }));
   const uit = {};
   LEERVELDEN.forEach(k => {
@@ -630,7 +630,7 @@ function viewWerkblad(fk){
     return `<b>${esc(g.t)}</b><div class="small muted">${plural(g.cs.length, 'product', 'producten')} · ${esc(eh.join(' / '))}</div>${eh.length > 1 ? `<button class="pf-mld rood" data-pfa="ehpaneel">Eenheid verschilt (${esc(g.cs.map(c => c + ': ' + ehProd(fk, c).t).join(', '))}): controleer dat stuks per pallet in de eenheid van Picqer staat.</button>` : ''}
       <details class="pf-acties mt4"><summary class="pf-k">acties</summary><div class="row wrap mt4" style="gap:4px">${g.cs.length > 1 ? `<button class="pf-k" data-pfa="splits" data-m="${esc(g.k)}">splitsen</button>` : ''}${mg.length > 1 ? `<select class="pf-k" data-pfa="voeg" data-m="${esc(g.k)}"><option value="">samenvoegen met…</option>${mg.filter(h => h.k !== g.k).map(h => `<option value="${esc(h.k)}">${esc(h.t)}</option>`).join('')}</select>` : ''}<button class="pf-k" data-pfa="uitl" data-codes="${esc(g.cs.join('\n'))}" data-aan="1">uitlopend</button></div></details>`; };
   const famOpts = (() => { const lev = fk.split('|')[0], woorden = fk.split('|')[1].split(' ').filter(w => w.length > 3);
-    return Object.keys(I.fam).filter(f => f !== fk && f.split('|')[0] === lev && woorden.some(w => f.includes(w)) && actiefLeden(f).length).slice(0, 40); })();
+    return Object.keys(I.fam).filter(f => f !== fk && f.split('|')[0] === lev && lev !== 'SAM Europe' && woorden.some(w => f.includes(w)) && actiefLeden(f).length).slice(0, 40); })();
   app().innerHTML = `<div class="pf"><a class="small" href="#/productdata/familie">← Per familie</a>
   <div class="card mt8 pf-kop"><div class="pd-kop"><div><h2>${esc(famNaam(fk))}</h2><div class="small muted">${esc(fk.split('|')[0])} · ${plural(ls.length, 'product', 'producten')} · ${plural(mg.length, 'maatgroep', 'maatgroepen')} · ${nf(t.gevuld)} van ${nf(t.velden)} velden (laag 1–3)</div></div>
       ${vg ? `<a class="btn" href="${famUrl(vg.fk)}">Volgende familie →</a>` : ''}</div>

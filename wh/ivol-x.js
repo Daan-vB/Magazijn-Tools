@@ -1,7 +1,7 @@
 /* =====================================================================
    IVOL Warehouse 3.0 — schermen voor iedereen (15-10-2026, Claude)
    Native schermen in de 3.0-schil (geen iframe):
-     nakijken  Te controleren: schattingen van Claude in Productdata (meta.tw) en aannames (wh/aannames.js)
+     nakijken  Te controleren: schattingen van Claude in Productdata (meta.tw), aannames (wh/aannames.js) en de lijst Notities (geparkeerd, meta.park)
      dag       Dagstart: zes kerncijfers, dagritme om af te vinken, ochtendoverleg
      stand     Hoe staat het magazijn ervoor: Daans tien punten (kennisbank A1), alleen lezen (management)
      zoek      Product zoeken voor de vloer: waar ligt het, wat weten we, en een meldknop
@@ -128,6 +128,39 @@ async function bevestig(c, waarden){
   if(window.WHPD && WHPD.S && WHPD.S.pd) WHPD.S.pd[c] = { data, meta, t:nu };
 }
 
+/* ---------- Notities (Daan 17-10): besproken en bewust geparkeerd ----------
+   Los van het bouwplan: geen taak en geen teller in Te doen. Geparkeerde velden (productdata meta.<veld>.park = 1, notitie in meta.<veld>.uit) staan hier,
+   samen met een paar vaste notities. Een geparkeerd veld telt in Poort 0.4 als compleet. */
+const NOTITIES_VAST = [
+  { id:'wandrek-sheet', t:'Invulsheet wandrekken', tekst:'19 wandrekken; de printbare PDF ligt bij Daan. Kate of een medewerker laat de sheet invullen, vanaf week 43. Daarna invullen in Oefenen 3.0 ("Wandrekken invullen") of aan Claude geven. Blokkeert niets in het bouwplan. Tot de sheet terug is blijft de huidige max op pick staan.' },
+  { id:'parkeerplaats-pennen', t:'Idee (niet bouwen): parkeerplaats pennen', tekst:'Vaste plek bij de inpaktafel met een bak per soort kunststof pen (3–4 soorten), duidelijk gelabeld, en een mixpallet pennen op bulk.' }
+];
+function parkGroepen(){
+  const g = {};
+  Object.entries(S.pd || {}).forEach(([c, r]) => Object.keys(r.meta || {}).forEach(k => { const m = r.meta[k]; if(m && m.park && D.P[c]){ const t = m.uit || ''; (g[t] = g[t] || []).push({ c, k }); } }));
+  return Object.entries(g).map(([tekst, items]) => ({ tekst, items })).sort((a, b) => b.items.length - a.items.length);
+}
+/* ---------- Taken uit de masteropdracht 17-10 (eenmalig in Te doen, wh-todo) ----------
+   Vaste id's: bestaat de taak al of is hij verwijderd na het zaaien (marker in wh-taken), dan komt hij niet terug. Schrijft nooit naar Picqer. */
+const ZAAI_MARKER = 'zaai:2026-10-17';
+const ZAAI_TAKEN = [
+  { id:'zaai-20261017-wegzetten', titel:'Wegzetten: trapleuningen design 200/250 en rond 350, vierkante houder en trapprofielen', noot:'Ze staan op "geen specifieke locatie" terwijl de picks leeg zijn (design-200-black, design-250-black, TRLBLACK-350, holder-black-square, 42x21x100ALU). Op de picklocatie zetten en in Picqer verplaatsen.', wie:['Kate'], prio:2 },
+  { id:'zaai-20261017-bulk-leuningen', titel:'Picqer: bulklocatie "bulk leuningen" aanmaken en op bulk zetten', noot:'Achterwand AF, waar de extra dozen leuningen rechtop staan. In Picqer zelf aanmaken (de app schrijft niet naar Picqer).', wie:['Daan'], prio:2 }
+];
+function zaaiTaken(){
+  if(S.zaaiP) return S.zaaiP;
+  S.zaaiP = (async () => {
+    try{
+      if(!D.geladen || (D.TAKEN || {})[ZAAI_MARKER]) return;
+      const nu = new Date().toISOString(), datum = vandaag(), nieuw = {};
+      ZAAI_TAKEN.forEach(t => { if(!(D.TODO || {})[t.id]) nieuw[t.id] = Object.assign({ noot:'', tijd:'', herhaal:null, door:'Claude', op:nu, klaar:null, datum }, t); });
+      if(Object.keys(nieuw).length) await WH.catPatch('wh-todo', nieuw);
+      await WH.catPatch('wh-taken', { [ZAAI_MARKER]:{ op:nu } });
+    }catch(e){ S.zaaiP = null; console.warn('taken zaaien:', e.message || e); }
+  })();
+  return S.zaaiP;
+}
+
 /* ---------- Te controleren ---------- */
 function viewNakijken(){
   const tw = twLijst(), nTw = tw.reduce((s, x) => s + x.velden.length, 0);
@@ -139,6 +172,7 @@ function viewNakijken(){
     <div class="x-tabs" role="tablist">
       <button role="tab" aria-selected="${tab === 'pd'}" class="${tab === 'pd' ? 'aan' : ''}" data-x="tab" data-v="pd">Productdata<b>${S.pd ? nf(nTw) : '…'}</b></button>
       <button role="tab" aria-selected="${tab === 'aan'}" class="${tab === 'aan' ? 'aan' : ''}" data-x="tab" data-v="aan">Aannames<b>${nf(aan.length)}</b></button>
+      <button role="tab" aria-selected="${tab === 'notities'}" class="${tab === 'notities' ? 'aan' : ''}" data-x="tab" data-v="notities">Notities<b>${S.pd ? nf(NOTITIES_VAST.length + parkGroepen().length) : NOTITIES_VAST.length}</b></button>
       <button role="tab" aria-selected="${tab === 'data'}" class="${tab === 'data' ? 'aan' : ''}" data-x="tab" data-v="data">Uit de data</button>
     </div>`;
   let body = '';
@@ -158,6 +192,16 @@ function viewNakijken(){
     body = `<div class="small muted">${nf(aan.length)} open · ${nf(nOk)} ✓ (door jou in de app, of besloten in de chat). Een eigen keuze in de app gaat voor, behalve als je daarna in de chat iets anders besloot.</div>` + groepen.map(g => { const L = WHAAN.LIJST.filter(a => a.groep === g), nO = L.filter(a => !WHAAN.status(a.id).ok).length;
       return `<section class="blok"><h2>${esc(g)} <span class="small muted">${nO ? nf(nO) + ' open' : '✓ alles'}</span></h2>${L.map(a => { const k = WHAAN.status(a.id), kern = a.groep === 'Kerncijfers';
         return `<div class="x-rij" data-aan="${esc(a.id)}"><b>${esc(a.t)}</b><input class="${k.ok ? 'ok' : ''}" value="${esc(WHAAN.waarde(a.id))}" aria-label="${esc(a.t)}"${kern ? ' data-grens="1" inputmode="numeric"' : ''}><span class="x-why">${kern ? `<b class="x-grens" aria-live="polite">${esc(WHAAN.grensTekst(WHAAN.waarde(a.id)))}</b><br>` : ''}${esc(a.waarom)}${a.eenheid ? ' · ' + esc(a.eenheid) : ''}${k.ok ? ` · <b style="color:var(--ok)">✓ ${esc(k.door || '')} ${esc(String(k.op || '').slice(0, 10))}</b>` : ''}</span>${k.ok ? `<button class="x-btn" data-x="aanterug" data-id="${esc(a.id)}">Opnieuw</button>` : `<button class="x-btn" data-x="aanok" data-id="${esc(a.id)}">Klopt</button>`}</div>`; }).join('')}</section>`; }).join('');
+  } else if(tab === 'notities'){
+    if(!S.pd && !S.pdFout) laadPd();
+    const pg = S.pd ? parkGroepen() : [];
+    body = `<div class="small muted">Besproken en bewust open gelaten, of een idee. Los van het bouwplan: geen taak en geen teller in Te doen. Een geparkeerd veld telt in Poort 0.4 als compleet.</div>` +
+      NOTITIES_VAST.map(n => `<section class="blok"><h2>${esc(n.t)}</h2><p class="small">${esc(n.tekst)}</p></section>`).join('') +
+      (S.pdFout ? `<div class="blok let">Geparkeerde velden laden lukte niet: ${esc(S.pdFout.message || String(S.pdFout))}</div>` : !S.pd ? '<div class="leeg">Geparkeerde velden laden…</div>' :
+        pg.length ? pg.map(g => { const codes = [...new Set(g.items.map(i => i.c))]; return `<section class="blok"><h2>${esc(g.tekst || 'Geparkeerd')}</h2>
+          <p class="small muted">${nf(codes.length)} producten · ${nf(g.items.length)} velden geparkeerd</p>
+          <div class="small">${codes.slice(0, 60).map(c => `<a href="#/zoek/${encodeURIComponent(c)}">${esc(c)}</a> <span class="muted">${esc(g.items.filter(i => i.c === c).map(i => VELD[i.k] || i.k).join(', '))}</span>`).join(' · ')}${codes.length > 60 ? ' · +' + nf(codes.length - 60) : ''}</div></section>`; }).join('')
+        : '<div class="small muted">Geen geparkeerde velden in Productdata.</div>');
   } else {
     const bo = D.BO || [];
     body = `<section class="blok"><h2>Twijfel die uit de gegevens komt</h2><div class="tabel"><table><tbody>
@@ -257,7 +301,8 @@ function ritme(){
   const uit = [];
   WHAAN.LIJST.forEach(a => {
     const w = WHAAN.waarde(a.id), p = w.split('·').map(s => s.trim());
-    const r = { id:a.id, wat:a.t, wanneer:p[0], wie:p.slice(1).join(' · '), cont:false };
+    if(/alleen maandag/i.test(w) && new Date().getDay() !== 1) return;   // bijv. de extra DHL Freight-afhaling van maandag
+    const r = { id:a.id, wat:a.t, wanneer:p[0], wie:p.slice(1).join(' · ').replace(/\s*·?\s*alleen maandag/i, ''), cont:false };
     if(a.groep === 'Dagritme gewone dag'){ uit.push(Object.assign(r, { tijd:(p[0].match(/^(\d\d:\d\d)/) || [])[1] || '', sort:sorteer(p[0]) })); return; }
     if(a.groep !== 'Containerdag (extra)') return;
     const [van, tot] = contDagen(p[0]);
@@ -441,6 +486,7 @@ function render(naam, el, rest){
     if(naam === 'zoek' && rest){ const c = D.PLOW[decodeURIComponent(rest).toLowerCase()]; if(c){ S.gekozen = c; S.zoek = c; } }
     if(['dag', 'stand'].includes(naam) && window.WHLIVE){ const st = WHLIVE.status(); if(st.code && !st.data && !st.laden) WHLIVE.laad(); }
     herteken();
+    zaaiTaken();
   });
 }
 let gebonden = false;
@@ -487,19 +533,42 @@ function bind(){
 bind();
 // banner bovenaan Te doen: wat er nog te controleren is (alleen als er iets is).
 // Te doen tekent zichzelf geregeld opnieuw: een observer zet de banner er dan weer boven.
-let bannerHtml = '', obs = null;
+let bannerHtml = '', obs = null, bannerEl = null, bannerTel = { n:0, a:0 };
 function zetBanner(el){
   if(!bannerHtml || !el || el.hidden || el.querySelector('#x-banner')) return;
   if(!window.IVOL || (IVOL.huidig() || {}).id !== 'todo') return;
   const d = document.createElement('div'); d.id = 'x-banner'; d.innerHTML = bannerHtml; el.prepend(d);
 }
+// open taken uit de masteropdracht (wegzetten, bulklocatie in Picqer): bovenaan Te doen, met een knop Gedaan
+function takenHtml(){
+  const t = Object.values(D.TODO || {}).filter(x => x && x.id && /^zaai-/.test(x.id) && x.titel && !x.klaar);
+  if(!t.length) return '';
+  return `<div class="pagina" style="padding-bottom:0"><div class="x-kaart" style="border-left:6px solid #1d4ea0"><div class="x-kop"><b>Taken</b><span class="small muted">${nf(t.length)} open</span></div>
+    ${t.map(x => `<div class="x-kop" style="border-top:1px solid #eef1f5;padding-top:8px"><div style="min-width:0"><b>${esc(x.titel)}</b><div class="small muted">${esc((x.wie || []).join(' · '))}${x.noot ? ' · ' + esc(x.noot) : ''}</div></div><button class="x-btn ok" data-xt="klaar" data-id="${esc(x.id)}">Gedaan</button></div>`).join('')}</div></div>`;
+}
+function maakBanner(){
+  const { n, a } = bannerTel;
+  bannerHtml = (n + a ? `<div class="pagina" style="padding-bottom:0"><a class="x-kaart" href="#/nakijken" style="text-decoration:none;color:inherit;border-left:6px solid #e0a100"><div class="x-kop"><div><b>Te controleren</b><div class="small muted">${n ? nf(n) + ' producten met een schatting van Claude' : ''}${n && a ? ' · ' : ''}${a ? nf(a) + ' aannames (kerncijfers, dagritme, regels)' : ''}. Tik Klopt of pas aan; tot dan tellen ze als open.</div></div><span class="x-btn pri">Openen →</span></div></a></div>` : '') + takenHtml();
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-xt="klaar"]'); if(!b) return;
+  const t = (D.TODO || {})[b.dataset.id]; if(!t) return;
+  b.disabled = true;
+  try{
+    await WH.catPatch('wh-todo', { [t.id]:Object.assign({}, t, { klaar:{ op:new Date().toISOString(), door:ik() } }) });
+    maakBanner();
+    const oud = document.getElementById('x-banner'); if(oud) oud.remove();
+    zetBanner(bannerEl);
+  }catch(err){ console.error(err); b.disabled = false; }
+});
 async function banner(el){
   try{
     await (async () => { while(!window.IVOL) await new Promise(r => setTimeout(r, 50)); await IVOL.geladen(); })();
     await Promise.all([window.WHAAN ? WHAAN.laad() : null, laadPd()]);
-    const n = twLijst().length, a = window.WHAAN ? WHAAN.open().length : 0;
+    await zaaiTaken();   // eenmalig: de taken uit de masteropdracht 17-10
+    bannerTel = { n:twLijst().length, a:window.WHAAN ? WHAAN.open().length : 0 };
     stijl();
-    bannerHtml = n + a ? `<div class="pagina" style="padding-bottom:0"><a class="x-kaart" href="#/nakijken" style="text-decoration:none;color:inherit;border-left:6px solid #e0a100"><div class="x-kop"><div><b>Te controleren</b><div class="small muted">${n ? nf(n) + ' producten met een schatting van Claude' : ''}${n && a ? ' · ' : ''}${a ? nf(a) + ' aannames (kerncijfers, dagritme, regels)' : ''}. Tik Klopt of pas aan; tot dan tellen ze als open.</div></div><span class="x-btn pri">Openen →</span></div></a></div>` : '';
+    bannerEl = el; maakBanner();
     zetBanner(el);
     if(!obs && window.MutationObserver){ obs = new MutationObserver(() => zetBanner(el)); obs.observe(el, { childList:true }); }
   }catch(e){ console.error(e); }

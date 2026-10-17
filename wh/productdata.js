@@ -54,6 +54,17 @@ const VOLG = Object.keys(VELDEN);
 const inLaag = n => VOLG.filter(k => VELDEN[k].laag === n);
 const LEEGWAARDE = v => leeg(v) || String(v).trim().toLowerCase() === 'onb';
 const NVT = v => String(v ?? '').trim().toLowerCase() === 'nvt';
+/* SAM Europe (Daan 17-10, aanname p-sam): alleen picklocatie, bulklocaties en aanvulniveau. Geen doos, pallet, hoogte, gewicht, plaatsen
+   of mixgroep schatten of vragen, en SAM wordt nooit gecombineerd of vergeleken met andere artikelen (geen familie-, kleurgenoot- of maatgroep). */
+const SAM_VELDEN = ['pick', 'lvl', 'maxpick'];
+const isSam = c => /\bsam\s+europe\b/i.test(String((D.P[c] || {}).leverancier || ''));
+/* Geparkeerd (Daan 17-10, aanname p-park): besproken en bewust open gelaten. Meta van het veld heeft park = 1 en uit = notitie.
+   Telt als compleet (ook in elke latere poort) en staat zichtbaar in de lijst Notities in 3.0. */
+const parkMeta = (c, k) => { const r = S.pd[c], m = r && r.meta && r.meta[k]; return m && m.park ? m : null; };
+const heeftPark = c => { const r = S.pd[c]; return !!(r && r.meta && Object.keys(r.meta).some(k => r.meta[k] && r.meta[k].park)); };
+/* Zelf gebouwde pallet (aanname p-zelfbouw): los in de container geleverd en door ons op een pallet gezet (bijv. deurmatten, roostermatten).
+   Herkenbaar aan de opmerking "Zelf gebouwde pallet …". */
+const zelfGebouwd = c => /zelf gebouwde pallet/i.test(String((S.pd[c] && S.pd[c].data && S.pd[c].data.opm) || ''));
 
 /* ---------- toestand ---------- */
 const S = { pd:{}, extra:{}, cat:null, labels:{}, mv:{}, toets:null, klaar:false, laden:null, mist:false, fout:null, idx:null, laterMee:true, fcor:null };
@@ -112,14 +123,16 @@ function maatSig(n){
   s.replace(/(\d+[.,]?\d*)\s*(mm|cm|m2|kv)\b/g, (m0, a, b) => { u.push(a + ' ' + b); return ''; });
   return d.concat(u).join(' · ');
 }
+const PUR_LEER = /^PUR-R-/i, PUR_FK = 'CF|rubber rollen per meter';
 function index(){
   if(S.idx) return S.idx;
   const fam = {}, famVan = {}, varVan = {}, vari = {};
   const cor = S.fcor || famCorNorm(null);
   Object.values(D.P).forEach(p => {
-    const code = p.productcode, fn = famNaam(p.naam);
-    const fk = cor.fam[code] || (String(p.leverancier || '?').slice(0, 24) + '|' + (fn || code.toLowerCase()));
-    const vk = fk + '|' + (cor.maat[code] !== undefined ? cor.maat[code] : maatSig(p.naam));
+    const code = p.productcode, fn = famNaam(p.naam), sam = isSam(code);
+    // SAM Europe: elk artikel staat alleen (geen familie, kleurgenoot of maatgroep); PU-leer per meter hoort bij CF rubber rollen per meter
+    const fk = sam ? 'SAM Europe|' + code.toLowerCase() : cor.fam[code] || (PUR_LEER.test(code) ? PUR_FK : String(p.leverancier || '?').slice(0, 24) + '|' + (fn || code.toLowerCase()));
+    const vk = fk + '|' + (sam ? code.toLowerCase() : cor.maat[code] !== undefined ? cor.maat[code] : maatSig(p.naam));
     (fam[fk] = fam[fk] || []).push(code); famVan[code] = fk;
     (vari[vk] = vari[vk] || []).push(code); varVan[code] = vk;
   });
@@ -216,6 +229,7 @@ function plaatsenUitMaat(maat){
 }
 // is dit veld nodig voor dit product? (n.v.t. door een ander antwoord)
 function nodig(code, k, w){
+  if(isSam(code)) return SAM_VELDEN.includes(k) && !(['lvl', 'maxpick'].includes(k) && w('pick') === 'nee');   // SAM Europe: alleen pick en aanvulniveau
   if(k === 'opslag') return true;    // de soort bepaalt welke velden nodig zijn
   const so = soortVan(code);
   if(so === 'pick') return k === 'pick';
@@ -235,6 +249,7 @@ function nodig(code, k, w){
 // huidige toestand van een veld
 function staat(code, k){
   const v = pdWaarde(code, k), o = oudeWaarde(code, k);
+  { const pm = parkMeta(code, k); if(pm) return { v:v !== null && !LEEGWAARDE(v) ? v : '', s:'ok', park:true, bron:'geparkeerd', uit:pm.uit || '' }; }
   const r = S.pd[code], bron = r && r.meta && r.meta[k] && r.meta[k].bron;
   if(v !== null && !LEEGWAARDE(v)){
     // eerder overgezet terwijl palletlabels twee waarden had: opnieuw laten kiezen
@@ -270,7 +285,15 @@ function wees(){
   return uit;
 }
 const waardeFn = code => k => { const st = staat(code, k); return st.s === 'open' ? (UI.concept[code] && UI.concept[code][k]) || '' : st.v; };
+/* Zonder voorraad (Daan 17-10, aanname p-wacht): eerst inkoop/containerlijst (pakbon) gebruiken, anders niets schatten tot het product op voorraad is.
+   Zo'n product heet "wacht op levering" en telt voor de poort als compleet zolang er geen voorraad is. */
+function wachtOpLevering(code){
+  const p = D.P[code]; if(!p || p.actief === false || leeg(p.voorraad_hm) || pdWaarde(code, 'uitlopend') || isSam(code)) return false;   // zonder voorraadgegevens nooit "wacht"
+  const vr = D.VR[code], opLoc = vr ? Object.values(vr.locs || {}).reduce((a, b) => a + (num(b) || 0), 0) + (num(vr.geen) || 0) : 0;
+  return (num(p.voorraad_hm) || 0) <= 0 && (num(p.voorraad_vst) || 0) <= 0 && opLoc <= 0;
+}
 function open(code, laag){
+  if(wachtOpLevering(code)) return [];
   const w = waardeFn(code);
   return inLaag(laag).filter(k => nodig(code, k, w) && staat(code, k).s !== 'ok');
 }
@@ -290,7 +313,7 @@ const ZEKER = 0.75;
 // [kans, aantal getoetst] · gemeten met toets() op de export van 8-10-2026 03:53
 const KANS = {
   regel:[1, 0],   // jouw eigen aanvulregel (Aanvulregels): geldt gewoon
-  'spp:mvvst':[1, 11], 'spp:vst2':[.83, 179], 'spp:bulk2':[.84, 63], 'spp:genoot':[.85, 205], 'spp:eens':[.65, 20], 'spp:vst1':[.66, 29], 'spp:bulk1':[.30, 125], 'spp:pakbon':[.43, 7], 'spp:mvontv':[.22, 9], 'spp:fam':[.51, 55],
+  'spp:zelfbouw':[.9, 0], 'spp:zelfbouw2':[.6, 0], 'maxlig:regel':[.9, 0], 'spp:mvvst':[1, 11], 'spp:vst2':[.83, 179], 'spp:bulk2':[.84, 63], 'spp:genoot':[.85, 205], 'spp:eens':[.65, 20], 'spp:vst1':[.66, 29], 'spp:bulk1':[.30, 125], 'spp:pakbon':[.43, 7], 'spp:mvontv':[.22, 9], 'spp:fam':[.51, 55],
   'pick:picqer':[1, 46], 'pick:genoot':[1, 5], 'pick:bulk':[0, 2],
   // Picqer-aanvulinstelling (alleen als die bewust is gezet, dus > 1): de huidige instelling, overgenomen tot jij iets anders kiest
   'maxpick:picqer':[.8, 0], 'lvl:picqer':[.8, 0],
@@ -390,18 +413,46 @@ function mvSoort(code){
   if(g.deel) return { soort:'deel', gem:g.deel.gem, n:g.deel.n, t:g.deel.t };
   return null;
 }
+// zonder voorraad: alleen wat de pakbon (containerlijst) zegt
+function wachtVoorstel(code, k){
+  const r = pbRegels(code), bron = ' · wacht op levering';
+  switch(k){
+    case 'spp': { const x = r.find(r => r.soort === 'pallet' && num(r.per)); return x ? uit('spp:pakbon', num(x.per) * (num(x.factor) || 1), 'pakbon: ' + nf(num(x.per)) + ' per pallet' + bron) : null; }
+    case 'spd': case 'geleverd': { const x = r.find(r => r.soort !== 'pallet' && num(r.per) > 1); return x ? uit(k + ':pakbon', num(x.per) * (num(x.factor) || 1), 'pakbon: ' + nf(num(x.per)) + ' per doos' + bron) : null; }
+    case 'maat': { const x = r.find(r => r.palletmaat || r.maat); return x ? uit('maat:pakbon', String(x.palletmaat || x.maat), 'pakbon' + bron) : null; }
+    case 'gewicht': { const x = r.find(r => r.soort === 'pallet' && num(r.bruto_per)); return x ? uit('gewicht:pakbon', Math.ceil(num(x.bruto_per)), 'pakbon: bruto per pallet' + bron) : null; }
+  }
+  return null;
+}
+/* Zelf gebouwde pallet (aanname p-zelfbouw): stuks per pallet = het grootste geleverde aantal per levering (pakbon), als de verplaatsingen laten zien
+   dat het op één pallet paste (een verplaatsing naar bulk van dat aantal); anders het grootste aantal dat in één keer naar bulk ging. */
+function zelfbouwSpp(code){
+  const naarBulk = (S.mv[code] || []).filter(m => !m.vst && m.n > 0 && isBulkLoc(m.naar) && !isBulkLoc(m.van)).map(m => m.n);
+  const lev = pbRegels(code).map(r => num(r.aantal) || 0).filter(n => n > 0);
+  const maxMv = Math.max(0, ...naarBulk), maxLev = Math.max(0, ...lev);
+  if(maxLev && maxMv >= maxLev) return uit('spp:zelfbouw', maxLev, 'zelf gebouwde pallet: grootste levering ' + nf(maxLev) + ', paste volgens de verplaatsingen op één pallet');
+  if(maxMv) return uit('spp:zelfbouw', maxMv, 'zelf gebouwde pallet: grootste aantal dat in één keer naar bulk ging (' + nf(maxMv) + ')');
+  if(maxLev) return uit('spp:zelfbouw2', maxLev, 'zelf gebouwde pallet: grootste levering volgens de pakbon (verplaatsingen zeggen nog niets)');
+  return null;
+}
 function voorstel(code, k, w){
   const p = D.P[code] || {}, x = S.extra[code] || {}, eh = eenheid(code), kg = kleurgenoten(code);
+  // SAM Europe (aanname p-sam): alleen picklocatie en aanvulniveau; nooit iets schatten of overnemen van of naar andere artikelen
+  if(isSam(code) && !SAM_VELDEN.includes(k)) return null;
+  // alles op pick, geen bulk (aanname p-pick): geen aanvulniveau voorstellen
+  if((k === 'lvl' || k === 'maxpick') && (soortVan(code) === 'pick' || alleenPick(code))) return null;
   const oud = oudeWaarde(code, k);
   if(oud && oud.conflict){
     const st = staat(code, k);
     if(st.s === 'open') return { v:oud.conflict[0].v, bron:'palletlabels heeft ' + oud.conflict.length + ' verschillende: ' + oud.conflict.map(c => c.v + (c.waar && c.waar.length && k === 'spp' ? ' (' + c.waar.join(', ') + ')' : '')).join(' / ') + ' · eerste = laatst gebruikt, kies de juiste', z:'laag', r:'conflict' };
   }
   if(oud && !LEEGWAARDE(oud.v) && pdWaarde(code, k) === null) return { v:oud.v, bron:'stond al in ' + oud.bron, z:'hoog', r:'oud', p:1 };
+  if(wachtOpLevering(code)) return wachtVoorstel(code, k);   // zonder voorraad alleen wat de pakbon zegt
   const genoot = kg.length ? vanGenoten(kg, k, 'zelfde als', k + ':genoot') : null;
   const fam = () => vanGenoten(famLeden(code).filter(c => !kg.includes(c)), k, 'familie:', k + ':fam');
   switch(k){
     case 'spp': {
+      if(zelfGebouwd(code)){ const z = zelfbouwSpp(code); if(z) return z; }
       const b = sppBronnen(code);
       for(const r of ['mvvst', 'vst2', 'bulk2']) if(b[r]) return uit('spp:' + r, b[r].v, b[r].t);
       if(genoot) return genoot;
@@ -434,7 +485,9 @@ function voorstel(code, k, w){
       if(lv !== null && gd && gd.soort === 'deel') return uit('maxpick:gesch', lv + gd.gem, 'bij ' + nf(lv) + ' + gemiddeld ' + nf(gd.gem) + ' per keer (' + gd.t + ')');
       // als er niets bekend is: max = bij + aanvullen met (minimaal 1 à 2 weken verkoop; Daan 16-10, aanname p-max)
       const wk2 = pdVan(code) > 0 ? Math.ceil(pdVan(code) * 10) : vkmVan(code) > 0 ? Math.ceil(vkmVan(code) / 2) : 0;
-      if(lv !== null && wk2 > 0) return uit('maxpick:verkoop', lv + wk2, 'bij ' + nf(lv) + ' + ± 2 weken verkoop (' + nf(wk2) + ')');
+      // ruimte gaat voor verkoop (aanname p-ruimte): heeft Daan aanvullen bij of max bevestigd, dan komt "1–2 weken verkoop" er niet overheen
+      const mL = ((S.pd[code] || {}).meta || {}).lvl || {}, vastL = staat(code, 'lvl').s === 'ok' && mL.bron !== 'auto';
+      if(lv !== null && wk2 > 0 && !vastL) return uit('maxpick:verkoop', lv + wk2, 'bij ' + nf(lv) + ' + ± 2 weken verkoop (' + nf(wk2) + ')');
       const l = locaties(code), m = Math.max(0, ...l.pick.map(a => num(a[1]) || 0));
       if(m > 0) return uit('maxpick:nu', m, 'nu ' + nf(m) + ' op pick');
       return null;
@@ -521,7 +574,16 @@ function voorstel(code, k, w){
         if(kk) return uit('spd:kokos', kk.v, 'regel Daan: ' + kk.why, { p:kk.p, z:kk.p >= ZEKER ? 'hoog' : 'laag' }); }
       return fam();
     }
-    case 'maxlig': return genoot || fam();
+    case 'maxlig': {
+      if(genoot) return genoot;
+      const f = fam(); if(f) return f;
+      // ligger-regel (Daan 16-10 en 17-10): 3 plaatsen per ligger, max 2000 kg; omdozen op 90x120: 2 pallets op een 3-ligger (3 op een 4-ligger)
+      const maat90 = /^90\s*x\s*120$/.test(String(w('maat') || '').replace(/\s/g, '')), pl = num(w('plaatsen')), gw = num(w('gewicht')), lk = aanGetal('p-ligkg', 2000) || 2000;
+      if(!maat90 && !pl) return null;
+      let n = maat90 ? 2 : Math.max(1, Math.floor(3 / pl)), t = maat90 ? '90x120: 2 pallets op een 3-ligger (3 op een 4-ligger)' : '3 plaatsen per ligger, ' + nf(pl, 1) + ' per pallet';
+      if(gw && Math.floor(lk / gw) < n){ n = Math.max(1, Math.floor(lk / gw)); t += ' · ' + nf(gw) + ' kg per pallet, max ' + nf(lk) + ' kg per ligger'; }
+      return uit('maxlig:regel', n, 'regel Daan: ' + t);
+    }
     case 'kgst': { const g = num(x.gewicht_product_g); return g ? { v:String(g / 1000), bron:'Picqer', z:'mid', r:'kgst' } : genoot; }
     case 'doos': return genoot;
     case 'opm': return genoot;
@@ -585,10 +647,14 @@ function maatUitNaam(code){
   const a = +m[1], b = +m[2]; return a >= 20 && b >= 20 ? [Math.max(a, b), Math.min(a, b)] : null;
 }
 const breedteUitNaam = code => { const n = String((D.P[code] || {}).naam || ''); const m = n.match(/(\d{2,3})\s*cm\s*(breed|br\b)/i) || n.match(/breed(?:te)?\s*(\d{2,3})/i) || n.match(/\b(\d{2,3})\s*cm\b/i); return m ? +m[1] : null; };
-// midden-product = Picqer-tag "Batch midden" (isMidden, verderop)
+// midden-product = Picqer-tag "Batch midden" (isMidden, verderop). De vaste maat 80x120x160 voor midden vervalt (Daan 17-10): de hoogte hangt af van hal en ligger, dus geen vaste schatting.
 function maatRegel(code){
   const n = String((D.P[code] || {}).naam || '').toLowerCase(), locs = String((D.P[code] || {}).locaties_hm || '');
   const R = (maat, h, why) => ({ maat, h, why });
+  // pallets (Daan 17-10, aanname p-pallets): basis losse producten 80x120x180; omdozen breder dan 80 cm = 90x120 (2 pallets op een 3-ligger, 3 op een 4-ligger);
+  // huishoudtrappen 2 treden 80x120, 3 en 4 treden 100x150
+  { const dm = String(pdWaarde(code, 'doos') || '').match(/(\d+)\s*x\s*(\d+)/); if(dm && Math.min(+dm[1], +dm[2]) > 80) return R('90x120', 180, 'regel Daan: omdoos breder dan 80 cm → 90x120x180 (2 pallets op een 3-ligger, 3 op een 4-ligger)'); }
+  if(/huishoudtrap/.test(n)){ const t = n.match(/(\d)\s*treden/); if(t) return +t[1] <= 2 ? R('80x120', 180, 'regel Daan: huishoudtrap 2 treden → 80x120x180') : R('100x150', 180, 'regel Daan: huishoudtrap ' + t[1] + ' treden → 100x150x180'); }
   if(/bureaustoel/.test(n)) return R('80x120', 180, 'regel Daan: bureaustoel 80x120x180');
   if(/whiteboard/.test(n)){
     const m = maatUitNaam(code);
@@ -604,7 +670,6 @@ function maatRegel(code){
     const b = breedteUitNaam(code);
     if(b) return b <= 120 ? R('80x120', 140, 'regel Daan: rubber rol ' + b + ' breed (≤ 120) → 80x120x140') : b <= 160 ? R('100x150', 100, 'regel Daan: rubber rol ' + b + ' breed (120–160) → 100x150x100') : R('120x180', 100, 'regel Daan: rubber rol ' + b + ' breed (> 160) → 120x180x100');
   }
-  if(isMidden(code)) return R('80x120', 160, 'regel Daan: midden-product → 80x120x160');
   const m = maatUitNaam(code);
   if(m && m[0] >= 60 && m[1] >= 60 && !(m[0] <= 127 && m[1] <= 87)){ const pm = opslagMaat(m[0], m[1]); if(pm) return R(pm, 180, 'regel Daan: productmaat ' + m[0] + 'x' + m[1] + ' uit de naam → opslagmaat ' + pm); }
   return R('80x120', 180, 'regel Daan: al het andere → 80x120x180');
@@ -775,6 +840,7 @@ function labels(codes){
 }
 // status van een product over laag 1 t/m 3: ok = compleet, dub = dubbel te kiezen, '' = nog niet compleet
 function prodStatus(c){
+  if(wachtOpLevering(c)) return 'ok';
   const w = waardeFn(c);
   let dub = false, open = false;
   [1, 2, 3].forEach(n => inLaag(n).forEach(k => { if(!nodig(c, k, w)) return; const st = staat(c, k); if(st.s === 'ok') return; if(st.conflict) dub = true; else open = true; }));
@@ -1001,6 +1067,7 @@ function stijl(){
 function voortgang(codes, laag){
   let vol = 0, velden = 0, gevuld = 0;
   codes.forEach(c => {
+    if(wachtOpLevering(c)){ vol++; return; }   // geen voorraad: telt als compleet, de velden tellen niet mee
     const w = waardeFn(c), ks = inLaag(laag).filter(k => nodig(c, k, w));
     const o = ks.filter(k => staat(c, k).s !== 'ok').length;
     velden += ks.length; gevuld += ks.length - o; if(!o) vol++;
@@ -1029,7 +1096,7 @@ function kaartWaarde(code, k, f, opt){
     if(v === '') return { v:'', s:st.s === 'ok' ? 'wis' : 'open', conflict:st.conflict, invoer:true };
     return { v, s:st.s === 'ok' && v === st.v ? 'ok' : 'nieuw', was:st.s === 'ok' ? st.v : null, conflict:st.conflict, invoer:true };
   }
-  if(st.s === 'ok') return { v:st.v, s:'ok' };
+  if(st.s === 'ok') return st.park ? { v:st.v, s:'ok', park:true, uit:st.uit } : { v:st.v, s:'ok' };
   if(st.conflict) return { v:'', s:'dubbel', conflict:st.conflict };
   if(k === 'kgst') return { v:'', s:'open' };   // optioneel: alleen wat je zelf kiest
   const vs = voorstel(code, k, f);
@@ -1051,6 +1118,7 @@ function kaartFn(code, opt){
   return f;
 }
 function nvtReden(code, k){
+  if(isSam(code)) return 'SAM Europe: alleen picklocatie, bulklocaties en aanvulniveau';
   if(alleenPick(code)) return 'Alleen pick: ligt op één plek, geen pallets of aanvullen';
   if(soortVan(code) === 'pick') return '4 pick: alles gaat direct naar de picklocatie';
   if(soortVan(code) === 'mix') return '3 mix: geen palletgegevens nodig';
@@ -1092,7 +1160,7 @@ function veldRij(code, k, f, o = {}){
   const i = f.info(k);
   let ch, br = '';
   switch(i.s){
-    case 'ok': { const m = S.pd[code] && S.pd[code].meta && S.pd[code].meta[k]; ch = m && m.bron === 'auto' && !i.invoer ? chip('Automatisch', 'c-auto') : chip('Vastgelegd', 'c-ok'); br = esc(okBron(code, k)); break; }
+    case 'ok': { const m = S.pd[code] && S.pd[code].meta && S.pd[code].meta[k]; ch = i.park ? chip('Geparkeerd', 'c-nvt') : m && m.bron === 'auto' && !i.invoer ? chip('Automatisch', 'c-auto') : chip('Vastgelegd', 'c-ok'); br = i.park ? 'Besproken, telt als compleet: ' + esc(i.uit || '') : esc(okBron(code, k)); break; }
     case 'nieuw': ch = chip('Ingevuld', 'c-nieuw'); br = 'Wordt opgeslagen bij Klopt' + (i.was ? ' (was ' + esc(toonWaarde(code, k, i.was)) + ')' : ''); break;
     case 'wis': ch = chip('Wordt gewist', 'c-fout'); br = 'Leeg gemaakt: bij Klopt gaat de waarde eruit'; break;
     case 'fout': ch = chip('Klopt niet', 'c-fout'); br = esc(i.fout); break;
@@ -1121,8 +1189,9 @@ function kaartTel(code, f){
 function kaartKop(code, f){
   const p = D.P[code] || {}, t = kaartTel(code, f), pct = t.tot ? Math.round(100 * t.klaar / t.tot) : 100, g = genotenActief(code), sig = maatSig(p.naam);
   return `<section class="pd-sec pd-kopsec">
-    <div class="pd-titel"><span class="code">${esc(code)}</span>${abcBadge(code)}${index().binnen.has(code) ? badge('komt binnen', 'b-warn') : ''}${p.actief === false ? badge('niet actief', 'b-bad') : ''}</div>
+    <div class="pd-titel"><span class="code">${esc(code)}</span>${abcBadge(code)}${index().binnen.has(code) ? badge('komt binnen', 'b-warn') : ''}${p.actief === false ? badge('niet actief', 'b-bad') : ''}${wachtOpLevering(code) ? badge('wacht op levering', 'b-info') : ''}${isSam(code) ? badge('SAM Europe', 'b-grey') : ''}${heeftPark(code) ? badge('geparkeerd', 'b-grey') : ''}</div>
     <div class="pd-naam">${esc(p.naam || '')}</div>
+    ${wachtOpLevering(code) ? '<div class="small muted">Wacht op levering: nog geen voorraad. Alleen wat de pakbon zegt wordt voorgesteld; voor de poort telt dit product als compleet zolang er geen voorraad is.</div>' : ''}
     <div class="small muted">${g.length ? `<span class="pd-bereik groep">Kleurgroep</span> ${plural(g.length + 1, 'product', 'producten')}${sig ? ' in ' + esc(sig) : ''} delen pallet- en doosgegevens` : 'Geen andere kleuren van deze maat: eigen pallet- en doosgegevens'}</div>
     <div class="pd-tel"><span><b>${t.klaar}</b> van <b>${t.tot}</b> velden vastgelegd <span class="muted">(laag 1 t/m 3)</span></span>
       <span class="pd-chips">${t.dub ? chip(t.dub + ' dubbel', 'c-dub') : ''}${t.voor ? chip(t.voor + ' te bevestigen', 'c-voor') : ''}${t.nodig ? chip(t.nodig + ' nog nodig', 'c-nodig') : ''}${!t.dub && !t.voor && !t.nodig ? chip('compleet', 'c-ok') : ''}</span></div>
@@ -1276,12 +1345,22 @@ function poort(){
     { t:'Bekende gegevens overgezet, vóór en na gelijk', ok:!migOpen, u:migOpen ? nf(migOpen) + ' waarden nog over te zetten' : '', a:migOpen ? '#/productdata' : '' },
     { t:'Dubbel in palletlabels: niets meer te kiezen', ok:!dub, u:dub ? nf(dub) + ' producten te kiezen' : '', a:dub ? '#/productdata/dubbel' : '' }
   ].concat(lagen.map((v, i) => ({ t:'Belangrijke producten · ' + (i + 1) + '. ' + LAGEN[i].t + ' 100%', ok:v.tot > 0 && v.vol === v.tot, u:nf(v.vol) + ' van ' + nf(v.tot) + ' compleet · ' + nf(v.velden - v.gevuld) + ' velden open', laag:i + 1 })));
+  // laatste vinkje van 0.4: Warehouse, Junior, Palletlabels en Containers lezen en schrijven productdata (achter een schakelaar). Groen zodra de code er is en de zelftest slaagt, los van de schakelaar.
+  const zt = appsZelftest();
+  items.push({ t:'Andere apps lezen/schrijven productdata', ok:zt.ok, u:zt.ok ? 'code aanwezig, zelftest geslaagd (lezen met terugval, schrijven naar beide plekken) · schakelaar staat nu ' + (zt.aan ? 'aan' : 'uit') : 'zelftest mislukt: ' + zt.tekst });
   const dataKlaar = items.every(x => x.ok);
-  items.push({ t:'Steekproef op de vloer: ' + STEEK_N + ' producten, 0 fouten', ok:dataKlaar && spCodes.length === STEEK_N && spGeteld === STEEK_N && !spFout,
-    u:!sp ? (dataKlaar ? 'nog niet getrokken' : 'kan pas als alles hierboven groen is') : spFout ? nf(spFout) + ' fout: verbeter en trek een nieuwe steekproef' : nf(spGeteld) + ' van ' + STEEK_N + ' gecontroleerd', a:'#/productdata/poort' });
+  items.push({ t:'Steekproef op de vloer: ' + STEEK_N + ' producten, 0 fouten', ok:spCodes.length === STEEK_N && spGeteld === STEEK_N && !spFout,
+    u:!sp ? 'nog niet getrokken' + (dataKlaar ? '' : ' (kan al, ook als hierboven nog iets open staat)') : spFout ? nf(spFout) + ' fout: verbeter en trek een nieuwe steekproef' : nf(spGeteld) + ' van ' + STEEK_N + ' gecontroleerd', a:'#/productdata/poort' });
   const groen = items.every(x => x.ok);
   const pct = lagen.reduce((s, v) => s + v.gevuld, 0) / Math.max(1, lagen.reduce((s, v) => s + v.velden, 0));
-  return { bel, items, groen, dataKlaar, code:groen ? poortCode(bel.length) : null, pct:Math.floor(pct * 100), sp };
+  const wacht = bel.filter(wachtOpLevering).length, park = bel.filter(heeftPark).length, sam = bel.filter(isSam).length;
+  return { bel, items, groen, dataKlaar, code:groen ? poortCode(bel.length) : null, pct:Math.floor(pct * 100), sp, wacht, park, sam, zt };
+}
+// zelftest van wh/pdbron.js: lezen uit productdata met terugval op de oude plek, schrijven naar beide plekken, schakelaar uit = niets
+function appsZelftest(){
+  const B = window.PDBRON;
+  if(!B || !B.zelftest) return { ok:false, tekst:'wh/pdbron.js is niet geladen', aan:false };
+  try{ const r = B.zelftest(); return { ok:r.ok, tekst:r.fouten.join('; '), aan:!!B.aan() }; }catch(e){ return { ok:false, tekst:e.message, aan:false }; }
 }
 /* ---------- gelijkzetten: Productdata → Palletlabels en Containers (15-10-2026) ----------
    Productdata is de baas (bouwplan 0.4). Zolang Palletlabels (catalog-ean) en Containers (producten-tabel) nog niet zelf
@@ -1429,24 +1508,36 @@ function viewPoort(){
       <div class="grow"><b>${esc(x.t)}</b>${x.u ? `<div class="small muted mt4">${esc(x.u)}</div>` : ''}</div>
       ${!x.ok && x.laag ? `<button class="btn sm" data-pd="naarlaag" data-v="${x.laag}">Invullen →</button>` : !x.ok && x.a && x.a !== '#/productdata/poort' ? `<a class="btn sm" href="${x.a}">Openen →</a>` : ''}</div>`;
   const toonV = (c, k) => { const st = staat(c, k); if(st.s !== 'ok') return '–'; return esc(toonWaarde(c, k, st.v)); };
-  const plek = c => { const l = locaties(c); return (l.bulk[0] || l.pick[0] || [''])[0]; };
-  const steekBlok = !p.dataKlaar ? '' : `<div class="card"><div class="row between wrap"><div><h3>Steekproef op de vloer</h3><div class="small muted mt4">${STEEK_N} willekeurige belangrijke producten. Loop ze langs, kijk op de pallet en de picklocatie of het klopt. Eén fout = verbeteren en een nieuwe steekproef.</div></div>
-      <button class="btn ${sp ? '' : 'acc'}" data-pd="trek">${sp ? 'Nieuwe steekproef' : 'Trek steekproef van ' + STEEK_N}</button></div>
-    ${sp ? `<div class="small muted mt8">Getrokken ${esc(new Date(sp.op).toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }))}</div>
-    <div class="mt8" style="overflow-x:auto"><table class="pd-steek"><thead><tr><th>Product</th><th>Plek</th>${STEEK_VELDEN.map(k => `<th>${esc(VELDEN[k].t)}</th>`).join('')}<th></th></tr></thead><tbody>
-    ${sp.codes.map(c => { const u = (sp.uit || {})[c]; return `<tr class="${u === 'ok' ? 'ok' : u === 'fout' ? 'fout' : ''}"><td><a class="mono" href="#/productdata/p/${encodeURIComponent(c)}">${esc(c)}</a><div class="tiny muted">${esc(String((D.P[c] || {}).naam || '').slice(0, 60))}</div></td><td class="mono">${esc(plek(c))}</td>${STEEK_VELDEN.map(k => `<td>${toonV(c, k)}</td>`).join('')}
-      <td style="white-space:nowrap"><button class="btn sm ${u === 'ok' ? 'ok' : ''}" data-pd="steek" data-code="${esc(c)}" data-v="ok">Klopt</button> <button class="btn sm ${u === 'fout' ? 'acc' : ''}" data-pd="steek" data-code="${esc(c)}" data-v="fout">Fout</button></td></tr>`; }).join('')}
+  const lc = c => locaties(c);
+  const pickT = c => { const l = lc(c).pick; return l.length ? l.map(a => esc(a[0]) + (num(a[1]) ? ' <span class="tiny muted">' + nf(num(a[1])) + '</span>' : '')).join('<br>') : '–'; };
+  const bulkT = c => { const l = lc(c).bulk; return l.length ? l.slice(0, 4).map(a => esc(a[0]) + (num(a[1]) ? ' <span class="tiny muted">' + nf(num(a[1])) + '</span>' : '')).join('<br>') + (l.length > 4 ? '<br><span class="tiny muted">+' + (l.length - 4) + '</span>' : '') : '–'; };
+  const steekBlok = `<div class="card"><div class="row between wrap"><div><h3>Steekproef op de vloer</h3><div class="small muted mt4">${STEEK_N} willekeurige belangrijke producten (geen SAM Europe, niets geparkeerd, geen product zonder voorraad). Loop ze langs: kijk of picklocatie, bulk, stuks per pallet en per doos en palletmaat kloppen. Eén fout = verbeteren en een nieuwe steekproef. Bij ${STEEK_N} keer goed wordt de regel hierboven groen.</div></div>
+      <button class="btn ${sp ? '' : 'acc'}" data-pd="trek">${sp ? 'Nieuwe steekproef' : 'Steekproef'}</button></div>
+    ${sp ? `<div class="small muted mt8">Getrokken ${esc(new Date(sp.op).toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }))} · ${nf(Object.values(sp.uit || {}).filter(v => v === 'ok').length)} goed${Object.values(sp.uit || {}).some(v => v === 'fout') ? ' · ' + nf(Object.values(sp.uit || {}).filter(v => v === 'fout').length) + ' fout' : ''}</div>
+    <div class="mt8" style="overflow-x:auto"><table class="pd-steek"><thead><tr><th>Product</th><th>Pick</th><th>Bulk</th><th>Per pallet</th><th>Per doos</th><th>Palletmaat</th><th></th></tr></thead><tbody>
+    ${sp.codes.map(c => { const u = (sp.uit || {})[c]; return `<tr class="${u === 'ok' ? 'ok' : u === 'fout' ? 'fout' : ''}"><td><a class="mono" href="#/productdata/p/${encodeURIComponent(c)}">${esc(c)}</a><div class="tiny muted">${esc(String((D.P[c] || {}).naam || '').slice(0, 60))}</div></td><td class="mono">${pickT(c)}</td><td class="mono">${bulkT(c)}</td>${['spp', 'spd', 'maat'].map(k => `<td>${toonV(c, k)}</td>`).join('')}
+      <td style="white-space:nowrap"><button class="btn sm ${u === 'ok' ? 'ok' : ''}" data-pd="steek" data-code="${esc(c)}" data-v="ok">Goed</button> <button class="btn sm ${u === 'fout' ? 'acc' : ''}" data-pd="steek" data-code="${esc(c)}" data-v="fout">Fout</button></td></tr>`; }).join('')}
     </tbody></table></div>` : ''}</div>`;
+  const isDaan = (() => { try{ return (localStorage.getItem('ivol-ik') || 'Daan') === 'Daan'; }catch(e){ return true; } })();
+  const aanNu = !!(window.PDBRON && PDBRON.aan()), bs = window.PDBRON && PDBRON.S;
+  const schakelaar = `<div class="card"><div class="row between wrap"><div><h3>Andere apps gebruiken productdata</h3>
+      <div class="small muted mt4">Staat nu <b>${aanNu ? 'aan' : 'uit'}</b>${aanNu && bs && bs.door ? ' (door ' + esc(bs.door) + ')' : ''}. Uit: Warehouse, Junior, Palletlabels en Containers doen exact wat ze deden. Aan: ze lezen stuks per pallet, palletmaat, hoogte, gewicht, plaatsen, max per ligger en stuks per doos eerst uit productdata (leeg of onb = de oude plek als reserve) en schrijven wat ze zelf opslaan ook naar productdata (alleen als het veld leeg is of automatisch; jouw invoer blijft). De oude plekken blijven ook geschreven.</div></div>
+      ${isDaan ? `<button class="btn ${aanNu ? '' : 'acc'}" data-pd="pdbron" data-v="${aanNu ? '0' : '1'}">${aanNu ? 'Zet uit' : 'Zet aan'}</button>` : '<span class="small muted">Alleen Daan kan dit omzetten</span>'}</div></div>`;
+  const info = [p.wacht ? nf(p.wacht) + ' wachten op levering (geen voorraad, tellen als compleet)' : '', p.park ? nf(p.park) + ' met geparkeerde velden (zie Te controleren → Notities)' : '', p.sam ? nf(p.sam) + ' van SAM Europe (alleen pick en aanvulniveau)' : ''].filter(Boolean);
   app.innerHTML = `<a class="small" href="#/productdata">← Productdata</a>
   <div class="card mt8" style="border-left:4px solid ${p.groen ? 'var(--ok)' : 'var(--orange)'}"><h2>Poort 0.4 · Eén waarheid</h2>
-    <p class="small mt8">Je gaat in het bouwplan pas verder als alles hieronder groen is. Belangrijke producten zijn de A- en B-lopers plus alles wat op een open container staat: nu <b>${nf(p.bel.length)}</b>. "onb" telt als leeg: twijfel zoek je uit, je gokt niet.</p>
+    <p class="small mt8">Je gaat in het bouwplan pas verder als alles hieronder groen is. Belangrijke producten zijn de A- en B-lopers plus alles wat op een open container staat: nu <b>${nf(p.bel.length)}</b>. "onb" telt als leeg: twijfel zoek je uit, je gokt niet. Geparkeerd telt als besproken (compleet).</p>
+    ${info.length ? `<p class="small muted mt4">Daarvan: ${esc(info.join(' · '))}.</p>` : ''}
     <div class="mt12">${p.items.map(rij).join('')}</div>
     ${p.groen ? `<div class="mt16" style="background:#dff3e8;border-radius:8px;padding:14px 16px"><div class="small" style="font-weight:700;color:var(--ok)">Alles groen. Poortcode voor stap 0.4 in je bouwplan:</div><div class="mono mt8" style="font-size:24px;font-weight:800;letter-spacing:.06em">${esc(p.code)}</div><div class="small mt8">Vul ook in: belangrijke producten <b>${nf(p.bel.length)}</b>, compleet <b>100</b>%, datum steekproef <b>${esc(new Date(p.sp.op).toLocaleDateString('nl-NL'))}</b>.</div></div>`
       : `<div class="small muted mt12">Laag 1 t/m 3 samen: <b>${p.pct}%</b> ingevuld.</div>`}
-  </div>${steekBlok}`;
+  </div>${steekBlok}${schakelaar}`;
 }
 async function trekSteekproef(){
-  const kand = lijst('belangrijk', false).filter(c => [1, 2, 3].every(n => !open(c, n).length));
+  // geen SAM Europe, niets geparkeerd, geen product zonder voorraad; liefst producten die al compleet zijn
+  const alle = lijst('belangrijk', false).filter(c => !isSam(c) && !heeftPark(c) && !wachtOpLevering(c));
+  const klaar = alle.filter(c => [1, 2, 3].every(n => !open(c, n).length));
+  const kand = klaar.length >= STEEK_N ? klaar : alle;
   const pool = kand.slice(), codes = [];
   while(codes.length < STEEK_N && pool.length){ const i = Math.floor(Math.random() * pool.length); codes.push(pool.splice(i, 1)[0]); }
   const sp = { op:new Date().toISOString(), codes, uit:{} };
@@ -1500,6 +1591,7 @@ function families(codes){
 }
 function famTitel(fk, leden){
   if(S.fcor && S.fcor.naam[fk]) return S.fcor.naam[fk];   // naam die Daan de familie gaf
+  if(fk === PUR_FK) return 'CF rubber rollen per meter';
   const namen = leden.map(c => String((D.P[c] || {}).naam || ''));
   if(namen.length === 1) return namen[0];
   // gemeenschappelijk begin van de namen, anders de familienaam
@@ -1735,7 +1827,7 @@ const RUBBER = /rubber|nbr|epdm|siliconen|viton|neopreen|isolatiemat|hoogspannin
 const WB_NIET = /marker|wisser|houder|\bkit\b|magne(et|ten)|sheets|ezel|onderstel|untergestell|klembord|accessoire|reiniger|spray|\bset\b|stift|pen\b|scheidingswand|akoestisch/i;
 // outlet = losse retourstukken: geen aanvulregel
 const isOutlet = c => /outlet/i.test(c) || /outlet/i.test(naamVan(c));
-const isMidden = c => /batch midden/i.test(String((D.P[c] || {}).tags || ''));
+const isMidden = c => !PUR_LEER.test(c) && /batch midden/i.test(String((D.P[c] || {}).tags || ''));   // PU-leer per meter hoort bij CF rubber rollen per meter, niet bij midden (Daan 17-10)
 // ribbel 40 en 50 cm op maat (1 t/m 10 m) in de stellingkasten: concept nog in ontwikkeling, slaan we nu over (afspraak Daan 9-10-2026)
 const isOpMaat = c => /^MR65SX2\.7-0\.[45](-\d+)?$/i.test(c) || /stellingkast/i.test(String((D.P[c] || {}).locaties_hm || ''));
 const isLater = c => isMidden(c) || isOpMaat(c);
@@ -2344,7 +2436,7 @@ function soortExtra(c, s, wijz){
   if((s === 'mix' || s === 'pick') && staat(c, 'pick').v !== 'ja') wijz.pick = 'ja';
   return wijz;
 }
-const kZone = c => isMidden(c) ? 'MIDDEN' : gangVan(c);
+const kZone = c => PUR_LEER.test(c) ? 'CF' : isMidden(c) ? 'MIDDEN' : gangVan(c);
 const KZNAAM = { MIDDEN:'Midden', GEEN:'Zonder locatie' };
 function kleinNorm(k, v){
   v = String(v ?? '').trim(); if(!v) return '';
@@ -2366,6 +2458,8 @@ function kleinFeit(c){
   const mm = (S.pd[c] && S.pd[c].meta && S.pd[c].meta.maxpick) || {}, std = mm.bron === 'auto' && /picqer/.test(mm.r || '') && num(mx.v) === 11;
   return { l, opPick:som(l.pick), buiten:som(l.bulk) + (num(l.geen) || 0), vst:num(p.voorraad_vst) || 0, ik:inkVan(c), vk:vkmVan(c), max:mx.s === 'ok' && !std ? num(mx.v) : null };
 }
+// lengte in meter van een rubber/sportvloer rol op maat: ribbel 40/50 cm (code …-N, zonder N = 1 m) of "Lengte N m" in de naam
+const rolLengteM = c => { const m = String(c).match(/^MR65SX2\.7-0\.[45](?:-(\d+))?$/i); if(m) return m[1] ? +m[1] : 1; const n = String((D.P[c] || {}).naam || '').match(/lengte\s*(\d+)\s*m\b/i); return n ? +n[1] : null; };
 function soortVoorstel(c, f){
   const o = soortVan(c), st = staat(c, 'opslag');
   if(o && st.s === 'ok') return { v:o, s:'ok', why:okBron(c, 'opslag') };
@@ -2378,6 +2472,13 @@ function soortVoorstel(c, f){
   }
   const R = REGELS.find(R => R.past(c));
   if(R){ const d = R.doel(c); return zeker(d.met === 'pallet' ? 'pallet' : 'deel', 'jouw aanvulregel ' + R.t.toLowerCase()); }
+  // rollen per lengte (aanname p-rol): lengtes die per 25 of meer worden ingekocht krijgen een eigen pallet (pick met een deel van de pallet),
+  // de rest een mix/pick-pallet. Zonder inkoopgegevens: 1 t/m 3 m eigen pallet, 4 t/m 10 m mix
+  { const rl = rolLengteM(c);
+    if(rl){
+      const ink = f.ik ? f.ik.med >= 25 || f.ik.max >= 25 : rl <= 3, tx = f.ik ? 'inkoop meestal ' + nf(f.ik.med) + ' per keer (grens 25)' : rl + ' m, geen inkoopgegevens';
+      return ink ? ja('deel', 'rol van ' + rl + ' m: eigen pallet, ' + tx) : ja('mix', 'rol van ' + rl + ' m: mix/pick-pallet, ' + tx);
+    } }
   { const g = mvSoort(c); if(g) return ja(g.soort, 'regel Daan: ' + g.t); }
   const lab = [...labelSpp(c).keys()].filter(v => num(v) > 0);
   const spoor = sppN > 0 ? 'per pallet ' + nf(sppN) : lab.length ? 'palletlabel ' + nf(num(lab[0])) + ' per pallet' : f.vst > 0 ? nf(f.vst) + ' ' + e.mv + ' op VST' : pbRegels(c).some(r => r.soort === 'pallet') ? 'pakbon met pallets' : '';
@@ -2441,7 +2542,7 @@ function kleinWaarden(c, f, ks){
 const MIXVELD = ['geleverd', 'maxpick', 'lvl', 'mixgroep'];
 const kleinKlaar = (c, ks) => ks.s === 'ok' && (ks.v !== 'mix' || MIXVELD.every(k => staat(c, k).s === 'ok'));
 // telling voor de chip in een afdelingstabel: mix en pick in deze afdeling die nog niet vastliggen
-function kleinTelZone(zone){ return lijst(UI.afdScope || 'belangrijk', false).filter(c => kZone(c) === zone && !isOpMaat(c) && !isOutlet(c) && !pdWaarde(c, 'later')).filter(c => { const k = soortVoorstel(c, kleinFeit(c)); return (k.v === 'mix' || k.v === 'pick') && k.s !== 'ok'; }).length; }
+function kleinTelZone(zone){ return lijst(UI.afdScope || 'belangrijk', false).filter(c => kZone(c) === zone && !isSam(c) && !isOpMaat(c) && !isOutlet(c) && !pdWaarde(c, 'later')).filter(c => { const k = soortVoorstel(c, kleinFeit(c)); return (k.v === 'mix' || k.v === 'pick') && k.s !== 'ok'; }).length; }
 
 /* ---------- toestand en filters ---------- */
 const LEEG_B = () => ({ soort:'', gel:'', geln:'', max:'', maxw:'', met:'', metn:'', mg:'' });
@@ -2462,7 +2563,7 @@ function zoekFn(q){
 function kleinLijst(){
   const K = kSt(), sc = UI.afdScope || 'belangrijk', memo = new Map();
   const info = c => { let i = memo.get(c); if(!i){ const f = kleinFeit(c), s = soortVoorstel(c, f); i = { f, s, klaar:kleinKlaar(c, s), z:kZone(c) }; memo.set(c, i); } return i; };
-  const basis = lijst(sc, false).filter(c => !isOpMaat(c) && !isOutlet(c) && !pdWaarde(c, 'later'));
+  const basis = lijst(sc, false).filter(c => !isSam(c) && !isOpMaat(c) && !isOutlet(c) && !pdWaarde(c, 'later'));
   const zk = zoekFn(K.zoek);
   const soortPast = (i, s) => s === 'twijfel' ? i.s.s === 'twijfel' : s ? i.s.v === s && i.s.s !== 'twijfel' : true;
   const past = (c, sla) => {
@@ -2942,6 +3043,13 @@ if(app) app.addEventListener('click', async ev => {
     if(a === 'autosave'){ b.textContent = 'Bezig…'; const r = await bewaarAuto(); toast(plural(r.nW, 'waarde', 'waarden') + ' automatisch ingevuld bij ' + plural(r.n, 'product', 'producten'), 5000); rerender(); }
     if(a === 'autoweg'){ b.textContent = 'Bezig…'; const n = await autoWeg(); toast('Automatische waarden weggehaald bij ' + plural(n, 'product', 'producten'), 5000); rerender(); }
     if(a === 'trek'){ await trekSteekproef(); rerender(); }
+    if(a === 'pdbron'){
+      const aan = b.dataset.v === '1', door = (() => { try{ return localStorage.getItem('ivol-ik') || 'Daan'; }catch(e){ return 'Daan'; } })();
+      if(door !== 'Daan'){ toast('Alleen Daan kan dit omzetten', 4000); return; }
+      await WH.catPatch('wh-pd-bron', { aan, door, op:new Date().toISOString() });
+      if(window.PDBRON) await PDBRON.laad(true, true);
+      toast('Andere apps gebruiken productdata: ' + (aan ? 'aan' : 'uit') + '. Open de andere apps opnieuw.', 5000); rerender();
+    }
     if(a === 'steek'){ await steekUitslag(b.dataset.code, b.dataset.v); rerender(); }
     if(a === 'mig'){ b.textContent = 'Bezig…'; const m = await overzetten(); toast(plural(m.n, 'product', 'producten') + ' overgezet'); rerender(); }
   }catch(e){ toast(e.message, 6000); }
@@ -3199,6 +3307,12 @@ async function view(delen){
 const herlaad = async () => { S.idx = null; await laad(true); };
 
 const zetLaterMee = v => { S.laterMee = v !== false; S.idx = null; };
-const intern = { mvPatroon, mvSoort, kokosDoos, levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
-return { view, herlaad, laad, zetLaterMee, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
+// geparkeerde velden (meta.<veld>.park = 1, notitie in meta.<veld>.uit), per notitie bij elkaar: de lijst Notities in 3.0 (Te controleren)
+function notities(){
+  const g = {};
+  Object.keys(S.pd).forEach(code => { const m = (S.pd[code] && S.pd[code].meta) || {}; if(!D.P[code]) return; Object.keys(m).forEach(k => { if(m[k] && m[k].park){ const t = m[k].uit || ''; (g[t] = g[t] || []).push({ code, k }); } }); });
+  return Object.entries(g).map(([tekst, items]) => ({ tekst, items, codes:[...new Set(items.map(i => i.code))] })).sort((a, b) => b.codes.length - a.codes.length);
+}
+const intern = { isSam, heeftPark, parkMeta, wachtOpLevering, zelfGebouwd, mvPatroon, mvSoort, kokosDoos, levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
+return { view, herlaad, laad, zetLaterMee, notities, wachtOpLevering, isSam, heeftPark, appsZelftest, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();

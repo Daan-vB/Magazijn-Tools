@@ -576,6 +576,20 @@ function palletAdvies(r, vraagArg){
   const pal = van.filter(v => v[2] === 'pal').reduce((t, v) => t + v[1], 0), restSt = van.filter(v => v[2] === 'rest').reduce((t, v) => t + v[1], 0);
   return { soort:voorOrders ? 'orders' : 'pallet', spp, n, pal, rest:restSt, stuks:pal * spp + restSt, van, tekort:voorOrders || !st ? Math.max(0, Math.ceil((nodig - st) / spp)) : 0, geen:!van.length, maxp, vraag };
 }
+/* Aanvullen met hele omdozen of bundels (Daan 17-10, aanname a-doos): bij X, aanvullen met hele omdozen/bundels tot zo dicht mogelijk onder max op pick
+   (wandrekken bij 2, deurmatten per 10 en Weave per 5, trapprofiel per 15). Alleen als aanvullen met = deel of doos en stuks per doos en max op pick bekend zijn;
+   producten die per pallet worden geleverd (aanvullen met = pallet) vallen onder palletAdvies. Eerst het restje (kleinste bulkvoorraad). */
+function dozenAdvies(r){
+  const pd = pdVan(r.code), met = String(pd.met || '').trim().toLowerCase();
+  if(met !== 'deel' && met !== 'doos') return null;
+  const spd = WH.num(pd.spd) > 1 ? WH.num(pd.spd) : 0, maxp = WH.num(pd.maxpick) || 0;
+  if(!spd || !(maxp > 0)) return null;
+  const pickNu = r.s.pickFys != null ? r.s.pickFys : r.s.pickVrij;
+  const ruimte = Math.max(0, maxp - pickNu), dozen = Math.max(1, Math.floor(ruimte / spd));
+  const bron = r.s.bulk.filter(l => vrijL(l) >= spd).sort((a, b) => vrijL(a) - vrijL(b) || WHL.sortLoc(a[0], b[0]))[0] || null;
+  const stuks = bron ? Math.min(dozen * spd, Math.floor(vrijL(bron) / spd) * spd) : 0;
+  return { soort:'doos', spp:WHL.sppVan(r.code) || 0, spd, maxp, dozen:Math.floor(stuks / spd), los:0, stuks, na:pickNu + stuks, van:bron && stuks > 0 ? [[bron[0], stuks, 'doos']] : [], geen:!bron || stuks <= 0, tekort:0, pal:0, n:0 };
+}
 function pdRegel(c){
   const pd = pdVan(c), d = [];
   if(pd.spd && !/^(nvt|onb)$/i.test(pd.spd)) d.push(nf(WH.num(pd.spd)) + ' per doos');
@@ -583,7 +597,7 @@ function pdRegel(c){
   return d.join(' · ');
 }
 function rijNieuw(r){
-  const pd = pdVan(r.code), P = palletAdvies(r), regel = pdRegel(r.code);
+  const pd = pdVan(r.code), P = palletAdvies(r) || dozenAdvies(r), regel = pdRegel(r.code);
   const met = String(pd.met || '').trim().toLowerCase();
   const kolBulk = P && !P.geen ? r.s.bulk.slice().sort((a, b) => (P.van.some(v => v[0] === b[0]) ? 1 : 0) - (P.van.some(v => v[0] === a[0]) ? 1 : 0)).slice(0, 3) : r.s.bulk.slice(0, 3);
   const badge = v => v[2] === 'rest' ? 'restje eerst' : v[2] === 'doos' ? 'hieruit' : v[1] > 1 ? v[1] + ' volle pallets' : 'volle pallet';
@@ -723,5 +737,5 @@ document.addEventListener('click', ev => {
     window.print(); setTimeout(() => { document.title = oud; }, 500);
   }
 });
-return { palletAdvies, view, ververs, bijwerken, ronde, rondeLijst, vanVst, kandidaten, stand, gedaan, registreer, laadOpslag, uitleg, momenten, verversPdf, teOud, isPick, zonderLocatie, opNieuw:f => LUISTER.push(f), S };
+return { palletAdvies, dozenAdvies, view, ververs, bijwerken, ronde, rondeLijst, vanVst, kandidaten, stand, gedaan, registreer, laadOpslag, uitleg, momenten, verversPdf, teOud, isPick, zonderLocatie, opNieuw:f => LUISTER.push(f), S };
 })();
