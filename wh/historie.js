@@ -200,19 +200,17 @@ async function belangrijk(ix){
 /* ---------- per product: historielicht met idproduct; vol → verder vanaf laatste ---------- */
 async function haalProduct(vg, id, code, wat){
   const pr = vg.pr;
-  let cur = pr.p[id] || START, nieuw = 0;
+  pr.o = pr.o || {};
+  let off = pr.o[id] || 0, nieuw = 0;
   for(;;){
-    const r = await vraagMetTest('historielicht', { sinds:cur, tot:pr.tot, paginas:PAGINAS, idproduct:id }, wat);
+    // Picqer geeft de geschiedenis nieuwste-eerst: we lopen de pagina's af met offset, de volgorde maakt niet uit
+    const r = await vraagMetTest('historielicht', { sinds:START, tot:pr.tot, paginas:PAGINAS, idproduct:id, offset:off }, wat);
     S.n.vragen++;
     if((r.historie || []).some(h => h && h.idproduct && +h.idproduct !== +id)) throw Object.assign(new Error('Picqer gaf verplaatsingen van andere producten terug (idproduct genegeerd?). Gestopt; dit antwoord is niet bewaard.'), { soort:'picqer' });
     const hist = (r.historie || []).filter(h => h && h.change_type === 'movement' && +h.idproduct === +id);
-    const vol = !!r.vol && !!r.laatste, volgende = vol ? stempel(r.laatste) : pr.tot;
-    const vast = vol && volgende <= cur;                                    // alle regels op hetzelfde moment: één seconde verder
-    const nuttig = vol && !vast ? hist.filter(h => stempel(h.changed_at) !== volgende) : hist;   // laatste moment kan half zijn: komt opnieuw
-    nieuw += await voegToe(converteer(nuttig));
-    cur = vast ? plus1s(volgende) : volgende;
-    pr.p[id] = cur;
-    if(!vol) return nieuw;
+    nieuw += await voegToe(converteer(hist));
+    if(r.volgende == null){ delete pr.o[id]; pr.p[id] = pr.tot; return nieuw; }
+    pr.o[id] = off = r.volgende;
     await bewaar(vg, false);
     await pauze(r.wachtSec);
   }

@@ -516,40 +516,41 @@ const tijdVoorPagina = (rd: Ronde) => rd.einde - Date.now() >= PQ_TIMEOUT_MS + 3
 
 // tot (optioneel) is exclusief en gaat als untildate mee; idproduct (optioneel) beperkt tot één product.
 // Lukt een volgende pagina niet (tijd op, 429, Picqer-fout), dan komt wat er al is terug met vol (+ wachtSec bij 429).
-async function historieLicht(sindsTxt: string, totTxt: string, paginasTxt: string | null, idTxt: string | null, rd: Ronde) {
+async function historieLicht(sindsTxt: string, totTxt: string, paginasTxt: string | null, idTxt: string | null, rd: Ronde, offsetTxt: string | null = null) {
   if (!MOMENT.test(sindsTxt || "")) throw new Fout("Ongeldig moment (sinds)", 400);
   if (totTxt && !MOMENT.test(totTxt)) throw new Fout("Ongeldig moment (tot)", 400);
   const idproduct = idTxt ? parseInt(idTxt, 10) : 0;
   if (idTxt && !(idproduct > 0 && String(idproduct) === idTxt.trim())) throw new Fout("Ongeldig idproduct", 400);
   const sinds = volMoment(sindsTxt), tot = totTxt ? volMoment(totTxt) : null, n = aantalPaginas(paginasTxt, 8);
+  const startOff = Math.max(0, Math.floor((parseInt(offsetTxt || "0", 10) || 0) / 100) * 100);
+  let gedaan = 0;
   const pad = "location-stock-history?sincedate=" + encodeURIComponent(sinds) + (tot ? "&untildate=" + encodeURIComponent(tot) : "") + (idproduct ? "&idproduct=" + idproduct : "");
   const rijen: any[] = [];
   let laatste = "", klaar = false, onderbroken = "", wachtSec: number | null = null;
   for (let p = 0; p < n && !klaar; p++) {
     if (p > 0 && !tijdVoorPagina(rd)) { onderbroken = "tijd op na " + p + " pagina's"; break; }
     let pagina: any;
-    try { pagina = await pqLicht(pad + "&offset=" + (p * 100), rd); }
+    try { pagina = await pqLicht(pad + "&offset=" + (startOff + p * 100), rd); }
     catch (e) {
       if (p === 0 || !(e instanceof LichtFout) || !laatste) throw e;
       onderbroken = e.message; wachtSec = e.wachtSec; break;
     }
     if (!Array.isArray(pagina) || !pagina.length) { klaar = true; break; }
-    const eerste = String(pagina[0].changed_at || ""), laatsteRij = String(pagina[pagina.length - 1].changed_at || "");
-    if (eerste && laatsteRij && eerste > laatsteRij) throw new Fout("Picqer geeft de geschiedenis aflopend; venster niet te gebruiken", 502);
     for (const h of pagina) {
       const t = String(h.changed_at || "");
-      if (t && tot && t >= tot) { klaar = true; break; }
+      if (t && tot && t >= tot) continue;
       if (t) laatste = t;
       if (h.change_type === "movement") rijen.push({
         idproduct_location_stock_history: h.idproduct_location_stock_history, change_type: h.change_type, stock_change: h.stock_change,
         idlocation: h.idlocation, contra_idlocation: h.contra_idlocation, idproduct: h.idproduct, iduser: h.iduser, changed_at: h.changed_at,
       });
     }
+    gedaan++;
     if (pagina.length < 100) klaar = true;
   }
   if (!klaar && !laatste) throw new LichtFout("Geen bruikbaar moment om verder te gaan (" + (onderbroken || "geen tijden") + ")", 502, true, wachtSec);
   return {
-    bron: "picqer-historielicht", versie: 1, sinds, tot, idproduct: idproduct || null, opgehaald: new Date().toISOString(), historie: rijen, laatste: laatste || null, vol: !klaar,
+    bron: "picqer-historielicht", versie: 1, sinds, tot, idproduct: idproduct || null, opgehaald: new Date().toISOString(), historie: rijen, laatste: laatste || null, vol: !klaar, volgende: klaar ? null : startOff + gedaan * 100,
     ...(onderbroken ? { onderbroken } : {}), ...(wachtSec ? { wachtSec } : {}), diag: diagNu(rd),
   };
 }
@@ -600,7 +601,7 @@ async function licht(actie: string, url: URL, origin: string | null): Promise<Re
   let noodrem: number | undefined;
   try {
     const werk = actie === "historietest" ? historieTest(rd)
-      : actie === "historielicht" ? historieLicht(q("sinds") || "", q("tot") || "", q("paginas"), q("idproduct"), rd)
+      : actie === "historielicht" ? historieLicht(q("sinds") || "", q("tot") || "", q("paginas"), q("idproduct"), rd, q("offset"))
       : idIndex(q("soort") || "", q("offset") || "0", q("paginas"), rd);
     const rem = new Promise<never>((_, nee) => {
       noodrem = setTimeout(() => nee(new LichtFout("Tijd op: de functie stopt zelf na " + LICHT_BUDGET_MS / 1000 + " s", 503, true)), LICHT_BUDGET_MS + 2000);
