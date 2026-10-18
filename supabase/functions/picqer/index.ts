@@ -21,8 +21,12 @@
 //    mutaties    ?sinds=…   → welke producten sinds dat moment een voorraadmutatie hadden (Hoofdmagazijn)
 //    verplaatsingen ?sinds=… → alle verplaatsingen tussen locaties sinds dat moment, met locatie-, product- en gebruikersnamen
 //                              (zelfde inhoud als het bestand van "Verplaatsingen ophalen" op de Mac)
-//    historielicht ?sinds=…&tot=…&paginas=N → alleen verplaatsingen (location-stock-history, max. 10 pagina's van 100), zonder opzoekingen
+//    historielicht ?sinds=…&tot=…&paginas=N&idproduct=… → alleen verplaatsingen (location-stock-history, max. 10 pagina's van 100), zonder opzoekingen;
+//                              tot gaat als untildate en idproduct als idproduct mee naar Picqer (beide optioneel)
 //    idindex     ?soort=producten|locaties|gebruikers&offset=0&paginas=N → [id, code/naam], max. 10 pagina's per aanroep
+//    historietest één pagina location-stock-history (laatste 24 uur) → { ok, picqerStatus, ms, aantal, retryAfter }, voor diagnose
+//  De drie geschiedenis-acties: 20 s per Picqer-aanvraag, de hele aanroep stopt zelf na 45 s; elk antwoord (ook een fout) is JSON
+//  met CORS en diag { picqerStatus, ms, paginas, retryAfter }; bij een fout ook { fout, status, wacht } en bij 429 wachtSec.
 // =====================================================================
 
 const DOMEIN = (Deno.env.get("PICQER_DOMAIN") || "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -439,50 +443,102 @@ async function niveaus(idsTxt: string) {
 }
 
 // ---------- lichte leesacties voor de geschiedenis (geen opzoekingen per product/locatie/gebruiker) ----------
-// Eigen aanvraagfunctie met een tijdsbudget: nooit langer dan ~100 s wachten, daarna een nette fout in plaats van een time-out (504).
-const LICHT_BUDGET_MS = 100_000;
-async function pqLicht(pad: string, tot: number): Promise<any> {
+// Eigen aanvraagfunctie: 20 s per aanvraag (AbortController) en een tijdsbudget van 45 s voor de hele aanroep, ruim onder de
+// gateway-limiet van Supabase. Daarna een nette fout (JSON met CORS) in plaats van een gateway-time-out zonder CORS.
+const LICHT_BUDGET_MS = 45_000;
+const PQ_TIMEOUT_MS = 20_000;
+type Diag = { picqerStatus: number | null; ms: number; paginas: number; retryAfter: number | null };
+type Ronde = { t0: number; einde: number; diag: Diag };
+const nieuweRonde = (): Ronde => { const t0 = Date.now(); return { t0, einde: t0 + LICHT_BUDGET_MS, diag: { picqerStatus: null, ms: 0, paginas: 0, retryAfter: null } }; };
+const diagNu = (rd: Ronde): Diag => ({ ...rd.diag, ms: Date.now() - rd.t0 });
+class LichtFout extends Fout {
+  wacht: boolean;
+  wachtSec: number | null;
+  constructor(bericht: string, status: number, wacht: boolean, wachtSec: number | null = null) { super(bericht, status); this.wacht = wacht; this.wachtSec = wachtSec; }
+}
+// Retry-After van Picqer in seconden (getal of HTTP-datum), null als hij ontbreekt
+function retryAfter(r: Response): number | null {
+  const h = r.headers.get("Retry-After");
+  if (!h) return null;
+  const n = Number(h);
+  const sec = isFinite(n) ? n : (Date.parse(h) - Date.now()) / 1000;
+  return isFinite(sec) ? Math.max(1, Math.ceil(sec)) : null;
+}
+async function pqLicht(pad: string, rd: Ronde, pogingen = 3): Promise<any> {
+  const naam = pad.split("?")[0];
   for (let poging = 1; ; poging++) {
-    let r: Response;
+    const rest = rd.einde - Date.now();
+    if (rest < 3000) throw new LichtFout("Tijd op: de functie stopt zelf na " + LICHT_BUDGET_MS / 1000 + " s (" + naam + ")", 503, true);
+    const ac = new AbortController();
+    const klok = setTimeout(() => ac.abort(), Math.min(PQ_TIMEOUT_MS, rest - 1000));
+    let r: Response, t: string;
+    rd.diag.picqerStatus = null;
     try {
       r = await fetch(BASIS + "/" + pad, {
         method: "GET",
         headers: { "Authorization": "Basic " + btoa(SLEUTEL + ":"), "Accept": "application/json", "User-Agent": UA },
+        signal: ac.signal,
       });
+      rd.diag.picqerStatus = r.status;
+      t = await r.text();
     } catch (_e) {
-      if (poging < 3 && Date.now() + 2000 < tot) { await wacht(1000 * poging); continue; }
-      throw new Fout("Picqer niet bereikbaar (" + pad.split("?")[0] + ")");
+      if (ac.signal.aborted) throw new LichtFout("Picqer antwoordde niet binnen " + Math.round(Math.min(PQ_TIMEOUT_MS, rest - 1000) / 1000) + " s (" + naam + ")", 503, true);
+      if (poging < pogingen && Date.now() + 1000 * poging + 3000 < rd.einde) { await wacht(1000 * poging); continue; }
+      throw new LichtFout("Picqer niet bereikbaar (" + naam + ")", 502, true);
+    } finally { clearTimeout(klok); }
+    if (r.status === 429) {
+      const ra = retryAfter(r);
+      rd.diag.retryAfter = ra;
+      const sec = ra ?? 15;
+      if (poging < pogingen && sec <= 10 && Date.now() + sec * 1000 + 5000 < rd.einde) { await wacht(sec * 1000); continue; }
+      throw new LichtFout("Picqer gaf status 429 op " + naam + ": te veel verzoeken" + (ra ? ", Picqer vraagt " + ra + " s te wachten" : " (geen Retry-After)"), 429, true, sec);
     }
-    if (r.status === 429 || r.status >= 500) {
-      const sec = r.status === 429 ? Math.min(20, Number(r.headers.get("Retry-After")) || 5) : 2 * poging;
-      if (poging < 4 && Date.now() + sec * 1000 < tot) { await wacht(sec * 1000); continue; }
-      throw new Fout(r.status === 429 ? "Picqer gaf status 429 op " + pad.split("?")[0] + ": Rate limit exceeded (probeer later opnieuw)" : "Picqer gaf status " + r.status + " op " + pad.split("?")[0], r.status === 429 ? 429 : 502);
+    if (r.status >= 500) {
+      if (poging < pogingen && Date.now() + 2000 * poging + 5000 < rd.einde) { await wacht(2000 * poging); continue; }
+      throw new LichtFout("Picqer gaf status " + r.status + " op " + naam, 502, true);
     }
-    const t = await r.text();
-    if (r.status === 401 || r.status === 403) throw new Fout("Picqer weigert de API-sleutel (status " + r.status + ")", 502);
-    if (!r.ok) throw new Fout("Picqer gaf status " + r.status + " op " + pad.split("?")[0]);
-    try { return JSON.parse(t); } catch (_e) { throw new Fout("Picqer gaf geen geldige gegevens (" + pad.split("?")[0] + ")"); }
+    if (r.status === 401 || r.status === 403) throw new LichtFout("Picqer weigert de API-sleutel (status " + r.status + ")", 502, false);
+    if (!r.ok) {
+      let m = ""; try { m = JSON.parse(t).error_message || ""; } catch (_e) { /* geen json */ }
+      throw new LichtFout("Picqer gaf status " + r.status + " op " + naam + (m ? ": " + m : ""), 502, false);
+    }
+    let j: any;
+    try { j = JSON.parse(t); } catch (_e) { throw new LichtFout("Picqer gaf geen geldige gegevens (" + naam + ")", 502, true); }
+    rd.diag.paginas++;
+    return j;
   }
 }
 const MOMENT = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/;
 const volMoment = (t: string) => { const x = t.replace("T", " "); return x.length === 16 ? x + ":00" : x; };
 const aantalPaginas = (txt: string | null, standaard: number) => Math.max(1, Math.min(10, parseInt(txt || "", 10) || standaard));
+// nog genoeg tijd voor een volgende pagina? anders stopt de aanroep met wat er is (de app vraagt door)
+const tijdVoorPagina = (rd: Ronde) => rd.einde - Date.now() >= PQ_TIMEOUT_MS + 3000;
 
-async function historieLicht(sindsTxt: string, totTxt: string, paginasTxt: string | null) {
+// tot (optioneel) is exclusief en gaat als untildate mee; idproduct (optioneel) beperkt tot één product.
+// Lukt een volgende pagina niet (tijd op, 429, Picqer-fout), dan komt wat er al is terug met vol (+ wachtSec bij 429).
+async function historieLicht(sindsTxt: string, totTxt: string, paginasTxt: string | null, idTxt: string | null, rd: Ronde) {
   if (!MOMENT.test(sindsTxt || "")) throw new Fout("Ongeldig moment (sinds)", 400);
-  if (!MOMENT.test(totTxt || "")) throw new Fout("Ongeldig moment (tot)", 400);
-  const sinds = volMoment(sindsTxt), tot = volMoment(totTxt), n = aantalPaginas(paginasTxt, 8);
-  const einde = Date.now() + LICHT_BUDGET_MS;
+  if (totTxt && !MOMENT.test(totTxt)) throw new Fout("Ongeldig moment (tot)", 400);
+  const idproduct = idTxt ? parseInt(idTxt, 10) : 0;
+  if (idTxt && !(idproduct > 0 && String(idproduct) === idTxt.trim())) throw new Fout("Ongeldig idproduct", 400);
+  const sinds = volMoment(sindsTxt), tot = totTxt ? volMoment(totTxt) : null, n = aantalPaginas(paginasTxt, 8);
+  const pad = "location-stock-history?sincedate=" + encodeURIComponent(sinds) + (tot ? "&untildate=" + encodeURIComponent(tot) : "") + (idproduct ? "&idproduct=" + idproduct : "");
   const rijen: any[] = [];
-  let laatste = "", klaar = false;
+  let laatste = "", klaar = false, onderbroken = "", wachtSec: number | null = null;
   for (let p = 0; p < n && !klaar; p++) {
-    const pagina = await pqLicht("location-stock-history?sincedate=" + encodeURIComponent(sinds) + "&offset=" + (p * 100), einde);
+    if (p > 0 && !tijdVoorPagina(rd)) { onderbroken = "tijd op na " + p + " pagina's"; break; }
+    let pagina: any;
+    try { pagina = await pqLicht(pad + "&offset=" + (p * 100), rd); }
+    catch (e) {
+      if (p === 0 || !(e instanceof LichtFout) || !laatste) throw e;
+      onderbroken = e.message; wachtSec = e.wachtSec; break;
+    }
     if (!Array.isArray(pagina) || !pagina.length) { klaar = true; break; }
     const eerste = String(pagina[0].changed_at || ""), laatsteRij = String(pagina[pagina.length - 1].changed_at || "");
     if (eerste && laatsteRij && eerste > laatsteRij) throw new Fout("Picqer geeft de geschiedenis aflopend; venster niet te gebruiken", 502);
     for (const h of pagina) {
       const t = String(h.changed_at || "");
-      if (t && t >= tot) { klaar = true; break; }
+      if (t && tot && t >= tot) { klaar = true; break; }
       if (t) laatste = t;
       if (h.change_type === "movement") rijen.push({
         idproduct_location_stock_history: h.idproduct_location_stock_history, change_type: h.change_type, stock_change: h.stock_change,
@@ -491,21 +547,27 @@ async function historieLicht(sindsTxt: string, totTxt: string, paginasTxt: strin
     }
     if (pagina.length < 100) klaar = true;
   }
-  return { bron: "picqer-historielicht", versie: 1, sinds, tot, opgehaald: new Date().toISOString(), historie: rijen, laatste: laatste || null, vol: !klaar };
+  if (!klaar && !laatste) throw new LichtFout("Geen bruikbaar moment om verder te gaan (" + (onderbroken || "geen tijden") + ")", 502, true, wachtSec);
+  return {
+    bron: "picqer-historielicht", versie: 1, sinds, tot, idproduct: idproduct || null, opgehaald: new Date().toISOString(), historie: rijen, laatste: laatste || null, vol: !klaar,
+    ...(onderbroken ? { onderbroken } : {}), ...(wachtSec ? { wachtSec } : {}), diag: diagNu(rd),
+  };
 }
 
 // id → code/naam, een paar pagina's per aanroep (de app vraagt door tot volgende = null)
-async function idIndex(soort: string, offsetTxt: string, paginasTxt: string | null) {
+async function idIndex(soort: string, offsetTxt: string, paginasTxt: string | null, rd: Ronde) {
   const pad: Record<string, string> = { producten: "products", locaties: "locations", gebruikers: "users" };
   if (!pad[soort]) throw new Fout("Onbekende soort: " + soort, 400);
   const offset = Math.max(0, parseInt(offsetTxt || "0", 10) || 0);
   const n = aantalPaginas(paginasTxt, 10);
-  const einde = Date.now() + LICHT_BUDGET_MS;
   const lijst: unknown[] = [];
-  let volgende: number | null = offset;
+  let volgende: number | null = offset, wachtSec: number | null = null;
   for (let p = 0; p < n; p++) {
+    if (p > 0 && !tijdVoorPagina(rd)) break;
     const off = offset + p * 100;
-    const pagina = await pqLicht(pad[soort] + "?offset=" + off, einde);
+    let pagina: any;
+    try { pagina = await pqLicht(pad[soort] + "?offset=" + off, rd); }
+    catch (e) { if (p === 0 || !(e instanceof LichtFout)) throw e; wachtSec = e.wachtSec; break; }
     const rij = Array.isArray(pagina) ? pagina : [];
     rij.forEach((x: any) => {
       if (soort === "producten") lijst.push([x.idproduct, x.productcode || ""]);
@@ -515,7 +577,40 @@ async function idIndex(soort: string, offsetTxt: string, paginasTxt: string | nu
     volgende = rij.length < 100 ? null : off + 100;
     if (volgende === null) break;
   }
-  return { soort, offset, volgende, lijst };
+  return { soort, offset, volgende, lijst, ...(wachtSec ? { wachtSec } : {}), diag: diagNu(rd) };
+}
+
+// diagnose: één aanvraag, één pagina van de laatste 24 uur (Picqer-tijd, Amsterdam), zonder herhalen
+async function historieTest(rd: Ronde) {
+  const sinds = new Date(Date.now() - 864e5).toLocaleString("sv-SE", { timeZone: "Europe/Amsterdam" }).slice(0, 19);
+  try {
+    const r = await pqLicht("location-stock-history?sincedate=" + encodeURIComponent(sinds), rd, 1);
+    const d = diagNu(rd);
+    return { ok: true, picqerStatus: d.picqerStatus, ms: d.ms, aantal: Array.isArray(r) ? r.length : 0, retryAfter: d.retryAfter };
+  } catch (e) {
+    const d = diagNu(rd);
+    return { ok: false, picqerStatus: d.picqerStatus, ms: d.ms, aantal: 0, retryAfter: d.retryAfter, fout: String((e as Error)?.message || e) };
+  }
+}
+
+// de drie geschiedenis-acties: altijd JSON met CORS en diag, ook als alles misgaat; uiterlijk na 45 s (+2 s noodrem)
+async function licht(actie: string, url: URL, origin: string | null): Promise<Response> {
+  const rd = nieuweRonde();
+  const q = (k: string) => url.searchParams.get(k);
+  let noodrem: number | undefined;
+  try {
+    const werk = actie === "historietest" ? historieTest(rd)
+      : actie === "historielicht" ? historieLicht(q("sinds") || "", q("tot") || "", q("paginas"), q("idproduct"), rd)
+      : idIndex(q("soort") || "", q("offset") || "0", q("paginas"), rd);
+    const rem = new Promise<never>((_, nee) => {
+      noodrem = setTimeout(() => nee(new LichtFout("Tijd op: de functie stopt zelf na " + LICHT_BUDGET_MS / 1000 + " s", 503, true)), LICHT_BUDGET_MS + 2000);
+    });
+    return antwoord(await Promise.race([werk, rem]), 200, origin);
+  } catch (e) {
+    const f = e instanceof Fout ? e : new Fout(String((e as Error)?.message || e));
+    const lf = e instanceof LichtFout ? e : null;
+    return antwoord({ fout: f.message, status: f.status, wacht: lf ? lf.wacht : f.status !== 400, ...(lf && lf.wachtSec ? { wachtSec: lf.wachtSec } : {}), diag: diagNu(rd) }, f.status, origin);
+  } finally { clearTimeout(noodrem); }
 }
 
 // ---------- ingang ----------
@@ -543,8 +638,7 @@ Deno.serve(async (req: Request) => {
     if (actie === "keten") return antwoord(await keten(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "ontvangstenlijst") return antwoord(await ontvangstenLijst(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "verplaatsingen") return antwoord(await verplaatsingen(url.searchParams.get("sinds") || ""), 200, origin);
-    if (actie === "historielicht") return antwoord(await historieLicht(url.searchParams.get("sinds") || "", url.searchParams.get("tot") || "", url.searchParams.get("paginas")), 200, origin);
-    if (actie === "idindex") return antwoord(await idIndex(url.searchParams.get("soort") || "", url.searchParams.get("offset") || "0", url.searchParams.get("paginas")), 200, origin);
+    if (actie === "historielicht" || actie === "idindex" || actie === "historietest") return await licht(actie, url, origin);
     if (actie === "mutaties") return antwoord(await mutaties(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "locatielijst") return antwoord(await locatielijst(url.searchParams.get("van") || "0"), 200, origin);
     if (actie === "niveaus") return antwoord(await niveaus(url.searchParams.get("ids") || ""), 200, origin);
