@@ -1,0 +1,255 @@
+{
+ "naam": "Route 3.0 Rest (Daan 25-10)",
+ "datum": "2026-10-25",
+ "regels": [
+  {
+   "code": "2066000105100",
+   "zet": [
+    [
+     "lvl",
+     "25",
+     "daan",
+     "Daan 25-10 Route 3.0 (O3): bevestigd",
+     "25"
+    ],
+    [
+     "maxpick",
+     "200",
+     "daan",
+     "Daan 25-10 Route 3.0 (O3): bevestigd",
+     "200"
+    ]
+   ]
+  }
+ ],
+ "kennisbank": {
+  "O2": {
+   "a": "Ja: onder 10 = 10 of minder.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "O1": {
+   "a": "Nee, geen vaste regel: ligt aan de dikte en het product.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "O3": {
+   "a": "Ja: aanvullen bij 25 m, max op pick 200 m.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "O4": {
+   "a": "Allebei tonen (28 dagen zoals Picqer, en 6 maanden).",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "I6": {
+   "a": "Te brede vraag: niet als lijst te benoemen, het gaat om honderden producten.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "C1c": {
+   "a": "Zelf bepalend, meestal: kwartier tussen 10:30 en 11:00, half uur tussen 13:00 en 14:00, kwartier rond 15:30.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "C3b": {
+   "a": "Niets anders, alleen de rustigste dag.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "C5b": {
+   "a": "Eerste ronde om 10:00.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "C7a": {
+   "a": "600+ orders.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "C7b": {
+   "a": "Zelf fysiek op de vloer: orders in de gaten houden en meehelpen waar nodig.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "D6b": {
+   "a": "Geen vaste lijn: verschilt sterk per afdeling, grootte van de orders en pallet of doos.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "C2a": {
+   "a": "1 container: 09:00. 2 containers: 09:00 en 11:00. 3 containers: 09:00, 11:00 en 13:00.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "C2c": {
+   "a": "Verschilt per container en leverancier.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "C2d": {
+   "a": "De orders van de mensen die in de container staan.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "G1a": {
+   "a": "Gemiddeld 3 tot 6 per dag, van een grote levering tot een paar doosjes voor Midden.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "G2d": {
+   "a": "Zelfde dag.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "G5a": {
+   "a": "Dock 1 en 2: DHL-standtrailer (wisselen af). Dock 3 en 4: inkomende goederen en leveringen, de vervoerders DPD, DHL en VST, en containers.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "G6": {
+   "a": "Altijd, behalve een mixpallet met veel producten, of als de pallet meteen wordt leeggehaald voor backorders.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "G7": {
+   "a": "Er is geen vaste plek waar iedereen ziet wat wanneer komt.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "E2b": {
+   "a": "Daan, Jim, Gino, Maxime, Ryan.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "E5a": {
+   "a": "Echte inpaktafels: 2 bij Midden, 2 bij whiteboards, 1 bij tegels. Daarnaast computer- en printstations: 1 bij AA/AB, 1 bij de stoelen (BE), 1 bij tegels en 1 bij CF.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "E7a": {
+   "a": "Tot voor kort: een briefje voor de chauffeur met het product, alleen als ze een order van dat product hadden en de pick leeg was.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "F1b": {
+   "a": "Alleen als het product alleen op bulk staat en het een 10-locatie is.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "H2": {
+   "a": "Nooduitgangen. Gangen blijven in principe vrij voor rijden en looproutes.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "H4": {
+   "a": "Tafel-AA, BE-tafel en Cf- Stellingkast blijven. BE en CD-vloer niet gekozen.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "H9": {
+   "a": "Daan, komende week (vanaf 26-10).",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "K2b": {
+   "a": "Op verschillende locaties, nu de meeste in CA.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "I1b": {
+   "a": "Vaak net te veel voorraad voor de pick; locaties met veel verschillende trapmatten. Ze komen binnen per 5, wij verkopen ze los.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "I3": {
+   "a": "Ringmat op rol; Cobra, hamerslag, diamant en kokos (DD); rubber op rol (CF); sportvloeren en beschermmatten; whiteboards.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "I4": {
+   "a": "Iedereen: als er 'uitlopend' achter het product staat.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "I7": {
+   "a": "Niet veel; alleen verrijdbare whiteboards, waarbij frame en bord losse dozen zijn.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "J4": {
+   "a": "Niets.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "J5": {
+   "a": "Als ik het goed zeg: per europallet per week.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "J6": {
+   "a": "Stockmove in IVOL Warehouse.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "L2": {
+   "a": "Karin voor Europese leveranciers; Jim en Daan voor containers.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "N1": {
+   "a": "Eerst Productdata, later Picqer.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "N4": {
+   "a": "Om de week anders. Week 1: elke werkdag 07:30–09:00, behalve maandag. Week 2: di, wo en do 14:00–15:30.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  },
+  "N5": {
+   "a": "Twijfel tussen Retouren en Verzenden.",
+   "s": "ok",
+   "van": "claude-route",
+   "wie": "Daan"
+  }
+ }
+}
