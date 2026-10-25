@@ -1,0 +1,243 @@
+{
+ "naam": "Route 3.0 Draden (Daan 25-10): kennisbank",
+ "datum": "2026-10-25",
+ "regels": [],
+ "kennisbank": {
+  "F3": {
+   "a": "Rubber per stuk (A/B): bij 10, met een volle pallet. Omdozen en bundels: hele omdozen tot wat op pick past. Volle pallet groter dan de pick: hele dozen tot net onder max. Ruimte op de plek gaat voor de verkoopformule. Zwaar (beschermmat): niet stapelen bij de stelling.",
+   "s": "ok"
+  },
+  "F4": {
+   "a": "terug naar bulk",
+   "s": "ok"
+  },
+  "F5": {
+   "a": "Geen volle pallets op legborden. Niets wat te zwaar is om met de hand te pakken. In Midden (klein spul) mogen wel meerdere producten op één locatie liggen.",
+   "s": "ok"
+  },
+  "F6": {
+   "a": "Retouren. Hektor controleert en verwerkt ze volgens protocol; eind van de dag zijn de karren leeg. Karin verwerkt ze in Picqer. De volgende ochtend zet Hektor ze op de juiste locatie en verplaatst ze met de scanner uit de containers.",
+   "s": "ok"
+  },
+  "E1a": {
+   "a": "Auto-assign",
+   "s": "ok"
+  },
+  "B7": {
+   "a": "Picqer",
+   "s": "ok"
+  },
+  "E2a": {
+   "a": "spoed, oudste eerst",
+   "s": "ok"
+  },
+  "E3": {
+   "a": "Grote orders en projecten (zoals Ice World) krijgen een eigen reserveringslocatie (RES-).",
+   "s": "ok"
+  },
+  "E4a": {
+   "a": "Alleen na overleg met klantenservice.",
+   "s": "ok"
+  },
+  "E7b": {
+   "a": "Melden bij Kate of Sala. Eerst zoeken op pick, bulk, retourkarren en geen specifieke locatie. Niet gevonden: Karin boekt af, klantenservice informeert de klant, Gino bestelt bij.",
+   "s": "ok"
+  },
+  "E5b": {
+   "a": "Karin",
+   "s": "ok"
+  },
+  "E5c": {
+   "a": "deels",
+   "s": "ok"
+  },
+  "E6": {
+   "a": "Tot 30 kg doos, erboven pallet. Whiteboards tot 90x120 (behalve verrijdbare) altijd DPD of DHL Parcel; groter: VST binnen de Benelux, DHL Parcel daarbuiten. Boven 30 kg per product buiten de Benelux automatisch DHL Freight. Per land buiten de Benelux eigen regels (maximaal aantal stickers DPD of DHL Parcel, en wanneer Freight).",
+   "s": "ok"
+  },
+  "G1b": {
+   "a": "Vrachtwagen: MFL Group, Hamat, Rubberselect, Gardenya Plastic, Vica International, Green Tyre, Stockz BV, IVOL - LDA, BERA BV, Alfaflex NV, SMIT Visual, JESTIC, GJ floors, PAM Almelo, Parveen, Joosten Kunststoffen, Granuflex. Pakket: Schreuders Sport, Legamaster.",
+   "s": "ok"
+  },
+  "G2a": {
+   "a": "Kate, Sala, Daan",
+   "s": "ok"
+  },
+  "G2b": {
+   "a": "Kate, Sala, Daan",
+   "s": "ok"
+  },
+  "G2c": {
+   "a": "Karin",
+   "s": "ok"
+  },
+  "G3": {
+   "a": "Foto maken en melden aan Karin.",
+   "s": "ok"
+  },
+  "G4": {
+   "a": "Vaak: Ningbo Henri, Xiamen Honorchain. Soms: Wallace Langford & Associates.",
+   "s": "ok"
+  },
+  "G5b": {
+   "a": "Links op de open vlakte in hal B (vloer inkomende goederen).",
+   "s": "ok"
+  },
+  "I5": {
+   "a": "Rubber tegels in voorjaar en zomer; rubber stalmatten juist in het najaar (rond oktober); tuin en anti-worteldoek in het voorjaar; whiteboards vaak eind schooljaar en begin of eind kalenderjaar.",
+   "s": "ok"
+  },
+  "I9a": {
+   "a": "Rubber rollen per meter of cm, kokos per cm vanaf 50 cm, ribbel op maat.",
+   "s": "ok"
+  },
+  "I9b": {
+   "a": "Met stalen snijlatten, zodat je recht op de juiste maat snijdt.",
+   "s": "ok"
+  },
+  "I9c": {
+   "a": "Per meter, of per cm als het product per cm verkocht wordt.",
+   "s": "ok"
+  },
+  "K1": {
+   "a": "Hektor controleert de retour, maakt foto's van schade voor claims, zoekt de order in Picqer en checkt de opmerking, en verwerkt volgens protocol; eind van de dag retouren leeg; Karin verwerkt in Picqer; de volgende ochtend zet Hektor ze op locatie via de scanner.",
+   "s": "ok"
+  },
+  "K2a": {
+   "a": "Daan, Elise (grotendeels eigen inschatting)",
+   "s": "ok"
+  },
+  "K3": {
+   "a": "Jolijn werkt niet meer bij IVOL. Hektor heeft een guideline met wat er nodig is bij een schadeclaim.",
+   "s": "ok"
+  },
+  "B8a": {
+   "a": "Dagelijks: retouren controleren en verwerken, de volgende ochtend inruimen op locatie.",
+   "s": "ok"
+  },
+  "B8c": {
+   "a": "Jolijn werkt niet meer bij IVOL.",
+   "s": "ok"
+  },
+  "L1": {
+   "a": "Gino moet zien wat er past, wat te lang ligt, wat binnenkomt, waar tekorten zijn en waar te veel voorraad ligt.",
+   "s": "ok"
+  },
+  "L3": {
+   "a": "bijna op, geen ruimte, te veel voorraad",
+   "s": "ok"
+  },
+  "L4": {
+   "a": "Gino beslist wat en wanneer er gekocht wordt; Daan beslist waar het staat en of het past.",
+   "s": "ok"
+  },
+  "H8a": {
+   "a": "elke maand",
+   "s": "ok"
+  },
+  "H8b": {
+   "a": "Kate, Sala",
+   "s": "ok"
+  },
+  "D5": {
+   "a": "orders per uur, foutpicks, retouren, voorraadverschillen",
+   "s": "ok"
+  },
+  "B4a": {
+   "a": "Karin, Daan",
+   "s": "ok"
+  },
+  "B4b": {
+   "a": "Sala, Daan",
+   "s": "ok"
+  },
+  "B4c": {
+   "a": "Sala",
+   "s": "ok"
+  },
+  "B1b": {
+   "a": "Apart overzicht van alle medewerkers met taken en afdelingen (Daan 25-10)",
+   "s": "later"
+  },
+  "B2a": {
+   "a": "Apart overzicht van alle medewerkers met taken en afdelingen (Daan 25-10)",
+   "s": "later"
+  },
+  "B2b": {
+   "a": "Apart overzicht van alle medewerkers met taken en afdelingen (Daan 25-10)",
+   "s": "later"
+  },
+  "B2c": {
+   "a": "Apart overzicht van alle medewerkers met taken en afdelingen (Daan 25-10)",
+   "s": "later"
+  },
+  "B3a": {
+   "a": "Apart overzicht van alle medewerkers met taken en afdelingen (Daan 25-10)",
+   "s": "later"
+  },
+  "B3b": {
+   "a": "Apart overzicht van alle medewerkers met taken en afdelingen (Daan 25-10)",
+   "s": "later"
+  },
+  "B3c": {
+   "a": "Apart overzicht van alle medewerkers met taken en afdelingen (Daan 25-10)",
+   "s": "later"
+  },
+  "B3d": {
+   "a": "Apart overzicht van alle medewerkers met taken en afdelingen (Daan 25-10)",
+   "s": "later"
+  },
+  "B3e": {
+   "a": "Apart overzicht van alle medewerkers met taken en afdelingen (Daan 25-10)",
+   "s": "later"
+  },
+  "E8": {
+   "a": "Fouten en voorraadverschillen: apart onderdeel, later (Daan 25-10)",
+   "s": "later"
+  },
+  "M3": {
+   "a": "Fouten en voorraadverschillen: apart onderdeel, later (Daan 25-10)",
+   "s": "later"
+  },
+  "H7": {
+   "a": "Fouten en voorraadverschillen: apart onderdeel, later (Daan 25-10)",
+   "s": "later"
+  },
+  "H6a": {
+   "a": "Valt onder herorganiseren van het magazijn: apart onderdeel (Daan 25-10)",
+   "s": "later"
+  },
+  "H6b": {
+   "a": "Valt onder herorganiseren van het magazijn: apart onderdeel (Daan 25-10)",
+   "s": "later"
+  },
+  "H6c": {
+   "a": "Valt onder herorganiseren van het magazijn: apart onderdeel (Daan 25-10)",
+   "s": "later"
+  },
+  "H6d": {
+   "a": "Valt onder herorganiseren van het magazijn: apart onderdeel (Daan 25-10)",
+   "s": "later"
+  },
+  "M1a": {
+   "a": "Later, in de IVOL-app van Ryan met alle huisregels (Daan 25-10)",
+   "s": "later"
+  },
+  "M1b": {
+   "a": "Later, in de IVOL-app van Ryan met alle huisregels (Daan 25-10)",
+   "s": "later"
+  },
+  "M2": {
+   "a": "Later, in de IVOL-app van Ryan met alle huisregels (Daan 25-10)",
+   "s": "later"
+  },
+  "M4a": {
+   "a": "Later, in de IVOL-app van Ryan met alle huisregels (Daan 25-10)",
+   "s": "later"
+  },
+  "M4b": {
+   "a": "Later, in de IVOL-app van Ryan met alle huisregels (Daan 25-10)",
+   "s": "later"
+  }
+ }
+}
