@@ -693,7 +693,7 @@ function vnVanGenoot(code){
 }
 /* ---------- schattingsregels van Daan (16-10) als er niets bekend is: palletmaat L×B×H ---------- */
 // alleen opslag-palletmaten; nooit 40x120/40x200 (halve pallets, transport) of 130x210/130x250/120x210 (transport)
-const OPSLAG = ['80x120', '90x120', '100x100', '100x150', '110x110', '120x150', '120x180', '100x200', '120x200', '120x240'];
+const OPSLAG = ['80x120', '90x120', '100x100', '100x120', '90x150', '100x150', '110x110', '120x150', '120x180', '100x200', '120x200', '120x240'];   // 100x120 en 90x150: Daan 17-10 (archiefkasten, rm150x90)
 function opslagMaat(L, B, lijst){
   const a = Math.max(L, B), b = Math.min(L, B);
   const kand = (lijst || OPSLAG).map(m => m.split('x').map(Number)).map(([x, y]) => [Math.max(x, y), Math.min(x, y)]).filter(([x, y]) => x >= a - 7 && y >= b - 7).sort((p, q) => p[0] * p[1] - q[0] * q[1]);

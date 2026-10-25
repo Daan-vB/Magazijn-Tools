@@ -1,7 +1,10 @@
 # Schrijft door Claude verwerkte productdata weg (alleen tabel productdata, read-merge-upsert).
 # Invoer: .github/claude/<naam>.json  { naam, datum, regels:[{code, zet:[[veld, waarde, bron, reden, verwacht]]}] }
 # Zet-element: [veld, waarde, bron, reden, verwacht, vlag, vlag]. Vlaggen (in elke volgorde): "twijfel" (schatting, onder Te controleren)
-# en "park" (besproken, telt als compleet, blijft zichtbaar in Notities; waarde null = data van het veld blijft zoals het is).
+# en "park" (besproken, telt als compleet, blijft zichtbaar in Notities; waarde null = data van het veld blijft zoals het is)
+# en "besluit" (een besluit van Daan in de chat dat zijn eigen eerdere invoer vervangt: alleen als "verwacht" is opgegeven
+# en de huidige waarde daar precies gelijk aan is; de nieuwe waarde telt daarna als eigen invoer van Daan).
+# Optioneel bovenaan: "kennisbank": {vraag-id: {a, s}} wordt samengevoegd in catalog-rij wh-kennisbank (antw), bestaande antwoorden blijven.
 # Veiligheid: een veld wordt alleen gezet als het leeg is, of automatisch ingevuld (bron auto),
 # of als "verwacht" is opgegeven en de huidige waarde daar precies gelijk aan is.
 # "verwacht" mag een lijst zijn (elke waarde die nu mag staan); "" in die lijst of een leeg veld zonder eigen invoer telt ook.
@@ -21,12 +24,15 @@ def samenvoegen(rij, zet, nu):
     for item in zet:
         veld, waarde, bron, reden, verwacht = item[:5]
         vlaggen = {x for x in item[5:] if isinstance(x, str)}
-        twijfel, park = "twijfel" in vlaggen, "park" in vlaggen
+        twijfel, park, besluit = "twijfel" in vlaggen, "park" in vlaggen, "besluit" in vlaggen
         cv = data.get(veld)
         cv = cv.get("v") if isinstance(cv, dict) else cv
         cb = (meta.get(veld) or {}).get("bron")
         leeg = cv is None or str(cv).strip() == ""
-        if cb in EIGEN and not leeg:
+        if besluit and verwacht is not None:
+            kand = verwacht if isinstance(verwacht, list) else [verwacht]
+            mag = any(str(cv) == str(v) for v in kand)   # Daans eigen besluit: alleen als er precies staat wat we verwachten
+        elif cb in EIGEN and not leeg:
             mag = False   # eigen invoer van Daan: nooit overschrijven
         elif park and waarde is None:
             mag = True    # alleen de notitie: de waarde die er staat blijft zoals hij is
@@ -45,7 +51,7 @@ def samenvoegen(rij, zet, nu):
             gezet.append(veld)
             continue
         data[veld] = str(waarde)
-        meta[veld] = {"op": nu, "bron": bron, "uit": reden}
+        meta[veld] = {"op": nu, "bron": "invul" if besluit else bron, "uit": reden}
         if twijfel:
             meta[veld]["tw"] = 1   # schatting van Claude: in de app onder "Te controleren", telt niet als compleet in de poort
         gezet.append(veld)
@@ -84,6 +90,20 @@ def main(bestand):
     for i in range(0, len(rijen), 400):
         req("POST", "productdata?on_conflict=productcode", rijen[i:i + 400], {"Prefer": "resolution=merge-duplicates,return=minimal"})
     print(f"{p['naam']}: {n_gezet} waarden gezet voor {len(rijen)} producten, {n_over} overgeslagen")
+    kb = p.get("kennisbank") or {}
+    if kb:
+        rows = req("GET", "catalog?key=eq.wh-kennisbank&select=key,data") or []
+        data = dict((rows[0].get("data") if rows else None) or {})
+        antw = dict(data.get("antw") or {})
+        nieuw = 0
+        for vid, a in kb.items():
+            if vid in antw and (antw[vid] or {}).get("s") == "ok":
+                continue   # al beantwoord in de app: niet overschrijven
+            antw[vid] = {"a": str(a.get("a", "")), "s": a.get("s", "ok"), "t": nu, "van": "claude-route", "wie": a.get("wie", "")}
+            nieuw += 1
+        data["antw"] = antw
+        req("POST", "catalog?on_conflict=key", [{"key": "wh-kennisbank", "mode": "wh", "data": data, "updated_at": nu}], {"Prefer": "resolution=merge-duplicates,return=minimal"})
+        print(f"kennisbank: {nieuw} antwoorden toegevoegd")
 
 
 if __name__ == "__main__":

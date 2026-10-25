@@ -1,0 +1,27 @@
+{
+ "naam": "Route 3.0 stap 1 (Daan 25-10) + besluiten 17-10",
+ "datum": "2026-10-25",
+ "regels": [
+  {"code": "A4001", "zet": [["vn", "A4001 yoga bal zwart", "daan", "Daan 25-10 Route 3.0 (k-vn): korte code + korte omschrijving", null]]},
+  {"code": "TORR100BLA116", "zet": [["vn", "Torrance loper 2mm 100 cm zwart", "daan", "Daan 25-10 Route 3.0 (k-vn): dikte hoort in de naam", null]]},
+  {"code": "BRUSHED-120", "zet": [["vn", "BRUSHED-120 geborsteld 120 cm", "daan", "Daan 25-10 Route 3.0 (k-vn)", null]]},
+  {"code": "45x44x100", "zet": [["vn", "Trapprofiel zilver 45x44x100", "daan", "Daan 25-10 Route 3.0 (k-vn)", null]]},
+  {"code": "grvsc-oprol", "zet": [["vn", "Gravel scrape 120 cm", "daan", "Daan 25-10 Route 3.0 (k-vn)", null]]},
+  {"code": "CD65SX3-0-1.6", "zet": [["vn", "Traanplaat 3 mm 160 cm", "daan", "Daan 25-10 Route 3.0 (k-vn)", null]]},
+  {"code": "LC-9R-B", "zet": [["pick", "nee", "daan", "Daan 25-10 Route 3.0 (k-meubel): alleen bulk, per order van bulk", null]]},
+  {"code": "HJ-cm17-36", "zet": [["pick", "nee", "daan", "Daan 25-10 Route 3.0 (k-meubel): alleen bulk, per order van bulk", null]]},
+  {"code": "CHARGLOCK24-SWISS", "zet": [["pick", "nee", "daan", "Daan 25-10 Route 3.0 (k-meubel): alleen bulk, per order van bulk", null]]},
+  {"code": "CHARGEBASE-40", "zet": [["pick", "nee", "daan", "Daan 25-10 Route 3.0 (k-meubel): alleen bulk, per order van bulk", null]]},
+  {"code": "MR65SX2.7-0.5", "zet": [["gewicht", "155", "daan", "Daan 17-10 (besluit): per lengte uitrekenen, 100 × 1,4 kg + 15", null]]},
+  {"code": "MR65SX2.7-0.5-2", "zet": [["gewicht", "295", "daan", "Daan 17-10 (besluit): per lengte uitrekenen, 100 × 2,8 kg + 15", null]]},
+  {"code": "MR65SX2.7-0.5-3", "zet": [["gewicht", "120", "daan", "Daan 17-10 (besluit): per lengte uitrekenen, 25 × 4,2 kg + 15", null]]},
+  {"code": "100031-298", "zet": [["spd", "15", "daan", "Daan 17-10 (besluit): geleverd per doos van 15, niet 60", "60", "besluit"], ["maxpick", "60", "daan", "Daan 17-10 (besluit): 60 was bedoeld als max op pick, aanvullen per doos van 15", "45", "besluit"]]},
+  {"code": "bueno-bruin", "zet": [["spd", "15", "daan", "Daan 17-10 (besluit): geleverd per doos van 15, niet 60", "60", "besluit"], ["maxpick", "60", "daan", "Daan 17-10 (besluit): 60 was bedoeld als max op pick, aanvullen per doos van 15", "45", "besluit"]]},
+  {"code": "SWH01", "zet": [["maxpick", "52", "daan", "Daan 17-10 (besluit): aanvullen per doos van 50, dus max = bij 2 + 50", "onb", "besluit"]]}
+ ],
+ "kennisbank": {
+  "J1": {"a": "ja", "s": "ok"},
+  "J2": {"a": "Via Stockmove van Maxime: aanvuladvies voor een gekozen aantal dagen (bijv. 5, 10 of 20), dat rekent uit wat terug moet. Daarnaast op gevoel: ruimte, hardlopers en wanneer iets bijna op is.", "s": "ok"},
+  "J3": {"a": "Geen vaste grens per rit.", "s": "ok"}
+ }
+}
