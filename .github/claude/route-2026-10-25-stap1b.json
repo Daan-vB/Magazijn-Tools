@@ -1,0 +1,9 @@
+{
+ "naam": "Route 3.0 stap 1b (Daan 25-10): kennisbank H3 en I8",
+ "datum": "2026-10-25",
+ "regels": [],
+ "kennisbank": {
+  "H3": {"a": "Vloer (00) tot eerste ligger (10): 180–200 cm · 10 tot 20: 180–190 cm · hal A op 20: ± 140 cm, een pallet van 180 past daar meestal niet · hal B en C bovenste niveau ± 220 cm · BA en BB hebben drie liggers (10, 20 en 30).", "s": "ok"},
+  "I8": {"a": "Bij bijna alle leveranciers klopt een deel van de Picqer-gewichten niet. Alles krijgt een eenmalige definitieve controle. Wegen: losse producten op de weegschaal, volle pallets met de reachtruck (geeft het gewicht aan).", "s": "ok"}
+ }
+}
