@@ -4,6 +4,7 @@
 # en "park" (besproken, telt als compleet, blijft zichtbaar in Notities; waarde null = data van het veld blijft zoals het is)
 # en "besluit" (een besluit van Daan in de chat dat zijn eigen eerdere invoer vervangt: alleen als "verwacht" is opgegeven
 # en de huidige waarde daar precies gelijk aan is; de nieuwe waarde telt daarna als eigen invoer van Daan).
+# en "rok" (Daan zegt dat een waarde die tegen een regel ingaat toch klopt, zoals Klopt in de app: meta.rok = 1).
 # Optioneel bovenaan: "kennisbank": {vraag-id: {a, s}} wordt samengevoegd in catalog-rij wh-kennisbank (antw), bestaande antwoorden blijven.
 # Veiligheid: een veld wordt alleen gezet als het leeg is, of automatisch ingevuld (bron auto),
 # of als "verwacht" is opgegeven en de huidige waarde daar precies gelijk aan is.
@@ -24,7 +25,7 @@ def samenvoegen(rij, zet, nu):
     for item in zet:
         veld, waarde, bron, reden, verwacht = item[:5]
         vlaggen = {x for x in item[5:] if isinstance(x, str)}
-        twijfel, park, besluit = "twijfel" in vlaggen, "park" in vlaggen, "besluit" in vlaggen
+        twijfel, park, besluit, rok = "twijfel" in vlaggen, "park" in vlaggen, "besluit" in vlaggen, "rok" in vlaggen
         cv = data.get(veld)
         cv = cv.get("v") if isinstance(cv, dict) else cv
         cb = (meta.get(veld) or {}).get("bron")
@@ -52,6 +53,8 @@ def samenvoegen(rij, zet, nu):
             continue
         data[veld] = str(waarde)
         meta[veld] = {"op": nu, "bron": "invul" if besluit else bron, "uit": reden}
+        if rok:
+            meta[veld]["rok"] = 1   # regelcontrole: door Daan bevestigd
         if twijfel:
             meta[veld]["tw"] = 1   # schatting van Claude: in de app onder "Te controleren", telt niet als compleet in de poort
         gezet.append(veld)

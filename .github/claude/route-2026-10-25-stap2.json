@@ -1,0 +1,492 @@
+{
+ "naam": "Route 3.0 stap 2 (Daan 25-10)",
+ "datum": "2026-10-25",
+ "regels": [
+  {
+   "code": "WR-4",
+   "zet": [
+    [
+     "mixgroep",
+     "Ningbo Henri · Midden Huis",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-ningbo): één mixgroep voor alle vier",
+     null
+    ],
+    [
+     "lvl",
+     null,
+     "daan",
+     "Daan 25-10 Route 3.0 (p-wr4): Kate zoekt de mixpallets uit en verzamelt doos- en pickgegevens; daarna aanvuladvies",
+     null,
+     "park"
+    ]
+   ]
+  },
+  {
+   "code": "PD-M-BLA",
+   "zet": [
+    [
+     "mixgroep",
+     "Ningbo Henri · Midden Huis",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-ningbo): één mixgroep voor alle vier",
+     [
+      "Ningbo Henri · kattenluik",
+      ""
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "PD-XL-WHI",
+   "zet": [
+    [
+     "mixgroep",
+     "Ningbo Henri · Midden Huis",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-ningbo): één mixgroep voor alle vier",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "TR-1-BLK",
+   "zet": [
+    [
+     "mixgroep",
+     "Ningbo Henri · Midden Huis",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-ningbo): één mixgroep voor alle vier",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "ES-HH01",
+   "zet": [
+    [
+     "lvl",
+     "1",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-eshh)",
+     null
+    ],
+    [
+     "maxpick",
+     "58",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-eshh): zoals nu op pick",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "549-1-901-007",
+   "zet": [
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-mars): eigen pallet, deel naar pick",
+     [
+      "pick",
+      ""
+     ]
+    ],
+    [
+     "vn",
+     "Schoonloopmat Mars 90x120 antraciet",
+     "daan",
+     "Daan 25-10 (regel vloernaam): lange code, dus alleen korte omschrijving",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "BRUSHED-120",
+   "zet": [
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-brushed): op bulk leuningen, aanvullen naar pick",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "GRANU505020G",
+   "zet": [
+    [
+     "lvl",
+     "10",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-klopt3)",
+     [
+      "10",
+      ""
+     ]
+    ],
+    [
+     "plaatsen",
+     "1,3",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-klopt3)",
+     [
+      "1,3",
+      ""
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "TMSMPT7065X",
+   "zet": [
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-klopt3)",
+     [
+      "deel",
+      ""
+     ]
+    ],
+    [
+     "plaatsen",
+     "1",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-klopt3)",
+     [
+      "1",
+      ""
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "17-501300",
+   "zet": [
+    [
+     "plaatsen",
+     "1,3",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-klopt3)",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "PM-0109400329",
+   "zet": [
+    [
+     "lvl",
+     "0",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-pm): rollen zijn zwaar; niet een volle pallet aanvullen met 2 losse rollen erbovenop, en geen rollen bij de stelling",
+     [
+      "1",
+      ""
+     ]
+    ],
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-pm)",
+     null
+    ],
+    [
+     "gewicht",
+     "567",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-pm): 6 rollen × 92 kg + 15",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-pm)",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "RCPM90150",
+   "zet": [
+    [
+     "lvl",
+     "10",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-rcpm): jouw regel rubber per stuk",
+     null
+    ],
+    [
+     "maxpick",
+     "85",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-rcpm): bij 10 + volle pallet van 75",
+     null
+    ],
+    [
+     "plaatsen",
+     "2",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-rcpm): 100x150",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "RH60x100",
+   "zet": [
+    [
+     "pick",
+     "ja",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-rh60): nieuw product, krijgt een picklocatie",
+     [
+      "ja",
+      ""
+     ]
+    ],
+    [
+     "spd",
+     "nvt",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-rh60): los op de pallet",
+     null
+    ],
+    [
+     "maxpick",
+     null,
+     "daan",
+     "Daan 25-10 Route 3.0 (p-rh60): eerst een picklocatie geven, daarna max en bij",
+     null,
+     "park"
+    ],
+    [
+     "lvl",
+     null,
+     "daan",
+     "Daan 25-10 Route 3.0 (p-rh60): eerst een picklocatie geven, daarna max en bij",
+     [
+      "2",
+      ""
+     ],
+     "park"
+    ]
+   ]
+  },
+  {
+   "code": "RH40x60-CLOSED",
+   "zet": [
+    [
+     "spp",
+     "150",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-rh40c): komt per pakket van 10; max op pallet = wat binnenkomt (bestelling 1-10: 150)",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "RING-Roll-heavy-80",
+   "zet": [
+    [
+     "maat",
+     "100x150",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-ringrol): 6 rollen rechtop op 100x150",
+     null
+    ],
+    [
+     "hoogte",
+     "100",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-ringrol): rol 80 cm + pallet 15, naar boven afgerond",
+     null
+    ],
+    [
+     "gewicht",
+     "500",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-ringrol): ruim 500 kg",
+     null
+    ],
+    [
+     "plaatsen",
+     "2",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-ringrol): 100x150",
+     null
+    ],
+    [
+     "maxlig",
+     "2",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-ringrol): 2 pallets van 100x150 op een ligger van 4 plaatsen",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "SSXL",
+   "zet": [
+    [
+     "lvl",
+     "1",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-ssxl)",
+     null
+    ],
+    [
+     "spd",
+     "5",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-ssxl): 5 per pak",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "PBVF-45x60-ANTRA",
+   "zet": [
+    [
+     "maxpick",
+     "90",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-pbvf)",
+     null
+    ],
+    [
+     "lvl",
+     "5",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-pbvf)",
+     null
+    ],
+    [
+     "maat",
+     "80x120",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-pbvf): klein bord",
+     null
+    ],
+    [
+     "hoogte",
+     "180",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-pbvf)",
+     null
+    ],
+    [
+     "plaatsen",
+     "1",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-pbvf)",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "PEW120200E",
+   "zet": [
+    [
+     "maat",
+     "120x210",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-pew): zoals 120200WM; grote whiteboards blijven op hun maat (vervangt chatbesluit 17-10 over 120x240)",
+     null,
+     "rok"
+    ],
+    [
+     "plaatsen",
+     "3",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-pew): 120x210",
+     null
+    ],
+    [
+     "spd",
+     "1",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-pew): zoals 120200WM",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "grvsc-oprol",
+   "zet": [
+    [
+     "opslag",
+     "deel",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-gravel): 2 Deel en pick DB01B00 klopt",
+     [
+      "deel",
+      ""
+     ]
+    ]
+   ]
+  },
+  {
+   "code": "CD65SX3-0-1.6",
+   "zet": [
+    [
+     "maat",
+     "100x150",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-traan): pallet 100x150; de rol ligt plat, totale breedte 160 cm",
+     null
+    ],
+    [
+     "plaatsen",
+     "2",
+     "daan",
+     "Daan 25-10 Route 3.0 (p-traan)",
+     null
+    ]
+   ]
+  },
+  {
+   "code": "ZJ-009",
+   "zet": [
+    [
+     "maat",
+     null,
+     "daan",
+     "Daan 25-10 Route 3.0 (p-zj009): wacht op het invulblad wandrekken",
+     null,
+     "park"
+    ],
+    [
+     "hoogte",
+     null,
+     "daan",
+     "Daan 25-10 Route 3.0 (p-zj009): wacht op het invulblad wandrekken",
+     null,
+     "park"
+    ],
+    [
+     "plaatsen",
+     null,
+     "daan",
+     "Daan 25-10 Route 3.0 (p-zj009): wacht op het invulblad wandrekken",
+     null,
+     "park"
+    ],
+    [
+     "spd",
+     null,
+     "daan",
+     "Daan 25-10 Route 3.0 (p-zj009): wacht op het invulblad wandrekken",
+     null,
+     "park"
+    ]
+   ]
+  }
+ ]
+}
