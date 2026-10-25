@@ -102,7 +102,7 @@ def main(bestand):
         for vid, a in kb.items():
             if vid in antw and (antw[vid] or {}).get("s") == "ok":
                 continue   # al beantwoord in de app: niet overschrijven
-            antw[vid] = {"a": str(a.get("a", "")), "s": a.get("s", "ok"), "t": nu, "van": "claude-route", "wie": a.get("wie", "")}
+            antw[vid] = {"a": str(a.get("a", "")), "s": a.get("s", "ok"), "t": nu, "van": a.get("van", "claude-route"), "wie": a.get("wie", "")}
             nieuw += 1
         data["antw"] = antw
         req("POST", "catalog?on_conflict=key", [{"key": "wh-kennisbank", "mode": "wh", "data": data, "updated_at": nu}], {"Prefer": "resolution=merge-duplicates,return=minimal"})

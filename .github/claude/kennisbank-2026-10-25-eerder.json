@@ -1,0 +1,172 @@
+{
+ "naam": "Kennisbank uit eerdere antwoorden van Daan (25-10)",
+ "datum": "2026-10-25",
+ "regels": [],
+ "kennisbank": {
+  "B1c": {
+   "a": "Ochtendoverleg 08:00, picken 09:00–17:30, vervoerders tot ± 19:00 (DPD en DHL Parcel).",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "B8b": {
+   "a": "Outlet: grotendeels eigen inschatting, anders Daan of Elise.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C1a": {
+   "a": "08:00 Daan, Karin en Kate; 09:00 Daan, Kate en Sala.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C1b": {
+   "a": "09:00 (pickers werken 09:00–17:30).",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C1d": {
+   "a": "DPD 18:00–19:00, DHL Parcel trailerwissel 18:00–19:00, VST laatste wagen 17:30–18:00, DHL Freight 16:00.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C2b": {
+   "a": "Een vast team van 4 medewerkers lost alle containers; Kate stuurt aan, controleert en labelt; de rijder rijdt weg en zet op locatie.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C3a": {
+   "a": "Op maandag een extra DHL Freight-ophaling rond 11:00–12:00. Er wordt ook op zondag gewerkt: DHL Parcel laadt live, Freight van zondag gaat maandag mee.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C4a": {
+   "a": "Maken en printen tot 17:30; ophalen 14:00–15:00 en 18:00–19:00. Urgent en NL/BE binnen vóór 17:00 gaat dezelfde dag.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C4b": {
+   "a": "Maken en printen tot 17:30; live ophaling ± 14:00, daarna standtrailer die tussen 18:00 en 19:00 wordt gewisseld; zondag t/m vrijdag; geen capaciteitsgrens.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C4c": {
+   "a": "IVOL werkt niet met PostNL: vier vervoerders (DPD, DHL Parcel, VST, DHL Freight).",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C4d": {
+   "a": "VST (Benelux): boeken in Transsmart tot 17:00, uiterlijk 17:15; laatste wagen 17:30–18:00. DHL Freight (buiten de Benelux): ophalen 14:00 en 16:00, maandag extra 11:00–12:00; na 16:00 gemaakt = volgende dag.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C5a": {
+   "a": "doorlopend",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C5c": {
+   "a": "Valerii",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C6a": {
+   "a": "ja",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C6b": {
+   "a": "17:00–17:30 controleren Kate en Sala de vloer en sturen pickers bij. Wie afsluit zorgt dat alle vervoerders geregeld zijn en alle zendingen weg zijn.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C7c": {
+   "a": "Voorjaar en zomer (rubber tegels, tuin, anti-worteldoek), najaar rond oktober (rubber stalmatten), eind schooljaar en begin of eind kalenderjaar (whiteboards).",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "C8": {
+   "a": "Alle zendingen weg en vervoerders geregeld; vloer en gangen vrij en opgeruimd; orders van vandaag verwerkt.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "D1": {
+   "a": "Vóór 12:00 neutraal. Tot 5 is goed (Kate en Sala); 6–10: Daan kijkt mee; meer dan 10: Kate en Sala volle focus op orders.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "D2": {
+   "a": "Echte backorders (wachten op inkoop) telt Daan niet. Backorders die wij kunnen oplossen: oranje vanaf 5, rood vanaf 10.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "D3": {
+   "a": "Oranje vanaf 5, rood vanaf 11.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "D4": {
+   "a": "Oranje vanaf 4, rood vanaf 6.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "D6a": {
+   "a": "± 600",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "E1b": {
+   "a": "Pickers lopen voor één lijst door meerdere hallen, bijvoorbeeld afdeling AC plus trailermatten uit hal C.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "E4b": {
+   "a": "klantenservice",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "E9": {
+   "a": "Nee: vervoerderkeuze en verzendregels staan in Picqer (Maxime); DHL Freight via IVOL - Freight.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "F1a": {
+   "a": "Valerii (vaste rijder); Sala en Daan vervangen hem.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "F2": {
+   "a": "Volgens het aanvuladvies op de scanner; dat is de hele dag zijn eerste taak.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "H1": {
+   "a": "BX/BY/BZ: vloer pick, 15/30 bulk. AH alles pick. BA en BB hebben 10, 20 en 30. Hal A op 20 lager (± 140 cm).",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "H5": {
+   "a": "CC-vloer is deels leeg voor de verhuizing van AA/AB; de CD-vloer is nu de nieuwe AC; CD en DD worden één lange rubberafdeling (Cobra, hamerslag, diamant, kokos).",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "I1a": {
+   "a": "Vica: Cortona, Bueno, Luego, Spurt en multi stripes. Wallace: trapmaantjes rubber (Tear, Deco) en trapmat XL. Ningbo: trapmaantje aluminium.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "I2": {
+   "a": "ja",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "N2": {
+   "a": "Maxime",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  },
+  "N3": {
+   "a": "Gedaan: database Palletlabels staat op Pro.",
+   "s": "ok",
+   "van": "claude-uit-eerdere-antwoorden"
+  }
+ }
+}
