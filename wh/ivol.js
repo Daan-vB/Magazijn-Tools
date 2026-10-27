@@ -58,6 +58,7 @@ const M = [
   { id:'invul', g:'prod', t:'Invullen', u:T('#/invul'), st:'proef', r:DV, data:'wh-aanvul, catalog-ean', uit:'Op de telefoon, één product per scherm.' },
   { id:'productdata', g:'prod', t:'Productdata', u:T('#/productdata'), st:'proef', r:DV, data:'producten, catalog-ean', uit:'Afdelingen doorlopen, automatisch invullen, importeren.' },
   { id:'pdfamilie', g:'prod', t:'Per familie', u:T('#/productdata/familie'), st:'proef', r:DV, data:'productdata, wh-pd-fam, wh-inkoop, wh-verplaatsingen', uit:'Een hele familie in één keer: familie, maatgroep, product, met voorraad per locatie, inkoop en backorders per product.' },
+  { id:'pd2', g:'prod', t:'Productdata 2.0', native:'pd2', st:'oefen', r:DV, data:'wh-pd2-oefen, wh-pd2-feedback (lezen: productdata, wh-pd-fam, wh-inkoop, wh-verplaatsingen)', uit:'Oefensimulatie: per soort-tab oefenen met echte producten; niets gaat naar de echte productdata.' },
   { id:'gelijk', g:'prod', t:'Gelijkzetten', u:T('#/productdata/gelijk'), st:'proef', r:DV, data:'productdata, catalog-ean, producten', uit:'Productdata naar Palletlabels en Containers zetten.' },
   { id:'soorten', g:'prod', t:'Soorten', u:T('#/productdata/soort'), st:'proef', r:DV, data:'opslag', uit:'1 pallet · 2 deel · 3 mix · 4 pick · 5 rol alleen backorder.' },
   { id:'productkaart', g:'prod', t:'Productkaart', u:'./productkaart.html', st:'draait', r:DK, data:'catalog-ean, producten', uit:'Alles over één product.' },
@@ -100,7 +101,7 @@ const OUD = [
   ['oud/test-kopie.html', 'Kopie test', 'dubbel bestand (15-10 naar oud/)']
 ];
 const ROLLEN = { daan:'Daan', karin:'Karin', vloer:'Vloer', mgmt:'Management' };
-const ST = { draait:['draait', 'ok'], proef:['proef', 'warn'], geparkeerd:['geparkeerd', 'grijs'], naslag:['naslag', 'grijs'] };
+const ST = { draait:['draait', 'ok'], proef:['proef', 'warn'], oefen:['oefen', 'warn'], geparkeerd:['geparkeerd', 'grijs'], naslag:['naslag', 'grijs'] };
 
 /* ---------- staat ---------- */
 const ls = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
@@ -158,6 +159,7 @@ function toon(){
     if(['todo', 'taak', 'bouwplan'].includes(m.native)){ nat.scrollTop = 0; WHTAAK.render(m.native, UI.rest); nat.scrollTop = 0; if(m.native === 'todo' && window.WHX) WHX.banner(nat); }
     else if(m.native === 'kennisbank' && window.WHKB){ WHKB.render(nat); nat.scrollTop = 0; return; }
     else if(m.native === 'ryan' && window.WHKB){ WHKB.renderRyan(nat); nat.scrollTop = 0; return; }
+    else if(m.native === 'pd2' && window.WHPD2){ WHPD2.render(nat, UI.rest); nat.scrollTop = 0; return; }
     else if(/^x-/.test(m.native) && window.WHX){ WHX.render(m.native.slice(2), nat, UI.rest); nat.scrollTop = 0; return; }
     else { nat.innerHTML = m.native === 'kaart' ? viewKaart() : m.native === 'bronnen' ? viewBronnen() : m.native === 'naslag' ? viewNaslag() : viewFundament(); nat.scrollTop = 0; }
     if(m.native === 'naslag') laadNaslag();

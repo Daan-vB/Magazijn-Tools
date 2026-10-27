@@ -38,6 +38,8 @@
   "wh/historie.js",
   "wh/kennisbank-vragen.js",
   "wh/kennisbank.js",
+  "wh/pd2-reken.js",
+  "wh/pd2.js",
   "wh/ivol.js"
  ],
  "junior": [
