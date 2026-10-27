@@ -125,3 +125,5 @@ table.pd2-t{border-collapse:separate;border-spacing:0;width:max-content;min-widt
   .pd2-actie b{white-space:nowrap;font-size:13px}
   .pd2-filters input[type=search]{flex:1 1 100%}
 }
+.pd2-bron{display:inline-block;font-size:10.5px;font-weight:800;border-radius:7px;padding:0 6px;white-space:nowrap}
+.pd2-bron.live{background:#dff3e8;color:var(--ok)} .pd2-bron.exp{background:#fff1dc;color:var(--warn)}

@@ -192,7 +192,8 @@ function vrTxt(I){
   if(f.bulk.length) d.push('<b>bulk</b> ' + f.bulk.slice(0, 3).map(x => `<span class="p">${esc(x.n)}</span> ${nf(x.v)}`).join(', ') + (f.bulk.length > 3 ? ' +' + (f.bulk.length - 3) : ''));
   if(f.vst) d.push('<b>VST</b> ' + nf(f.vst));
   if(f.geen) d.push('<span class="t">geen locatie ' + nf(f.geen) + '</span>');
-  return `<div class="pd2-vr">${d.join(' · ')}</div>`;
+  const bron = f.bron === 'live' ? `<span class="pd2-bron live" title="live uit Picqer${f.via === 'stand' ? ' (pickstand live advies)' : ''}">live ${uur(f.t)}</span>` : `<span class="pd2-bron exp" title="nog niet live opgehaald">voorraad van ${esc(dk(f.t) || '?')}</span>`;
+  return `<div class="pd2-vr">${d.join(' · ')} ${bron}</div>`;
 }
 const inkTxt = I => I.ink ? 'meestal ' + nf(I.ink.meestal) : '<span class="m">–</span>';
 const GEWKORT = { niet:'niet gecontr.', gewogen:'gewogen', vertrouwd:'vertrouwd', tewegen:'te wegen' };
@@ -285,10 +286,19 @@ function kopHtml(tab){
 }
 
 /* ---------- onderdelen van de pagina ---------- */
+const uur = d => { d = d instanceof Date ? d : new Date(d); return isNaN(d) ? '' : String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+const exportTxt = () => 'voorraad van ' + (dk(D.VRDATUM) || '?');
+function liveTekst(){
+  const L = R.liveStatus();
+  if(!L.gekoppeld) return 'Picqer niet gekoppeld op dit apparaat: ' + exportTxt();
+  if(L.wachtTot) return 'voorraad live: Picqer even niet bereikbaar, opnieuw om ' + uur(L.wachtTot) + ' (tot dan ' + exportTxt() + ')';
+  if(L.bezig || L.rij) return 'voorraad live ophalen… nog ' + nf(L.rij);
+  return 'voorraad live';
+}
 function oefenBalk(){
-  const b = R.S.bewaar, ls2 = R.liveStatus();
-  const st = b.bezig ? 'bewaren…' : b.fout ? 'bewaren mislukt, opnieuw over 5 s' : b.op ? 'bewaard ' + String(b.op.getHours()).padStart(2, '0') + ':' + String(b.op.getMinutes()).padStart(2, '0') : '';
-  return `<div class="pd2-oefenbalk" role="status"><span class="tb">Oefenmodus: niets gaat naar de echte productdata <span class="muted klein" style="font-weight:600">${esc(st)}${ls2.bezig ? ' · voorraad live ophalen…' : ''}</span></span>
+  const b = R.S.bewaar;
+  const st = b.bezig ? 'bewaren…' : b.fout ? 'bewaren mislukt, opnieuw over 5 s' : b.op ? 'bewaard ' + uur(b.op) : '';
+  return `<div class="pd2-oefenbalk" role="status"><span class="tb">Oefenmodus: niets gaat naar de echte productdata <span class="muted klein" style="font-weight:600">${esc(st)}${st ? ' · ' : ''}${esc(liveTekst())}</span></span>
     <button class="knop" data-a="wissen">Oefendata wissen</button> <button class="knop pri" data-a="kopieer">Kopieer alles voor Claude</button></div>`;
 }
 function filtersHtml(){
@@ -314,7 +324,7 @@ function basisHtml(){
   const geen = echte.filter(c => R.info(c).f.geen > 0).length;
   const maten = new Set(echte.map(R.maatVan)).size;
   const titel = UI.fk ? esc(R.famNaam(UI.fk)) + (UI.mk !== null ? ' · ' + esc(UI.mk || 'zonder maat') : '') : 'Hele filterselectie';
-  const bron = (() => { const b = {}; echte.slice(0, 400).forEach(c => { const x = R.info(c).f; b[x.bron] = x.t; }); return Object.entries(b).map(([k, t]) => k === 'live' ? 'live' : k === 'stand' ? 'pickstand ' + dk(t) : 'export ' + dk(t)).join(', '); })();
+  const bron = (() => { let l = 0, e = 0; echte.forEach(c => { if(R.info(c).f.bron === 'live') l++; else e++; }); return (l ? nf(l) + ' live' : '') + (l && e ? ' · ' : '') + (e ? nf(e) + ' ' + exportTxt() : ''); })();
   return `<section class="pd2-blok pd2-basis"><div class="rij" style="align-items:baseline"><h2>${titel}</h2><span class="muted klein">voorraad: ${esc(bron)} ${aan('live')}</span></div>
     <div class="rij"><span><span class="l">Leverancier</span> ${esc(levs.slice(0, 2).join(', ') + (levs.length > 2 ? ' +' + (levs.length - 2) : '') || '–')}</span>
     <span><span class="l">Afdeling en gangen</span> ${esc(gangen.slice(0, 8).join(', ') + (gangen.length > 8 ? ' …' : '') || '–')}</span>
@@ -434,7 +444,7 @@ function teken(){
     ${aannamesHtml()}
   </div>`;
   UI.tekenMs = Math.round(performance.now() - t0);
-  liveFamilie();
+  liveScherm();
 }
 const zet = (id, html) => { const x = document.getElementById(id); if(x) x.innerHTML = html; };
 // na een wijziging: alles behalve de lijst opnieuw; de lijst alleen de geraakte rijen (focus blijft staan)
@@ -447,19 +457,28 @@ function verversRijen(codes){
   });
   if(focus){ const tr = document.querySelector(`#pd2-lijst tr[data-c="${CSS.escape(focus.c)}"]`); const x = tr && tr.querySelector(focus.k ? `[data-k="${focus.k}"]${focus.d ? `[data-d="${focus.d}"]` : ''}` : `[data-a="${focus.a}"]`); if(x && x !== document.activeElement){ x.focus(); if(x.select && x.tagName === 'INPUT') try{ x.setSelectionRange(x.value.length, x.value.length); }catch(e){} } }
 }
-function verversLijst(){ zet('pd2-lijst', lijstHtml()); }
+function verversLijst(){ zet('pd2-lijst', lijstHtml()); liveScherm(); }
 function verversAlles(){ staatCheck(); verversKop(); verversLijst(); zet('pd2-oef', oefHtml()); }
 function nieuweGroep(){ UI.blijf.clear(); UI.n = 150; }
 
-/* ---------- live voorraad voor de geopende familie ---------- */
-let liveT = null;
-function liveFamilie(){
-  if(!UI.fk) return;
-  const cs = famCodes().filter(c => !R.isKoppel(c));
+/* ---------- live voorraad: wat op het scherm staat (en de geopende familie) live laten ophalen ---------- */
+let liveT = null, liveKopT = null;
+function liveScherm(){
   clearTimeout(liveT);
-  liveT = setTimeout(() => R.haalLive(cs, () => { if(UI.el && document.getElementById('pd2-lijst') && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('#pd2-lijst'))){ verversKop(); verversRijen(tabCodes(UI.tab).slice(0, UI.n)); } else zet('pd2-balk', oefenBalk()); }), 400);
+  liveT = setTimeout(() => {
+    if(!UI.el || !document.getElementById('pd2-lijst')) return;
+    const zicht = UI.tab === 'weeglijst' ? weegCodes() : sorteer(tabCodes(UI.tab)).slice(0, UI.n);
+    const fam = UI.fk ? famCodes().filter(c => !R.isKoppel(c)).slice(0, 200) : [];
+    R.vraagLive(zicht.concat(fam), binnen);
+  }, 300);
 }
-
+// nieuwe live voorraad binnen: alleen de geraakte rijen opnieuw (niet de rij waarin getypt wordt), tellers even later
+function binnen(codes){
+  if(!UI.el || !document.getElementById('pd2-lijst')) return;
+  const act = document.activeElement, bezig = act && act.closest && act.closest('#pd2-lijst tr[data-c]');
+  verversRijen(codes.filter(c => !(bezig && bezig.dataset.c === c)));
+  clearTimeout(liveKopT); liveKopT = setTimeout(() => { if(!(document.activeElement && document.activeElement.closest && document.activeElement.closest('#pd2-lijst'))) verversKop(); else zet('pd2-balk', oefenBalk()); }, 800);
+}
 /* ---------- opslaan van invoer ---------- */
 function normVeld(k, v){
   v = String(v ?? '').trim();

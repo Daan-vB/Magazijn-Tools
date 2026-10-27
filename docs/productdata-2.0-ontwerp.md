@@ -210,9 +210,13 @@ Berekende velden tellen nooit als open. "nvt" = ingevuld, "onb" = open.
   overschrijven elkaar niet).
 - Opslag `wh-pd2-feedback`: `{ v:1, tabs:{ <tab>:{ layout, mis, over, gevoel, t } }, opm:[{ id, tab, code, kolom, tekst, t }] }`.
 - Een schrijfpoging naar een andere rij wordt in pd2 zelf geweigerd (grendel in de opslagfunctie).
-- Live: de live-laag van 3.0 houdt voorraad, inkoop en verplaatsingen bij. 2.0 haalt alleen voor de geopende familie de
-  voorraad per locatie live op (20 producten per vraag, 3 s ertussen, alleen als 3.0 gekoppeld is en de live-ronde niet
-  bezig is); bij 429/504 stopt hij en probeert hij het pas na 2, 4, 8 … minuten opnieuw.
+- Voorraad per locatie (ronde 1b, 27-10): live uit Picqer, alleen lezen. 2.0 vraagt de rijen op het scherm (en de geopende
+  familie) op via de functie `picqer` (actie `producten`, 20 per vraag, 3 s ertussen); de pickstand van het live advies telt
+  ook als live, de nieuwste wint. Live geldt 30 minuten en wordt na 10 minuten ververst (kopie op het apparaat, niet in de
+  database). Voorrang: is de live-ronde van 3.0 (Vandaag, Aanvullen, Warehouse) bezig of zei Picqer net "te veel", dan wacht
+  2.0. Bij 429/504 of een andere fout stopt de rij en probeert hij het na 2, 4, 8 … max 30 minuten opnieuw. Valt live weg
+  (of is het apparaat niet gekoppeld), dan toont 2.0 de export met de datum erbij ("voorraad van 15-10"), per rij en in de
+  balk bovenaan.
 
 ## Aannames ronde 1
 Staan ook als chip "aanname" in de pagina (en onderaan de pagina in één lijst). Daan keurt ze goed of af in de oefening;
@@ -237,7 +241,7 @@ het oordeel komt mee in "Kopieer alles voor Claude". Bron in de code: `AANNAMES`
 - `kaart`: Productkaart kent nog geen directe link per product: de link opent Productkaart in een nieuw tabblad en zet de code op het klembord om te plakken.
 - `wissen`: "Oefendata wissen" wist alleen wh-pd2-oefen; je feedback en opmerkingen (wh-pd2-feedback) blijven staan.
 - `famtop`: Zonder familiekeuze staan de 24 belangrijkste families als tegel (meeste A/B-producten en inkomend eerst); "Meer" toont de rest.
-- `live`: Voorraad per locatie: live uit Picqer voor de geopende familie als 3.0 gekoppeld is (20 per vraag, 3 s ertussen, wacht als de live-ronde van 3.0 bezig is), anders de pickstand van het live advies of de export.
+- `live`: Voorraad per locatie: live uit Picqer (de rijen die op het scherm staan, 20 per vraag, 3 s ertussen; ook de pickstand van het live advies telt als live). Live geldt 30 minuten en wordt na 10 minuten ververst. Wacht als de live-ronde van 3.0 bezig is of Picqer net "te veel" zei; bij een fout 2, 4, 8 … max 30 min pauze. Niet gekoppeld of nog niet opgehaald: de export, met de datum erbij.
 - `wandrek`: Wandrekken: aanvullen bij 2 (met hele omdozen) geldt voor producten met "wandrek" in de naam.
 - `vn`: Vloernaam: code korter dan 7 tekens → code + korte omschrijving in kleine letters; anders de korte omschrijving uit de Picqer-naam (zonder leverancier, prijzen en "per cm/meter").
 - `rolkand`: Rol? verschijnt bij Picqer-eenheid meter/cm/rol of "rol"/"rollen" in de naam.

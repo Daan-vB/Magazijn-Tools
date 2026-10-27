@@ -36,7 +36,7 @@ const AANNAMES = {
   kaart:    'Productkaart kent nog geen directe link per product: de link opent Productkaart in een nieuw tabblad en zet de code op het klembord om te plakken.',
   wissen:   '"Oefendata wissen" wist alleen wh-pd2-oefen; je feedback en opmerkingen (wh-pd2-feedback) blijven staan.',
   famtop:   'Zonder familiekeuze staan de 24 belangrijkste families als tegel (meeste A/B-producten en inkomend eerst); "Meer" toont de rest.',
-  live:     'Voorraad per locatie: live uit Picqer voor de geopende familie als 3.0 gekoppeld is (20 per vraag, 3 s ertussen, wacht als de live-ronde van 3.0 bezig is), anders de pickstand van het live advies of de export.',
+  live:     'Voorraad per locatie: live uit Picqer (de rijen die op het scherm staan, 20 per vraag, 3 s ertussen; ook de pickstand van het live advies telt als live). Live geldt 30 minuten en wordt na 10 minuten ververst. Wacht als de live-ronde van 3.0 bezig is of Picqer net "te veel" zei; bij een fout 2, 4, 8 … max 30 min pauze. Niet gekoppeld of nog niet opgehaald: de export, met de datum erbij.',
   wandrek:  'Wandrekken: aanvullen bij 2 (met hele omdozen) geldt voor producten met "wandrek" in de naam.',
   vn:       'Vloernaam: code korter dan 7 tekens → code + korte omschrijving in kleine letters; anders de korte omschrijving uit de Picqer-naam (zonder leverancier, prijzen en "per cm/meter").',
   rolkand:  'Rol? verschijnt bij Picqer-eenheid meter/cm/rol of "rol"/"rollen" in de naam.'
@@ -216,20 +216,30 @@ function inkomend(c){
 }
 const isTijd = n => !!(D.LOC[n] && D.LOC[n].tijd);
 const isBulk = n => !!(D.LOC[n] && D.LOC[n].bulk);
-// voorraad per locatie: live (geopende familie) → pickstand van het live advies (als die nieuwer is dan de export) → export
+// voorraad per locatie, live uit Picqer (alleen lezen): eigen live-vraag of de pickstand van het live advies, de nieuwste telt.
+// Is er (nog) niets live, dan de export met de datum erbij ("voorraad van 15-10") en vraagt 2.0 hem live op (wachtrij met rem).
+const LIVE_VERS = 10 * 60e3, LIVE_GELDIG = 30 * 60e3;
+function standFeit(c, st, vst){
+  const f = { pick:[], bulk:[], vst, geen:0, kar:0, bron:'live', via:'stand', t:st.t };
+  st.l.forEach(l => { if(+l[1] && +l[1] !== 3857) return; if(l[3] === 1 || /^container\s*\d+$/i.test(String(l[0] || ''))){ f.kar += num(l[4]) || 0; return; } if(!String(l[0] || '').trim()){ f.geen += num(l[4]) || 0; return; } (l[2] ? f.bulk : f.pick).push({ n:l[0], v:num(l[4]) || 0, tijd:isTijd(l[0]) }); });
+  return f;
+}
+function liveVan(c){
+  const own = S.live.prod[c], st = window.WHAL && WHAL.S.st && WHAL.S.st.p && WHAL.S.st.p[c];
+  const tOwn = own ? own.t : 0, tSt = st && st.t && st.l ? Date.parse(st.t) || 0 : 0;
+  if(!tOwn && !tSt) return null;
+  if(tOwn >= tSt) return { t:tOwn, f:own.f };
+  const p = D.P[c] || {}, catVst = window.WHAL && WHAL.S.cat && WHAL.S.cat.vst ? WHAL.S.cat.vst[c] : null;
+  return { t:tSt, f:standFeit(c, st, num(catVst !== null && catVst !== undefined ? catVst : p.voorraad_vst) || 0) };
+}
 function locInfo(c){
   const h = koppelVan(c); if(h) c = h;
-  const Lv = S.live.prod[c];
-  if(Lv && Lv.f) return Lv.f;
-  const p = D.P[c] || {}, catVst = window.WHAL && WHAL.S.cat && WHAL.S.cat.vst ? WHAL.S.cat.vst[c] : null;
-  const vst = num(catVst !== null && catVst !== undefined ? catVst : p.voorraad_vst) || 0;
-  const st = window.WHAL && WHAL.S.st && WHAL.S.st.p && WHAL.S.st.p[c];
-  const f = { pick:[], bulk:[], vst, geen:0, kar:0, bron:'export', t:D.VRDATUM };
-  if(st && st.t && st.l && (!D.VRDATUM || st.t > D.VRDATUM)){
-    st.l.forEach(l => { if(+l[1] && +l[1] !== 3857) return; if(l[3] === 1 || /^container\s*\d+$/i.test(String(l[0] || ''))){ f.kar += num(l[4]) || 0; return; } if(!String(l[0] || '').trim()){ f.geen += num(l[4]) || 0; return; } (l[2] ? f.bulk : f.pick).push({ n:l[0], v:num(l[4]) || 0, tijd:isTijd(l[0]) }); });
-    if(!f.geen) f.geen = (D.VR[c] && D.VR[c].geen) || 0;
-    f.bron = 'stand'; f.t = st.t;
-  }else{
+  const p = D.P[c] || {}, lv = liveVan(c);
+  let f;
+  if(lv && Date.now() - lv.t < LIVE_GELDIG) f = Object.assign({}, lv.f, { pick:lv.f.pick.slice(), bulk:lv.f.bulk.slice(), t:new Date(lv.t).toISOString() });
+  else {
+    const catVst = window.WHAL && WHAL.S.cat && WHAL.S.cat.vst ? WHAL.S.cat.vst[c] : null;
+    f = { pick:[], bulk:[], vst:num(catVst !== null && catVst !== undefined ? catVst : p.voorraad_vst) || 0, geen:0, kar:0, bron:'export', t:D.VRDATUM };
     const l = P().locaties(c);
     l.pick.forEach(([n, v]) => f.pick.push({ n, v:num(v) || 0, tijd:isTijd(n) }));
     l.bulk.forEach(([n, v]) => f.bulk.push({ n, v:num(v) || 0 }));
@@ -548,9 +558,9 @@ function vsSoort(c, f, ink){
 /* ---------- alles over één product (gecachet per familie-versie) ---------- */
 function info(c){
   const fk = famVan(c), fv = S.famVer[fk] || 0, hit = S.cache.get(c);
-  if(hit && hit.fv === fv && hit.ver0 === S.dataVer) return hit.I;
+  if(hit && hit.fv === fv && hit.ver0 === S.dataVer && Date.now() - hit.op < 5 * 60e3) return hit.I;   // na 5 min opnieuw: live voorraad kan veranderd zijn
   const I = bereken(c);
-  S.cache.set(c, { fv, ver0:S.dataVer, I });
+  S.cache.set(c, { fv, ver0:S.dataVer, I, op:Date.now() });
   return I;
 }
 S.dataVer = 0;
@@ -638,31 +648,56 @@ function status(c){
   return { so:so.v, soSt:so.st, open, af, gew:g, tab:af ? 'afgerond' : so.v || 'pick' };
 }
 
-/* ---------- live voorraad per locatie voor de geopende familie (alleen lezen, met rem) ---------- */
-async function haalLive(codes, klaar){
-  const L = window.WHLIVE, key = codes.slice(0, 3).join(',');
-  if(!L || !L.status().code || !codes.length || codes.length > 80) return;
-  if(S.live.bezig[key]) return;
-  if(S.live.fout[key]){ const w = Math.min(30 * 60e3, 2 * 60e3 * Math.pow(2, (S.live.foutN[key] || 1) - 1)); if(Date.now() - (S.live.foutOp[key] || 0) < w) return; }
-  if(window.PDVERS && PDVERS.S && PDVERS.S.limietGezien && Date.now() - PDVERS.S.limietGezien < 10 * 60e3) return;   // Picqer zei net "te veel": voorrang voor Warehouse, Vandaag en Aanvullen
-  const oud = c => !S.live.prod[c] || Date.now() - S.live.prod[c].t > 120e3, todo = codes.filter(c => oud(c) && idVan(c));
-  if(!todo.length) return;
-  S.live.bezig[key] = true; S.live.fout[key] = null;
+/* ---------- live voorraad per locatie: wachtrij voor wat op het scherm staat (alleen lezen, met rem) ----------
+   20 producten per vraag, 3 s ertussen. Warehouse, Vandaag en Aanvullen gaan voor: is de live-ronde van 3.0 bezig, of zei
+   Picqer net "te veel", dan wacht 2.0. Bij een fout (429, 504, …) stopt de rij en probeert hij het na 2, 4, 8 … max 30 minuten. */
+const LQ = { q:[], bezig:false, wachtTot:0, foutN:0, fout:null, klaar:null, gedaan:0, ids:null, idsP:null, t:null };
+try{ const o = JSON.parse(localStorage.getItem('pd2-live') || '{}'); Object.entries(o).forEach(([c, x]) => { if(x && x.t && Date.now() - x.t < LIVE_GELDIG) S.live.prod[c] = x; }); }catch(e){}
+function bewaarLive(){ try{ const o = {}; Object.entries(S.live.prod).filter(([, x]) => Date.now() - x.t < LIVE_GELDIG).sort((a, b) => b[1].t - a[1].t).slice(0, 800).forEach(([c, x]) => { o[c] = x; }); localStorage.setItem('pd2-live', JSON.stringify(o)); }catch(e){} }
+const gekoppeld = () => !!(window.WHLIVE && WHLIVE.status().code);
+function idLive(c){ const a = idVan(c); if(a) return a; const m = LQ.ids && LQ.ids[String(c).toLowerCase()]; return m ? +m : 0; }
+function laadIds(){
+  if(LQ.ids) return Promise.resolve();
+  if(!LQ.idsP) LQ.idsP = WH.catHaal('wh-hist-index').then(r => { const p = (r && r.data && r.data.p) || {}, m = {}; Object.keys(p).forEach(id => { m[String(p[id]).toLowerCase()] = +id; }); LQ.ids = m; }).catch(() => { LQ.ids = {}; });
+  return LQ.idsP;
+}
+// codes die op het scherm staan: vooraan in de rij (wat niet vers is)
+function vraagLive(codes, klaar){
+  if(klaar) LQ.klaar = klaar;
+  if(!gekoppeld()) return;
+  const nodig = [...new Set(codes.map(c => koppelVan(c) || c))].filter(c => { if(isKoppel(c)) return false; const lv = liveVan(c); return !lv || Date.now() - lv.t > LIVE_VERS; });
+  const set = new Set(nodig);
+  LQ.q = nodig.concat(LQ.q.filter(c => !set.has(c))).slice(0, 400);
+  pomp();
+}
+async function pomp(){
+  if(LQ.bezig || !LQ.q.length || !gekoppeld()) return;
+  if(Date.now() < LQ.wachtTot){ clearTimeout(LQ.t); LQ.t = setTimeout(pomp, LQ.wachtTot - Date.now() + 500); return; }
+  LQ.bezig = true; meld();
   try{
-    for(let i = 0; i < todo.length; i += 20){
-      // de live-ronde van 3.0 (Vandaag, Aanvullen, Warehouse) gaat voor: wachten tot hij klaar is
-      for(let n = 0; window.IVL && IVL.S && IVL.S.bezig && n < 30; n++) await wacht(2000);
-      if(i) await wacht(3000);
-      const deel = todo.slice(i, i + 20), perId = {}; deel.forEach(c => { perId[idVan(c)] = c; });
-      const r = await L.vraag('producten', { ids:deel.map(idVan).join(',') });
-      (r.producten || []).forEach(q => { const c = perId[q.id]; if(c) S.live.prod[c] = { t:Date.now(), f:liveFeit(c, q, +r.magazijn, r.vst || 3991) }; });
-      deel.forEach(ongeldig);
-      if(klaar) klaar();
+    if(!LQ.ids && LQ.q.some(c => !idVan(c))) await laadIds();
+    while(LQ.q.length){
+      // voorrang: de live-ronde van 3.0 (Vandaag, Aanvullen, Warehouse) en een recente "te veel" van Picqer
+      let n = 0; while((window.IVL && IVL.S && IVL.S.bezig) && n++ < 60) await wacht(2000);
+      if(window.PDVERS && PDVERS.S && PDVERS.S.limietGezien && Date.now() - PDVERS.S.limietGezien < 10 * 60e3){ LQ.wachtTot = PDVERS.S.limietGezien + 10 * 60e3; break; }
+      const deel = [], perId = {};
+      while(LQ.q.length && deel.length < 20){ const c = LQ.q.shift(), id = idLive(c); if(id && !perId[id]){ deel.push(c); perId[id] = c; } }
+      if(!deel.length) break;
+      const r = await WHLIVE.vraag('producten', { ids:Object.keys(perId).join(',') });
+      const t = Date.now();
+      (r.producten || []).forEach(q => { const c = perId[q.id]; if(c) S.live.prod[c] = { t, f:liveFeit(c, q, +r.magazijn || 3857, r.vst || 3991) }; });
+      LQ.gedaan += deel.length; LQ.foutN = 0; LQ.fout = null;
+      deel.forEach(ongeldig); bewaarLive();
+      if(LQ.klaar) try{ LQ.klaar(deel); }catch(e){ console.error(e); }
+      if(LQ.q.length) await wacht(3000);
     }
-    S.live.foutN[key] = 0;
-  }catch(e){ S.live.fout[key] = e; S.live.foutOp[key] = Date.now(); S.live.foutN[key] = (S.live.foutN[key] || 0) + 1; }
-  S.live.bezig[key] = false;
-  if(klaar) klaar();
+  }catch(e){
+    LQ.fout = e; LQ.foutN++;
+    LQ.wachtTot = Date.now() + Math.min(30 * 60e3, 2 * 60e3 * Math.pow(2, LQ.foutN - 1));
+    console.error(e);
+  }
+  LQ.bezig = false; meld();
+  if(LQ.q.length){ clearTimeout(LQ.t); LQ.t = setTimeout(pomp, Math.max(1000, LQ.wachtTot - Date.now() + 500)); }
 }
 function liveFeit(c, q, mag, vstId){
   const f = { pick:[], bulk:[], vst:0, geen:0, kar:0, bron:'live', t:new Date().toISOString() };
@@ -676,10 +711,7 @@ function liveFeit(c, q, mag, vstId){
   f.geen = hm === null ? 0 : Math.max(0, hm - som(f.pick) - som(f.bulk) - f.kar);
   return f;
 }
-const liveStatus = () => {
-  const bezig = Object.values(S.live.bezig).some(Boolean), fout = Object.values(S.live.fout).find(Boolean);
-  return { gekoppeld:!!(window.WHLIVE && WHLIVE.status().code), bezig, fout };
-};
+const liveStatus = () => ({ gekoppeld:gekoppeld(), bezig:LQ.bezig, rij:LQ.q.length, fout:LQ.fout, wachtTot:LQ.wachtTot > Date.now() ? LQ.wachtTot : 0, gedaan:LQ.gedaan, exportDatum:D.VRDATUM });
 
 /* ---------- tellen: hoe vaak een voorstel bevestigd of aangepast is ---------- */
 function telling(){
@@ -697,5 +729,5 @@ return { S, AANNAMES, KEY_OEFEN, KEY_FB, laad, flush, plan, schrijf, po, poZet, 
   koppelVan, isKoppel, koppelTekst, famVan, maatVan, famNaam, isSam, naamVan, abcVan, actief, kgPq, vk6, vk28, inkoop, backorders, inkomend, locInfo, som, anderOpPlek,
   VELD, SOORTEN, SOORTT, WEG, KOLOMMEN, NODIG, ROLNODIG, SAMVELD, MATEN, MATEN_WB, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
   rolKand, isRol, rolBesl, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
-  haalLive, liveStatus, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };
+  vraagLive, liveStatus, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };
 })();
