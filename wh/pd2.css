@@ -127,3 +127,15 @@ table.pd2-t{border-collapse:separate;border-spacing:0;width:max-content;min-widt
 }
 .pd2-bron{display:inline-block;font-size:10.5px;font-weight:800;border-radius:7px;padding:0 6px;white-space:nowrap}
 .pd2-bron.live{background:#dff3e8;color:var(--ok)} .pd2-bron.exp{background:#fff1dc;color:var(--warn)}
+.pd2-t tr.pd2-weegloc td{background:#f3f6ff;font-size:12.5px}
+#pd2-printvak{display:none}
+@media print{
+  html.pd2-print body{display:block !important;background:#fff}
+  html.pd2-print body > *:not(#pd2-printvak){display:none !important}
+  html.pd2-print #pd2-printvak{display:block;font:11pt/1.3 Arial,sans-serif;color:#000}
+  #pd2-printvak h1{font-size:16pt;margin:0 0 4pt} #pd2-printvak h2{font-size:13pt;margin:10pt 0 2pt;page-break-after:avoid} #pd2-printvak h3{font-size:11pt;margin:6pt 0 2pt;page-break-after:avoid}
+  #pd2-printvak table{width:100%;border-collapse:collapse;page-break-inside:auto} #pd2-printvak tr{page-break-inside:avoid}
+  #pd2-printvak th,#pd2-printvak td{border:1px solid #888;padding:3pt 4pt;text-align:left;font-size:9.5pt}
+  #pd2-printvak td.vak{width:22mm;height:9mm}
+  @page{size:A4;margin:12mm}
+}

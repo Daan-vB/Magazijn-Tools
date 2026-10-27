@@ -218,7 +218,71 @@ Berekende velden tellen nooit als open. "nvt" = ingevuld, "onb" = open.
   (of is het apparaat niet gekoppeld), dan toont 2.0 de export met de datum erbij ("voorraad van 15-10"), per rij en in de
   balk bovenaan.
 
-## Aannames ronde 1
+## Ronde 2 (27-10-2026): betere voorstellen, snelheid, voorbereiding
+**1. Voorstellen meten en verbeteren.** Toetsset = elke waarde die Daan zelf in productdata vastlegde (meta-bron daan, invul,
+samen, overgezet, familie, kleuren, klein, spraak; geen schattingen). Per waarde doet 2.0 alsof hij er niet is (zowel in pd2
+als in productdata.js), rekent het voorstel uit en vergelijkt: exact gelijk, hoogte binnen 10 cm, gewicht binnen 10%.
+Meting (alleen percentages):
+
+| Veld | Getoetst | Klopt ronde 1 | Klopt nu | Voorstel bij | Klopt als er een voorstel is |
+|---|---|---|---|---|---|
+| Soort | 465 | 40% | 72% | 100% | 72% |
+| Stuks per pallet | 745 | 50% | 61% | 89% | 69% |
+| Palletmaat | 173 | 53% | 68% | 76% | 89% |
+| Hoogte incl. pallet | 143 | 50% | 65% | 81% | 80% |
+| Aanvullen bij | 121 | 30% | 61% | 71% | 86% |
+| Max op pick | 97 | 38% | 63% | 85% | 74% |
+| Vloernaam | 796 | 22% | 60% | 100% | 60% |
+| Gewicht per stuk | 75 | 44% | 75% | 100% | 75% |
+| Gewicht volle pallet | 127 | 58% | 65% | 98% | 67% |
+
+Verbeteringen: leren van Daans eigen invoer, per veld in deze volgorde: kleurgenoten (zelfde familie en maat) → familie →
+leverancier + maat (Spurt-achtige patronen bij andere lijnen van dezelfde leverancier) → leverancier. Een patroon telt bij
+minstens 2 producten (kleurgenoot: 1) en ≥ 60% van de groep; het product zelf telt nooit mee. Soort: geleerde soort gaat
+voor de dataregels (behalve "volle pallet ingekocht én per volle pallet verplaatst"); een product zonder voorraad waarvan
+de familie al een soort heeft, is tijdelijk op en geen Weg. Vloernaam: 2.0 leert de vorm die Daan gebruikt (alleen de code,
+code + naam, naam, eerste deel van de naam, naam - code …) en past die toe; zonder voorbeeld alleen de code (Daans meest
+gebruikte vorm). Max op pick: kleurgenoot en leverancier + maat vóór de Picqer-stand. Gewicht per stuk: wat Daan bij
+kleurgenoten of dezelfde leverancier en maat woog. Gemeten en niet gebruikt: max op pick naar boven op hele dozen (klopte 0%
+van 6), vloernaam op leveranciersniveau gaf alleen winst als laatste stap.
+Elke regel heeft een id; zijn score staat onder ⓘ ("dit soort voorstel klopte 84% bij jouw eigen invoer"). Score < 60% bij
+minstens 5 getoetst = twijfel (oranje), niet geel. De meting staat ingebouwd (`SCORE0` in `wh/pd2-reken.js`) en kan op het
+apparaat opnieuw (knop "Meet opnieuw" in het uitklapblok "Hoe goed zijn de voorstellen" onderaan; resultaat in
+localStorage `pd2-meting`). Let op: gewicht per stuk legt Daan vooral vast als Picqer níet klopt, dus de Picqer-score is daar
+vanzelf laag.
+
+**2. Rollen voorinvullen.** Rol = Picqer-eenheid meter, cm of rol, of de naam zegt op rol / rol van / per rol / volle rol /
+rollen / per meter / per cm, of "rol" met een breedte of dikte (niet rolstoel, roller, rolluik). Zo'n product is een
+rol-voorstel (staat in Rollen en in zijn soort-tab, telt als open tot "is rol / geen rol"; "Selectie klopt" bevestigt het).
+Voorstellen: breedte en dikte uit naam (kokos ook dikte uit de code -17/-24), lengte uit naam of pakbon, kokos 6 m (600 cm),
+gewicht volle rol = gewicht per meter/cm × lengte, kokos 200 cm 17 mm 12 per pallet en 24 mm 6 (vaste aantallen), ringmat op
+rol heavy duty staand, 6 per pallet, palletmaat 100x150. Elk met reden.
+
+**3. Aandacht.** Per product vooraf (en bewaard per familie-versie): gewicht te wegen; gewicht 0, leeg of > 30% afwijkend van
+de familie; loper (A/B) zonder picklocatie; zonder picklocatie; voorraad op geen specifieke locatie; stuks per pallet groter
+dan de grootste inkooporder; hoogte past niet in de hal; palletgewicht boven ligger-limiet; aanvullen met geen veelvoud van
+de doos; twijfel-soort. Familietegels tonen het aantal aandachtspunten en sorteren op belang (A/B, inkomend, aandacht).
+
+**4. Weg voorsorteren.** Weg-voorstel (Archief / Backorder / Uitlopend) voor alle actieve producten, ook buiten de scope,
+met dezelfde regels. Tab 5: knoppen "Toon alle voorstellen Archief" (en Backorder, Uitlopend) om ze in één keer na te kijken
+en met "Selectie klopt" te bevestigen.
+
+**5. Snelheid.** Momentopname in IndexedDB (`ivol-pd2`, alleen op het apparaat, max 7 dagen oud): 2.0 tekent meteen
+("gegevens van hh:mm, bijwerken…") en ververst op de achtergrond ("bijgewerkt hh:mm"); typt Daan net, dan wacht het
+hertekenen. De oefendata staat apart in die opslag en wordt na elke keer bewaren bijgewerkt. Gemeten (localhost, echte
+database): eerste keer op een apparaat ± 14 s (alles uit de database, niet sneller zonder serverwerk), daarna 1,5 s (was
+3,1–3,5 s). Familie openen 0,05–0,7 s.
+
+**6. Overzetten (UIT).** `overzetPlan` / `overzetToepassen` / `overzetTerug` / `overzetEcht` in `wh/pd2-reken.js`: alles wat
+Daan bevestigde of aanpaste gaat naar productdata met meta-bron `pd2`; Daans eigen invoer wordt nooit zonder keuze
+overschreven (verschil tonen, per regel "neem 2.0"); vooraf een kopie in catalog-rij `wh-pd2-kopie-<tijd>`; terugdraaien met
+die kopie. Vlag `pd2Overzetten = false`: knop verborgen, `overzetEcht` weigert. Alleen getest tegen een kopie van de data.
+
+**7. Weeglijst voor de vloer.** Per hal, gang en locatie, per locatie "x van y klaar". Reachtruck-regel bovenaan en per
+product: Pallet of Deel met stuks per pallet = volle pallet met de reachtruck (veld palletgewicht: (pallet − 15) / stuks per
+pallet), de rest los op de weegschaal. Knop "Print weeglijst (A4)": tabel per hal en gang met vakjes voor kg.
+
+## Aannames (ronde 1 en 2)
 Staan ook als chip "aanname" in de pagina (en onderaan de pagina in één lijst). Daan keurt ze goed of af in de oefening;
 het oordeel komt mee in "Kopieer alles voor Claude". Bron in de code: `AANNAMES` bovenin `wh/pd2-reken.js` (samen bijwerken).
 - `zoek`: Zoeken kijkt in alle actieve producten, ook buiten de gekozen scope (anders vind je bijv. Waterhog zonder voorraad niet).
@@ -230,7 +294,14 @@ het oordeel komt mee in "Kopieer alles voor Claude". Bron in de code: `AANNAMES`
 - `backord`: Backorder wordt voorgesteld bij geen voorraad en wel inkoop, backorders of verkoop in de laatste 12 maanden.
 - `mix`: Mix wordt voorgesteld als alle bulkplekken van het product ook voorraad van andere producten hebben (gedeelde plek of mixpallet), er geen pallet-aantal bekend is en er geen volle pallet wordt ingekocht. Gedeelde plek mét pallet-aantal, of eigen én gedeelde plekken = twijfel Deel/Mix. Let op: een 20-locatie kan meerdere pallets van verschillende producten hebben.
 - `pallet85`: Pallet: meest voorkomende inkoop ≥ 85% van stuks per pallet én de verplaatsingen laten zien dat de hele bulkvoorraad in één keer naar pick gaat. Alleen per volle pallet verplaatst = twijfel Pallet/Deel; alleen een volle pallet ingekocht maar in delen verplaatst = Deel.
-- `tegen`: Tegenstrijdig stuks per pallet: de grootste inkooporder is kleiner dan de helft van een pallet, of twee bronnen noemen een ander aantal.
+- `score`: Een voorstel waarvan de regel bij jouw eigen invoer minder dan 60% klopte (minstens 5 keer getoetst), staat als twijfel (oranje), niet als geel voorstel.
+- `leer`: Leren van jouw invoer: een waarde telt als patroon als minstens 2 producten (kleurgenoot: 1) in die groep hem hebben en hij ≥ 60% van die groep is. Groepen: kleurgenoten, familie, leverancier + maat, leverancier.
+- `reach`: Weeglijst: hoe wegen volgt uit de soort. Pallet of Deel met stuks per pallet = volle pallet met de reachtruck (palletgewicht − 15 kg, gedeeld door stuks per pallet); de rest los op de weegschaal.
+- `ligger`: Palletgewicht boven ligger-limiet: een pallet van meer dan 2.000 kg, of zo zwaar dat door het gewicht minder pallets op een ligger passen dan door de plaatsen (3 plaatsen per ligger).
+- `wegalle`: Weg-voorstel voor alle producten: dezelfde regels als in tab 5. Heeft Daan in de familie al een soort gekozen, dan telt "geen voorraad" als tijdelijk op en komt er geen Weg-voorstel.
+- `snap`: Snel openen: 2.0 bewaart na het laden een kopie op dit apparaat (IndexedDB, max 7 dagen oud) en tekent daar eerst mee ("gegevens van hh:mm, bijwerken…"); daarna ververst het op de achtergrond. Typ je net, dan wacht het verversen tot je klaar bent.
+- `overzet`: Overzetten naar de echte productdata is gebouwd maar staat uit (pd2Overzetten = false, knop verborgen). Overgezet wordt alleen wat jij bevestigde of aanpaste; Uitlopend gaat als datum mee, Backorder en Archief hebben nog geen veld in productdata.
+- `tegen`: Per pallet meer dan ooit besteld: stuks per pallet groter dan de grootste inkooporder van 12 maanden, of twee bronnen noemen een ander aantal.
 - `vk28`: Verkoop over 28 dagen = Picqer-analyse "stuks per dag" × 30 (zoals in Per familie).
 - `gewafw`: Gewicht "sterk anders": meer dan 30% afwijking van het midden (mediaan) van de familie, per m² als de maat in de naam staat, anders per stuk binnen dezelfde maat.
 - `maxlig`: Max per ligger: 3 plaatsen per ligger (bestaande regel van Daan) en 2.000 kg per ligger; de kleinste van de twee telt.
@@ -240,8 +311,9 @@ het oordeel komt mee in "Kopieer alles voor Claude". Bron in de code: `AANNAMES`
 - `vastpd`: Vastgelegd in productdata = ingevuld door Daan (invoer, familie, samen, kleurgenoot, spraak, aanvulregel). Schattingen van Claude en automatische waarden tellen als voorstel.
 - `kaart`: Productkaart kent nog geen directe link per product: de link opent Productkaart in een nieuw tabblad en zet de code op het klembord om te plakken.
 - `wissen`: "Oefendata wissen" wist alleen wh-pd2-oefen; je feedback en opmerkingen (wh-pd2-feedback) blijven staan.
-- `famtop`: Zonder familiekeuze staan de 24 belangrijkste families als tegel (meeste A/B-producten en inkomend eerst); "Meer" toont de rest.
+- `famtop`: Zonder familiekeuze staan de 24 belangrijkste families als tegel. Belang = 3 per A-product + 2 per B-product + 2 per inkomend product + 1 per aandachtspunt; "Meer" toont de rest.
 - `live`: Voorraad per locatie: live uit Picqer (de rijen die op het scherm staan, 20 per vraag, 3 s ertussen; ook de pickstand van het live advies telt als live). Live geldt 30 minuten en wordt na 10 minuten ververst. Wacht als de live-ronde van 3.0 bezig is of Picqer net "te veel" zei; bij een fout 2, 4, 8 … max 30 min pauze. Niet gekoppeld of nog niet opgehaald: de export, met de datum erbij.
 - `wandrek`: Wandrekken: aanvullen bij 2 (met hele omdozen) geldt voor producten met "wandrek" in de naam.
-- `vn`: Vloernaam: code korter dan 7 tekens → code + korte omschrijving in kleine letters; anders de korte omschrijving uit de Picqer-naam (zonder leverancier, prijzen en "per cm/meter").
-- `rolkand`: Rol? verschijnt bij Picqer-eenheid meter/cm/rol of "rol"/"rollen" in de naam.
+- `vn`: Vloernaam: zonder palletlabel of voorbeeld in de familie stelt 2.0 alleen de code voor (Daans meest gebruikte vorm, 35% van zijn vloernamen); de gemeten score is laag, dus het staat als twijfel.
+- `rolkand`: Rol (voorstel, met "is rol / geen rol") alleen bij Picqer-eenheid meter, cm of rol, of als de naam "op rol", "rol van", "per rol", "volle rol", "rollen", "per meter" of "per cm" zegt, of "rol" samen met een breedte of dikte (niet bij rolstoel, roller, rolluik). Zo'n product staat ook in Rollen tot je kiest; het telt als open tot je kiest.
+- `rolregel`: Rolregels ronde 2: kokos rol = 600 cm lang (6 m); kokos 200 cm 17 mm = 12 rollen per pallet, 24 mm = 6 (vaste aantallen); voor 100 cm kokos geen aantal bekend. Ringmat op rol heavy duty: staand, 6 per pallet, palletmaat 100x150. Gewicht volle rol = gewicht per meter of cm × lengte.

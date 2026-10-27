@@ -168,7 +168,7 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
   /* ===== Afgerond ===== */
   // een Pick-product helemaal afronden: alle voorstellen kloppen + gewicht vertrouwd
   await ui({ zoek:'', fk:null, mk:null, scope:'belangrijk', aandacht:null, tab:'pick' });
-  const ap = await ev(() => WHPD2.tabCodes('pick').find(c => { const I = PD2R.info(c); return I.f.pick.length && I.ink && !PD2R.isSam(c); }));
+  const ap = await ev(() => WHPD2.tabCodes('pick').find(c => { const I = PD2R.info(c); return I.f.pick.length && I.ink && !PD2R.isSam(c) && !PD2R.rolKand(c); }));
   await ev(c => { WHPD2.UI.sel = new Set([c]); WHPD2.verversAlles(); }, ap);
   await P.click('#pd2-actie [data-a="selklopt"]'); await P.waitForTimeout(200);
   const apA = await st(ap);
@@ -185,7 +185,7 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
   check('Afgerond: opdracht a2 gedaan', await done('afgerond', 'a2'));
   // a3: afronden met gewicht te wegen
   await tab('pick');
-  const ap2 = await ev(x => WHPD2.tabCodes('pick').find(c => c !== x && PD2R.info(c).f.pick.length && PD2R.info(c).ink && !PD2R.isSam(c)), ap);
+  const ap2 = await ev(x => WHPD2.tabCodes('pick').find(c => c !== x && PD2R.info(c).f.pick.length && PD2R.info(c).ink && !PD2R.isSam(c) && !PD2R.rolKand(c)), ap);
   await ev(c => { WHPD2.UI.sel = new Set([c]); WHPD2.verversAlles(); }, ap2);
   await P.click('#pd2-actie [data-a="selklopt"]'); await P.waitForTimeout(200);
   await rij(ap2).locator('[data-a="gew"]').click(); await P.click('.pd2-modal [data-gst="tewegen"]'); await modalOk();
