@@ -194,6 +194,8 @@ function ronde(forceer){
   S.laatst = Date.now();
   verplaatsingen(forceer); inkoop(forceer);   // twee onafhankelijke taken; elk met zijn eigen wachttijd na een fout
 }
+// de voortgang meteen laden, zodat Bronnen en Per familie ook voor de eerste ronde de laatste stand tonen
+setTimeout(() => { if(!uit()){ laadMeta('vp').then(meld); laadMeta('ink').then(meld); } }, 4000);
 // waar ivol-live.js niet draait (Warehouse, Test): zelf elke minuut kijken of er iets te doen is
 setInterval(() => { if(!window.IVL && document.visibilityState === 'visible') ronde(false); }, 60000);
 function status(){
