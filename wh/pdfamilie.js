@@ -717,6 +717,7 @@ function feit(c){
     f.vst = vst || 0;
     f.geen = hm === null ? 0 : Math.max(0, hm - f.pick.concat(f.bulk).reduce((s, x) => s + x.v, 0) - f.kar);
     f.bron = 'live';
+    f.vk28 = q.perDag === null || q.perDag === undefined ? null : Math.round((Number(q.perDag) || 0) * 30);   // Picqer: gemiddeld per dag over 28 dagen, per maand
   }else{
     const l = P().locaties(c);
     f.pick = l.pick.map(([n, v]) => ({ n, v:num(v) || 0, tijd:tijd(n) })); f.bulk = l.bulk.map(([n, v]) => ({ n, v:num(v) || 0 }));
@@ -741,7 +742,7 @@ function rijHtml(f, tab){
   return `<div class="pf-vrrij"><div class="pf-vrnaam"><b>${esc(f.naam)}</b><div class="small muted mono">${esc(f.c)} ${X().abcBadge(f.c)}</div>${LJ.meer ? `<div class="small"><span class="l">Lijn</span> <b>${esc(LJ.lijn[f.c] || '–')}</b></div>` : ''}</div>
     <div class="pf-vrvoor"><div><span class="l">Pick</span> ${locChips(f.pick)}</div><div><span class="l">Bulk</span> ${locChips(f.bulk)}</div>
       <div class="small"><span class="l">VST</span> <b>${nf(f.vst)}</b> · <span class="l">zonder locatie</span> <b>${nf(f.geen)}</b>${f.kar ? ' · <span class="l">retourkar</span> <b>' + nf(f.kar) + '</b>' : ''}</div></div>
-    <div class="pf-vrink small"><div><span class="l">Inkoop</span> ${inkTxt(f.ink)}</div><div><span class="l">Verkoop</span> <b>${nf(Math.round(f.vk))}</b> per maand</div>${tab === 'c' ? `<div><span class="l">Backorders</span> ${boTxt(f.bo)}</div>` : ''}</div>
+    <div class="pf-vrink small"><div><span class="l">Inkoop</span> ${inkTxt(f.ink)}</div><div><span class="l">Verkoop</span> <b>${nf(Math.round(f.vk))}</b> per maand (6 maanden)${f.vk28 !== null && f.vk28 !== undefined ? ' · <b>' + nf(f.vk28) + '</b> (28 dagen, Picqer)' : ''}</div>${tab === 'c' ? `<div><span class="l">Backorders</span> ${boTxt(f.bo)}</div>` : ''}</div>
     ${tab === 'b' ? `<div class="pf-vrkeuze">${kz('moet', 'Moet pick krijgen')}${kz('geen', 'Geen pick')}</div>` : '<div></div>'}</div>`;
 }
 // samenvatting van een groep producten (familie of maatgroep)

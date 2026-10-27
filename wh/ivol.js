@@ -36,6 +36,7 @@ const M = [
   { id:'kaart', g:'start', t:'Kaart van alles', native:'kaart', st:'draait', r:DV, uit:'Elk onderdeel, waar het staat, welke gegevens, en de status.' },
   { id:'naslag', g:'start', t:'Naslag', native:'naslag', st:'draait', r:DV, uit:'Alle links, koppelingen, functies, mappen en documenten op één plek.' },
   { id:'hulp', g:'start', t:'Hulp', native:'x-hulp', st:'proef', r:IEDEREEN, uit:'Per rol in drie zinnen: wat je ziet en wat je doet.' },
+  { id:'ryan', g:'start', t:'Voor de IVOL-app van Ryan', native:'ryan', st:'draait', r:DV, uit:'Alle kennisbank-antwoorden met "ook later", met je notitie.' },
   { id:'kennisbank', g:'start', t:'Kennisbank', native:'kennisbank', st:'draait', r:DV, uit:'Daans eigen plek: korte vragen beantwoorden wanneer het uitkomt. Los van bouwplan en Te doen. Antwoorden in catalog wh-kennisbank.' },
 
   { id:'dag', g:'vandaag', t:'Dagstart', native:'x-dag', st:'proef', r:ALLE, uit:'Zes kerncijfers, het ritme van de dag om af te vinken en het ochtendoverleg.' },
@@ -156,6 +157,7 @@ function toon(){
     fr.hidden = true; nat.hidden = false;
     if(['todo', 'taak', 'bouwplan'].includes(m.native)){ nat.scrollTop = 0; WHTAAK.render(m.native, UI.rest); nat.scrollTop = 0; if(m.native === 'todo' && window.WHX) WHX.banner(nat); }
     else if(m.native === 'kennisbank' && window.WHKB){ WHKB.render(nat); nat.scrollTop = 0; return; }
+    else if(m.native === 'ryan' && window.WHKB){ WHKB.renderRyan(nat); nat.scrollTop = 0; return; }
     else if(/^x-/.test(m.native) && window.WHX){ WHX.render(m.native.slice(2), nat, UI.rest); nat.scrollTop = 0; return; }
     else { nat.innerHTML = m.native === 'kaart' ? viewKaart() : m.native === 'bronnen' ? viewBronnen() : m.native === 'naslag' ? viewNaslag() : viewFundament(); nat.scrollTop = 0; }
     if(m.native === 'naslag') laadNaslag();
