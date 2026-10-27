@@ -562,9 +562,8 @@ async function impVerplaatsingen(obj){
   const m = new Map();
   ((oud && oud.data && oud.data.rows) || []).forEach(r => m.set(r[0], r));
   nieuw.forEach(r => m.set(r[0], r));
-  const grens = isoDag(Date.now() - VP_DAGEN * 864e5), dub = new Set();
-  // dezelfde verplaatsing kan met een andere regel-id binnenkomen (overlappende ophaalvensters): één keer bewaren
-  const rows = [...m.values()].filter(r => String(r[1]).slice(0, 10) >= grens).sort((a, b) => String(a[1]).localeCompare(String(b[1]))).filter(r => { const k = [r[3], r[1], r[5], r[6], r[4]].join('|'); if(dub.has(k)) return false; dub.add(k); return true; });
+  const grens = isoDag(Date.now() - VP_DAGEN * 864e5);
+  const rows = [...m.values()].filter(r => String(r[1]).slice(0, 10) >= grens).sort((a, b) => String(a[1]).localeCompare(String(b[1])));
   const data = { datum:new Date().toISOString(), opgehaald:obj.opgehaald || null, sinds:obj.sinds || null, rows };
   await catZet('wh-verplaatsingen', data);
   D.VP = data;

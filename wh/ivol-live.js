@@ -101,7 +101,6 @@ async function naarPq(n){
 /* ---------- de lus ---------- */
 async function ronde(forceer){
   if(S.bezig || !code()) return;
-  if(window.PDVERS) PDVERS.ronde(forceer);   // inkoop (12 mnd) en verplaatsingen (60 dagen) voor Productdata: op de achtergrond en los van de rest van de ronde, wh/pdvers.js
   S.fout = null;
   try{
     const s = WHLIVE.status();
@@ -136,10 +135,6 @@ function bronnen(){
       { t:'Aanvulniveaus', bron:S.functieOud ? 'export' : 'live', op:n && (n.klaar || n.t), ritme:S.functieOud ? 'na functie-update: doorlopend' : 'doorlopend, ±90 min per ronde', vervangt:'productexport (niveaus)',
         extra:n ? (n.cursor ? 'ronde ' + nf(n.cursor) + ' / ' + nf(n.totaal || 0) : '') + (n.check ? ' · controle: ' + n.check.pct + '% gelijk aan export, ' + n.check.uitkomst : '') : '' },
       { t:'Producten per locatie (koppelingen)', bron:'export', op:(S.meta.loc && S.meta.loc.t) ? (S.meta.loc.codes || null) : D.LOCDATUM, ritme:'met de productexport (wekelijks)', vervangt:'', extra:(S.meta.loc && S.meta.loc.t && !S.meta.loc.codes) ? 'uit de laatste locatie-export, datum onbekend' : '' },
-      ...(window.PDVERS ? (() => { const v = PDVERS.status(); return [
-        { t:'Inkoop per product (12 maanden)', bron:'live', op:v.ink.op, ritme:'elke 24 uur', vervangt:'knop Ophalen uit Picqer', extra:v.ink.n ? v.ink.n + ' inkooporders' : (v.bezig && /Inkoop/.test(v.tekst) ? v.tekst : '') },
-        { t:'Verplaatsingen tussen locaties (60 dagen)', bron:v.oudeFunctie ? 'export' : 'live', op:v.vp.tot, ritme:'elk half uur', vervangt:'Mac-script Verplaatsingen ophalen', extra:(v.vp.n ? v.vp.n + ' verplaatsingen' : '') + (v.vp.klaar ? '' : (v.bezig && /Verplaatsingen/.test(v.tekst) ? ' · ' + v.tekst : ' · eerste vulling loopt')) + (v.oudeFunctie ? ' · functie picqer nog zonder venster: opnieuw live zetten' : '') }
-      ]; })() : []),
       { t:'Magazijnverkopen per maand', bron:'export', op:null, ritme:'maandelijks', vervangt:'' }
     ]
   };

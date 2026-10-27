@@ -181,7 +181,7 @@ async function producten(idsTxt: string) {
       }),
     };
   }));
-  return { opgehaald: new Date().toISOString(), magazijn: MAGAZIJN, vst: VST, producten: lijst };
+  return { opgehaald: new Date().toISOString(), magazijn: MAGAZIJN, producten: lijst };
 }
 
 // alle producten met voorraad, 10 pagina's (1.000 producten) per aanroep
@@ -227,30 +227,19 @@ async function mutaties(sinds: string) {
 }
 
 // alle verplaatsingen tussen locaties sinds een moment (voor Controle); zelfde vorm als het Mac-bestand
-// namen van locaties, producten en gebruikers veranderen nauwelijks: onthouden scheelt veel vragen bij een lange reeks vensters
-const NAMEN = new Map<string, { t: number; d: any }>();
-async function naam(pad: string): Promise<any> {
-  const x = NAMEN.get(pad);
-  if (x && Date.now() - x.t < 6 * 3600e3) return x.d;
-  const d = await pq(pad).catch(() => null);
-  if (d) NAMEN.set(pad, { t: Date.now(), d });
-  return d;
-}
-// tot (optioneel) is exclusief: zo kan de app de 60 dagen in vensters ophalen en blijft elk antwoord klein genoeg
-async function verplaatsingen(sinds: string, tot = "") {
+async function verplaatsingen(sinds: string) {
   if (!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(sinds || "")) throw new Fout("Ongeldig moment", 400);
-  if (tot && !/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(tot)) throw new Fout("Ongeldig moment (tot)", 400);
-  const ruw = await alles("location-stock-history?sincedate=" + encodeURIComponent(sinds.replace("T", " ")) + (tot ? "&untildate=" + encodeURIComponent(tot.replace("T", " ")) : ""), 6000);
-  const hist = ruw.filter((h: any) => h && h.change_type === "movement");
+  const hist = (await alles("location-stock-history?sincedate=" + encodeURIComponent(sinds.replace("T", " ")), 6000))
+    .filter((h: any) => h && h.change_type === "movement");
   const uniek = (veld: string[]) => [...new Set(hist.flatMap((h: any) => veld.map((v) => h[v])).filter((x: any) => x > 0))] as number[];
   const [magazijnen, locaties, producten, gebruikers] = await Promise.all([
     pq("warehouses").catch(() => []),
-    perStuk(uniek(["idlocation", "contra_idlocation"]), 4, (id) => naam("locations/" + id)),
-    perStuk(uniek(["idproduct"]), 4, (id) => naam("products/" + id)),
-    perStuk(uniek(["iduser"]), 2, (id) => naam("users/" + id)),
+    perStuk(uniek(["idlocation", "contra_idlocation"]), 4, (id) => pq("locations/" + id).catch(() => null)),
+    perStuk(uniek(["idproduct"]), 4, (id) => pq("products/" + id).catch(() => null)),
+    perStuk(uniek(["iduser"]), 2, (id) => pq("users/" + id).catch(() => null)),
   ]);
   return {
-    bron: "picqer-location-stock-history", versie: 1, sinds, tot: tot || null, opgehaald: new Date().toISOString(),
+    bron: "picqer-location-stock-history", versie: 1, sinds, opgehaald: new Date().toISOString(),
     magazijnen: (Array.isArray(magazijnen) ? magazijnen : []).map((w: any) => ({ idwarehouse: w.idwarehouse, name: w.name })),
     historie: hist.map((h: any) => ({
       idproduct_location_stock_history: h.idproduct_location_stock_history, change_type: h.change_type, stock_change: h.stock_change,
@@ -259,7 +248,7 @@ async function verplaatsingen(sinds: string, tot = "") {
     locaties: locaties.filter(Boolean).map((l: any) => ({ idlocation: l.idlocation, name: l.name, idwarehouse: l.idwarehouse })),
     producten: producten.filter(Boolean).map((p: any) => ({ idproduct: p.idproduct, productcode: p.productcode })),
     gebruikers: gebruikers.filter(Boolean).map((u: any) => ({ iduser: u.iduser, firstname: u.firstname || u.first_name || "", lastname: u.lastname || u.last_name || "", username: u.username || "" })),
-    vol: ruw.length >= 6000,
+    vol: hist.length >= 6000,
   };
 }
 
@@ -649,7 +638,7 @@ Deno.serve(async (req: Request) => {
     if (actie === "ontvangsten") return antwoord(await ontvangsten(url.searchParams.get("refs") || ""), 200, origin);
     if (actie === "keten") return antwoord(await keten(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "ontvangstenlijst") return antwoord(await ontvangstenLijst(url.searchParams.get("sinds") || ""), 200, origin);
-    if (actie === "verplaatsingen") return antwoord(await verplaatsingen(url.searchParams.get("sinds") || "", url.searchParams.get("tot") || ""), 200, origin);
+    if (actie === "verplaatsingen") return antwoord(await verplaatsingen(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "historielicht" || actie === "idindex" || actie === "historietest") return await licht(actie, url, origin);
     if (actie === "mutaties") return antwoord(await mutaties(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "locatielijst") return antwoord(await locatielijst(url.searchParams.get("van") || "0"), 200, origin);

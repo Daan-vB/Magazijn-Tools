@@ -13,10 +13,6 @@
   "wh/taken.js",
   "wh/live.js",
   "wh/aanvullive.js",
-  "wh/productdata.js",
-  "wh/aannames.js",
-  "wh/pdvers.js",
-  "wh/pdfamilie.js",
   "wh/views.js"
  ],
  "ivol": [
@@ -27,7 +23,6 @@
   "wh/triage.js",
   "wh/live.js",
   "wh/aanvullive.js",
-  "wh/pdvers.js",
   "wh/ivol-live.js",
   "wh/locaties.js",
   "wh/bouwplan-route.js",
@@ -69,7 +64,6 @@
   "wh/bron.js",
   "wh/testbron.js",
   "wh/aanvullive.js",
-  "wh/pdvers.js",
   "wh/productdata.js",
   "wh/historie.js",
   "wh/aannames.js",

@@ -56,9 +56,9 @@ const M = [
   { id:'base', g:'prod', t:'Niveaus', u:T('#/base'), st:'proef', r:DV, data:'wh-aanvul', uit:'Aanvulbase: picklocatie, aanvullen onder, vul aan tot.' },
   { id:'invul', g:'prod', t:'Invullen', u:T('#/invul'), st:'proef', r:DV, data:'wh-aanvul, catalog-ean', uit:'Op de telefoon, één product per scherm.' },
   { id:'productdata', g:'prod', t:'Productdata', u:T('#/productdata'), st:'proef', r:DV, data:'producten, catalog-ean', uit:'Afdelingen doorlopen, automatisch invullen, importeren.' },
-  { id:'pdfamilie', g:'prod', t:'Per familie', u:T('#/productdata/familie'), st:'proef', r:DV, data:'productdata, wh-pd-fam, wh-inkoop, wh-verplaatsingen', uit:'Een hele familie in één keer: familie, maatgroep, product, met voorraad per locatie, inkoop en backorders per product.' },
+  { id:'pdfamilie', g:'prod', t:'Per familie', u:T('#/productdata/familie'), st:'proef', r:DV, data:'productdata, wh-pd-fam', uit:'Een hele familie in één keer: familie, maatgroep, product.' },
   { id:'gelijk', g:'prod', t:'Gelijkzetten', u:T('#/productdata/gelijk'), st:'proef', r:DV, data:'productdata, catalog-ean, producten', uit:'Productdata naar Palletlabels en Containers zetten.' },
-  { id:'soorten', g:'prod', t:'Soorten', u:T('#/productdata/soort'), st:'proef', r:DV, data:'opslag', uit:'1 pallet · 2 deel · 3 mix · 4 pick · 5 rol alleen backorder.' },
+  { id:'soorten', g:'prod', t:'Soorten', u:T('#/productdata/soort'), st:'proef', r:DV, data:'opslag', uit:'1 pallet · 2 deel · 3 mix · 4 pick.' },
   { id:'productkaart', g:'prod', t:'Productkaart', u:'./productkaart.html', st:'draait', r:DK, data:'catalog-ean, producten', uit:'Alles over één product.' },
   { id:'cp-producten', g:'prod', t:'Producten per leverancier', u:CPT('#/producten'), st:'proef', r:DV, data:'pakbon_alias, producten', uit:'Palletgegevens en koppelingen per leverancier.' },
   { id:'vloernamen', g:'prod', t:'Vloernamen', u:CPT('#/vloernamen'), st:'proef', r:DV, data:'catalog-ean', uit:'Namen zoals de vloer ze kent.' },
@@ -490,7 +490,7 @@ function herreken(){
 
 /* ---------- nieuwe versie: elke 5 minuten (en bij terugkomen) kijken of de bestanden op GitHub Pages veranderd zijn ----------
    Alleen een balk, nooit zelf herladen: Daan kiest het moment (er kan in een invulveld getypt worden). */
-const VERSIE_BESTANDEN = ['wh/lijst.json', 'wh/ivol.js', 'wh/productdata.js', 'wh/pdfamilie.js', 'wh/pdvers.js', 'test.html'];
+const VERSIE_BESTANDEN = ['wh/lijst.json', 'wh/ivol.js', 'wh/productdata.js', 'wh/pdfamilie.js', 'test.html'];
 const VS = { basis:null, bezig:false };
 async function versieKijk(){
   if(VS.bezig) return; VS.bezig = true;
