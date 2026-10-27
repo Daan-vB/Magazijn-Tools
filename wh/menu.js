@@ -20,6 +20,8 @@ const BASIS = [
   { k:'aanvul', t:'Aanvuladvies', href:W + '#/aanvullen', sub:[['aanvullen', 'Aanvullen', W + '#/aanvullen']] },
   { k:'cont', t:'Containers', href:CP + '#/', sub:[['cp:home', 'Containers', CP + '#/']] },
   LAB,
+  { k:'pd', t:'Productdata', href:W + '#/productdata', sub:[
+    ['productdata', 'Productdata', W + '#/productdata'], ['pdfamilie', 'Per familie', W + '#/productdata/familie']] },
   { k:'geg', t:'Gegevens', href:W + '#/gegevens', sub:[
     ['gegevens', 'Gegevens inladen', W + '#/gegevens'], ['cp:gegevens', 'Gegevens containers', CP + '#/gegevens']] }
 ];
@@ -38,7 +40,7 @@ const VOL = [
     ['ruimte', 'Ruimte', W + '#/ruimte'], ['cp:producten', 'Producten', CP + '#/producten'], ['cp:vloernamen', 'Vloernamen', CP + '#/vloernamen']] },
   LAB,
   { k:'pd', t:'Productdata', href:W + '#/productdata', sub:[
-    ['productdata', 'Productdata', W + '#/productdata']] },
+    ['productdata', 'Productdata', W + '#/productdata'], ['pdfamilie', 'Per familie', W + '#/productdata/familie']] },
   { k:'geg', t:'Gegevens', href:W + '#/gegevens', sub:[
     ['gegevens', 'Gegevens inladen', W + '#/gegevens'], ['cp:gegevens', 'Gegevens containers', CP + '#/gegevens']] }
 ];
@@ -86,6 +88,7 @@ function kop(){
 let laatste = null;
 function zet(sleutel){
   sleutel = ALIAS[sleutel] || sleutel;
+  if(sleutel === 'productdata' && /^#\/productdata\/familie/.test(location.hash)) sleutel = 'pdfamilie';
   kop();
   if(sleutel === laatste && document.getElementById('subnav')) return;
   laatste = sleutel;
