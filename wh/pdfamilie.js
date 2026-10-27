@@ -25,7 +25,7 @@ const KEY = 'wh-pd-fam';
 const app = () => $('app');
 
 /* ---------- velden en niveaus ---------- */
-const STD_NIV = { opslag:'fam', pick:'fam', met:'fam', lvl:'fam', geleverd:'fam', mixgroep:'fam',
+const STD_NIV = { opslag:'maat', pick:'fam', met:'fam', lvl:'fam', geleverd:'fam', mixgroep:'fam',
   spp:'maat', maxpick:'maat', maat:'maat', hoogte:'maat', gewicht:'maat', plaatsen:'maat', spd:'maat', maxlig:'maat', kgst:'maat', doos:'maat',
   vn:'prod', opm:'prod' };
 const VELD = () => Object.keys(P().VELDEN);
@@ -43,7 +43,7 @@ const LIGKG = () => aan('p-ligkg', 2000), DOOSKG = () => aan('p-dooskg', 30), DO
 const breedteNaam = c => { const n = String((D.P[c] || {}).naam || ''); const m = n.match(/(\d{2,3})\s*cm\s*(breed|br\b)/i) || n.match(/breed(?:te)?\s*(\d{2,3})/i) || n.match(/\b(\d{2,3})\s*cm\b/i); return m ? +m[1] : null; };
 // eenheid per familie vastzetten ("cm, Picqer-eenheid negeren"); Kokos op rol staat standaard op cm (besluit Daan 16-10)
 const EH_STD = { 'Kokos op rol':'cm' };
-const ehVast = fk => { const v = (cor().eh || {})[fk]; if(v) return v === 'picqer' ? '' : v; return EH_STD[famNaam(fk)] || ''; };
+const ehVast = fk => { const v = X().famCorWaarde('eh', fk); if(v) return v === 'picqer' ? '' : v; return EH_STD[famNaam(fk)] || ''; };
 const EHT2 = { cm:{ e:'cm', mv:'cm', t:'per cm' }, m:{ e:'m', mv:'m', t:'per meter' }, st:{ e:'st', mv:'st.', t:'per stuk' } };
 const ehProd = (fk, c) => { const v = ehVast(fk); return v && EHT2[v] ? EHT2[v] : P().eenheid(c); };
 
@@ -53,7 +53,7 @@ const maatVan = c => { const vk = P().index().varVan[c] || ''; return vk.slice(S
 const zichtbaar = c => X().actief(c) && (isUitl(c) || X().inScope(c, 'belangrijk', false) || X().inScope(c, 'beweegt', false) || X().inScope(c, 'voorraad', false));
 const leden = fk => (P().index().fam[fk] || []).filter(zichtbaar).sort((a, b) => maatVan(a).localeCompare(maatVan(b)) || X().rang(a) - X().rang(b));
 const actiefLeden = fk => leden(fk).filter(c => !isUitl(c));
-const famNaam = fk => { const n = cor().naam[fk]; return n || X().famTitel(fk, leden(fk).length ? leden(fk) : (P().index().fam[fk] || [])); };
+const famNaam = fk => { const n = X().famCorWaarde('naam', fk); return n || X().famTitel(fk, leden(fk).length ? leden(fk) : (P().index().fam[fk] || [])); };
 function maatgroepen(fk){
   const m = new Map();
   actiefLeden(fk).forEach(c => { const k = maatVan(c); if(!m.has(k)) m.set(k, []); m.get(k).push(c); });
@@ -130,8 +130,11 @@ function voorstelInfo(v){
 const CK = 'famconcept';
 const CON = (() => { const c = X().leesJson(CK, {}); return c && typeof c === 'object' ? c : {}; })();
 const bewaarCon = () => X().bewaar(CK, JSON.stringify(CON));
-function con(fk){ const c = CON[fk] = CON[fk] || {}; ['f', 'm', 'p', 'niv', 'keuze'].forEach(k => { if(!c[k] || typeof c[k] !== 'object') c[k] = {}; }); return c; }
-const niv = (fk, k) => con(fk).niv[k] || (cor().niv[fk] || {})[k] || STD_NIV[k] || 'prod';
+function con(fk){
+  // concept dat nog onder de oude familiesleutel (vóór de extra kleuren) bewaard staat, neemt de nieuwe familie over
+  if(!CON[fk]) for(const o of ((P().index().oud || {})[fk] || [])) if(CON[o]){ CON[fk] = CON[o]; break; }
+  const c = CON[fk] = CON[fk] || {}; ['f', 'm', 'p', 'niv', 'keuze'].forEach(k => { if(!c[k] || typeof c[k] !== 'object') c[k] = {}; }); return c; }
+const niv = (fk, k) => con(fk).niv[k] || (X().famCorWaarde('niv', fk) || {})[k] || STD_NIV[k] || 'prod';
 
 /* ---------- waarden per niveau ---------- */
 const meest = vals => { const t = {}; vals.forEach(v => t[v] = (t[v] || 0) + 1); const e = Object.entries(t).sort((a, b) => b[1] - a[1]); return e.length ? { v:e[0][0], n:e[0][1], soorten:e.length } : null; };
@@ -275,7 +278,7 @@ async function opslaan(fk){
     // niveaus en uitzonderingen bij de familie bewaren
     const c = con(fk);
     await bewaarCor(d => {
-      d.niv[fk] = Object.assign({}, d.niv[fk] || {}, c.niv);
+      d.niv[fk] = Object.assign({}, d.niv[fk] || X().famCorWaarde('niv', fk) || {}, c.niv);
       Object.keys(d.uitz).forEach(code => { if(famVan(code) !== fk) return; Object.keys(d.uitz[code]).forEach(k => { if((c.keuze[code] || {})[k] === 'fam') delete d.uitz[code][k]; }); if(!Object.keys(d.uitz[code]).length) delete d.uitz[code]; });
       Object.entries(p.uitzNu).forEach(([code, ks]) => { d.uitz[code] = Object.assign({}, d.uitz[code] || {}, ks); });
     });
@@ -424,7 +427,7 @@ function leerRij(k, cs){
 }
 
 /* ---------- weergave ---------- */
-const UI = { zoek:'', n:40, open:{}, bezig:false, uitslag:null };
+const UI = { zoek:'', n:40, open:{}, bezig:false, uitslag:null, vopen:{}, vtab:'', asub:'' };
 function stijl(){
   if($('pdf-stijl')) return;
   const s = document.createElement('style'); s.id = 'pdf-stijl';
@@ -489,7 +492,25 @@ function stijl(){
   .pf-mgkop{padding:10px 14px;background:#f7f9fb;border-bottom:1px solid #e3e8ee}
   .pf-acties > summary{list-style:none;display:inline-block} .pf-acties > summary::-webkit-details-marker{display:none}
   .pf-acties select{max-width:100%}
+  .pf-vrs{color:#4a5a6a;margin-top:2px;font-weight:400}
+  .pf-sec > h3 .pf-k{margin-left:auto}
+  .pf-vrstand{padding:6px 14px 0}
+  .pf-vrtabs{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px 4px}
+  .pf-vrtabs.sub{padding:2px 14px 4px}
+  .pf-vrtab{border:1px solid #c9ced6;background:#f6f7f9;border-radius:8px;padding:8px 12px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;min-height:40px;color:inherit}
+  .pf-vrtab.klein{font-size:12.5px;min-height:34px;padding:5px 10px;font-weight:600}
+  .pf-vrtab.on{background:var(--blue);border-color:var(--blue);color:#fff}
+  .pf-vrtab .n{font-variant-numeric:tabular-nums;opacity:.85;margin-left:6px}
+  .pf-vrsam{padding:6px 14px 8px;color:#4a5a6a}
+  .pf-vrmg{border-top:1px solid #e3e8ee}
+  .pf-vrmg > summary{padding:9px 14px;cursor:pointer;background:#f7f9fb}
+  .pf-vrrij{display:grid;grid-template-columns:minmax(170px,1.2fr) minmax(0,2fr) minmax(0,1.8fr) auto;gap:6px 14px;padding:9px 14px;border-top:1px solid #eef1f4;align-items:start;font-size:13px}
+  .pf-vrrij .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin-right:3px}
+  .pf-loc{display:inline-block;background:#eef4fc;border:1px solid #cddcf2;border-radius:5px;padding:1px 6px;margin:1px 3px 1px 0;font-size:12.5px}
+  .pf-loc.tijd{background:#fff4e5;border-color:#f1d2a8}
+  .pf-vrkeuze{display:flex;gap:6px;flex-wrap:wrap}
   @media (max-width:760px){
+    .pf-vrrij{grid-template-columns:1fr;padding:10px 12px} .pf-vrtab{flex:1 1 auto}
     .pf-rij{grid-template-columns:1fr;padding:10px 12px} .pf-rij label{padding-top:0}
     .pf .btn, .pf .pf-k, .pf input, .pf select{min-height:44px}
     .pf .pf-k{display:inline-flex;align-items:center;padding:8px 10px;font-size:13px;border-radius:6px}
@@ -547,7 +568,11 @@ function cel(fk, rij, k, x, opt){
     : x.s === 'voorstel' || sch ? `<span>${esc(x.why || '')}</span>${x.score ? `<span class="sc">${esc(x.score)}</span>` : x.p ? `<span class="sc">klopte ${Math.round(x.p * 100)}%</span>` : ''}${sch ? ` <button class="pf-k" data-pfa="gebruik" data-r="${esc(rij)}" data-k="${k}" data-v="${esc(x.v)}">Gebruik</button>` : ''}`
     : x.s === 'fout' ? '<span style="color:var(--bad)">' + esc((() => { try{ X().check(k, x.v); return ''; }catch(e){ return e.message; } })()) + '</span>' : '';
   const rg = o.regel ? `<div class="pf-regel"><span>${esc(o.regel.t)}</span>${o.regel.zet ? `<button class="pf-k" data-pfa="gebruik" data-r="${esc(rij)}" data-k="${k}" data-v="${esc(o.regel.zet)}">Zet op ${esc(o.regel.zet)}</button>` : ''}</div>` : '';
-  return `<input id="${id}" class="pf-in ${x.s}${o.regel ? ' regel' : ''}" data-pf="1" data-r="${esc(rij)}" data-k="${k}" value="${esc(val)}" placeholder="${esc(ph)}" ${d.type === 'num' ? 'inputmode="decimal"' : ''} autocomplete="off" ${UI.bezig ? 'disabled' : ''}>${eh ? `<span class="small muted"> ${esc(eh)}</span>` : ''}${rg}${why ? `<div class="pf-why">${why}</div>` : ''}${o.knop || ''}${!o.geenPaneel && paneelOpen(fk, rij, k) ? paneel(fk, rij, k, x, cs) : ''}`;
+  // Soort is een keuzelijst (geen vrije tekst); een voorstel staat geel geselecteerd, een schatting als tekst in de lijst met Gebruik ernaast
+  const ctl = k === 'opslag'
+    ? `<select id="${id}" class="pf-in ${x.s}${o.regel ? ' regel' : ''}" data-pf="1" data-r="${esc(rij)}" data-k="${k}" ${UI.bezig ? 'disabled' : ''}><option value="">${sch ? 'voorstel: ' + esc((d.opt.find(op => op[0] === x.v) || [0, x.v])[1]) : '– kies de soort –'}</option>${d.opt.map(([v, t]) => `<option value="${v}"${val === v ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>`
+    : `<input id="${id}" class="pf-in ${x.s}${o.regel ? ' regel' : ''}" data-pf="1" data-r="${esc(rij)}" data-k="${k}" value="${esc(val)}" placeholder="${esc(ph)}" ${d.type === 'num' ? 'inputmode="decimal"' : ''} autocomplete="off" ${UI.bezig ? 'disabled' : ''}>`;
+  return `${ctl}${eh ? `<span class="small muted"> ${esc(eh)}</span>` : ''}${rg}${why ? `<div class="pf-why">${why}</div>` : ''}${o.knop || ''}${!o.geenPaneel && paneelOpen(fk, rij, k) ? paneel(fk, rij, k, x, cs) : ''}`;
 }
 // paneel onder een melding: welke producten, waarom, en direct oplossen
 function paneel(fk, rij, k, x, cs){
@@ -564,7 +589,7 @@ function paneel(fk, rij, k, x, cs){
     : nC ? nf(nC) + ' waarden zijn een schatting van Claude en nog niet gecontroleerd.' : 'Alle producten hebben dezelfde waarde.';
   const open = rijen.filter(r => r.st !== 'gelijk').length;
   return `<div class="pf-paneel" role="region" aria-label="Uitleg ${esc(d.t)}"><div class="pf-pzin">${esc(zin)}</div>
-    <table class="pf-ptab"><tbody>${rijen.map(r => `<tr class="${r.st === 'gelijk' ? 'gelijk' : ''}"><td><b>${esc(lab[r.c] || r.c)}</b><div class="small muted mono">${esc(r.c)}</div></td>
+    <table class="pf-ptab"><tbody>${rijen.map(r => `<tr class="${r.st === 'gelijk' ? 'gelijk' : ''}"><td><b>${esc(naamVan(r.c))}</b><div class="small muted mono">${esc(r.c)}</div></td>
       <td><b>${esc(toon(r.c, r.eigen))}</b><div class="small muted">${esc(r.st)}${r.bron && r.eigen !== '' ? ' · ' + esc(r.bron) : ''}</div></td>
       <td class="pf-pact">${r.st === 'wijkt af' ? `<button class="pf-k" data-pfa="houd1" data-c="${esc(r.c)}" data-k="${k}">Deze houden</button>` : ''}
         <span class="pf-pzet"><input id="pf-pz-${X().idVan(r.c + '-' + k)}" data-pfp="1" data-c="${esc(r.c)}" data-k="${k}" placeholder="aanpassen" ${d.type === 'num' ? 'inputmode="decimal"' : ''} autocomplete="off"><button class="pf-k" data-pfa="zet1" data-c="${esc(r.c)}" data-k="${k}">Zet</button></span></td></tr>`).join('')}</tbody></table>
@@ -603,6 +628,155 @@ async function paneelActie(fk, a, b){
   }
 }
 const keusHint = k => { const d = P().VELDEN[k]; return d.opt ? d.opt.map(o => o[0]).join(' · ') : d.type === 'geleverd' ? 'stuk · getal · wisselt' : ''; };
+/* ---------- voorraad en inkoop per product: live uit Picqer (alleen lezen), anders de export ----------
+   Drie tabs per familie: (a) met picklocatie (vast en tijdelijk apart via de tijd-vlag van de locatie), (b) zonder picklocatie
+   maar met voorraad (per product: moet pick krijgen / geen pick, veld pickkeuze in productdata, buiten de tellers),
+   (c) zonder voorraad (openstaande backorders en de laatste inkoop). Elke tab per maatgroep samengevat en uitklapbaar. */
+const naamVan = c => String((D.P[c] || {}).naam || c);
+// productlijn per product, alleen zichtbaar als de familie er meer dan één heeft (bijv. Vica-trapmat: Bueno, Luego, Baleno, Novelle)
+let LJ = { lijn:{}, meer:false };
+function lijnInfo(fk){
+  const cs = actiefLeden(fk).concat(leden(fk).filter(isUitl)), sch = {};
+  cs.forEach(c => { sch[c] = X().schoneNaam(naamVan(c)).split(' ').filter(Boolean); });
+  let pre = null;
+  cs.forEach(c => { const w = sch[c]; if(pre === null) pre = w.slice(); else { let j = 0; while(j < pre.length && j < w.length && pre[j].toLowerCase() === w[j].toLowerCase()) j++; pre = pre.slice(0, j); } });
+  const n = (pre || []).length, lijn = {};
+  cs.forEach(c => { lijn[c] = sch[c].slice(n).join(' '); });
+  return { lijn, meer:new Set(Object.values(lijn)).size > 1 };
+}
+const dk = iso => { const s = String(iso || ''); return s.length >= 10 ? s.slice(8, 10) + '-' + s.slice(5, 7) + '-' + s.slice(0, 4) : ''; };
+const uurTxt = t => { const d = new Date(t); return isNaN(d) ? '' : String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+const WL = () => window.WHLIVE;
+const LIVE = { prod:{}, bezig:{}, fout:{}, op:{}, ids:null, idsBezig:null };
+// Picqer-id van een productcode: wh-pq-cat (producten met voorraad), anders de index van de geschiedenis (wh-hist-index, alle producten)
+function idVan(c){
+  const cat = (P().S.cat && P().S.cat.ids) || {}; if(cat[c]) return +cat[c];
+  const m = LIVE.ids && LIVE.ids[String(c).toLowerCase()]; return m ? +m : 0;
+}
+function laadIds(){
+  if(LIVE.ids) return Promise.resolve();
+  if(LIVE.idsBezig) return LIVE.idsBezig;
+  LIVE.idsBezig = (async () => {
+    try{ const r = await WH.catHaal('wh-hist-index'), p = (r && r.data && r.data.p) || {}, m = {}; Object.keys(p).forEach(id => { m[String(p[id]).toLowerCase()] = +id; }); LIVE.ids = m; }
+    catch(e){ LIVE.ids = {}; }
+  })();
+  return LIVE.idsBezig;
+}
+async function haalLive(fk, forceer){
+  const L = WL(); if(!L || !L.status().code || LIVE.bezig[fk]) return;
+  if(!L.status().data && !L.status().laden) L.laad(false);   // backorders live (zelfde als Vandaag)
+  const cs = actiefLeden(fk), oud = c => forceer || !LIVE.prod[c] || Date.now() - LIVE.prod[c].t > 120e3;
+  if(!cs.some(oud)) return;
+  LIVE.bezig[fk] = true; LIVE.fout[fk] = null;
+  try{
+    if(cs.some(c => oud(c) && !idVan(c))) await laadIds();
+    const todo = cs.filter(c => oud(c) && idVan(c));
+    for(let i = 0; i < todo.length; i += 40){
+      const deel = todo.slice(i, i + 40), perId = {}; deel.forEach(c => { perId[idVan(c)] = c; });
+      const r = await L.vraag('producten', { ids:deel.map(idVan).join(',') });
+      (r.producten || []).forEach(p => { const c = perId[p.id]; if(c) LIVE.prod[c] = { t:Date.now(), p, mag:r.magazijn, vst:r.vst || 3991 }; });
+      updVr();
+    }
+    LIVE.op[fk] = Date.now();
+  }catch(e){ LIVE.fout[fk] = e; }
+  LIVE.bezig[fk] = false; updVr();
+}
+// openstaande backorders per product: live (picqer vandaag, per idproduct) als die er is, anders de backorder-export
+const BOEXP = { ref:null, m:null };
+function boVan(c){
+  const L = WL(), d = L && L.status().data, id = idVan(c);
+  if(d && d.backorders && id){
+    const r = d.backorders.filter(b => +b.p === id && !b.hp); if(!r.length) return null;
+    return { n:new Set(r.map(b => b.o)).size, stuks:r.reduce((s, b) => s + (b.a || 0), 0), besch:r.reduce((s, b) => s + Math.min(b.a || 0, b.v || 0), 0), oudste:r.reduce((m, b) => b.c && (!m || b.c < m) ? b.c : m, ''), bron:'live' };
+  }
+  if(BOEXP.ref !== D.BO || !BOEXP.m){
+    const m = {}; (D.BO || []).forEach(b => { const k = D.PLOW[String(b.productcode || '').toLowerCase()] || b.productcode; (m[k] = m[k] || []).push(b); });
+    BOEXP.ref = D.BO; BOEXP.m = m;
+  }
+  const r = BOEXP.m[c]; if(!r || !r.length) return null;
+  return { n:new Set(r.map(b => b.bestelling)).size, stuks:r.reduce((s, b) => s + (num(b.aantal) || 0), 0), besch:r.reduce((s, b) => s + Math.min(num(b.aantal) || 0, num(b.beschikbaar) || 0), 0), oudste:r.reduce((m, b) => b.geimporteerd_op && (!m || b.geimporteerd_op < m) ? b.geimporteerd_op : m, ''), bron:'export' };
+}
+const pickkeuze = c => { const r = P().S.pd[c]; return (r && r.data && r.data.pickkeuze) || ''; };
+// alles wat we van één product weten: locaties met aantallen, VST, zonder locatie, inkoop, verkoop, backorders
+function feit(c){
+  const p = D.P[c] || {}, Lv = LIVE.prod[c], tijd = n => !!(D.LOC[n] && D.LOC[n].tijd);
+  const f = { c, naam:naamVan(c), pick:[], bulk:[], kar:0, vst:0, geen:0, bron:'export' };
+  if(Lv){
+    const q = Lv.p, mag = +Lv.mag;
+    (q.loc || []).forEach(l => {
+      if(l.w !== null && l.w !== undefined && +l.w !== mag) return;                     // andere magazijnen (VST) via de voorraad per magazijn
+      if(l.t === 'container' || /^container\s*\d+$/i.test(String(l.n || '').trim())){ f.kar += l.v || 0; return; }
+      (l.b ? f.bulk : f.pick).push({ n:l.n, v:l.v || 0, tijd:tijd(l.n) });
+    });
+    const w = id => ((q.vw || []).find(x => +x[0] === +id) || [0, null])[1];
+    const hm = w(mag), vst = w(Lv.vst);
+    f.vst = vst || 0;
+    f.geen = hm === null ? 0 : Math.max(0, hm - f.pick.concat(f.bulk).reduce((s, x) => s + x.v, 0) - f.kar);
+    f.bron = 'live';
+  }else{
+    const l = P().locaties(c);
+    f.pick = l.pick.map(([n, v]) => ({ n, v:num(v) || 0, tijd:tijd(n) })); f.bulk = l.bulk.map(([n, v]) => ({ n, v:num(v) || 0 }));
+    f.geen = num(l.geen) || 0; f.vst = num(p.voorraad_vst) || 0;
+    f.kar = Object.values(((D.VR[c] || {}).cont) || {}).reduce((s, v) => s + (num(v) || 0), 0);
+  }
+  f.opPick = f.pick.reduce((s, x) => s + x.v, 0); f.opBulk = f.bulk.reduce((s, x) => s + x.v, 0);
+  f.tot = f.opPick + f.opBulk + f.kar + f.geen + f.vst;
+  f.heeftPick = f.pick.length > 0; f.vast = f.pick.some(x => !x.tijd);
+  f.ink = P().inkVan(c); f.vk = X().vkmVan(c) || 0; f.bo = boVan(c); f.keuze = pickkeuze(c);
+  return f;
+}
+const tabVan = f => f.heeftPick ? 'a' : f.tot > 0 ? 'b' : 'c';
+const locChips = a => a.length ? a.map(x => `<span class="pf-loc${x.tijd ? ' tijd' : ''}" title="${x.tijd ? 'tijdelijke locatie' : 'vaste locatie'}">${esc(x.n)} <b>${nf(x.v)}</b></span>`).join('') : '<span class="muted">–</span>';
+function inkTxt(i){
+  if(!i) return '<span class="muted">geen inkoop in 12 maanden</span>';
+  return `ø <b>${nf(i.gem, 0)}</b> per order · <b>${nf(i.n)}</b>× · laatst <b>${dk(i.laatste)}</b> (${nf(i.laatsteB)} besteld, ${nf(i.laatsteO)} ontvangen${i.laatsteOpen ? ', nog open' : ''})`;
+}
+const boTxt = b => b ? `<b>${nf(b.n)}</b> ${b.n === 1 ? 'order' : 'orders'} · ${nf(b.stuks)} st.${b.besch ? ' (' + nf(b.besch) + ' beschikbaar)' : ''} · oudste ${dk(b.oudste)}` : '<span class="muted">geen openstaande backorders</span>';
+function rijHtml(f, tab){
+  const kz = (v, t) => `<button class="pf-k${f.keuze === v ? ' pri' : ''}" data-pfa="pick1" data-c="${esc(f.c)}" data-v="${v}" aria-pressed="${f.keuze === v}">${t}</button>`;
+  return `<div class="pf-vrrij"><div class="pf-vrnaam"><b>${esc(f.naam)}</b><div class="small muted mono">${esc(f.c)} ${X().abcBadge(f.c)}</div>${LJ.meer ? `<div class="small"><span class="l">Lijn</span> <b>${esc(LJ.lijn[f.c] || '–')}</b></div>` : ''}</div>
+    <div class="pf-vrvoor"><div><span class="l">Pick</span> ${locChips(f.pick)}</div><div><span class="l">Bulk</span> ${locChips(f.bulk)}</div>
+      <div class="small"><span class="l">VST</span> <b>${nf(f.vst)}</b> · <span class="l">zonder locatie</span> <b>${nf(f.geen)}</b>${f.kar ? ' · <span class="l">retourkar</span> <b>' + nf(f.kar) + '</b>' : ''}</div></div>
+    <div class="pf-vrink small"><div><span class="l">Inkoop</span> ${inkTxt(f.ink)}</div><div><span class="l">Verkoop</span> <b>${nf(Math.round(f.vk))}</b> per maand</div>${tab === 'c' ? `<div><span class="l">Backorders</span> ${boTxt(f.bo)}</div>` : ''}</div>
+    ${tab === 'b' ? `<div class="pf-vrkeuze">${kz('moet', 'Moet pick krijgen')}${kz('geen', 'Geen pick')}</div>` : '<div></div>'}</div>`;
+}
+// samenvatting van een groep producten (familie of maatgroep)
+function samen(fs, tab){
+  const s = k => fs.reduce((t, f) => t + (f[k] || 0), 0), ik = fs.map(f => f.ink).filter(Boolean);
+  const n = ik.reduce((t, i) => t + i.n, 0), tot = ik.reduce((t, i) => t + i.tot, 0), laatste = ik.reduce((m, i) => i.laatste > m ? i.laatste : m, '');
+  const bo = fs.map(f => f.bo).filter(Boolean);
+  return `Pick <b>${nf(s('opPick'))}</b> · Bulk <b>${nf(s('opBulk'))}</b> · VST <b>${nf(s('vst'))}</b> · zonder locatie <b>${nf(s('geen'))}</b> · inkoop ${n ? 'ø <b>' + nf(tot / n, 0) + '</b> per order, ' + nf(n) + '×, laatst ' + dk(laatste) : 'geen'} · verkoop <b>${nf(Math.round(s('vk')))}</b> per maand${tab === 'c' ? ' · backorders <b>' + nf(bo.reduce((t, b) => t + b.n, 0)) + '</b> orders, ' + nf(bo.reduce((t, b) => t + b.stuks, 0)) + ' st.' : ''}`;
+}
+function vrInner(fk){
+  LJ = lijnInfo(fk);
+  const cs = actiefLeden(fk), F = {}; cs.forEach(c => { F[c] = feit(c); });
+  const T = { a:[], b:[], c:[] }; cs.forEach(c => T[tabVan(F[c])].push(c));
+  const vast = T.a.filter(c => F[c].vast), tijdel = T.a.filter(c => !F[c].vast);
+  let tab = UI.vtab || 'a'; if(!T[tab].length && cs.length) tab = T.a.length ? 'a' : T.b.length ? 'b' : 'c';
+  let sub = UI.asub || 'vast'; if(sub === 'vast' && !vast.length && tijdel.length) sub = 'tijd'; if(sub === 'tijd' && !tijdel.length && vast.length) sub = 'vast';
+  const lijst = tab === 'a' ? (sub === 'vast' ? vast : tijdel) : T[tab];
+  const nl = cs.filter(c => F[c].bron === 'live').length, L = WL(), pv = window.PDVERS ? PDVERS.status() : null;
+  const bron = LIVE.fout[fk] ? `export van ${dk(D.VRDATUM)} · live mislukt: ${esc(LIVE.fout[fk].message || LIVE.fout[fk])}`
+    : nl && nl === cs.length ? `live uit Picqer${LIVE.op[fk] ? ' · ' + uurTxt(LIVE.op[fk]) : ''}`
+    : LIVE.bezig[fk] ? 'live uit Picqer ophalen…' : nl ? `${nl} van ${cs.length} live, rest export`
+    : L && L.status().code ? `export van ${dk(D.VRDATUM)} · live volgt` : `export van ${dk(D.VRDATUM)} · geen koppelcode op dit apparaat`;
+  const stand = pv ? `Inkoop ${pv.ink.op ? 'bijgewerkt ' + dk(pv.ink.op) : (pv.bezig && /Inkoop/.test(pv.tekst) ? esc(pv.tekst) : 'wordt opgehaald')} · verplaatsingen ${pv.vp.tot ? 't/m ' + dk(pv.vp.tot) : (pv.bezig ? esc(pv.tekst) : 'worden opgehaald')}${pv.fout ? ' · <span style="color:var(--bad)">' + esc(pv.fout.message || pv.fout) + '</span>' : ''}` : '';
+  const tb = (k, t, n) => `<button class="pf-vrtab${tab === k ? ' on' : ''}" data-pfa="vtab" data-v="${k}" role="tab" aria-selected="${tab === k}">${t}<span class="n">${nf(n)}</span></button>`;
+  const groepen = maatgroepen(fk).map(g => ({ g, cs:g.cs.filter(c => lijst.includes(c)) })).filter(x => x.cs.length);
+  const keuzeTel = tab === 'b' ? `<div class="pf-vrsam small">Moet pick krijgen <b>${nf(T.b.filter(c => F[c].keuze === 'moet').length)}</b> · geen pick <b>${nf(T.b.filter(c => F[c].keuze === 'geen').length)}</b> · nog te kiezen <b>${nf(T.b.filter(c => !F[c].keuze).length)}</b></div>` : '';
+  return `<h3>Voorraad en inkoop <span class="u">${bron}</span><button class="pf-k" data-pfa="vernieuw">Vernieuwen</button></h3>
+    ${stand ? `<div class="pf-vrstand small muted">${stand}</div>` : ''}
+    <div class="pf-vrtabs" role="tablist">${tb('a', 'Met picklocatie', T.a.length)}${tb('b', 'Zonder pick, met voorraad', T.b.length)}${tb('c', 'Zonder voorraad', T.c.length)}</div>
+    ${tab === 'a' ? `<div class="pf-vrtabs sub">${[['vast', 'Vaste picklocatie', vast.length], ['tijd', 'Alleen tijdelijke picklocatie', tijdel.length]].map(([k, t, n]) => `<button class="pf-vrtab klein${sub === k ? ' on' : ''}" data-pfa="asub" data-v="${k}">${t}<span class="n">${nf(n)}</span></button>`).join('')}</div>` : ''}
+    ${keuzeTel}
+    <div class="pf-vrsam small">${lijst.length ? '<b>Hele lijst</b> · ' + samen(lijst.map(c => F[c]), tab) : 'Geen producten in deze tab.'}</div>
+    ${groepen.map(({ g, cs: gc }) => { const key = fk + '|' + g.k, open = UI.vopen[key] !== undefined ? UI.vopen[key] : groepen.length === 1;
+      return `<details class="pf-vrmg" data-pfdet2="${esc(key)}" ${open ? 'open' : ''}><summary><b>${esc(g.t)}</b> <span class="small muted">${plural(gc.length, 'product', 'producten')}</span><div class="small pf-vrs">${samen(gc.map(c => F[c]), tab)}</div></summary>${gc.map(c => rijHtml(F[c], tab)).join('')}</details>`; }).join('')}`;
+}
+function updVr(){ const el = $('pf-vr'), fk = fkNu(); if(el && fk && P().index().fam[fk]) el.innerHTML = vrInner(fk); }
+// samenvatting voor in de kop van een maatgroep (sectie 2): wat ligt er, wat is er ingekocht, wat verkoopt het
+const samenCodes = cs => samen(cs.map(feit), '');
+
 function viewWerkblad(fk){
   if(!P().index().fam[fk]){ app().innerHTML = `<a class="small" href="#/productdata/familie">← Per familie</a><div class="card empty mt8">Familie niet gevonden.</div>`; return; }
   const ls = actiefLeden(fk), uitl = leden(fk).filter(isUitl), mg = maatgroepen(fk), R = rek(fk), pl = plan(fk);
@@ -611,6 +785,7 @@ function viewWerkblad(fk){
   const velden = VELD().filter(nodigIem), famV = velden.filter(k => niv(fk, k) === 'fam'), maatV = velden.filter(k => niv(fk, k) === 'maat'), prodV = velden.filter(k => niv(fk, k) === 'prod');
   const ehAlle = (() => { const m = {}; ls.forEach(c => { const e = ehProd(fk, c).t; (m[e] = m[e] || []).push(c); }); return m; })();
   const ehPicqer = new Set(ls.map(c => P().eenheid(c).t)).size > 1;
+  LJ = lijnInfo(fk);
   const I = P().index(), t = telOpen(fk);
   const vkm = ls.reduce((s, c) => s + X().vkmVan(c), 0), pdd = ls.reduce((s, c) => s + X().pdVan(c), 0);
   const abc = ls.reduce((m, c) => { const a = X().abcVan(c) || '–'; m[a] = (m[a] || 0) + 1; return m; }, {});
@@ -630,7 +805,7 @@ function viewWerkblad(fk){
   };
   const ehVan = cs => [...new Set(cs.map(c => ehProd(fk, c).mv))];
   const mgKop = g => { const eh = ehVan(g.cs);
-    return `<b>${esc(g.t)}</b><div class="small muted">${plural(g.cs.length, 'product', 'producten')} · ${esc(eh.join(' / '))}</div>${eh.length > 1 ? `<button class="pf-mld rood" data-pfa="ehpaneel">Eenheid verschilt (${esc(g.cs.map(c => c + ': ' + ehProd(fk, c).t).join(', '))}): controleer dat stuks per pallet in de eenheid van Picqer staat.</button>` : ''}
+    return `<b>${esc(g.t)}</b><div class="small muted">${plural(g.cs.length, 'product', 'producten')} · ${esc(eh.join(' / '))}</div><div class="small pf-vrs">${samenCodes(g.cs)}</div>${LJ.meer ? `<div class="small"><span class="muted">Lijnen:</span> <b>${esc([...new Set(g.cs.map(c => LJ.lijn[c] || '–'))].join(', '))}</b></div>` : ''}${eh.length > 1 ? `<button class="pf-mld rood" data-pfa="ehpaneel">Eenheid verschilt (${esc(g.cs.map(c => c + ': ' + ehProd(fk, c).t).join(', '))}): controleer dat stuks per pallet in de eenheid van Picqer staat.</button>` : ''}
       <details class="pf-acties mt4"><summary class="pf-k">acties</summary><div class="row wrap mt4" style="gap:4px">${g.cs.length > 1 ? `<button class="pf-k" data-pfa="splits" data-m="${esc(g.k)}">splitsen</button>` : ''}${mg.length > 1 ? `<select class="pf-k" data-pfa="voeg" data-m="${esc(g.k)}"><option value="">samenvoegen met…</option>${mg.filter(h => h.k !== g.k).map(h => `<option value="${esc(h.k)}">${esc(h.t)}</option>`).join('')}</select>` : ''}<button class="pf-k" data-pfa="uitl" data-codes="${esc(g.cs.join('\n'))}" data-aan="1">uitlopend</button></div></details>`; };
   const famOpts = (() => { const lev = fk.split('|')[0], woorden = fk.split('|')[1].split(' ').filter(w => w.length > 3);
     return Object.keys(I.fam).filter(f => f !== fk && f.split('|')[0] === lev && lev !== 'SAM Europe' && woorden.some(w => f.includes(w)) && actiefLeden(f).length).slice(0, 40); })();
@@ -638,13 +813,15 @@ function viewWerkblad(fk){
   <div class="card mt8 pf-kop"><div class="pd-kop"><div><h2>${esc(famNaam(fk))}</h2><div class="small muted">${esc(fk.split('|')[0])} · ${plural(ls.length, 'product', 'producten')} · ${plural(mg.length, 'maatgroep', 'maatgroepen')} · ${nf(t.gevuld)} van ${nf(t.velden)} velden (laag 1–3)</div></div>
       ${vg ? `<a class="btn" href="${famUrl(vg.fk)}">Volgende familie →</a>` : ''}</div>
     <div class="pf-stats"><span>Verkoop <b>${nf(Math.round(vkm))}</b> per maand</span><span>Picks <b>${nf(pdd, 1)}</b> per dag</span><span>ABC ${Object.entries(abc).map(([a, n]) => `<b>${esc(a)}</b> ${n}`).join(' · ')}</span><span>Open containers <b>${nf(cont.size)}</b></span></div>
-    <div class="row wrap" style="gap:8px"><input id="pf-naam" data-pfnaam="1" value="${esc(cor().naam[fk] || '')}" placeholder="Naam voor deze familie (bijv. Kokos)" style="max-width:280px"><button class="btn sm" data-pfa="naam">Naam bewaren</button>
+    <div class="row wrap" style="gap:8px"><input id="pf-naam" data-pfnaam="1" value="${esc(X().famCorWaarde('naam', fk) || '')}" placeholder="Naam voor deze familie (bijv. Kokos)" style="max-width:280px"><button class="btn sm" data-pfa="naam">Naam bewaren</button>
       ${famOpts.length ? `<select id="pf-erbij" style="max-width:280px"><option value="">Familie erbij…</option>${famOpts.map(f => `<option value="${esc(f)}">${esc(famNaam(f))} (${actiefLeden(f).length})</option>`).join('')}</select><button class="btn sm" data-pfa="erbij">Samenvoegen</button>` : ''}</div>
     ${(() => { const u = ls.filter(naamUitl); return u.length ? `<div class="pf-keus"><b>Uitlopend?</b> ${plural(u.length, 'product heeft', 'producten hebben')} UITLOPEND in de naam: ${esc(u.map(c => lab[c] || c).join(', '))}<button class="pf-k" data-pfa="uitl" data-codes="${esc(u.join('\n'))}" data-aan="1">${u.length > 1 ? 'Alle ' + u.length + ' op uitlopend' : 'Op uitlopend'}</button></div>` : ''; })()}
     ${Object.keys(ehAlle).length > 1 ? `<button class="pf-mld rood" data-pfa="ehpaneel"><b>Eenheid verschilt in Picqer:</b> ${Object.entries(ehAlle).map(([e, cs]) => nf(cs.length) + ' ' + esc(e) + (cs.length <= 4 ? ' (' + esc(cs.join(', ')) + ')' : '')).join(' · ')}. Controleer dat stuks per pallet, aanvullen bij en max op pick in de eenheid van Picqer staan.</button>`
       : ehVast(fk) && ehPicqer ? `<div class="small muted">Eenheid: <b>${esc(EHT2[ehVast(fk)].t)}</b> voor de hele familie, Picqer-eenheid genegeerd <button class="pf-k" data-pfa="ehpaneel">wijzigen</button></div>` : ''}
     ${UI.paneel && UI.paneel.fk === fk && UI.paneel.eh ? paneelEh(fk, ls) : ''}
     ${UI.uitslag && UI.uitslag.fk === fk && Date.now() - UI.uitslag.op < 6e5 ? `<div class="small" style="color:var(--ok)"><b>Opgeslagen: ${plural(UI.uitslag.n, 'product', 'producten')} bijgewerkt, ${plural(UI.uitslag.uitz, 'uitzondering', 'uitzonderingen')}${UI.uitslag.open ? ' · ' + nf(UI.uitslag.open) + ' keuzes nog open' : ''}</b></div>` : ''}</div>
+
+  <section class="pf-sec" id="pf-vr">${vrInner(fk)}</section>
 
   <section class="pf-sec"><h3>1 · Familie <span class="u">geldt voor alle ${plural(ls.length, 'product', 'producten')}</span></h3>
     ${famV.map(k => `<div class="pf-rij"><label for="pf-${X().idVan('fam-' + k)}">${esc(P().VELDEN[k].t)}${keusHint(k) ? `<div class="small muted" style="font-weight:400">${esc(keusHint(k))}</div>` : ''}</label><div>${cel(fk, 'fam', k, R.fam[k], { eh:ehVan(ls).join('/'), cs:ls })}</div><div class="pf-why" style="padding-top:8px">${zak(k, 'fam')}</div></div>`).join('') || '<div class="pf-rij"><span class="muted small">Alle velden verschillen per maat of product.</span></div>'}
@@ -660,15 +837,15 @@ function viewWerkblad(fk){
     </tbody></table>`}</section>
 
   <details class="pf-sec" ${Object.keys(keuzeVan).length || UI.open[fk] ? 'open' : ''} data-pfdet="${esc(fk)}"><summary style="padding:10px 14px;font-weight:700;cursor:pointer">3 · Producten <span class="small muted">vloernaam, opmerking en uitzonderingen${pl.keuzes.length ? ' · ' + nf(pl.keuzes.length) + ' keuzes open' : ''}</span></summary>
-    <div class="pf-tab"><table class="pf-t"><thead><tr><th>Product</th>${prodV.map(k => `<th>${esc(P().VELDEN[k].t)}${terug(k, 'prod')}</th>`).join('')}<th>Indeling</th></tr></thead><tbody>
+    <div class="pf-tab"><table class="pf-t"><thead><tr><th>Product</th>${LJ.meer ? '<th>Lijn</th>' : ''}${prodV.map(k => `<th>${esc(P().VELDEN[k].t)}${terug(k, 'prod')}</th>`).join('')}<th>Indeling</th></tr></thead><tbody>
     ${ls.map(c => { const kz = keuzeVan[c] || [], ux = Object.keys(uitz[c] || {});
-      return `<tr><td class="kop">${kz.length || ux.length ? '<span class="pf-dot" title="wijkt af"></span>' : ''}<b>${esc(lab[c] || c)}</b><div class="small muted mono">${esc(c)} ${X().abcBadge(c)}</div><div class="small muted">${esc(maatVan(c) || 'zonder maat')}</div>
+      return `<tr><td class="kop">${kz.length || ux.length ? '<span class="pf-dot" title="wijkt af"></span>' : ''}<b>${esc(naamVan(c))}</b><div class="small muted mono">${esc(c)} ${X().abcBadge(c)}</div><div class="small muted">${esc(maatVan(c) || 'zonder maat')}</div>
         ${kz.map(x => `<div class="pf-keus"><b>${esc(P().VELDEN[x.k].t)}</b> eigen <b>${esc(X().toonWaarde(c, x.k, x.eigen))}</b> · ${esc(NIVNAAM[x.L])} <b>${esc(X().toonWaarde(c, x.k, x.fam))}</b><button class="pf-k" data-pfa="keus" data-c="${esc(c)}" data-k="${x.k}" data-v="fam">${esc(NIVNAAM[x.L])} volgen</button><button class="pf-k" data-pfa="keus" data-c="${esc(c)}" data-k="${x.k}" data-v="houd">deze houden</button></div>`).join('')}
         ${ux.length ? `<div class="small" style="color:#9a4205">Uitzondering: ${esc(ux.map(k => P().VELDEN[k] ? P().VELDEN[k].t + ' ' + X().toonWaarde(c, k, P().staat(c, k).v) : k).join(', '))} <button class="pf-k" data-pfa="uitzweg" data-c="${esc(c)}">familie volgen</button></div>` : ''}</td>
-        ${prodV.map(k => `<td>${cel(fk, 'p:' + c, k, R.prod[c][k], { cs:[c] })}</td>`).join('')}
+        ${LJ.meer ? `<td><b>${esc(LJ.lijn[c] || '–')}</b></td>` : ''}${prodV.map(k => `<td>${cel(fk, 'p:' + c, k, R.prod[c][k], { cs:[c] })}</td>`).join('')}
         <td><select class="pf-k" data-pfa="naarfam" data-c="${esc(c)}"><option value="">hoort niet in deze familie…</option><option value="eigen|${esc(c)}">eigen familie</option>${famOpts.map(f => `<option value="${esc(f)}">${esc(famNaam(f))}</option>`).join('')}</select>
           <div class="mt4"><button class="pf-k" data-pfa="uitl" data-codes="${esc(c)}" data-aan="1">${naamUitl(c) ? 'Uitlopend? (staat in de naam)' : 'uitlopend'}</button></div></td></tr>`; }).join('')}
-    ${uitl.map(c => `<tr class="pf-uitl"><td class="kop"><b>${esc(lab[c] || c)}</b><div class="small mono">${esc(c)}</div><div class="small">uitlopend sinds ${esc(String(X().pdWaarde(c, 'uitlopend')))}</div></td>${prodV.map(() => '<td></td>').join('')}<td><button class="pf-k" data-pfa="uitl" data-codes="${esc(c)}" data-aan="">terugzetten</button></td></tr>`).join('')}
+    ${uitl.map(c => `<tr class="pf-uitl"><td class="kop"><b>${esc(naamVan(c))}</b><div class="small mono">${esc(c)}</div><div class="small">uitlopend sinds ${esc(String(X().pdWaarde(c, 'uitlopend')))}</div></td>${LJ.meer ? '<td></td>' : ''}${prodV.map(() => '<td></td>').join('')}<td><button class="pf-k" data-pfa="uitl" data-codes="${esc(c)}" data-aan="">terugzetten</button></td></tr>`).join('')}
     </tbody></table></div></details>
 
   <div class="pf-voet"><div><b>${pl.n ? plural(pl.n, 'product', 'producten') + ' bij te werken' : 'Niets nieuws om op te slaan'}</b><div class="small muted">${pl.nUitz ? plural(pl.nUitz, 'uitzondering', 'uitzonderingen') + ' blijven · ' : ''}${pl.keuzes.length ? nf(pl.keuzes.length) + ' keuzes open (eigen waarde wijkt af) · ' : ''}${pl.fouten.length ? '<span style="color:var(--bad)">' + nf(pl.fouten.length) + ' fout</span> · ' : ''}concept blijft bewaard tot je opslaat</div></div>
@@ -685,7 +862,7 @@ function view(arg){
   if(!aanGeladen && window.WHAAN){ aanGeladen = true; WHAAN.laad().then(() => { if(location.hash.indexOf('#/productdata/familie') === 0) X().rerender(); }).catch(() => {}); }
   stijl();
   if(!P().S.fcor) P().S.fcor = X().famCorNorm(null);
-  if(arg) return viewWerkblad(arg);
+  if(arg){ if(window.PDVERS) PDVERS.ronde(false); if(P().index().fam[arg]) setTimeout(() => haalLive(arg, false), 0); return viewWerkblad(arg); }
   return viewLijst();
 }
 
@@ -733,13 +910,21 @@ document.addEventListener('keydown', ev => {
   X().rerender();
   if(id){ const n = $(id); if(n){ n.focus(); try{ n.select(); }catch(e){} } }
 });
-document.addEventListener('toggle', ev => { const t = ev.target; if(t && t.dataset && t.dataset.pfdet) UI.open[t.dataset.pfdet] = t.open; }, true);
+document.addEventListener('toggle', ev => { const t = ev.target; if(t && t.dataset && t.dataset.pfdet) UI.open[t.dataset.pfdet] = t.open; if(t && t.dataset && t.dataset.pfdet2) UI.vopen[t.dataset.pfdet2] = t.open; }, true);
 document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('[data-pfa]'); if(!b || b.tagName === 'SELECT') return;
   const a = b.dataset.pfa, fk = fkNu();
   if(a === 'meer'){ UI.n += 40; X().rerender(); return; }
   if(a === 'voorstel'){ neemOver(b.dataset.id); return; }
   if(!fk) return;
+  if(a === 'vtab'){ UI.vtab = b.dataset.v; updVr(); return; }
+  if(a === 'asub'){ UI.asub = b.dataset.v; updVr(); return; }
+  if(a === 'vernieuw'){ if(window.PDVERS) PDVERS.ronde(true); haalLive(fk, true); updVr(); return; }
+  if(a === 'pick1'){
+    const c = b.dataset.c, v = pickkeuze(c) === b.dataset.v ? '' : b.dataset.v;   // nogmaals klikken haalt de keuze weg
+    P().opslaan({ [c]:{ pickkeuze:{ v, bron:'invul' } } }, 'invul').then(() => updVr()).catch(e => toast('Opslaan mislukt: ' + e.message, 6000));
+    return;
+  }
   if(a === 'gebruik'){ zetConcept(fk, b.dataset.r, b.dataset.k, b.dataset.v); X().rerender(); return; }
   if(a === 'paneel'){ const zelfde = UI.paneel && UI.paneel.fk === fk && UI.paneel.rij === b.dataset.r && UI.paneel.k === b.dataset.k; UI.paneel = zelfde ? null : { fk, rij:b.dataset.r, k:b.dataset.k }; X().rerender(); return; }
   if(a === 'ehpaneel'){ UI.paneel = UI.paneel && UI.paneel.eh ? null : { fk, eh:true }; X().rerender(); return; }
