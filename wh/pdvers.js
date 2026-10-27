@@ -4,22 +4,27 @@
    zonder knop. Alleen lezen uit Picqer (functies "picqer" en "picqer-inkoop"); schrijven alleen in onze eigen opslag:
      wh-inkoop          { t, sinds, n, p:{ code:[[datum, besteld, ontvangen, afgerond 1/0, inkooporder-id], ...] } }   12 maanden
      wh-verplaatsingen  { datum, opgehaald, sinds, rows:[[id, tijd, wie, code, aantal, van, naar, magazijn]] }       60 dagen
-     wh-pdvers-vp       { tot, op, venster, klaar, n, lease }       voortgang verplaatsingen, hervatbaar
-   wh-pdvers-ink      { op, volledig, sinds, n, lease }           voortgang inkoop
-   Eerste vulling: verplaatsingen in vensters van één dag (halveert bij een vol antwoord), inkoop in één keer over 12 maanden
-   (lijst, daarna de regels per 60 orders met pauze). Daarna: verplaatsingen elk half uur vanaf het laatste moment (1 uur overlap),
-   inkoop elke 24 uur over de laatste 45 dagen plus alle orders die nog open stonden. Eigen invoer en productdata blijven ongemoeid.
-   De ronde in wh/ivol-live.js roept PDVERS.ronde() aan; waar dat bestand niet draait (Warehouse, Test) doet dit bestand dat zelf.
-   Staat de bron op TEST, dan doet dit bestand niets. Geen koppelcode op dit apparaat: ook niets.
+     wh-pdvers-vp       { tot, op, gat, fouten, wachtTot, fout, lease }   voortgang verplaatsingen
+     wh-pdvers-ink      { op, volledig, sinds, n, fouten, wachtTot, fout, lease }   voortgang inkoop
+   Inkoop: eenmalig 12 maanden, daarna elke 24 uur de laatste 45 dagen plus orders die nog open stonden.
+   Verplaatsingen: GEEN vulling van 60 dagen via Picqer. De historie komt uit wh-vp-hist (Geschiedenis ophalen) en het Mac-script
+   (Verplaatsingen ophalen), Productdata leest beide. Hier alleen incrementeel vanaf het laatst bekende moment, in uurvensters:
+     - vaste rem: minstens 90 seconden tussen twee vragen aan Picqer
+     - voorrang: zolang Vandaag, Aanvullen of de 3.0-ronde bezig is (of 429 meldde) wacht dit bestand
+     - bij 429, 504 of een andere fout: stoppen en oplopend wachten (10 min, 20, 40 … max 6 uur), bewaard in de voortgangsrij;
+       nooit direct opnieuw in een lus
+     - gat van meer dan 1 dag sinds het laatst bekende moment: alleen de laatste 24 uur ophalen en het gat melden onder Bronnen
+   Eigen invoer en productdata blijven ongemoeid. De ronde in wh/ivol-live.js roept PDVERS.ronde() aan; waar dat bestand niet
+   draait (Warehouse, Test) doet dit bestand dat zelf. Staat de bron op TEST, dan doet dit bestand niets. Geen koppelcode: ook niets.
    ===================================================================== */
 window.PDVERS = (function(){
 'use strict';
 if(!window.WH) return {};
 const { D, isoDag } = WH;
 const META = { vp:'wh-pdvers-vp', ink:'wh-pdvers-ink' }, INK = 'wh-inkoop';
-const VP_DAGEN = 60, INK_DAGEN = 365, INK_BIJ = 45;
+const INK_DAGEN = 365, INK_BIJ = 45, VP_KEY = 'wh-verplaatsingen', VP_REM = 90e3;
 const DAG = 864e5, UUR = 36e5;
-const S = { meta:{ vp:{}, ink:{} }, vpBezig:false, inkBezig:false, tekst:'', fout:null, foutOp:0, oudeFunctie:false, laatst:0, luister:[], id:Math.random().toString(36).slice(2, 10) };
+const S = { meta:{ vp:{}, ink:{} }, vpBezig:false, inkBezig:false, tekst:{ vp:'', ink:'' }, fout:null, oudeFunctie:false, laatst:0, luister:[], id:Math.random().toString(36).slice(2, 10) };
 const wacht = ms => new Promise(r => setTimeout(r, ms));
 const ms = t => new Date(String(t || '').replace(' ', 'T')).getTime();
 const z2 = n => String(n).padStart(2, '0');
@@ -50,59 +55,72 @@ async function claim(naam){
   await bewaarMeta(naam);
   return true;
 }
-function fout(naam, e){ S.fout = e; S.foutOp = Date.now(); console.error('PDVERS ' + naam + ':', e); const m = S.meta[naam]; if(m){ m.fout = String((e && e.message) || e).slice(0, 200); m.foutOp = new Date().toISOString(); } }
-const geblokkeerd = () => S.foutOp && Date.now() - S.foutOp < 10 * 60e3;   // na een fout 10 minuten rust
+// na een fout (429, 504, …): stoppen en oplopend wachten; blijft bewaard, dus ook na opnieuw laden
+function wachtOp(naam, e){
+  const m = S.meta[naam]; if(!m) return;
+  m.fouten = (m.fouten || 0) + 1;
+  const wacht = Math.min(6 * UUR, 10 * 60e3 * Math.pow(2, m.fouten - 1));
+  m.wachtTot = new Date(Date.now() + wacht).toISOString();
+  m.fout = String((e && e.message) || e).slice(0, 200); m.foutOp = new Date().toISOString();
+  S.fout = e; console.warn('PDVERS ' + naam + ': wacht tot ' + m.wachtTot + ' (' + m.fout + ')');
+}
+const moetWachten = m => !!(m && m.wachtTot && Date.now() < ms(m.wachtTot));
+const gelukt = m => { m.fouten = 0; delete m.wachtTot; delete m.fout; delete m.foutOp; S.fout = null; };
+// voorrang: Vandaag (WHLIVE), Aanvullen (WHAL) en de 3.0-ronde gaan voor; meldde een van die een 429, dan blijven wij 10 minuten weg
+function drukBezig(){
+  const L = window.WHLIVE && WHLIVE.status && WHLIVE.status();
+  if(L && L.laden) return true;
+  if(window.WHAL && WHAL.S && WHAL.S.bezig) return true;
+  if(window.IVL && IVL.S && IVL.S.bezig) return true;
+  const f = (L && L.fout) || (window.WHAL && WHAL.S && WHAL.S.fout) || (window.IVL && IVL.S && IVL.S.fout);
+  if(f && /429|rate limit/i.test(String(f.message || f)) && f !== S.limietFout){ S.limietFout = f; S.limietGezien = Date.now(); }
+  return !!(S.limietGezien && Date.now() - S.limietGezien < 10 * 60e3);
+}
+async function wachtVrij(){ for(let i = 0; i < 6; i++){ if(!drukBezig()) return true; await wacht(20000); } return false; }
 
-/* ---------- verplaatsingen: 60 dagen, in vensters, hervatbaar ---------- */
-// vijf vensters worden samen bewaard: zo gaat de rij van 60 dagen niet bij elk venster opnieuw over de lijn
-const voeg = (a, b) => { ['historie', 'locaties', 'producten', 'gebruikers', 'magazijnen'].forEach(k => { a[k] = (a[k] || []).concat(b[k] || []); }); a.opgehaald = b.opgehaald; a.vol = a.vol || b.vol; return a; };
+/* ---------- verplaatsingen: alleen incrementeel, uurvensters, met rem ---------- */
 async function verplaatsingen(forceer){
   if(S.vpBezig || uit() || !D.PLOW || !Object.keys(D.PLOW).length) return;
   S.vpBezig = true; meld();
-  let buf = null, nBuf = 0, bufTot = null;
-  const m0 = { m:null };
-  const leegBuf = async () => {
-    if(!buf) return;
-    const m = m0.m;
-    await WH.impVerplaatsingen(buf);
-    if(window.WHPD && WHPD.zetVers) WHPD.zetVers({ vp:D.VP });
-    m.tot = bufTot; m.op = new Date().toISOString(); m.n = D.VP && D.VP.rows ? D.VP.rows.length : m.n; m.vol = !!buf.vol; delete m.fout; delete m.foutOp;
-    buf = null; nBuf = 0;
-    await bewaarMeta('vp'); meld();
-  };
   try{
-    const nu = Date.now(), grens = nu - VP_DAGEN * DAG;
-    const m = m0.m = await laadMeta('vp');
-    if(!forceer && m.klaar && m.op && nu - ms(m.op) < 30 * 60e3) return;
+    const m = await laadMeta('vp'), nu = Date.now();
+    if(moetWachten(m)) return;
+    if(!forceer && m.op && nu - ms(m.op) < 30 * 60e3) return;      // elk half uur
+    if(drukBezig()) return;
     if(!(await claim('vp'))) return;
-    // doorgaan tot we bij nu zijn (elk venster is één vraag), met pauze tussen de vragen
-    for(let ronde = 0; ronde < 80; ronde++){
-      const n2 = Date.now();
-      let van = (bufTot || m.tot) ? ms(bufTot || m.tot) - UUR : grens;   // 1 uur overlap: gemiste verplaatsingen komen alsnog
-      if(van < grens) van = grens;
-      const venster = Math.max(UUR, Math.min(DAG, m.venster || DAG));
-      const tot = Math.min(n2 + 60e3, van + venster);
-      S.tekst = 'Verplaatsingen ophalen: ' + String(fmt(van)).slice(0, 10) + '…';
-      meld();
-      const obj = await vraag('picqer', 'actie=verplaatsingen&sinds=' + encodeURIComponent(fmt(van)) + '&tot=' + encodeURIComponent(fmt(tot)));
-      if(!obj.tot) S.oudeFunctie = true;                   // functie nog zonder "tot": geeft alles sinds van, hooguit 6000
-      if(obj.vol && venster > UUR && obj.tot){            // te veel in dit venster: kleiner opnieuw, niets bewaard
-        m.venster = Math.max(UUR, venster / 2); await wacht(3000); continue;
-      }
-      buf = buf ? voeg(buf, obj) : Object.assign({}, obj); nBuf++;
-      bufTot = fmt(S.oudeFunctie ? n2 : tot);
-      const klaar = S.oudeFunctie || tot >= n2;
-      m.klaar = klaar; m.venster = Math.min(DAG, venster * 2);
-      S.fout = null;
-      if(klaar || nBuf >= 5) await leegBuf();
-      if(klaar) break;
-      await wacht(15000);                                   // binnen de limiet van Picqer
+    // laatst bekende moment: onze eigen voortgang, of de nieuwste verplaatsing in wh-verplaatsingen (ook van het Mac-script)
+    const cur = await WH.catHaal(VP_KEY).catch(() => null), rows = (cur && cur.data && cur.data.rows) || [];
+    let laatste = 0; rows.forEach(r => { const t = ms(r[1]); if(t > laatste) laatste = t; });
+    const bekend = Math.min(nu, Math.max(laatste, m.tot ? ms(m.tot) : 0));
+    let van;
+    if(!bekend || nu - bekend > DAG){
+      van = nu - DAG;                                                // gat van meer dan 1 dag: alleen de laatste 24 uur
+      m.gat = { van:bekend ? fmt(bekend) : null, tot:fmt(van), op:new Date().toISOString() };
+    }else{
+      van = bekend - UUR;                                            // 1 uur overlap: niets gemist, dubbelen worden weggefilterd
+      if(m.gat && nu - ms(m.gat.op) > 3 * DAG) delete m.gat;
     }
-  }catch(e){
-    try{ await leegBuf(); }catch(e2){ console.warn('PDVERS bewaren:', e2.message); }
-    fout('vp', e); await bewaarMeta('vp');
-  }
-  finally{ S.vpBezig = false; S.tekst = ''; const m = S.meta.vp; if(m && m.lease){ delete m.lease; await bewaarMeta('vp'); } meld(); }
+    let n = 0, vorige = 0;
+    while(van < Date.now() - 60e3 && n < 26){
+      if(!(await wachtVrij())) return;                               // Warehouse, Vandaag en Aanvullen gaan voor: later verder
+      const pauze = vorige ? VP_REM - (Date.now() - vorige) : 0;     // vaste rem tussen twee vragen
+      if(pauze > 0) await wacht(pauze);
+      vorige = Date.now();
+      const tot = Math.min(Date.now() + 60e3, van + UUR);
+      S.tekst.vp = 'Verplaatsingen ophalen: ' + String(fmt(van)).slice(5, 16) + '…'; meld();
+      let obj;
+      try{ obj = await vraag('picqer', 'actie=verplaatsingen&sinds=' + encodeURIComponent(fmt(van)) + '&tot=' + encodeURIComponent(fmt(tot))); }
+      catch(e){ wachtOp('vp', e); await bewaarMeta('vp'); meld(); return; }   // 429/504: stoppen, niet opnieuw in een lus
+      if(!obj.tot) S.oudeFunctie = true;                              // functie nog zonder "tot": één antwoord, dan klaar
+      await WH.impVerplaatsingen(obj);
+      if(window.WHPD && WHPD.zetVers) WHPD.zetVers({ vp:D.VP });
+      m.tot = fmt(S.oudeFunctie ? Date.now() : tot); m.op = new Date().toISOString(); m.n = D.VP && D.VP.rows ? D.VP.rows.length : m.n; m.vol = !!obj.vol;
+      gelukt(m); await bewaarMeta('vp'); meld();
+      n++; van = tot;
+      if(S.oudeFunctie) break;
+    }
+  }catch(e){ wachtOp('vp', e); await bewaarMeta('vp'); }
+  finally{ S.vpBezig = false; S.tekst.vp = ''; const m = S.meta.vp; if(m && m.lease){ delete m.lease; await bewaarMeta('vp'); } meld(); }
 }
 
 /* ---------- inkoop: 12 maanden, incrementeel ---------- */
@@ -136,12 +154,14 @@ async function inkoop(forceer){
   S.inkBezig = true; meld();
   try{
     const m = await laadMeta('ink'), nu = Date.now();
+    if(moetWachten(m)) return;
     if(!forceer && m.volledig && m.op && nu - ms(m.op) < 24 * UUR) return;
+    if(drukBezig()) return;
     if(!(await claim('ink'))) return;
     const cur = await WH.catHaal(INK).catch(() => null), oud = (cur && cur.data) || null;
     const volledig = !m.volledig || forceer === 'volledig';
     const sinds = isoDag(nu - (volledig ? INK_DAGEN : INK_BIJ) * DAG);
-    S.tekst = 'Inkoop ophalen: lijst…'; meld();
+    S.tekst.ink = 'Inkoop ophalen: lijst…'; meld();
     const l = await vraag('picqer-inkoop', 'stap=lijst&sinds=' + sinds);
     const orders = (l.orders || []).filter(o => !/cancel/i.test(o[2] || ''));
     const bekend = new Set(orders.map(o => o[0]));
@@ -152,7 +172,7 @@ async function inkoop(forceer){
     const regels = {}; orders.forEach(o => { if(Array.isArray(o[4])) regels[o[0]] = o[4]; });
     const extra = {};
     for(let i = 0; i < zonder.length; i += 60){
-      S.tekst = 'Inkoop ophalen: regels ' + Math.min(i + 60, zonder.length) + ' van ' + zonder.length + '…'; meld();
+      S.tekst.ink = 'Inkoop ophalen: regels ' + Math.min(i + 60, zonder.length) + ' van ' + zonder.length + '…'; meld();
       const d = await vraag('picqer-inkoop', 'stap=detail&ids=' + zonder.slice(i, i + 60).join(','));
       (d.orders || []).forEach(o => { regels[o[0]] = o[4] || []; extra[o[0]] = o; });
       if(i + 60 < zonder.length) await wacht(8000);
@@ -161,24 +181,27 @@ async function inkoop(forceer){
     const data = bouwInk(oud, alle, sinds, volledig);
     await WH.catZet(INK, data);
     if(window.WHPD && WHPD.zetVers) WHPD.zetVers({ ink:data });
-    m.op = new Date().toISOString(); m.volledig = true; m.sinds = sinds; m.n = alle.length; delete m.fout; delete m.foutOp;
-    S.fout = null; await bewaarMeta('ink');
-  }catch(e){ fout('ink', e); await bewaarMeta('ink'); }
-  finally{ S.inkBezig = false; S.tekst = ''; if(S.meta.ink && S.meta.ink.lease){ delete S.meta.ink.lease; await bewaarMeta('ink'); } meld(); }
+    m.op = new Date().toISOString(); m.volledig = true; m.sinds = sinds; m.n = alle.length;
+    gelukt(m); await bewaarMeta('ink');
+  }catch(e){ wachtOp('ink', e); await bewaarMeta('ink'); }
+  finally{ S.inkBezig = false; S.tekst.ink = ''; if(S.meta.ink && S.meta.ink.lease){ delete S.meta.ink.lease; await bewaarMeta('ink'); } meld(); }
 }
 
 // aangeroepen door de ronde (ivol-live.js) en door Per familie; start op de achtergrond en wacht nergens op
 function ronde(forceer){
-  if(uit() || geblokkeerd() && !forceer) return;
+  if(uit()) return;
   if(Date.now() - S.laatst < 20e3 && !forceer) return;
   S.laatst = Date.now();
-  verplaatsingen(forceer); inkoop(forceer);   // twee onafhankelijke taken
+  verplaatsingen(forceer); inkoop(forceer);   // twee onafhankelijke taken; elk met zijn eigen wachttijd na een fout
 }
 // waar ivol-live.js niet draait (Warehouse, Test): zelf elke minuut kijken of er iets te doen is
 setInterval(() => { if(!window.IVL && document.visibilityState === 'visible') ronde(false); }, 60000);
 function status(){
   const v = S.meta.vp || {}, i = S.meta.ink || {};
-  return { bezig:S.vpBezig || S.inkBezig, tekst:S.tekst, fout:S.fout, oudeFunctie:S.oudeFunctie, vp:{ op:v.op || null, tot:v.tot || null, klaar:!!v.klaar, n:v.n || 0, vol:!!v.vol }, ink:{ op:i.op || null, volledig:!!i.volledig, n:i.n || 0 } };
+  const wacht = m => moetWachten(m) ? m.wachtTot : null;
+  return { bezig:S.vpBezig || S.inkBezig, tekst:S.vpBezig ? S.tekst.vp : S.tekst.ink, tekstVp:S.tekst.vp, tekstInk:S.tekst.ink, fout:S.fout, oudeFunctie:S.oudeFunctie,
+    vp:{ op:v.op || null, tot:v.tot || null, n:v.n || 0, vol:!!v.vol, gat:v.gat || null, wachtTot:wacht(v), fout:v.fout || null, fouten:v.fouten || 0 },
+    ink:{ op:i.op || null, volledig:!!i.volledig, n:i.n || 0, wachtTot:wacht(i), fout:i.fout || null, fouten:i.fouten || 0 } };
 }
 return { ronde, verplaatsingen, inkoop, status, bouwInk, fmt, opNieuw:f => S.luister.push(f), S };
 })();

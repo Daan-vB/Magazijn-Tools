@@ -75,7 +75,31 @@ const UI = { afdModus:bewaard('afdmodus') || 'tabel', scope:bewaard('scope2') ||
 
 /* ---------- laden ---------- */
 // verplaatsingen uit Picqer: [id, tijd, wie, code, aantal, van, naar, magazijn] → per product
-function bouwMv(rows){ S.mv = {}; (rows || []).forEach(r => { const c = D.PLOW[String(r[3] || '').toLowerCase()] || r[3]; (S.mv[c] = S.mv[c] || []).push({ n:num(r[4]) || 0, van:r[5] || '', naar:r[6] || '', vst:/spreuwel/i.test(r[7] || ''), t:r[1] || '' }); }); }
+// bronnen: wh-verplaatsingen (Mac-script, Controle, automatische aanvulling) en wh-vp-hist (Geschiedenis ophalen); dezelfde verplaatsing telt één keer
+const HIST_KEYS = () => { const kw = d => d.getFullYear() + 'q' + (Math.floor(d.getMonth() / 3) + 1); return [...new Set([new Date(Date.now() - 60 * 864e5), new Date()].map(kw))].map(q => 'wh-vp-hist-' + q); };
+const CAT_PD = () => ['wh-pq-cat', 'catalog-ean', 'wh-verplaatsingen', 'wh-inkoop', 'wh-bouwplan', 'wh-pd-fam', 'wh-hist-index'].concat(HIST_KEYS());
+// wh-vp-hist: [id, tijd, gebruiker-id, idproduct, aantal, van-idlocatie, naar-idlocatie, 0] → zelfde vorm als wh-verplaatsingen (laatste 60 dagen)
+function histRijen(cat){
+  const idx = ((cat || []).find(r => r.key === 'wh-hist-index') || {}).data; if(!idx || !idx.p) return [];
+  const grens = isoDag(Date.now() - 60 * 864e5), uit = [];
+  HIST_KEYS().forEach(k => (((cat || []).find(r => r.key === k) || {}).data || {}).rows?.forEach(r => {
+    if(String(r[1]).slice(0, 10) < grens) return;
+    const code = idx.p[String(r[3])], van = r[5] ? idx.l && idx.l[String(r[5])] : '', naar = r[6] ? idx.l && idx.l[String(r[6])] : '';
+    if(!code || van === undefined || naar === undefined) return;   // onbekend product of locatie: niet raden
+    uit.push([r[0], r[1], '', code, r[4], van || '', naar || '', 'hist']);
+  }));
+  return uit;
+}
+function bouwMv(rows){
+  S.mv = {}; const gezien = new Set();
+  (rows || []).concat(S.histRows || []).forEach(r => {
+    const id = r[0]; if(id !== undefined && id !== null){ if(gezien.has(id)) return; gezien.add(id); }
+    const c = D.PLOW[String(r[3] || '').toLowerCase()] || r[3];
+    // wh-vp-hist kent het magazijn niet: een locatie die niet in het Hoofdmagazijn staat telt als VST
+    const vst = r[7] === 'hist' ? !!((r[6] && !D.LOC[r[6]]) || (r[5] && !D.LOC[r[5]])) : /spreuwel/i.test(r[7] || '');
+    (S.mv[c] = S.mv[c] || []).push({ n:num(r[4]) || 0, van:r[5] || '', naar:r[6] || '', vst, t:r[1] || '' });
+  });
+}
 // door de automatische ronde (wh/pdvers.js): nieuwste inkoop en verplaatsingen zonder opnieuw laden
 function zetVers(w){ if(w && w.ink) S.ink = w.ink; if(w && w.vp) bouwMv(w.vp.rows); }
 const isMissing = e => !!e && (e.status === 404 || /PGRST205|42P01|does not exist|Could not find the table/i.test(e.body || ''));
@@ -87,13 +111,14 @@ async function laad(vers){
       const [rows, extra, cat] = await Promise.all([
         T('productdata', 'select=*', ['updated_at']).catch(e => { if(isMissing(e)){ S.mist = true; return []; } throw e; }),
         T('producten', 'select=productcode,gewicht_product_g,lengte_product_cm,breedte_product_cm,hoogte_product_cm,leverancier_code&order=productcode', ['picqer_datum', 'updated_at']).catch(() => []),
-        (window.WHC ? WHC.catalog(['wh-pq-cat', 'catalog-ean', 'wh-verplaatsingen', 'wh-inkoop', 'wh-bouwplan', 'wh-pd-fam']) : api('GET', 'catalog?key=in.(%22wh-pq-cat%22,%22catalog-ean%22,%22wh-verplaatsingen%22,%22wh-inkoop%22,%22wh-bouwplan%22,%22wh-pd-fam%22)&select=key,data,updated_at')).catch(() => [])
+        (window.WHC ? WHC.catalog(CAT_PD()) : api('GET', 'catalog?key=in.(' + CAT_PD().map(k => '%22' + k + '%22').join(',') + ')&select=key,data,updated_at')).catch(() => [])
       ]);
       S.pd = {}; rows.forEach(r => { S.pd[r.productcode] = { data:r.data || {}, meta:r.meta || {}, t:r.updated_at }; });
       S.extra = {}; extra.forEach(r => { S.extra[r.productcode] = r; });
       S.cat = ((cat || []).find(r => r.key === 'wh-pq-cat') || {}).data || null;
       S.labels = ((cat || []).find(r => r.key === 'catalog-ean') || {}).data || {};
       // verplaatsingen uit Picqer: [id, tijd, wie, code, aantal, van, naar, magazijn]
+      S.histRows = histRijen(cat);
       bouwMv((((cat || []).find(r => r.key === 'wh-verplaatsingen') || {}).data || {}).rows);
       S.ink = ((cat || []).find(r => r.key === 'wh-inkoop') || {}).data || null;
       // correcties op de familie-indeling door Daan (Per familie): { fam:{code:famKey}, maat:{code:maatKey}, naam:{famKey:naam}, niv, uitz }

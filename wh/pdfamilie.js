@@ -647,7 +647,8 @@ function lijnInfo(fk){
 const dk = iso => { const s = String(iso || ''); return s.length >= 10 ? s.slice(8, 10) + '-' + s.slice(5, 7) + '-' + s.slice(0, 4) : ''; };
 const uurTxt = t => { const d = new Date(t); return isNaN(d) ? '' : String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
 const WL = () => window.WHLIVE;
-const LIVE = { prod:{}, bezig:{}, fout:{}, op:{}, ids:null, idsBezig:null };
+const LIVE = { prod:{}, bezig:{}, fout:{}, foutOp:{}, foutN:{}, op:{}, ids:null, idsBezig:null };
+const pauze = ms => new Promise(r => setTimeout(r, ms));
 // Picqer-id van een productcode: wh-pq-cat (producten met voorraad), anders de index van de geschiedenis (wh-hist-index, alle producten)
 function idVan(c){
   const cat = (P().S.cat && P().S.cat.ids) || {}; if(cat[c]) return +cat[c];
@@ -664,6 +665,8 @@ function laadIds(){
 }
 async function haalLive(fk, forceer){
   const L = WL(); if(!L || !L.status().code || LIVE.bezig[fk]) return;
+  // na een fout (429, 504, …) niet bij elke tekenbeurt opnieuw: oplopend wachten (2, 4, 8 … max 30 minuten), Vernieuwen hooguit na 30 seconden
+  if(LIVE.fout[fk]){ const w = Math.min(30 * 60e3, 2 * 60e3 * Math.pow(2, (LIVE.foutN[fk] || 1) - 1)); if(Date.now() - (LIVE.foutOp[fk] || 0) < (forceer ? 30e3 : w)) return; }
   if(!L.status().data && !L.status().laden) L.laad(false);   // backorders live (zelfde als Vandaag)
   const cs = actiefLeden(fk), oud = c => forceer || !LIVE.prod[c] || Date.now() - LIVE.prod[c].t > 120e3;
   if(!cs.some(oud)) return;
@@ -671,14 +674,15 @@ async function haalLive(fk, forceer){
   try{
     if(cs.some(c => oud(c) && !idVan(c))) await laadIds();
     const todo = cs.filter(c => oud(c) && idVan(c));
-    for(let i = 0; i < todo.length; i += 40){
-      const deel = todo.slice(i, i + 40), perId = {}; deel.forEach(c => { perId[idVan(c)] = c; });
+    for(let i = 0; i < todo.length; i += 20){
+      if(i) await pauze(3000);                                       // rem: 20 producten per vraag, 3 seconden ertussen
+      const deel = todo.slice(i, i + 20), perId = {}; deel.forEach(c => { perId[idVan(c)] = c; });
       const r = await L.vraag('producten', { ids:deel.map(idVan).join(',') });
       (r.producten || []).forEach(p => { const c = perId[p.id]; if(c) LIVE.prod[c] = { t:Date.now(), p, mag:r.magazijn, vst:r.vst || 3991 }; });
       updVr();
     }
-    LIVE.op[fk] = Date.now();
-  }catch(e){ LIVE.fout[fk] = e; }
+    LIVE.op[fk] = Date.now(); LIVE.foutN[fk] = 0;
+  }catch(e){ LIVE.fout[fk] = e; LIVE.foutOp[fk] = Date.now(); LIVE.foutN[fk] = (LIVE.foutN[fk] || 0) + 1; }
   LIVE.bezig[fk] = false; updVr();
 }
 // openstaande backorders per product: live (picqer vandaag, per idproduct) als die er is, anders de backorder-export
@@ -760,7 +764,7 @@ function vrInner(fk){
     : nl && nl === cs.length ? `live uit Picqer${LIVE.op[fk] ? ' · ' + uurTxt(LIVE.op[fk]) : ''}`
     : LIVE.bezig[fk] ? 'live uit Picqer ophalen…' : nl ? `${nl} van ${cs.length} live, rest export`
     : L && L.status().code ? `export van ${dk(D.VRDATUM)} · live volgt` : `export van ${dk(D.VRDATUM)} · geen koppelcode op dit apparaat`;
-  const stand = pv ? `Inkoop ${pv.ink.op ? 'bijgewerkt ' + dk(pv.ink.op) : (pv.bezig && /Inkoop/.test(pv.tekst) ? esc(pv.tekst) : 'wordt opgehaald')} · verplaatsingen ${pv.vp.tot ? 't/m ' + dk(pv.vp.tot) : (pv.bezig ? esc(pv.tekst) : 'worden opgehaald')}${pv.fout ? ' · <span style="color:var(--bad)">' + esc(pv.fout.message || pv.fout) + '</span>' : ''}` : '';
+  const stand = pv ? `Inkoop ${pv.ink.op ? 'bijgewerkt ' + dk(pv.ink.op) : (pv.tekstInk ? esc(pv.tekstInk) : 'wordt opgehaald')} · verplaatsingen ${pv.vp.tot ? 'bijgewerkt t/m ' + dk(pv.vp.tot) + ' ' + String(pv.vp.tot).slice(11, 16) : (pv.tekstVp ? esc(pv.tekstVp) : 'volgen')}${pv.vp.gat ? ' · <span style="color:var(--bad)">gat ' + dk(pv.vp.gat.van) + ' t/m ' + dk(pv.vp.gat.tot) + ' niet via Picqer opgehaald (alleen laatste 24 uur)</span>' : ''}${pv.vp.wachtTot ? ' · verplaatsingen wachten tot ' + String(pv.vp.wachtTot).slice(11, 16) + ' na een Picqer-fout' : ''}` : '';
   const tb = (k, t, n) => `<button class="pf-vrtab${tab === k ? ' on' : ''}" data-pfa="vtab" data-v="${k}" role="tab" aria-selected="${tab === k}">${t}<span class="n">${nf(n)}</span></button>`;
   const groepen = maatgroepen(fk).map(g => ({ g, cs:g.cs.filter(c => lijst.includes(c)) })).filter(x => x.cs.length);
   const keuzeTel = tab === 'b' ? `<div class="pf-vrsam small">Moet pick krijgen <b>${nf(T.b.filter(c => F[c].keuze === 'moet').length)}</b> · geen pick <b>${nf(T.b.filter(c => F[c].keuze === 'geen').length)}</b> · nog te kiezen <b>${nf(T.b.filter(c => !F[c].keuze).length)}</b></div>` : '';
