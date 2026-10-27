@@ -1199,6 +1199,14 @@ function viewBackorders(){
 /* =====================================================================
    RUIMTE MAKEN voor de komende containers
    ===================================================================== */
+// maanden verkoop die hier blijven: aannames j-vst (Daan, J1); 1,5 als de waarde ontbreekt
+let aanVstGeladen = false;
+function vstMaanden(){
+  const w = window.WHAAN;
+  if(w && !aanVstGeladen){ aanVstGeladen = true; w.laad().then(() => { if(/^#\/ruimte/.test(location.hash)) V().rerender(); }).catch(() => {}); }
+  const v = w ? parseFloat(String(w.waarde('j-vst')).replace(',', '.')) : NaN;
+  return isNaN(v) || v <= 0 ? 1.5 : v;
+}
 function ruimte(){
   const vd = vandaag();
   const tot = isoDag(Date.now() + 21 * 864e5);
@@ -1218,7 +1226,8 @@ function ruimte(){
   const L = ligBouw();
   const vrij = {};
   Object.values(L).forEach(g => Object.values(g.pos).forEach(p => { if(!p.bezet && g.h > 0) vrij[g.hal] = (vrij[g.hal] || 0) + 1; }));
-  // naar VST: veel bulk en veel maanden voorraad
+  // naar VST: voorraad boven de maanden verkoop die hier blijven
+  const houdMnd = vstMaanden();
   const naarVst = [];
   Object.values(D.P).forEach(p => {
     const code = p.productcode;
@@ -1227,9 +1236,9 @@ function ruimte(){
     const vk = WHL.vkVan(code); const hm = num(p.vrij_hm) || 0;
     if(!vk || hm <= 0 || boVan(code).orders) return;
     const mnd = hm / vk;
-    if(mnd < 4) return;
+    if(mnd <= houdMnd) return;   // alleen wat boven de maanden verkoop uitkomt die hier blijven (aannames j-vst)
     const spp = WHL.sppVan(code);
-    const houd = spp ? Math.max(1, Math.ceil(1.5 * vk / spp)) : 1;
+    const houd = spp ? Math.max(1, Math.ceil(houdMnd * vk / spp)) : 1;
     const weg = bulks.length - houd;
     if(weg < 1) return;
     naarVst.push({ code, bulks, mnd, vk, weg, spp, hm });
@@ -1257,7 +1266,7 @@ function viewRuimte(){
   <div class="card"><h3>Komende containers</h3><div class="scroll mt8"><table><tr><th>Losdag</th><th>Container</th><th class="n">Pallets hier</th><th class="n">Plaatsen</th><th></th></tr>
     ${R.conts.map(x => `<tr><td>${esc(fdate(x.c.losdatum))}</td><td><b>${esc(cNaam(x.c))}</b><div class="desc">${esc(x.c.containernummer || '')}</div></td><td class="n">${nf(x.pal)}</td><td class="n">${nf(x.pl)}</td><td class="small">${x.schat ? B.badge('nog geen verdeling: alle pallets geteld', 'b-warn') : B.badge('verdeling', 'b-ok')}</td></tr>`).join('')}</table></div></div>
   <div class="card"><h3>To-do</h3>
-    ${todo('rm:vst', 'Naar VST: bulkpallets van producten met veel voorraad (' + R.naarVst.length + ')', 'Meer dan 4 maanden voorraad hier en geen orders. Houd 1,5 maand hier, rest via Stockmove naar VST (Karin). Eerst de producten bovenaan: meeste pallets.',
+    ${todo('rm:vst', 'Naar VST: bulkpallets van producten met te veel voorraad (' + R.naarVst.length + ' producten, ' + R.naarVst.reduce((t, x) => t + x.weg, 0) + ' pallets)', 'Voorraad boven ' + nf(vstMaanden(), 1) + ' maand verkoop hier en geen orders. Houd ' + nf(vstMaanden(), 1) + ' maand hier, rest via Stockmove naar VST (Karin). Eerst de producten bovenaan: meeste pallets.',
       R.naarVst.length ? `<div class="scroll mt8"><table><tr><th>Product</th><th class="n">Maanden</th><th class="n">Bulk</th><th class="n">Naar VST</th><th>Bulkplekken</th></tr>${R.naarVst.slice(0, 30).map(x => `<tr><td><a class="code" href="#/p/${encodeURIComponent(x.code)}">${esc(x.code)}</a><div class="desc">${esc(WHL.naamVan(x.code))}</div></td><td class="n">${nf(x.mnd, 1)}</td><td class="n">${x.bulks.length}</td><td class="n"><b>${x.weg}</b>${x.spp ? '' : '<div class="desc">stuks/pallet?</div>'}</td><td>${V().locs(x.bulks.slice(0, 4))}</td></tr>`).join('')}</table></div>` : '')}
     ${R.leegGek.length ? todo('rm:leeg', 'Bulk gekoppeld maar zonder voorraad (' + R.leegGek.length + ')', 'Picqer denkt dat er iets staat, de voorraad zegt 0. Kijk en ontkoppel of verplaats.', `<div class="small mt4">${R.leegGek.slice(0, 80).map(l => `<span class="loc">${esc(l)}</span>`).join(', ')}</div>`) : ''}
     ${todo('rm:ba', 'BA-dubbelingen leegmaken (' + R.aand.dubbel.length + ')', 'Producten van BA..-06 naar BA..06, daarna -06 archiveren.', `<div class="small mt4">${R.aand.dubbel.map(l => `<span class="loc">${esc(l)}</span>`).join(', ')}</div>`)}

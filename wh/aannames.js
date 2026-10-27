@@ -59,6 +59,7 @@ const LIJST = [
   { id:'l-waar', groep:'Locaties opruimen', t:'Waarden in de locatie-import', waarde:'WAAR / ONWAAR', waarom:'Daan 16-10: klopt.', bevestigd:CHAT },
   { id:'l-30d', groep:'Locaties opruimen', t:'Verwerkte besluiten', waarde:'niet in "Gaat niet mee"; alleen ✓ in de gang-tabel', waarom:'Daan 16-10.', bevestigd:CHAT },
   // aanvullen
+  { id:'j-vst', groep:'Aanvullen', t:'Naar VST: maanden verkoop die hier blijft', waarde:'1,5', eenheid:'maanden verkoop', waarom:'Daan (kennisbank J1): 1,5 maand verkoop hier, de rest naar VST. Alle voorraad daarboven staat op de lijst Naar VST (Ruimte maken).', bevestigd:{ door:'Daan (kennisbank)', op:'2026-10-27' } },
   { id:'a-pal', groep:'Aanvullen', t:'Aanvullen met volle pallet: hoeveel', waarde:'onder "bij" → 1 volle pallet; orders vragen meer dan max → wat de orders vragen, ook boven max; pallet groter dan max → hele dozen plus de losse stuks tot zo dicht mogelijk onder max', waarom:'Daan 16-10 (voorbeeld: 10 per doos, pallet 13 dozen + 3 los, pick 3, max 50 → 4 dozen + 3 los = 46).', bevestigd:CHAT },
   { id:'a-rest', groep:'Aanvullen', t:'Na het restje', waarde:'alleen een volle pallet erbij als de pick dan nog op of onder "bij" zit, of als de orders meer vragen', waarom:'Daan 16-10: klopt. Eerst het restje (deelpallet) weg.', bevestigd:CHAT },
   { id:'a-bulk', groep:'Aanvullen', t:'Welke bulkpallet', waarde:'eerst het restje (deelpallet); daarna maakt het niet uit. Altijd eerst eigen bulk, VST pas als eigen bulk op is', waarom:'Daan 16-10.', bevestigd:CHAT },

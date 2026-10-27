@@ -106,6 +106,8 @@ function stijl(){
   .kb-chips button,.kb-wie button{min-height:44px;padding:8px 14px;border-radius:22px;border:1px solid var(--lijn);background:#fff;font:inherit;font-size:15px;font-weight:600;cursor:pointer;color:var(--ink)}
   .kb-chips button.aan{background:var(--ink);border-color:var(--ink);color:#fff}
   .kb-later{display:grid;gap:6px;background:var(--zacht);border-radius:10px;padding:10px}
+  .kb-lk{font-size:17px;font-weight:800;margin-top:6px}
+  .kb-later select{font:inherit;min-height:44px;padding:6px 10px;border:1px solid var(--lijn);border-radius:8px;background:#fff;color:var(--ink)}
   .kb-later textarea{min-height:60px;font-size:15px}
   .kb-vink{display:flex;gap:8px;align-items:center;font-size:14px;min-height:44px}
   .kb-vink input{width:22px;height:22px}
@@ -169,7 +171,8 @@ function view(){
       ${v.keuzes.length ? `<div class="kb-chips">${v.keuzes.map((k, n) => `<button data-kb="chip" data-n="${n}" class="${gekozen.includes(k) ? 'aan' : ''}">${esc(k)}</button>`).join('')}</div>` : ''}
       <textarea id="kb-tekst" rows="3" placeholder="${toonVs ? (vraagteken ? 'Typ je antwoord' : 'Klopt? Enter. Anders: typ je eigen antwoord') : 'Typ je antwoord'}" enterkeyhint="next">${esc(tekst)}</textarea>
       <div class="kb-later"><label for="kb-notitie"><b>Later / notitie</b> <span class="kb-hint">komt niet in het antwoord</span></label><textarea id="kb-notitie" rows="2" placeholder="Bijv. later in de IVOL-app van Ryan">${esc(a && a.notitie ? a.notitie : '')}</textarea>
-        <label class="kb-vink"><input type="checkbox" id="kb-later" ${a && a.later ? 'checked' : ''}> ook later (komt op de lijst Voor de IVOL-app van Ryan)</label></div>
+        <label class="kb-vink"><input type="checkbox" id="kb-later" ${a && a.later ? 'checked' : ''}> ook later</label>
+        <label class="kb-vink" for="kb-lijst">Op de lijst <select id="kb-lijst"><option value="ryan"${a && a.lijst === 'apart' ? '' : ' selected'}>IVOL-app Ryan</option><option value="apart"${a && a.lijst === 'apart' ? ' selected' : ''}>Apart onderdeel later</option></select></label></div>
       <div class="kb-knoppen">
         ${toonVs && !vraagteken ? `<button class="knop kb-knop-ok" data-kb="klopt">Klopt →</button><button class="knop" data-kb="aanpassen">Aanpassen</button>` : ''}
         <button class="knop pri" data-kb="opslaan">Opslaan →</button>
@@ -213,9 +216,9 @@ const groei = ta => { ta.style.height = 'auto'; ta.style.height = Math.max(96, t
 
 /* ---------- acties ---------- */
 const nu = () => new Date().toISOString();
-function zet(id, r){ S.d.antw[id] = Object.assign({ a:'', s:'ok', wie:'', van:'', keuzes:[], notitie:'', later:false, t:nu() }, r); bewaar(); teller(); }
+function zet(id, r){ S.d.antw[id] = Object.assign({ a:'', s:'ok', wie:'', van:'', keuzes:[], notitie:'', later:false, lijst:'ryan', t:nu() }, r); bewaar(); teller(); }
 // notitie en vinkje komen uit de velden op het scherm; zonder scherm blijft wat er al stond
-const laterVelden = () => ({ notitie:(($('kb-notitie') || {}).value || '').trim(), later:!!(($('kb-later') || {}).checked) });
+const laterVelden = () => ({ notitie:(($('kb-notitie') || {}).value || '').trim(), later:!!(($('kb-later') || {}).checked), lijst:(($('kb-lijst') || {}).value === 'apart' ? 'apart' : 'ryan') });
 function ga(i){ S.aangeraakt = true; S.i = (i + V.length) % V.length; S.blok = blokVan(V[S.i].id); herteken(); const k = S.el && S.el.querySelector('.kb'); if(k && k.scrollIntoView) S.el.scrollTop = 0; }
 function opslaan(){
   const v = V[S.i], vs = voorstel(v.id), a = antw(v.id);
@@ -228,7 +231,7 @@ function opslaan(){
     }
     ga(volgendOpen(S.i)); return;
   }
-  if(!(a && a.s === 'ok' && a.a === t && zelfde(kzVan(a), kzs) && (a.notitie || '') === lv.notitie && !!a.later === lv.later)) zet(v.id, { a:t, keuzes:kzs, notitie:lv.notitie, later:lv.later, van:vs ? (t && t === String(vs.a).trim() && !kzs.length ? 'claude-bevestigd' : 'claude-aangepast') : (a && a.van) || '' });
+  if(!(a && a.s === 'ok' && a.a === t && zelfde(kzVan(a), kzs) && (a.notitie || '') === lv.notitie && !!a.later === lv.later && (a.lijst || 'ryan') === lv.lijst)) zet(v.id, { a:t, keuzes:kzs, notitie:lv.notitie, later:lv.later, lijst:lv.lijst, van:vs ? (t && t === String(vs.a).trim() && !kzs.length ? 'claude-bevestigd' : 'claude-aangepast') : (a && a.van) || '' });
   ga(volgendOpen(S.i));
 }
 function klopt(){ const v = V[S.i], vs = voorstel(v.id); if(!vs || /^\s*\?/.test(vs.a || '')) return; zet(v.id, { a:vs.a, van:'claude-bevestigd' }); ga(volgendOpen(S.i)); }
@@ -286,7 +289,7 @@ function inlezen(j){
     const o = typeof r === 'string' ? { a:r } : r;
     const s = ['ok', 'wie', 'later'].includes(o.s) ? o.s : 'ok';
     const a = String(o.a ?? o.antwoord ?? '').trim(), keuzes = Array.isArray(o.keuzes) ? o.keuzes.map(String) : []; if(!a && s === 'ok' && !keuzes.length) return;
-    S.d.antw[id] = { a, s, wie:o.wie || '', van:['claude-bevestigd', 'claude-aangepast'].includes(o.van) ? o.van : '', keuzes, notitie:String(o.notitie || ''), later:!!o.later, t:o.t || nu() };
+    S.d.antw[id] = { a, s, wie:o.wie || '', van:['claude-bevestigd', 'claude-aangepast'].includes(o.van) ? o.van : '', keuzes, notitie:String(o.notitie || ''), later:!!o.later, lijst:o.lijst === 'apart' ? 'apart' : 'ryan', t:o.t || nu() };
     nA++;
   });
   lijstVan(j.voorstellen).forEach(([id, r]) => {
@@ -340,25 +343,26 @@ function koppel(el){
 }
 
 /* ---------- Voor de IVOL-app van Ryan: alle antwoorden met "ook later" ---------- */
-function ryanItems(){ return V.filter(v => { const a = antw(v.id); return a && (a.later || a.s === 'later'); }); }
+const LIJSTEN = [['ryan', 'IVOL-app Ryan'], ['apart', 'Apart onderdeel later']];
+function ryanItems(lijst){ return V.filter(v => { const a = antw(v.id); return a && (a.later || a.s === 'later') && (!lijst || (a.lijst || 'ryan') === lijst); }); }
 function ryanTekst(){
-  return 'Voor de IVOL-app van Ryan · ' + ryanItems().length + ' onderwerpen · ' + new Date().toLocaleString('nl-NL', { hour12:false }) + '\n' +
-    ryanItems().map(v => { const a = antw(v.id); return v.id + ' ' + v.vraag + '\n→ ' + (antwTekst(a).replace(/ \| ook later$/, '') || '(geen antwoord)'); }).join('\n');
+  return 'Voor de IVOL-app van Ryan · ' + new Date().toLocaleString('nl-NL', { hour12:false }) + '\n' + LIJSTEN.map(([l, t]) =>
+    '\n## ' + t + ' · ' + ryanItems(l).length + ' onderwerpen\n' + ryanItems(l).map(v => { const a = antw(v.id); return v.id + ' ' + v.vraag + '\n→ ' + (antwTekst(a).replace(/ \| ook later$/, '') || '(geen antwoord)'); }).join('\n')).join('\n');
 }
 function renderRyan(el){
   stijl();
   el.innerHTML = '<div id="kb-ryan" class="kb"><p class="leeg">Laden…</p></div>';
   laad().then(() => {
-    const L = ryanItems();
-    el.querySelector('#kb-ryan').innerHTML = `<div class="kb-balk"><span>Voor de IVOL-app van Ryan · ${L.length} onderwerpen</span><button class="knop" data-ry="kopieer">Kopieer lijst</button></div>
-      <p class="klein muted">Alle antwoorden waar "ook later" aanstaat, met je notitie. Aanvinken doe je bij de vraag in de Kennisbank.</p>
-      ${L.map(v => { const a = antw(v.id), kz = kzVan(a);
-        return `<section class="kb-kaart"><div class="kb-kop"><b>${esc(v.id)}</b><span>${esc(DATA.blokken[blokVan(v.id)] || '')}</span><span class="kb-st ${a.s === 'ok' ? 'ok' : ''}">${a.s === 'ok' ? 'bevestigd' : esc(status(v.id)[0])}</span></div>
-          <div class="kb-vraag" style="font-size:16px">${esc(v.vraag)}</div>
-          ${a.a || kz.length ? `<p style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(a.a || '')}${kz.length ? `<span class="muted">${a.a ? ' · ' : ''}${esc(kz.join(', '))}</span>` : ''}</p>` : ''}
-          ${a.notitie ? `<div class="kb-vs"><small>Later / notitie</small><p>${esc(a.notitie)}</p></div>` : ''}</section>`; }).join('') || '<div class="kb-kaart"><p>Nog niets met "ook later".</p></div>'}`;
+    const kaart = v => { const a = antw(v.id), kz = kzVan(a);
+      return `<section class="kb-kaart"><div class="kb-kop"><b>${esc(v.id)}</b><span>${esc(DATA.blokken[blokVan(v.id)] || '')}</span><span class="kb-st ${a.s === 'ok' ? 'ok' : ''}">${a.s === 'ok' ? 'bevestigd' : esc(status(v.id)[0])}</span></div>
+        <div class="kb-vraag" style="font-size:16px">${esc(v.vraag)}</div>
+        ${a.a || kz.length ? `<p style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(a.a || '')}${kz.length ? `<span class="muted">${a.a ? ' · ' : ''}${esc(kz.join(', '))}</span>` : ''}</p>` : ''}
+        ${a.notitie ? `<div class="kb-vs"><small>Later / notitie</small><p>${esc(a.notitie)}</p></div>` : ''}</section>`; };
+    el.querySelector('#kb-ryan').innerHTML = `<div class="kb-balk"><span>Later · ${ryanItems().length} onderwerpen</span><button class="knop" data-ry="kopieer">Kopieer lijsten</button></div>
+      <p class="klein muted">Alle antwoorden waar "ook later" aanstaat, met je notitie. Aanvinken en de lijst kiezen doe je bij de vraag in de Kennisbank.</p>
+      ${LIJSTEN.map(([l, t]) => `<h2 class="kb-lk">${esc(t)} <span class="muted">· ${ryanItems(l).length}</span></h2>${ryanItems(l).map(kaart).join('') || '<div class="kb-kaart"><p>Nog niets.</p></div>'}`).join('')}`;
     const k = el.querySelector('[data-ry="kopieer"]');
-    if(k) k.onclick = async () => { try{ await navigator.clipboard.writeText(ryanTekst()); WH.toast('Lijst gekopieerd'); }catch(e){ WH.toast('Kopiëren lukt niet op dit apparaat'); } };
+    if(k) k.onclick = async () => { try{ await navigator.clipboard.writeText(ryanTekst()); WH.toast('Lijsten gekopieerd'); }catch(e){ WH.toast('Kopiëren lukt niet op dit apparaat'); } };
   });
 }
 return { render, renderRyan, ryanItems, open, laad, S };

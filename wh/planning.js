@@ -38,7 +38,7 @@ const TAKEN = [
   { id:'o-1015-bulkB', datum:'2026-10-15', prio:2, wie:'Valerii · Sala', titel:'Bulk-controleronde hal B', uitleg:'Idem hal B (BA–BF, BX/BY/BZ).', link:L.loc },
   { id:'o-1016-bulkC', datum:'2026-10-16', prio:2, wie:'Valerii · Sala', titel:'Bulk-controleronde hal C en DA–DE', uitleg:'Idem hal C.', link:L.loc },
   // ---- week 43: borgen ----
-  { id:'o-1019-ritme', datum:'2026-10-19', prio:1, wie:'Daan · team', titel:'Vaste aanvulmomenten invoeren', uitleg:'Voorstel: 07:30 Nu verplaatsen, 13:00 aanvulronde, 16:30 Verwerk backorders. Wie doet wat (reachtruck).', link:'#/' },
+  { id:'o-1019-ritme', datum:'2026-10-19', prio:1, wie:'Daan · team', titel:'Vaste aanvulmomenten invoeren', uitleg:'Besloten (kennisbank C5): aanvullen is doorlopend, de eerste ronde om 10:00; 16:30 Verwerk backorders. Wie doet wat (reachtruck).', link:'#/' },
   { id:'o-1020-halc', datum:'2026-10-20', prio:3, wie:'Daan', titel:'Hal C en DA–DE uitdiepen', uitleg:'Looproute en gangvolgorde vastleggen, zodat de app lijsten in looprichting sorteert.', link:L.loc },
   { id:'o-1021-legbord', datum:'2026-10-21', prio:3, wie:'Daan', titel:'Legbordcapaciteit midden vastleggen', uitleg:'Per product max aantal op de picklocatie (vul aan tot). Aanvulbase → filter legbord.', link:L.base + '?f=legbord' },
   { id:'o-1022-maxime', datum:'2026-10-22', prio:2, wie:'Daan · Maxime', titel:'Maxime: app laten zien en koppeling bespreken', uitleg:'app-fundament.md + demo IVOL Warehouse. Vraag: API-sleutel met alleen lezen (producten, voorraad per locatie, voorraadgeschiedenis, backorders, verkoop). Voorraad per locatie en geschiedenis zijn niet te exporteren in Picqer.', link:null },
@@ -52,9 +52,9 @@ const TAKEN = [
 // elke werkdag
 const DAGRITME = [
   { id:'d-exports', tijd:'07:30', titel:'Backorders + aanvuladvies-PDF inladen', uitleg:'Productexport 1× per week (maandag).', link:L.geg },
-  { id:'d-nuverpl', tijd:'08:00', titel:'Nu verplaatsen afwerken', uitleg:'Daarna in Picqer: Backorders → Verwerk backorders.', link:L.aanvullen },
+  { id:'d-nuverpl', tijd:'10:00', titel:'Nu verplaatsen: eerste ronde klaar', uitleg:'De rijder volgt het aanvuladvies op de scanner, de hele dag (Daan, kennisbank C5). Daarna in Picqer: Backorders → Verwerk backorders.', link:L.aanvullen },
   { id:'d-vst', tijd:'10:00', titel:'Van VST: terughalen nodig?', uitleg:'Mailtekst voor Edwin staat klaar.', link:L.vst },
-  { id:'d-ronde', tijd:'13:00', titel:'Aanvulronde per gang', uitleg:'Aftikken + aanvulniveaus bijstellen waar het schuurt.', link:L.ronde },
+  { id:'d-ronde', tijd:'doorlopend', titel:'Aanvulronde per gang', uitleg:'Geen vaste tijd: doorlopend, de eerste ronde is om 10:00. Aftikken + aanvulniveaus bijstellen waar het schuurt.', link:L.ronde },
   { id:'d-eind', tijd:'16:30', titel:'Verwerk backorders + advies leeg?', uitleg:'Wat blijft staan: waarom? (Vastzittend)', link:L.aanvullen + '/vast' }
 ];
 
