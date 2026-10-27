@@ -202,7 +202,7 @@ function status(){
   const v = S.meta.vp || {}, i = S.meta.ink || {};
   const wacht = m => moetWachten(m) ? m.wachtTot : null;
   return { bezig:S.vpBezig || S.inkBezig, tekst:S.vpBezig ? S.tekst.vp : S.tekst.ink, tekstVp:S.tekst.vp, tekstInk:S.tekst.ink, fout:S.fout, oudeFunctie:S.oudeFunctie,
-    vp:{ op:v.op || null, tot:v.tot || null, n:v.n || 0, vol:!!v.vol, gat:v.gat || null, wachtTot:wacht(v), fout:v.fout || null, fouten:v.fouten || 0 },
+    vp:{ op:v.op || null, tot:v.tot || null, n:v.n || 0, vol:!!v.vol, gat:v.gat || null, gatGedicht:v.gatGedicht || null, wachtTot:wacht(v), fout:v.fout || null, fouten:v.fouten || 0 },
     ink:{ op:i.op || null, volledig:!!i.volledig, n:i.n || 0, wachtTot:wacht(i), fout:i.fout || null, fouten:i.fouten || 0 } };
 }
 return { ronde, verplaatsingen, inkoop, status, bouwInk, fmt, opNieuw:f => S.luister.push(f), S };
