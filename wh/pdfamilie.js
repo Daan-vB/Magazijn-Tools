@@ -756,7 +756,8 @@ function vrInner(fk){
   const cs = actiefLeden(fk), F = {}; cs.forEach(c => { F[c] = feit(c); });
   const T = { a:[], b:[], c:[] }; cs.forEach(c => T[tabVan(F[c])].push(c));
   const vast = T.a.filter(c => F[c].vast), tijdel = T.a.filter(c => !F[c].vast);
-  let tab = UI.vtab || 'a'; if(!T[tab].length && cs.length) tab = T.a.length ? 'a' : T.b.length ? 'b' : 'c';
+  // zonder eigen keuze: de eerste tab met producten; een bewust gekozen lege tab blijft leeg getoond
+  let tab = UI.vtab || (T.a.length ? 'a' : T.b.length ? 'b' : T.c.length ? 'c' : 'a');
   let sub = UI.asub || 'vast'; if(sub === 'vast' && !vast.length && tijdel.length) sub = 'tijd'; if(sub === 'tijd' && !tijdel.length && vast.length) sub = 'vast';
   const lijst = tab === 'a' ? (sub === 'vast' ? vast : tijdel) : T[tab];
   const nl = cs.filter(c => F[c].bron === 'live').length, L = WL(), pv = window.PDVERS ? PDVERS.status() : null;
