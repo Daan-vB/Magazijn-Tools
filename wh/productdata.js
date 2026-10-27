@@ -169,6 +169,15 @@ function maatSig(n){
   s.replace(/(\d+[.,]?\d*)\s*(mm|cm|m2|kv)\b/g, (m0, a, b) => { u.push(a + ' ' + b); return ''; });
   return d.concat(u).join(' · ');
 }
+// maatgroep uit een bewaarde indeling (wh-pd-fam.maat): alleen de maat zelf ("135x200 · Rood" of "120x180 · Blauw x 180" = "135x200" / "120x180"),
+// nooit kleur of andere tekst; stukken met een getal en eenheid (100 cm · 17 mm) blijven
+const MAATDEEL = /^\d+[.,]?\d*(?:\s*[x×]\s*\d+[.,]?\d*)*(?:\s*(?:mm|cm|m2|m²|kv|m))?$/i;
+function maatgroepVan(s){
+  const t = String(s ?? '');
+  const delen = t.split('·').map(x => x.trim()).filter(Boolean);
+  const goed = delen.filter(x => MAATDEEL.test(x)).map(x => x.replace(/\s*[x×]\s*/g, 'x').replace(/\s+/g, ' '));
+  return goed.length ? goed.join(' · ') : t;
+}
 const PUR_LEER = /^PUR-R-/i, PUR_FK = 'CF|rubber rollen per meter';
 function index(){
   if(S.idx) return S.idx;
@@ -178,7 +187,7 @@ function index(){
     const code = p.productcode, fn = famNaam(p.naam), sam = isSam(code);
     // SAM Europe: elk artikel staat alleen (geen familie, kleurgenoot of maatgroep); PU-leer per meter hoort bij CF rubber rollen per meter
     const fk = sam ? 'SAM Europe|' + code.toLowerCase() : cor.fam[code] || (PUR_LEER.test(code) ? PUR_FK : String(p.leverancier || '?').slice(0, 24) + '|' + (fn || code.toLowerCase()));
-    const vk = fk + '|' + (sam ? code.toLowerCase() : cor.maat[code] !== undefined ? cor.maat[code] : maatSig(p.naam));
+    const vk = fk + '|' + (sam ? code.toLowerCase() : cor.maat[code] !== undefined ? maatgroepVan(cor.maat[code]) : maatSig(p.naam));
     (fam[fk] = fam[fk] || []).push(code); famVan[code] = fk;
     { const fo = sam || cor.fam[code] || PUR_LEER.test(code) ? fk : String(p.leverancier || '?').slice(0, 24) + '|' + (famNaam(p.naam, KLEUR_OUD) || code.toLowerCase()); if(fo !== fk) (oud[fk] = oud[fk] || new Set()).add(fo); }
     (vari[vk] = vari[vk] || []).push(code); varVan[code] = vk;
@@ -288,21 +297,19 @@ function plaatsenUitMaat(maat){
 function nodig(code, k, w){
   if(isSam(code)) return SAM_VELDEN.includes(k) && !(['lvl', 'maxpick'].includes(k) && w('pick') === 'nee');   // SAM Europe: alleen pick en aanvulniveau
   if(k === 'opslag') return true;    // de soort bepaalt welke velden nodig zijn
-  const so = soortVan(code);
-  if(so === 'pick') return k === 'pick';
-  if(so === 'rol') return k === 'vn';   // rol alleen backorder: geen pallet-, plaats- of picklocatievelden
-  if(alleenPick(code) && !['pick', 'vn', 'kgst'].includes(k)) return false;
-  // mix: geen palletgegevens, wel hoe het binnenkomt, hoe de picklocatie wordt aangevuld en op welke mixpallet
-  if(so === 'mix') return ['pick', 'geleverd', 'maxpick', 'lvl', 'mixgroep'].includes(k) && !(['maxpick', 'lvl'].includes(k) && w('pick') === 'nee');
-  if(k === 'geleverd' || k === 'mixgroep') return false;
-  if(k === 'met' && so) return false;   // volgt uit de soort
-  const spp = w('spp'), pick = w('pick'), e = eenheid(code).e;
-  if(['maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig'].includes(k) && NVT(spp)) return false;
-  if(['maxpick', 'lvl', 'met'].includes(k) && pick === 'nee') return false;
-  if(['spd', 'doos'].includes(k) && (e === 'm' || e === 'cm' || e === 'rol') && leeg(w(k))) return false;   // per meter/rol: doos is optioneel, telt pas mee als er iets staat
-  if(k === 'kgst') return false;   // optioneel: alleen invullen als het Picqer-gewicht niet klopt
-  if(k === 'gewicht' && kgOnb(code) && LEEGWAARDE(pdWaarde(code, 'gewicht'))) return false;   // x bij kg: eerst wegen (taak), houdt de regel niet open
-  return true;
+  // Per familie (27-10): Pick = picklocatie, max op pick en gecontroleerd gewicht. Deel, Pallet en Mix ook de palletvelden.
+  // Rol alleen backorder: geen velden. Stuks per doos en doosmaat (verpakking) zijn een later stadium en tellen niet mee.
+  const so = soortVan(code), pick = w('pick');
+  if(so === 'rol') return false;
+  if(k === 'pick' || k === 'kgst') return true;
+  if(k === 'maxpick') return pick !== 'nee';
+  if(so === 'pick' || alleenPick(code)) return false;
+  if(['spp', 'maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig'].includes(k)){
+    if(k !== 'spp' && NVT(w('spp'))) return false;
+    if(k === 'gewicht' && kgOnb(code) && LEEGWAARDE(pdWaarde(code, 'gewicht'))) return false;   // x bij kg: eerst wegen (taak), houdt de regel niet open
+    return true;
+  }
+  return false;
 }
 /* Regelcontrole (Daan 17-10): een vastgelegde waarde die tegen een bevestigde regel ingaat telt als open (zoals een schatting van Claude),
    met een korte reden. Alleen tonen en tellen: er wordt niets weggeschreven. Daan past het aan of zet het op Klopt (meta.rok = 1, dan telt het als compleet).
@@ -848,7 +855,7 @@ async function opslaan(wijz, bron){
         const extra = v && typeof v === 'object' ? v : null;
         v = String((extra ? extra.v : v) ?? '').trim();
         if(!v){ delete data[k]; delete meta[k]; }
-        else { data[k] = v; meta[k] = Object.assign({ op:nu, bron:(extra && extra.bron) || bron || 'invul' }, extra && extra.uit ? { uit:extra.uit, r:extra.r } : {}, extra && extra.rok ? { rok:1 } : {}); }   // rok = Daan zette een waarde die tegen een regel ingaat op Klopt
+        else { data[k] = v; meta[k] = Object.assign({ op:nu, bron:(extra && extra.bron) || bron || 'invul' }, extra && extra.uit ? { uit:extra.uit, r:extra.r } : {}, extra && extra.rok ? { rok:1 } : {}, extra && extra.gew ? { gew:1 } : {}); }   // gew = gewicht gewogen (Per familie)   // rok = Daan zette een waarde die tegen een regel ingaat op Klopt
       });
       rijen.push({ productcode:code, data, meta, updated_at:nu });
     });
@@ -3632,6 +3639,6 @@ function notities(){
   Object.keys(S.pd).forEach(code => { const m = (S.pd[code] && S.pd[code].meta) || {}; if(!D.P[code]) return; Object.keys(m).forEach(k => { if(m[k] && m[k].park){ const t = m[k].uit || ''; (g[t] = g[t] || []).push({ code, k }); } }); });
   return Object.entries(g).map(([tekst, items]) => ({ tekst, items, codes:[...new Set(items.map(i => i.code))] })).sort((a, b) => b.codes.length - a.codes.length);
 }
-const intern = { verworpen, ribbelMaat, isSam, heeftPark, parkMeta, wachtOpLevering, zelfGebouwd, mvPatroon, mvSoort, kokosDoos, levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, famCorWaarde, schoneNaam, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
+const intern = { maatgroepVan, verworpen, ribbelMaat, isSam, heeftPark, parkMeta, wachtOpLevering, zelfGebouwd, mvPatroon, mvSoort, kokosDoos, levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, famCorWaarde, schoneNaam, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
 return { view, viewOpen, openData, herlaad, laad, zetLaterMee, notities, regelLijst, regelFout, verworpen, ribbelMaat, wachtOpLevering, isSam, heeftPark, appsZelftest, zetVers, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();
