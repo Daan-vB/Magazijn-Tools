@@ -25,6 +25,6 @@ async function start(opt = {}){
 }
 async function open(T, hash){
   await T.p.goto((process.env.PD2_URL || 'http://localhost:8811/') + 'ivol.html' + (hash || '#/pd2'));
-  await T.p.waitForFunction(() => window.PD2R && PD2R.S.klaar && document.getElementById('pd2-lijst'), null, { timeout:120000 });
+  await T.p.waitForFunction(() => window.PD2R && PD2R.S.klaar && document.querySelector('.pd2[data-scherm]:not([data-scherm="laden"])'), null, { timeout:120000 });
 }
 module.exports = { start, open };

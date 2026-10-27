@@ -9,9 +9,9 @@ const fs = require('fs');
   for(const keer of ['koud', 'warm', 'warm2']){
     const t0 = Date.now();
     if(keer === 'koud') await p.goto((process.env.PD2_URL || 'http://localhost:8811/') + 'ivol.html#/pd2'); else await p.reload();
-    await p.waitForFunction(() => document.querySelector('#pd2-lijst tbody tr'), null, { timeout:120000 });
+    await p.waitForFunction(() => document.querySelector('.pd2-fam'), null, { timeout:120000 });
     const t1 = Date.now() - t0;
-    const info = await p.evaluate(() => ({ bron:(document.querySelector('.pd2-oefenbalk') || {}).textContent?.replace(/\s+/g, ' ').slice(0, 160) }));
+    const info = await p.evaluate(() => ({ bron:(document.getElementById('pd2-klaar') || {}).textContent }));
     uit.push([keer, t1, info.bron]); console.log(keer, t1 + ' ms', info.bron);
     await p.waitForTimeout(25000);   // achtergrond verversen laten afmaken
   }
