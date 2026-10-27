@@ -32,6 +32,14 @@ const AANNAMES = {
   wegalle:  'Weg-voorstel voor alle producten: dezelfde regels als in tab 5. Heeft Daan in de familie al een soort gekozen, dan telt "geen voorraad" als tijdelijk op en komt er geen Weg-voorstel.',
   snap:     'Snel openen: 2.0 bewaart na het laden een kopie op dit apparaat (IndexedDB, max 7 dagen oud) en tekent daar eerst mee ("gegevens van hh:mm, bijwerken…"); daarna ververst het op de achtergrond. Typ je net, dan wacht het verversen tot je klaar bent.',
   overzet:  'Overzetten naar de echte productdata is gebouwd maar staat uit (pd2Overzetten = false, knop verborgen). Overgezet wordt alleen wat jij bevestigde of aanpaste; Uitlopend gaat als datum mee, Backorder en Archief hebben nog geen veld in productdata.',
+  bronnen:  'Stuks per pallet alleen uit palletlabel, verplaatsingen, ≥ 2 gelijke pallets, pakbon of kleurgenoot (daarna Daans patroon bij dezelfde leverancier en maat). Nooit uit inkoop en nooit van een andere leverancier. Zonder bron: leeg, "uitzoeken".',
+  fysiek:   'Past fysiek: de Picqer-afmetingen per stuk in alle richtingen op de palletmaat, 7 cm overstek, tot 250 cm hoog incl. 15 cm pallet. Meer dan 15% boven wat past = twijfel. Kloppen de afmetingen in Picqer niet (bijv. doosdikte), dan zie je dat hier.',
+  labelqty: 'Een palletlabel met een aantal dat geen getal is (bijv. "6090WM") telt niet als stuks per pallet.',
+  grootwb:  'Grote whiteboards (200 cm en langer) krijgen een palletmaat met ruimte in de lengte (120x200 → 120x210, 120x240 → 130x250), zoals in jouw eigen invoer.',
+  ringmat:  'Ringmatten met een maat in de naam liggen plat op de kleinste opslagmaat waar ze op passen (100x100, 80x120, 100x200); ringmat op rol → 100x150.',
+  lvlnaam:  'Bureaustoelen bij 0 en whiteboards bij 3 gelden ook voor producten zonder picklocatie (de aanvulregel zelf geldt alleen met picklocatie).',
+  vnregel:  'Vloernaam = code + " - " + korte omschrijving (code langer dan 14 tekens: alleen de omschrijving). Je oude vloernamen waren vaak alleen de code, dus de gemeten score (1%) zegt hier niets en maakt geen twijfel.',
+  maxverk:  'Max op pick: "controleer" (oranje) als het meer is dan 3 maanden verkoop, gemeten als het hoogste van 6-maanden- en 28-dagengemiddelde per maand; zonder verkoop ook "controleer".',
   tegen:    'Per pallet meer dan ooit besteld: stuks per pallet groter dan de grootste inkooporder van 12 maanden, of twee bronnen noemen een ander aantal.',
   vk28:     'Verkoop over 28 dagen = Picqer-analyse "stuks per dag" × 30 (zoals in Per familie).',
   gewafw:   'Gewicht "sterk anders": meer dan 30% afwijking van het midden (mediaan) van de familie, per m² als de maat in de naam staat, anders per stuk binnen dezelfde maat.',
@@ -45,7 +53,7 @@ const AANNAMES = {
   famtop:   'Zonder familiekeuze staan de 24 belangrijkste families als tegel. Belang = 3 per A-product + 2 per B-product + 2 per inkomend product + 1 per aandachtspunt; "Meer" toont de rest.',
   live:     'Voorraad per locatie: live uit Picqer (de rijen die op het scherm staan, 20 per vraag, 3 s ertussen; ook de pickstand van het live advies telt als live). Live geldt 30 minuten en wordt na 10 minuten ververst. Wacht als de live-ronde van 3.0 bezig is of Picqer net "te veel" zei; bij een fout 2, 4, 8 … max 30 min pauze. Niet gekoppeld of nog niet opgehaald: de export, met de datum erbij.',
   wandrek:  'Wandrekken: aanvullen bij 2 (met hele omdozen) geldt voor producten met "wandrek" in de naam.',
-  vn:       'Vloernaam: zonder palletlabel of voorbeeld in de familie stelt 2.0 alleen de code voor (Daans meest gebruikte vorm, 35% van zijn vloernamen); de gemeten score is laag, dus het staat als twijfel.',
+  vn:       'Vloernaam: een naam op het palletlabel gaat voor, tenzij die alleen de code is (of bijna). Verschillen de labels, dan twijfel met de opties.',
   rolkand:  'Rol (voorstel, met "is rol / geen rol") alleen bij Picqer-eenheid meter, cm of rol, of als de naam "op rol", "rol van", "per rol", "volle rol", "rollen", "per meter" of "per cm" zegt, of "rol" samen met een breedte of dikte (niet bij rolstoel, roller, rolluik). Zo\'n product staat ook in Rollen tot je kiest; het telt als open tot je kiest.',
   rolregel: 'Rolregels ronde 2: kokos rol = 600 cm lang (6 m); kokos 200 cm 17 mm = 12 rollen per pallet, 24 mm = 6 (vaste aantallen); voor 100 cm kokos geen aantal bekend. Ringmat op rol heavy duty: staand, 6 per pallet, palletmaat 100x150. Gewicht volle rol = gewicht per meter of cm × lengte.'
 };
@@ -438,7 +446,12 @@ function waarde(c, k, I){
   if(k === 'pickc'){ const pk = vastPick(c); if(pk) return { v:pk, st:'vastgelegd', why:'vastgelegd in productdata' }; }
   if(PDK[k]){ const v = vastPd(c, PDK[k]); if(v !== null) return { v, st:'vastgelegd', why:'vastgelegd in productdata' }; }
   const vs = (I || info(c)).vs[k];
-  if(vs && !leeg(vs.v)){ const sc = scoreVan(vs.r); return { v:String(vs.v), st:vs.tw || (sc && sc.p < 0.6) ? 'twijfel' : 'voorstel', why:vs.why, alt:vs.alt, sc, r:vs.r }; }
+  if(vs && !leeg(vs.v)){
+    const ct = controle(c, k, vs.v, I || info(c));
+    if(ct && ct.st === 'uitzoeken') return { v:'', st:'uitzoeken', why:ct.why + ' (voorstel was ' + vs.v + ': ' + vs.why + ')', afgewezen:String(vs.v), r:vs.r };
+    const sc = scoreVan(vs.r);
+    return { v:String(vs.v), st:vs.tw || (sc && sc.p < 0.6) || (ct && ct.st === 'twijfel') ? 'twijfel' : 'voorstel', why:vs.why + (ct ? ' · ' + ct.why : ''), alt:vs.alt, sc, r:vs.r, ct };
+  }
   return { v:'', st:'leeg', why:vs && vs.mis ? vs.mis : '' };
 }
 function vastPick(c){
@@ -448,6 +461,22 @@ function vastPick(c){
 }
 // effectieve getalwaarde (ook uit een voorstel) voor de berekende velden
 const effN = (c, k, I) => nOf(waarde(c, k, I).v);
+
+/* ---------- controle vóór tonen: kan dit voorstel kloppen? ----------
+   uitzoeken (rood, geen voorstel) of twijfel (oranje) met de reden; vastgelegde waarden en jouw invoer worden niet gecontroleerd. */
+const vkMaand = c => Math.max(vk6(c), vk28(c) || 0);
+function controle(c, k, v, I){
+  const n = nOf(v);
+  if(k === 'hoogte' && n !== null && (n < 30 || n > MAXH)) return { st:'uitzoeken', why:'hoogte ' + nf(n) + ' cm kan niet (moet tussen 30 en ' + MAXH + ' cm)' };
+  if(k === 'spp' && n > 0){
+    const maat = waarde(c, 'maat', I).v || (I.vs.maat || {}).v, cap = capaciteit(c, maat), kg = gewicht(c).kg;
+    if(kg > 0 && n * kg + PALH > 1500) return { st:'twijfel', why:'pallet zou ' + nf(Math.ceil(n * kg + PALH)) + ' kg wegen (max 1.500 kg)' };
+    if(cap && n > cap * 1.15) return { st:'twijfel', why:'past fysiek niet: op ' + (maat || '80x120') + ' passen volgens de Picqer-afmetingen per stuk hooguit ± ' + nf(cap) + ' stuks (tot ' + MAXH + ' cm hoog)' };
+  }
+  if(k === 'maat'){ const vs = I.vs.maat || {}, m = maatUitNaam(c); if(vs.r === 'maat:regel-rest' && m && (m[0] > 127 || m[1] > 87) && m[1] >= 40) return { st:'twijfel', why:'productmaat ' + m[0] + 'x' + m[1] + ' past op geen opslagmaat uit de lijst; nu de regel "al het andere → 80x120" (opgerold of gevouwen?)' }; }
+  if(k === 'maxpick' && n > 0){ const vk = vkMaand(c); if(!vk) return { st:'twijfel', why:'controleer: geen verkoop gemeten' }; if(n > 3 * vk) return { st:'twijfel', why:'controleer: meer dan 3 maanden verkoop (' + nf(vk) + ' per maand)' }; }
+  return null;
+}
 
 /* ---------- soort ---------- */
 function soortWaarde(c, I){
@@ -541,50 +570,115 @@ const VNVORM = {
 };
 function vnStijl(c, v){ const n = vnN(v); for(const [k, f] of Object.entries(VNVORM)){ const x = f(c); if(x && vnN(x) === n) return k; } return ''; }
 function leerOf(c, k, nivs){ for(const [niv, min] of nivs){ const x = leer(c, k, niv, min); if(x) return x; } return null; }
-function vsSpp(c, f, ink){
-  if(isSam(c)) return null;
-  const bronnen = [];
+/* ---------- bronnen per product (correctie ronde 2b) ----------
+   a. Daans eigen invoer in productdata (waarde(): "vastgelegd")   b. palletlabel-generator (catalog-ean: qty, naam)
+   c. verplaatsingen (naar VST, van bulk naar pick bij volle pallets)   d. ≥ 2 VST- of bulkpallets met hetzelfde aantal
+   e. pakbonnen/containers (per pallet, bruto per pallet, m³)   f. kleurgenoot (zelfde familie en maat) met een waarde uit a–e
+   g. inkoop: alleen bewijs voor de soort, nooit stuks per pallet. Daarna pas Daans patronen bij dezelfde leverancier en maat.
+   Elk voorstel gaat door controle() voordat het in beeld komt (hoogte 30–250 cm, past fysiek, gewicht, max t.o.v. verkoop). */
+// palletlabels (catalog-ean): alleen een echt getal telt (een qty als "6090WM" is een tikfout, geen 6090 per pallet); laatst gebruikt eerst
+const labelSppLijst = c => { if(S.verberg && S.verberg.c === c && S.verberg.k === 'spp') return []; const l = (D.GEH[String(c).toLowerCase()] || []).slice().sort((a, b) => (b.used || 0) - (a.used || 0)).map(g => String(g.qty ?? '').trim()).filter(q => /^\d+([.,]\d+)?$/.test(q)).map(num).filter(v => v > 0); return [...new Set(l)]; };
+function sppUitBronnen(c, metGenoot){
+  const uit = [];
+  const lab = labelSppLijst(c);
+  if(lab.length) uit.push({ v:lab[0], alt:lab.length > 1 ? lab : null, why:'palletlabel' + (lab.length > 1 ? 's verschillen: ' + lab.map(x => nf(x)).join(' / ') : ': ' + nf(lab[0]) + ' per pallet'), id:'spp:label' });
   let b = {}; try{ b = X().sppBronnen(c) || {}; }catch(e){}
-  if(b.mvvst) bronnen.push({ v:num(b.mvvst.v), why:b.mvvst.t, r:1, id:'spp:vst' });
-  const g = vanGenoot(c, 'spp'); if(g) bronnen.push({ v:num(g.v), why:g.why, r:2, id:'spp:genoot' });
-  if(b.vst2) bronnen.push({ v:num(b.vst2.v), why:b.vst2.t, r:3, id:'spp:vst2' });
-  if(b.bulk2) bronnen.push({ v:num(b.bulk2.v), why:b.bulk2.t, r:3, id:'spp:bulk2' });
-  { const l = leerOf(c, 'spp', [['fammaat', 1], ['levmaat', 2]]); if(l) bronnen.push({ v:num(l.v), why:l.why, r:3.5, id:l.r }); }
-  if(ink && ink.meestal) bronnen.push({ v:ink.meestal, why:'meest voorkomende inkoophoeveelheid: ' + ink.h.slice(0, 4).map(x => nf(x.v) + (x.n > 1 ? ' (' + x.n + '×)' : '')).join(', '), r:4, ink:1, id:'spp:inkoop' });
-  try{ const o = X().oudeWaarde(c, 'spp'); if(o && o.conflict) o.conflict.forEach(x => { if(num(x.v) > 0) bronnen.push({ v:num(x.v), why:'palletlabel: ' + nf(num(x.v)) + ' (er staan er meer)', r:5, id:'spp:label' }); }); else if(o && num(o.v) > 0) bronnen.push({ v:num(o.v), why:'palletlabel: ' + nf(num(o.v)), r:5, id:'spp:label' }); }catch(e){}
-  const goed = bronnen.filter(x => x.v > 0);
-  if(!goed.length) return null;
-  const top = goed[0];
-  // tegenstrijdig: een andere bron (geen inkoop: daar kunnen meerdere pallets in één order zitten) noemt een ander aantal
-  const ander = goed.filter(x => x !== top && !x.ink && x.v !== top.v);
-  const uit = { v:String(top.v), why:top.why, bron:goed.map(x => x.why), r:top.id };
-  if(ander.length){ uit.tw = true; uit.alt = [...new Set(goed.map(x => String(x.v)))]; uit.why += ' · tegenstrijdig: ' + ander.map(x => x.why).join(' · '); }
+  if(b.mvvst) uit.push({ v:num(b.mvvst.v), why:b.mvvst.t, id:'spp:verplaatst' });
+  if(b.mvpick) uit.push({ v:num(b.mvpick.v), why:b.mvpick.t, id:'spp:verplaatst' });
+  if(b.vst2) uit.push({ v:num(b.vst2.v), why:b.vst2.t, id:'spp:pallets' });
+  if(b.bulk2) uit.push({ v:num(b.bulk2.v), why:b.bulk2.t, id:'spp:pallets' });
+  if(b.pakbon) uit.push({ v:num(b.pakbon.v), why:b.pakbon.t, id:'spp:pakbon' });
+  if(metGenoot){
+    const t = {};
+    kleurgenoten(c).forEach(x => { const e = eigen(x, 'spp'), v = e ? nOf(e.v) : nOf(vastPd(x, 'spp')); const w = v > 0 ? v : (sppUitBronnen(x, false)[0] || {}).v; if(w > 0) (t[w] = t[w] || []).push(x); });
+    const best = Object.entries(t).sort((p, q) => q[1].length - p[1].length)[0];
+    if(best) uit.push({ v:+best[0], why:'kleurgenoot met dezelfde maat: ' + best[1].slice(0, 2).join(', ') + (best[1].length > 2 ? ' +' + (best[1].length - 2) : '') + ' heeft ' + nf(+best[0]), id:'spp:genoot' });
+  }
+  return uit.filter(x => x.v > 0);
+}
+function vsSpp(c){
+  if(isSam(c)) return null;
+  const br = sppUitBronnen(c, true);
+  if(!br.length){ const l = leerOf(c, 'spp', [['levmaat', 2]]); return l ? Object.assign(l, { why:l.why + ' (zelfde leverancier en maat)' }) : { mis:'geen palletlabel, verplaatsingen, pallets, pakbon of kleurgenoot: uitzoeken (inkoop zegt niets over stuks per pallet)' }; }
+  const top = br[0], ander = br.filter(x => x !== top && x.v !== top.v);
+  const uit = { v:String(top.v), why:top.why, r:top.id, bron:br.map(x => x.why) };
+  if(top.alt || ander.length){ uit.tw = true; uit.alt = [...new Set((top.alt || [top.v]).concat(ander.map(x => x.v)).map(String))]; if(ander.length) uit.why += ' · andere bron: ' + ander.map(x => x.why).join(' · '); }
   return uit;
 }
+// past fysiek: afmetingen per stuk (Picqer) in alle richtingen op de palletmaat, tot 250 cm incl. 15 cm pallet, 7 cm overstek
+const MAXH = 250, PALH = 15;
+function stukDims(c){ const e = P().S.extra[c] || {}, d = [num(e.lengte_product_cm), num(e.breedte_product_cm), num(e.hoogte_product_cm)]; return d.every(x => x > 0) ? d : null; }
+const palDims = maat => { const m = String(maat || '').match(/(\d+)\s*x\s*(\d+)/); return m ? [+m[1], +m[2]] : [80, 120]; };
+function stapel(c, maat){
+  const d = stukDims(c); if(!d) return null;
+  const [PL, PB] = palDims(maat), perms = [[0, 1, 2], [1, 0, 2], [0, 2, 1], [2, 0, 1], [1, 2, 0], [2, 1, 0]];
+  return perms.map(([i, j, k]) => { const per = Math.floor((PL + 7) / d[i]) * Math.floor((PB + 7) / d[j]); return { per, h:d[k], lagen:Math.floor((MAXH - PALH) / d[k]), pl:d[i] + 'x' + d[j] }; }).filter(x => x.per > 0);
+}
+const capaciteit = (c, maat) => { const s = stapel(c, maat); return s && s.length ? Math.max(...s.map(x => x.per * x.lagen)) : null; };
+function lagenHoogte(c, spp, maat){
+  const s = stapel(c, maat); if(!s || !s.length || !(spp > 0)) return null;
+  const opties = s.map(x => ({ x, lagen:Math.ceil(spp / x.per), hoog:Math.ceil(spp / x.per) * x.h + PALH })).sort((p, q) => p.hoog - q.hoog);
+  return opties[0];
+}
+// palletmaat-regels van Daan (eigen versie, met de keuzelijst van 2.0): altijd een maat; whiteboards de kleinste opslagmaat waar het bord in past
+function maatUitNaam(c){ const m = naamVan(c).match(/(\d{2,3})(?:[.,]\d)?\s*[x×]\s*(\d{2,3})(?:[.,]\d)?(?!\s*mm)/i); if(!m) return null; const a = +m[1], b = +m[2]; return a >= 20 && b >= 20 ? [Math.max(a, b), Math.min(a, b)] : null; }
+function kleinsteMaat(L, B, lijst){ const a = Math.max(L, B), b = Math.min(L, B); const k = lijst.map(m => m.split('x').map(Number)).map(([x, y]) => [Math.max(x, y), Math.min(x, y)]).filter(([x, y]) => x >= a - 7 && y >= b - 7).sort((p, q) => p[0] * p[1] - q[0] * q[1]); return k.length ? k[0][1] + 'x' + k[0][0] : null; }
+const isWB = c => /whiteboard/i.test(naamVan(c)) && !/marker|wisser|houder|magne(et|ten)|onderstel|accessoire|reiniger|spray|stift/i.test(naamVan(c));
+const wbHoogte = () => { const v = window.WHAAN ? parseFloat(String(WHAAN.waarde('p-wbh') || '').replace(',', '.')) : NaN; return isNaN(v) ? 140 : v; };
+function maatRegel(c){
+  const n = naamVan(c).toLowerCase(), R = (maat, h, why) => ({ maat, h, why, r:'maat:regel' });
+  const doos = String(vastPd(c, 'doos') || '').match(/(\d+)\s*x\s*(\d+)/); if(doos && Math.min(+doos[1], +doos[2]) > 80) return R('90x120', 180, 'regel Daan: omdoos breder dan 80 cm → 90x120x180');
+  if(/huishoudtrap/.test(n)){ const t = n.match(/(\d)\s*treden/); if(t) return +t[1] <= 2 ? R('80x120', 180, 'regel Daan: huishoudtrap 2 treden → 80x120x180') : R('100x150', 180, 'regel Daan: huishoudtrap ' + t[1] + ' treden → 100x150x180'); }
+  if(/bureaustoel/.test(n)) return R('80x120', 180, 'regel Daan: bureaustoel 80x120x180');
+  if(isWB(c)){
+    const m = maatUitNaam(c);
+    if(m && m[0] <= 127 && m[1] <= 87) return R('80x120', 180, 'regel Daan: whiteboard t/m 80x120 → 80x120x180');
+    // grote borden (200 cm en langer) krijgen ruimte in de lengte: zo kiest Daan 120x210 voor 120x200 en 130x250 voor 120x240
+    if(m && m[0] >= 200){ const pm = kleinsteMaat(m[0] + 12, m[1] + 7, MATEN.concat(MATEN_WB)); if(pm) return R(pm, wbHoogte(), 'regel Daan: groot whiteboard ' + m[0] + 'x' + m[1] + ' → kleinste opslagmaat met ruimte in de lengte: ' + pm); }
+    if(m){ const pm = kleinsteMaat(m[0], m[1], MATEN) || kleinsteMaat(m[0], m[1], MATEN.concat(MATEN_WB)); if(pm) return R(pm, wbHoogte(), 'regel Daan: whiteboard ' + m[0] + 'x' + m[1] + ' → kleinste opslagmaat waar het bord in past: ' + pm); }
+    return R('100x150', wbHoogte(), 'regel Daan: whiteboard, maat onbekend → 100x150');
+  }
+  if((/sportvloer/.test(n) && /tegel/.test(n)) || (/rubber/.test(n) && /tegel/.test(n) && /(^|[,|]\s*)CE/i.test(String((D.P[c] || {}).locaties_hm || '')))) return R('110x110', 160, 'regel Daan: sportvloer tegel / rubber tegel afdeling CE → 110x110x160');
+  if(isRingHD(c)) return R('100x150', 120, 'regel Daan: ringmat op rol heavy duty, 6 rollen rechtop op 100x150');
+  if((/ringmat/.test(n) || (/rubber/.test(n) && /\bmet rand\b/.test(n))) && !/batch midden/i.test(String((D.P[c] || {}).tags || ''))){
+    if(/\brol\b|\broll\b/.test(n)) return R('100x150', 120, 'regel Daan: ringmat op rol → 100x150x120');
+    // ringmatten met een maat in de naam: de opslagmaat waar de mat plat op past (Daan: 100x100 op 100x100, 80x120 op 80x120, 100x200 op 100x200)
+    const m = maatUitNaam(c), pm = m && kleinsteMaat(m[0], m[1], MATEN);
+    if(pm) return R(pm, 120, 'regel Daan: rubber ringmat ' + m[0] + 'x' + m[1] + ' → plat op ' + pm + ', hoogte 120');
+    return R('100x150', 120, 'regel Daan: rubber ringmat met rand → 100x150x120');
+  }
+  if(/(rubber|sportvloer)/.test(n) && /\brol\b|rollen|per meter/.test(n)){ const b = breedteNaam(c); if(b) return b <= 120 ? R('80x120', 140, 'regel Daan: rubber rol ' + b + ' breed (≤ 120) → 80x120x140') : b <= 160 ? R('100x150', 100, 'regel Daan: rubber rol ' + b + ' breed (120–160) → 100x150x100') : R('120x180', 100, 'regel Daan: rubber rol ' + b + ' breed (> 160) → 120x180x100'); }
+  const m = maatUitNaam(c);
+  if(m && m[0] >= 60 && m[1] >= 60 && !(m[0] <= 127 && m[1] <= 87)){ const pm = kleinsteMaat(m[0], m[1], MATEN); if(pm) return Object.assign(R(pm, 180, 'regel Daan: productmaat ' + m[0] + 'x' + m[1] + ' uit de naam → opslagmaat ' + pm), { r:'maat:regel-naam' }); }
+  return Object.assign(R('80x120', 180, 'regel Daan: al het andere → 80x120x180'), { r:'maat:regel-rest' });
+}
+const opLijst = (c, m) => { const lijst = MATEN.concat(isWB(c) ? MATEN_WB : []), k = maatNorm(m); if(lijst.some(x => maatNorm(x) === k)) return lijst.find(x => maatNorm(x) === k); const d = palDims(m); return kleinsteMaat(d[0], d[1], lijst); };
 function vsMaat(c){
   if(isSam(c)) return null;
-  const g = vanGenoot(c, 'maat'); if(g) return Object.assign(g, { r:'maat:genoot' });
-  if(isRingHD(c)) return { v:'100x150', why:'regel Daan: ringmat op rol heavy duty, 6 rollen rechtop op 100x150', r:'maat:rolhd' };
-  { const l = leerOf(c, 'maat', [['levmaat', 2], ['fam', 3]]); if(l) return l; }
-  const r = pdVs(c, 'maat', r => ['maat:genoot', 'maat:pakbon', 'maat:afm', 'oud'].includes(r.r) || (r.r === 'maat:regel' && !/al het andere/.test(r.bron || '')));
-  if(!r) return { mis:'geen vergelijkbaar product en geen afmetingen: niet gegokt' };
-  return { v:String(r.v).replace(/\s/g, ''), why:(r.r === 'oud' ? r.bron : r.bron || 'bestaande regel'), r:'maat:pd-' + r.r };
+  const pb = X().pbRegels(c).find(r => r.palletmaat || r.maat); if(pb){ const v = opLijst(c, pb.palletmaat || pb.maat); if(v) return { v, why:'pakbon: palletmaat ' + (pb.palletmaat || pb.maat), r:'maat:pakbon' }; }
+  const g = vanGenoot(c, 'maat'); if(g){ const v = opLijst(c, g.v); if(v) return Object.assign(g, { v, r:'maat:genoot' }); }
+  { const l = leerOf(c, 'maat', [['levmaat', 2], ['fam', 3]]); if(l){ const v = opLijst(c, l.v); if(v) return Object.assign(l, { v }); } }
+  const R = maatRegel(c); return { v:R.maat, why:R.why, r:R.r };
 }
 function vsHoogte(c, spp, maat){
   if(isSam(c)) return null;
-  const g = vanGenoot(c, 'hoogte'); if(g) return Object.assign(g, { r:'hoogte:genoot' });
+  const g = vanGenoot(c, 'hoogte'); if(g) return Object.assign(g, { v:String(rond10(num(g.v))), r:'hoogte:genoot' });
+  const pm = palDims(maat), pbr = X().pbRegels(c).find(r => r.soort === 'pallet' && num(r.cbm) && num(r.aantal));
+  if(pbr){ const h = num(pbr.cbm) / num(pbr.aantal) / (pm[0] * pm[1] / 1e4) * 100; if(h > 20 && h < 260) return { v:String(rond10(h)), why:'pakbon: ' + nf(num(pbr.cbm) / num(pbr.aantal), 2) + ' m³ per pallet op ' + pm.join('x') + ', naar boven op 10 cm', r:'hoogte:pakbon' }; }
   { const l = leerOf(c, 'hoogte', [['levmaat', 2], ['fam', 3]]); if(l) return Object.assign(l, { v:String(rond10(num(l.v))) }); }
-  const r = pdVs(c, 'hoogte', r => ['hoogte:genoot', 'hoogte:cbm', 'hoogte:afm', 'oud'].includes(r.r) || (r.r === 'hoogte:regel' && !/al het andere/.test(r.bron || '')));
-  if(r && num(r.v) > 0) return { v:String(rond10(num(r.v))), why:r.bron + ', naar boven op 10 cm', r:'hoogte:pd-' + r.r };
-  const e = P().S.extra[c] || {}, l = num(e.lengte_product_cm), b = num(e.breedte_product_cm), h = num(e.hoogte_product_cm);
-  if(!(l > 0 && b > 0 && h > 0)) return { mis:'afmetingen per stuk ontbreken in Picqer' };
-  if(!(spp > 0)) return { mis:'eerst stuks per pallet' };
-  const pm = String(maat || '').match(/(\d+)\s*x\s*(\d+)/), PL = pm ? +pm[1] : 80, PB = pm ? +pm[2] : 120;
-  const per = Math.max(Math.floor(PL / l) * Math.floor(PB / b), Math.floor(PL / b) * Math.floor(PB / l), 1), lagen = Math.ceil(spp / per);
-  return { v:String(rond10(lagen * h + 15)), why:'afmetingen per stuk: ' + nf(per) + ' per laag, ' + nf(lagen) + ' lagen × ' + nf(h) + ' cm + 15 cm pallet, naar boven op 10 cm', r:'hoogte:afm' };
+  const R = maatRegel(c);
+  if(R.r === 'maat:regel') return { v:String(R.h), why:R.why + ' (hoogte incl. pallet)', r:'hoogte:regel' };
+  const L = lagenHoogte(c, spp, maat);
+  if(L && L.hoog >= 30 && L.hoog <= MAXH) return { v:String(rond10(L.hoog)), why:'lagen op ' + pm.join('x') + ': ' + nf(L.x.per) + ' per laag (' + L.x.pl + ' cm), ' + nf(L.lagen) + ' lagen × ' + nf(L.x.h) + ' cm + 15 cm pallet, naar boven op 10 cm', r:'hoogte:lagen' };
+  if(L) return { v:String(rond10(L.hoog)), why:'lagen op ' + pm.join('x') + ' geven ' + nf(L.hoog) + ' cm', r:'hoogte:lagen' };
+  if(!stukDims(c) && R) return { v:String(R.h), why:R.why + ' (hoogte incl. pallet)', r:'hoogte:' + R.r.split(':')[1] };
+  return { mis:spp > 0 ? 'afmetingen per stuk ontbreken in Picqer' : 'eerst stuks per pallet' };
 }
 function vsLvl(c){
   const R = X().regelVan(c); if(R){ try{ const d = R.doel(c); if(d && d.lvl !== undefined && d.lvl !== null) return { v:String(d.lvl), why:'aanvulregel: ' + R.t, r:'lvl:regel' }; }catch(e){} }
+  // dezelfde regels van Daan ook zonder picklocatie (de aanvulregel zelf geldt alleen met picklocatie)
+  if(/bureaustoel/i.test(naamVan(c)) && !isSam(c)) return { v:'0', why:'regel Daan: bureaustoelen aanvullen als de picklocatie leeg is (bij 0), met een volle pallet', r:'lvl:regel' };
+  if(isWB(c) && !isSam(c)) return { v:'3', why:'regel Daan: whiteboards aanvullen bij 3', r:'lvl:regel' };
   if(/wandrek/i.test(naamVan(c)) && !isSam(c)) return { v:'2', why:'regel Daan: wandrekken aanvullen bij 2, met hele omdozen', aan:'wandrek', r:'lvl:wandrek' };
   { const g = vanGenoot(c, 'lvl'); if(g) return Object.assign(g, { r:'lvl:genoot' }); }
   { const l = leerOf(c, 'lvl', [['fammaat', 1], ['fam', 2]]); if(l) return l; }
@@ -609,21 +703,27 @@ function vsMax(c, so, ink){
   if(so === 'pick' && ink) return opDoos(c, { v:String(ink.meestal), why:'meest gebruikte inkoop per order: ' + nf(ink.meestal) + (ink.meestalN > 1 ? ' (' + ink.meestalN + '×)' : ''), r:'max:inkoop' });
   return null;
 }
-const VN_WEG = /\s*-\s*(PER\s+(CM|METER|ROL|STUK|M2)|FULL ROLL)\s*$/i;
+/* vloernaam (correctie): productcode (tenzij langer dan 14 tekens) + " - " + korte omschrijving met de onderscheidende kenmerken,
+   bijv. "4560WM - Whiteboard magnetisch 45x60". Lopers en matten met dikte. Een palletlabel-naam gaat voor, tenzij die alleen de code is. */
+const VN_WEGDEEL = /^(per\s+(stuk|cm|meter|strekkende meter|rol|m2)|full roll|volle rol \/ full roll|\d+([.,]\d+)?\s*m2|€.*|\d+\s*stuks?|.*\*per\s+meter\*.*|outdoor.*|indoor.*|paardenbak|paardenstal)$/i;
 function korteOmschrijving(c){
-  let s = naamVan(c).replace(VN_WEG, '').replace(/\s*-\s*€.*$/, '').replace(/\s*=\s*[A-Z0-9 ]+$/, '');
-  s = s.replace(/\s*[-–|]\s*/g, ' ').replace(/\b(dikte|breedte)\b\s*/gi, '').replace(/\s+x\s+/g, 'x').replace(/(\d)\s+(mm|cm)\b/gi, '$1$2').replace(/\s{2,}/g, ' ').trim();
-  return s.toLowerCase().replace(/^./, m => m.toUpperCase());
+  let n = naamVan(c).replace(/\s*=\s*[A-Z0-9][A-Z0-9 ]*$/, '').replace(/\*[^*]*\*/g, ' ');
+  const delen = n.split(/\s+[-–|]\s+/).map(x => x.trim()).filter(Boolean).filter(x => !VN_WEGDEEL.test(x));
+  let maat = '';
+  const tekst = delen.map(d => d.replace(/(\d+(?:[.,]\d+)?)\s*[x×]\s*(\d+(?:[.,]\d+)?)(?:\s*[x×]\s*\d+(?:[.,]\d+)?)?\s*(cm)?/gi, (m0, a, b) => { if(!maat) maat = a + 'x' + b; return ' '; }).replace(/\b(\d+(?:[.,]\d+)?)\s+(mm|cm)\b/gi, '$1$2').replace(/\b(dikte|breedte)\s*/gi, '').replace(/\s{2,}/g, ' ').trim()).filter(Boolean);
+  let s = tekst.join(' ').replace(/\s{2,}/g, ' ').trim();
+  if(maat && !/\d+x\d+/.test(s)) s += ' ' + maat;
+  s = s.toLowerCase().replace(/^./, m => m.toUpperCase());
+  const w = s.split(' '); while(w.join(' ').length > 48 && w.length > 3) w.splice(w.length - 2, 1);   // te lang: middenwoorden eruit, maat/kleur aan het eind blijft
+  return w.join(' ');
 }
+const alleenCode = (c, v) => vnN(v) === vnN(c) || vnN(v).replace(vnN(c), '').length < 3;
+function vnRegel(c){ const k = korteOmschrijving(c); if(!k) return c; return String(c).length > 14 ? k : c + ' - ' + k; }
 function vsVn(c){
-  try{ const o = X().oudeWaarde(c, 'vn'); if(o && !o.conflict && o.v) return { v:o.v, why:'staat al op het palletlabel', r:'vn:label' }; }catch(e){}
-  const r = pdVs(c, 'vn', r => r.r === 'vn:genoot'); if(r) return { v:r.v, why:r.bron, r:'vn:genoot' };
-  const l = leerOf(c, 'vn', [['fammaat', 1], ['fam', 2], ['levmaat', 2], ['lev', 3]]);
-  if(l && VNVORM[l.v]){ const v = VNVORM[l.v](c); if(v) return { v, why:'zoals Daan het in ' + l.why.replace(/^Daans keuze bij /, '') + ' doet (vorm: ' + VNTXT[l.v] + ')', r:l.r }; }
-  // geen voorbeeld in de familie: Daans meest gebruikte vorm over alles is alleen de code
-  return { v:c, why:'Daans meest gebruikte vorm (alleen de code); geen voorbeeld in deze familie', aan:'vn', r:'vn:code' };
+  try{ const o = X().oudeWaarde(c, 'vn'); if(o && !o.conflict && o.v && !alleenCode(c, o.v)) return { v:o.v, why:'staat al op het palletlabel', r:'vn:label' };
+    if(o && o.conflict){ const l = o.conflict.map(x => x.v).filter(v => v && !alleenCode(c, v)); if(l.length) return { v:l[0], why:'palletlabels verschillen: ' + l.join(' / '), alt:l, tw:l.length > 1, r:'vn:label' }; } }catch(e){}
+  return { v:vnRegel(c), why:String(c).length > 14 ? 'code is lang (> 14 tekens): alleen de korte omschrijving' : 'productcode + korte omschrijving met de onderscheidende kenmerken', r:'vn:regel' };
 }
-const VNTXT = { code:'alleen de code', naam:'de Picqer-naam', naam1:'eerste deel van de naam', naam2:'eerste twee delen van de naam', naamzm:'naam zonder m² en per meter', codenaam:'code + naam', codenaam1:'code + eerste deel van de naam', naamcode:'naam - code' };
 function vsVerp(c){
   const r = X().pbRegels(c).find(r => r.soort !== 'pallet' && num(r.per) > 1);
   if(r) return { v:nf(num(r.per) * (num(r.factor) || 1)) + ' doos', why:'pakbon: ' + nf(num(r.per)) + ' per doos' };
@@ -754,14 +854,14 @@ function calc(c, k, I){
   const w = x => waarde(c, x, I), uitVs = (...ks) => ks.some(x => ['voorstel', 'twijfel'].includes(w(x).st));
   const g = gewicht(c);
   switch(k){
-    case 'maxcalc': { const a = nOf(w('lvl').v), b = nOf(w('spp').v); return a !== null && b !== null ? { v:String(a + b), why:'aanvullen bij ' + nf(a) + ' + stuks per pallet ' + nf(b), vs:uitVs('lvl', 'spp') } : { v:'', why:'eerst aanvullen bij en stuks per pallet' }; }
+    case 'maxcalc': { const a = nOf(w('lvl').v), b = nOf(w('spp').v); if(a === null || b === null) return { v:'', why:'eerst aanvullen bij en stuks per pallet' }; const vk = vkMaand(c), m = a + b; return { v:String(m), why:'aanvullen bij ' + nf(a) + ' + stuks per pallet ' + nf(b), vs:uitVs('lvl', 'spp'), oranje:!vk || m > 3 * vk, warn:!vk ? 'controleer: geen verkoop gemeten' : m > 3 * vk ? 'controleer: meer dan 3 maanden verkoop (' + nf(vk) + ' per maand)' : '' }; }
     case 'aanvmet': {
       const a = nOf(w('maxpick').v), b = nOf(w('lvl').v); if(a === null || b === null) return { v:'', why:'eerst max op pick en aanvullen bij' };
       const v = a - b, vp = String(w('verp').v || ''), n = num((vp.match(/^\s*(\d+(?:[.,]\d+)?)/) || [])[1]);
       const warn = v < 0 ? 'max op pick is kleiner dan aanvullen bij' : n > 1 && v % n ? nf(v) + ' is geen veelvoud van de inkoopverpakking (' + vp.trim() + ')' : '';
       return { v:String(v), why:'max ' + nf(a) + ' − bij ' + nf(b), warn, vs:uitVs('maxpick', 'lvl') };
     }
-    case 'gewpal': { const s = nOf(w('spp').v); if(s === null) return { v:'', why:'eerst stuks per pallet' }; if(!(g.kg > 0)) return { v:'', why:'gewicht per stuk onbekend' }; const v = Math.ceil(s * g.kg + 15); return { v:String(v), why:nf(s) + ' × ' + nf(g.kg, 3) + ' kg + 15 kg pallet', vs:uitVs('spp') || g.st === 'niet' }; }
+    case 'gewpal': { const s = nOf(w('spp').v); if(s === null) return { v:'', why:'eerst stuks per pallet' }; if(!(g.kg > 0)) return { v:'', why:'gewicht per stuk onbekend' }; const v = Math.ceil(s * g.kg + 15); return { v:String(v), why:nf(s) + ' × ' + nf(g.kg, 3) + ' kg + 15 kg pallet', vs:uitVs('spp') || g.st === 'niet', uitzoeken:v > 1500, oranje:v > 1000 && v <= 1500, warn:v > 1500 ? 'boven 1.500 kg: klopt stuks per pallet of het gewicht? uitzoeken' : v > 1000 ? 'controleer: boven 1.000 kg' : '' }; }
     case 'plaatsen': { const m = w('maat').v; const v = m ? X().plaatsenUitMaat(m) : null; return v ? { v:String(v), why:'uit palletmaat ' + m + ' (plaats = 90 cm)', vs:uitVs('maat') } : { v:'', why:'eerst palletmaat' }; }
     case 'maxlig': {
       const pl = num(calc(c, 'plaatsen', I).v), gw = num(calc(c, 'gewpal', I).v); if(!pl && !gw) return { v:'', why:'eerst palletmaat en gewicht' };
@@ -927,6 +1027,7 @@ async function meet(voortgang){
       const { c, k, v } = items[i];
       S.verberg = { c, k }; P().S.toets = { code:c, k };
       let vs = null; try{ vs = toetsVoorstel(c, k); }catch(e){}
+      if(vs && k === 'hoogte' && !leeg(vs.v) && (num(vs.v) < 30 || num(vs.v) > MAXH)) vs = null;   // controle: wordt "uitzoeken", geen voorstel
       S.verberg = null; P().S.toets = null;
       const heeft = !!(vs && !leeg(vs.v)), goed = heeft && toetsGelijk(k, vs.v, v);
       const F = velden[k] = velden[k] || { tot:0, met:0, goed:0 }; F.tot++; if(heeft) F.met++; if(goed) F.goed++;
@@ -944,9 +1045,11 @@ let METING = null;
 function meting(){ if(METING) return METING; try{ const m = JSON.parse(localStorage.getItem(MEETKEY) || 'null'); if(m && m.regels) return (METING = m); }catch(e){} return (METING = SCORE0); }
 function zetMeting(m){ METING = { op:m.op, n:m.n, velden:m.velden, regels:m.regels }; try{ localStorage.setItem(MEETKEY, JSON.stringify(METING)); }catch(e){} S.cache.clear(); }
 // score van een regel: { p, n } of null als er te weinig getoetst is
-function scoreVan(r){ const g = r && meting().regels[r]; return g && g.tot >= 5 ? { p:g.goed / g.tot, n:g.tot } : null; }
+// vn:regel is Daans nieuwe vorm (code - omschrijving): zijn oude vloernamen zijn anders, dus die score zegt niets en maakt geen twijfel
+function scoreVan(r){ const g = r && r !== 'vn:regel' && meting().regels[r]; return g && g.tot >= 5 ? { p:g.goed / g.tot, n:g.tot } : null; }
 // ingebouwde meting (27-10-2026, ronde 2), alleen aantallen per veld en per regel; VOOR = de regels van ronde 1
-const SCORE0 = {"op":"2026-10-27","n":2742,"velden":{"opslag":{"tot":465,"met":465,"goed":334},"spp":{"tot":745,"met":660,"goed":455},"maat":{"tot":173,"met":131,"goed":117},"hoogte":{"tot":143,"met":116,"goed":93},"lvl":{"tot":121,"met":86,"goed":74},"maxpick":{"tot":97,"met":82,"goed":61},"vn":{"tot":796,"met":796,"goed":474},"gewicht":{"tot":127,"met":124,"goed":83},"kgst":{"tot":75,"met":75,"goed":56}},"regels":{"soort:8v":{"tot":21,"goed":10},"spp:genoot":{"tot":25,"goed":19},"maat:genoot":{"tot":36,"goed":36},"hoogte:genoot":{"tot":21,"goed":21},"max:picqer":{"tot":35,"goed":28},"vn:code":{"tot":158,"goed":13},"gewpal:som":{"tot":124,"goed":83},"soort:12":{"tot":5,"goed":3},"soort:2":{"tot":3,"goed":0},"spp:vst2":{"tot":157,"goed":131},"opslag:leer-levmaat":{"tot":19,"goed":15},"soort:8":{"tot":25,"goed":16},"spp:inkoop":{"tot":197,"goed":78},"soort:4":{"tot":43,"goed":40},"spp:bulk2":{"tot":65,"goed":55},"spp:vst":{"tot":28,"goed":24},"opslag:leer-fam":{"tot":116,"goed":99},"vn:leer-fam":{"tot":121,"goed":115},"maat:pd-maat:regel":{"tot":29,"goed":18},"hoogte:pd-hoogte:afm":{"tot":7,"goed":2},"vn:leer-lev":{"tot":193,"goed":79},"soort:7":{"tot":9,"goed":3},"opslag:leer-fammaat":{"tot":58,"goed":56},"spp:leer-fammaat":{"tot":125,"goed":98},"vn:genoot":{"tot":193,"goed":164},"vn:leer-fammaat":{"tot":103,"goed":91},"soort:11":{"tot":49,"goed":19},"maat:leer-fam":{"tot":9,"goed":7},"hoogte:pd-hoogte:genoot":{"tot":18,"goed":17},"lvl:genoot":{"tot":37,"goed":33},"kg:picqer":{"tot":48,"goed":31},"soort:10":{"tot":14,"goed":1},"spp:leer-levmaat":{"tot":63,"goed":50},"maat:leer-levmaat":{"tot":38,"goed":38},"hoogte:leer-levmaat":{"tot":34,"goed":33},"kgst:leer-levmaat":{"tot":14,"goed":14},"opslag:leer-lev":{"tot":78,"goed":56},"vn:leer-levmaat":{"tot":28,"goed":12},"maat:pd-maat:genoot":{"tot":18,"goed":17},"lvl:picqer":{"tot":19,"goed":17},"max:genoot":{"tot":36,"goed":26},"lvl:leer-fammaat":{"tot":2,"goed":2},"maxpick:leer-fammaat":{"tot":2,"goed":0},"soort:6":{"tot":24,"goed":16},"hoogte:pd-hoogte:cbm":{"tot":13,"goed":8},"lvl:leer-lev":{"tot":8,"goed":5},"lvl:regel":{"tot":13,"goed":10},"max:regel":{"tot":8,"goed":6},"hoogte:pd-hoogte:regel":{"tot":17,"goed":6},"soort:3":{"tot":1,"goed":0},"kgst:leer-fammaat":{"tot":13,"goed":11},"hoogte:leer-fam":{"tot":6,"goed":6},"maat:rolhd":{"tot":1,"goed":1},"lvl:wandrek":{"tot":6,"goed":6},"lvl:leer-fam":{"tot":1,"goed":1},"max:inkoop":{"tot":1,"goed":1}}};
+const SCORE0 = {"op":"2026-10-27","n":2742,"velden":{"opslag":{"tot":465,"met":465,"goed":334},"spp":{"tot":745,"met":584,"goed":483},"maat":{"tot":173,"met":173,"goed":148},"hoogte":{"tot":143,"met":139,"goed":89},"lvl":{"tot":121,"met":86,"goed":71},"maxpick":{"tot":97,"met":82,"goed":61},"vn":{"tot":796,"met":796,"goed":8},"gewicht":{"tot":127,"met":124,"goed":102},"kgst":{"tot":75,"met":75,"goed":56}},"regels":{"soort:8v":{"tot":21,"goed":10},"spp:genoot":{"tot":238,"goed":199},"maat:genoot":{"tot":36,"goed":33},"hoogte:genoot":{"tot":21,"goed":21},"max:picqer":{"tot":35,"goed":28},"vn:regel":{"tot":796,"goed":8},"gewpal:som":{"tot":124,"goed":102},"soort:12":{"tot":5,"goed":3},"soort:2":{"tot":3,"goed":0},"spp:pallets":{"tot":205,"goed":169},"opslag:leer-levmaat":{"tot":19,"goed":15},"soort:8":{"tot":25,"goed":16},"soort:4":{"tot":43,"goed":40},"spp:verplaatst":{"tot":63,"goed":55},"opslag:leer-fam":{"tot":116,"goed":99},"maat:regel":{"tot":38,"goed":31},"hoogte:regel":{"tot":21,"goed":9},"soort:7":{"tot":9,"goed":3},"opslag:leer-fammaat":{"tot":58,"goed":56},"soort:11":{"tot":49,"goed":19},"maat:leer-fam":{"tot":9,"goed":7},"hoogte:regel-rest":{"tot":37,"goed":10},"lvl:genoot":{"tot":34,"goed":30},"kg:picqer":{"tot":48,"goed":31},"soort:10":{"tot":14,"goed":1},"spp:leer-levmaat":{"tot":62,"goed":49},"maat:leer-levmaat":{"tot":38,"goed":38},"hoogte:leer-levmaat":{"tot":34,"goed":33},"kgst:leer-levmaat":{"tot":14,"goed":14},"opslag:leer-lev":{"tot":78,"goed":56},"maat:regel-rest":{"tot":43,"goed":33},"lvl:picqer":{"tot":19,"goed":17},"max:genoot":{"tot":36,"goed":26},"maat:regel-naam":{"tot":9,"goed":6},"hoogte:lagen":{"tot":6,"goed":2},"lvl:leer-fammaat":{"tot":2,"goed":2},"maxpick:leer-fammaat":{"tot":2,"goed":0},"soort:6":{"tot":24,"goed":16},"spp:pakbon":{"tot":16,"goed":11},"hoogte:pakbon":{"tot":13,"goed":8},"lvl:leer-lev":{"tot":4,"goed":1},"lvl:regel":{"tot":20,"goed":14},"max:regel":{"tot":8,"goed":6},"soort:3":{"tot":1,"goed":0},"kgst:leer-fammaat":{"tot":13,"goed":11},"hoogte:leer-fam":{"tot":6,"goed":6},"hoogte:regel-naam":{"tot":1,"goed":0},"lvl:wandrek":{"tot":6,"goed":6},"lvl:leer-fam":{"tot":1,"goed":1},"max:inkoop":{"tot":1,"goed":1}}};
+// ronde 2 (vóór de correctie) staat in docs; SCORE_VOOR = ronde 1
 const SCORE_VOOR = {"op":"2026-10-27","n":2742,"velden":{"opslag":{"tot":465,"met":465,"goed":185},"spp":{"tot":745,"met":598,"goed":373},"maat":{"tot":173,"met":110,"goed":91},"hoogte":{"tot":143,"met":101,"goed":71},"lvl":{"tot":121,"met":44,"goed":36},"maxpick":{"tot":97,"met":56,"goed":37},"vn":{"tot":796,"met":796,"goed":172},"gewicht":{"tot":127,"met":124,"goed":74},"kgst":{"tot":75,"met":75,"goed":33}}};
 
 /* ---------- overzetten naar de echte productdata (ronde 2: gebouwd, maar UIT) ----------
@@ -1029,7 +1132,7 @@ function telling(){
 }
 
 return { S, AANNAMES, KEY_OEFEN, KEY_FB, laad, flush, plan, schrijf, po, poZet, poHerstel, wisAlles, oefDone, fbTab, fbOpm, fbOpmWeg, fbAann, mgPlus,
-  koppelVan, isKoppel, koppelTekst, wegLicht, famVan, maatVan, famNaam, isSam, naamVan, abcVan, actief, kgPq, vk6, vk28, inkoop, backorders, inkomend, locInfo, som, anderOpPlek,
+  koppelVan, isKoppel, koppelTekst, wegLicht, controle, maatRegel, vnRegel, sppUitBronnen, famVan, maatVan, famNaam, isSam, naamVan, abcVan, actief, kgPq, vk6, vk28, inkoop, backorders, inkomend, locInfo, som, anderOpPlek,
   VELD, SOORTEN, SOORTT, WEG, KOLOMMEN, NODIG, ROLNODIG, SAMVELD, MATEN, MATEN_WB, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
   rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
   vraagLive, liveStatus, meet, meting, zetMeting, scoreVan, pd2Overzetten, overzetPlan, overzetToepassen, overzetTerug, overzetEcht, toetsItems, TOETSVELD, SCORE_VOOR, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };

@@ -73,7 +73,7 @@ table.pd2-t{border-collapse:separate;border-spacing:0;width:max-content;min-widt
 .pd2-t input,.pd2-t select{font:inherit;font-size:13px;border:1px solid #cfd7e1;border-radius:6px;padding:5px 6px;min-height:36px;background:transparent;color:var(--ink)}
 .pd2-t input.n{width:66px;text-align:right;font-variant-numeric:tabular-nums}
 .pd2-t input.tx{width:190px}
-.pd2-t input.vn{width:165px}
+.pd2-t input.vn{width:250px}
 .pd2-t td.c-voorstel{background:var(--g-geel)} .pd2-t td.c-twijfel{background:var(--g-oranje)}
 .pd2-t td.c-bevestigd,.pd2-t td.c-aangepast,.pd2-t td.c-vastgelegd{background:var(--g-groen)}
 .pd2-t td.c-leeg{background:var(--g-rood)} .pd2-t td.c-calc{background:var(--g-grijs);color:#3b4652;font-variant-numeric:tabular-nums}
@@ -139,3 +139,4 @@ table.pd2-t{border-collapse:separate;border-spacing:0;width:max-content;min-widt
   #pd2-printvak td.vak{width:22mm;height:9mm}
   @page{size:A4;margin:12mm}
 }
+.pd2-t td.c-uitzoeken{background:var(--g-rood);box-shadow:inset 3px 0 0 var(--rood)}

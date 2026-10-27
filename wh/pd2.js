@@ -225,13 +225,13 @@ function gewKnop(c){
   return `<button class="pd2-gew ${g.st}${afw ? ' let' : ''}" data-a="gew" title="${esc(((R.GEWST.find(x => x[0] === g.st) || [])[1] || '') + (afw ? ' · ' + afw : ''))}"><b>${g.kg > 0 ? nf(g.kg, g.kg < 10 ? 3 : 1) + ' kg' : '? kg'}</b><i>${esc(GEWKORT[g.st] || '')}${g.vast ? ' · vast' : ''}</i></button>`;
 }
 const opmN = c => R.S.fb.opm.filter(x => x.code === c).length;
-const cls = (w, nodig) => w.st === 'leeg' ? (nodig ? 'c-leeg' : 'c-nvt') : 'c-' + w.st;
+const cls = (w, nodig) => w.st === 'leeg' ? (nodig ? 'c-leeg' : 'c-nvt') : 'c-' + w.st;   // c-uitzoeken = rood met reden
 function veldCel(c, k, I, nodig){
   const d = R.VELD[k];
   if(I.sam && !R.SAMVELD.has(k)) return `<td class="c-nvt"><i class="pd2-tag sam">SAM: minimaal</i></td>`;
   if(d.calc){
     const x = R.calc(c, k, I);
-    return `<td class="c-calc${x.vs ? ' vs' : ''}" title="${esc(x.why || '')}">${esc(x.v || '–')}${x.warn ? `<span class="pd2-w">${esc(x.warn)}</span>` : ''}</td>`;
+    return `<td class="${x.uitzoeken ? 'c-uitzoeken' : x.oranje ? 'c-twijfel' : 'c-calc'}${x.vs ? ' vs' : ''}" title="${esc(x.why || '')}">${esc(x.v || '–')}${x.warn ? `<span class="pd2-w">${esc(x.warn)}</span>` : ''}</td>`;
   }
   if(k === 'pickc') return pickCel(c, I, nodig);
   const w = R.waarde(c, k, I), v = w.v, tt = esc((w.why ? w.why : '') + (w.st === 'vastgelegd' ? '' : ''));
@@ -256,6 +256,9 @@ function veldCel(c, k, I, nodig){
   if(k === 'hoogte'){ const hw = R.hoogteWaarsch(c, v, I); if(hw) extra = `<span class="pd2-w">${esc(hw)}</span>`; }
   if(w.st === 'twijfel') extra += `<span class="pd2-s">twijfel${w.alt ? ': ' + esc(w.alt.join(' / ')) : ''}${w.sc && w.sc.p < 0.6 ? ' · klopte ' + Math.round(w.sc.p * 100) + '%' : ''}</span>`;
   if(w.st === 'vastgelegd') extra += '<span class="pd2-s">vastgelegd</span>';
+  if(w.st === 'leeg' && nodig && w.why) extra += `<span class="pd2-w" title="${esc(w.why)}">uitzoeken: ${esc(w.why.split(':')[0].slice(0, 60))}</span>`;
+  if(w.st === 'uitzoeken') extra += `<span class="pd2-w">uitzoeken: ${esc(w.why.split(' (voorstel was')[0])}</span><span class="pd2-s">voorstel ${esc(w.afgewezen)} afgewezen</span>`;
+  else if(w.ct && w.st === 'twijfel' && !w.alt) extra += `<span class="pd2-s">${esc(w.ct.why)}</span>`;
   return `<td class="${cls(w, nodig)}" title="${tt}" data-kc="${k}">${ctl}${extra}</td>`;
 }
 function pickCel(c, I, nodig){

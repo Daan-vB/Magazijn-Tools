@@ -17,6 +17,7 @@ ook `main` op 8812 (`git worktree add ../main-wt origin/main` en daar `python3 -
 | `meting.js` | ronde 2: per veld hoe vaak het voorstel klopt bij Daans eigen invoer (doet alsof elke waarde er niet is); schrijft alleen aantallen |
 | `ronde2.js` | ronde 2: overzetten alleen tegen een kopie (eigen invoer blijft, terugdraaien), rollen, Weg voor alles, aandacht per familie, weeglijst (reachtruck en print) |
 | `laadtijd.js` | laadtijd van #/pd2: eerste keer en daarna (met de momentopname) |
+| `zelfcontrole.js` | correctie 2b: alle producten in de Belangrijk-families: per veld hoeveel voorstellen geel, twijfel, uitzoeken en per bron (alleen aantallen) |
 | `db-hash.sh` | hash van productdata, wh-pd-fam, catalog-ean en de pd2-rijen; vóór en na een test draaien en vergelijken |
 
 Voorbeeld: `UIT_MAP=/tmp/pd2 node test/pd2/oefening.js`

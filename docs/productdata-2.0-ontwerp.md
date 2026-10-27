@@ -282,7 +282,60 @@ die kopie. Vlag `pd2Overzetten = false`: knop verborgen, `overzetEcht` weigert. 
 product: Pallet of Deel met stuks per pallet = volle pallet met de reachtruck (veld palletgewicht: (pallet − 15) / stuks per
 pallet), de rest los op de weegschaal. Knop "Print weeglijst (A4)": tabel per hal en gang met vakjes voor kg.
 
-## Aannames (ronde 1 en 2)
+## Correctie ronde 2b (27-10-2026): alle bronnen, controle vóór tonen
+Aanleiding: bij Whiteboard Magnetisch (Ningbo Henri) stelde 2.0 200 per pallet voor (= inkoop van meerdere pallets), hoogtes
+van 340–1.620 cm, een palletgewicht van 2.415 kg, max op pick 203, een vloernaam met alleen de code en geen palletmaat.
+
+**Bronnen per product, in deze volgorde** (de bron staat onder ⓘ bij elk voorstel):
+a. Daans eigen invoer in productdata → "vastgelegd". b. Palletlabel-generator (catalog-ean): stuks per pallet (qty, alleen een
+echt getal) en de labelnaam; verschillende labelregels = twijfel met de opties. c. Verplaatsingen: aantal naar VST en van
+bulk naar pick bij volle pallets. d. ≥ 2 VST- of bulkpallets met hetzelfde aantal. e. Pakbonnen/containers: per pallet, m³
+(hoogte), palletmaat. f. Kleurgenoot (zelfde familie en maat) met een waarde uit a–e. g. Inkoop: alleen bewijs voor de soort,
+nooit stuks per pallet. Daarna Daans patronen bij dezelfde leverancier en maat (of familie). Nooit een aantal van een andere
+leverancier; een regel als "50 per krat" bestaat niet in de code.
+Palletmaat komt altijd uit de maatregels als er geen bron is (whiteboards: kleinste opslagmaat waar het bord in past, grote
+borden met ruimte in de lengte; ringmatten plat op hun maat; ringmat op rol 100x150; bureaustoelen 80x120; tegels CE
+110x110; al het andere 80x120, met twijfel als de productmaat uit de naam nergens op past). Hoogte: kleurgenoot, pakbon (m³),
+Daans patroon, de maatregel, anders lagen op de palletmaat uit de afmetingen per stuk (elke richting, 7 cm overstek), nooit
+stuks × dikte.
+
+**Controle vóór tonen** (alleen voorstellen; jouw invoer en vastgelegde waarden niet): hoogte 30–250 cm, anders rood
+"uitzoeken" met de reden (het afgewezen voorstel staat erbij); stuks per pallet moet fysiek passen (Picqer-afmetingen op de
+palletmaat tot 250 cm, > 15% erboven = twijfel) en het palletgewicht mag niet boven 1.500 kg komen (twijfel); gewicht volle
+pallet boven 1.500 kg = "uitzoeken", boven 1.000 kg = oranje "controleer"; max op pick meer dan 3 maanden verkoop of zonder
+verkoop = oranje "controleer". Geen bron = leeg, rood, "uitzoeken" met de reden.
+
+**Vloernaam**: productcode (tot 14 tekens) + " - " + korte omschrijving met de onderscheidende kenmerken (merk/lijn, kleur,
+maat zonder "cm", dikte bij lopers en matten), bijv. "4560WM - Whiteboard magnetisch 45x60". Een palletlabel-naam gaat voor,
+tenzij die alleen de code is.
+
+**Meting tegen Daans eigen invoer** (bron a weggelaten; het palletlabel van hetzelfde product ook, omdat dat vaak de bron van
+Daans waarde was):
+
+| Veld | Ronde 1 | Ronde 2 | Nu | Klopt als er een voorstel is |
+|---|---|---|---|---|
+| Soort | 40% | 72% | 72% | 72% |
+| Stuks per pallet | 50% | 61% | 65% | 83% |
+| Palletmaat | 53% | 68% | 86% | 86% |
+| Hoogte incl. pallet | 50% | 65% | 62% | 64% |
+| Aanvullen bij | 30% | 61% | 59% | 83% |
+| Max op pick | 38% | 63% | 63% | 74% |
+| Vloernaam | 22% | 60% | 1% | 1% |
+| Gewicht per stuk | 44% | 75% | 75% | 75% |
+| Gewicht volle pallet | 58% | 65% | 80% | 82% |
+
+Stuks per pallet heeft nu minder vaak een voorstel (geen inkoop meer), maar als er een is klopt het in 83% (was 69%).
+Vloernaam: Daans oude vloernamen zijn vaak alleen de code; de nieuwe vorm is zijn eigen regel, de score zegt daar niets.
+
+**Zelfcontrole** (alle producten in de Belangrijk-families, zonder Weg): 1049 producten in 274 families.
+- Stuks per pallet: leeg 484, voorstel 392, twijfel 94, vastgelegd 37. Bron: label 386, genoot 72, leer-levmaat 14, pallets 11, pakbon 2, verplaatst 1.
+- Palletmaat: voorstel 905, vastgelegd 80, twijfel 12, leeg 10. Hoogte: twijfel 714, voorstel 163, leeg 70, vastgelegd 55, uitzoeken 5 (de twijfel komt vooral van de maatregel-hoogtes, die bij jouw invoer 43% klopten).
+- Aanvullen bij: voorstel 555, leeg 289, vastgelegd 163. Max op pick: voorstel 395, leeg 344, vastgelegd 137, twijfel 131. Vloernaam: voorstel 910, vastgelegd 86, leeg 10, twijfel 1.
+- Gewicht volle pallet: leeg 520, ok 452, controleer 31, uitzoeken 4. Max op pick (pallet, berekend): leeg 634, ok 227, controleer 146.
+Regel voor regel bekeken: Whiteboard Magnetisch (Ningbo), FWB (Hebei), Schoonloopmat Mars, Trapmaantje Spurt, Kokos, ringmat
+(op rol en met maat), bureaustoelen, rubber tegels CE.
+
+## Aannames (ronde 1, 2 en 2b)
 Staan ook als chip "aanname" in de pagina (en onderaan de pagina in één lijst). Daan keurt ze goed of af in de oefening;
 het oordeel komt mee in "Kopieer alles voor Claude". Bron in de code: `AANNAMES` bovenin `wh/pd2-reken.js` (samen bijwerken).
 - `zoek`: Zoeken kijkt in alle actieve producten, ook buiten de gekozen scope (anders vind je bijv. Waterhog zonder voorraad niet).
@@ -301,6 +354,14 @@ het oordeel komt mee in "Kopieer alles voor Claude". Bron in de code: `AANNAMES`
 - `wegalle`: Weg-voorstel voor alle producten: dezelfde regels als in tab 5. Heeft Daan in de familie al een soort gekozen, dan telt "geen voorraad" als tijdelijk op en komt er geen Weg-voorstel.
 - `snap`: Snel openen: 2.0 bewaart na het laden een kopie op dit apparaat (IndexedDB, max 7 dagen oud) en tekent daar eerst mee ("gegevens van hh:mm, bijwerken…"); daarna ververst het op de achtergrond. Typ je net, dan wacht het verversen tot je klaar bent.
 - `overzet`: Overzetten naar de echte productdata is gebouwd maar staat uit (pd2Overzetten = false, knop verborgen). Overgezet wordt alleen wat jij bevestigde of aanpaste; Uitlopend gaat als datum mee, Backorder en Archief hebben nog geen veld in productdata.
+- `bronnen`: Stuks per pallet alleen uit palletlabel, verplaatsingen, ≥ 2 gelijke pallets, pakbon of kleurgenoot (daarna Daans patroon bij dezelfde leverancier en maat). Nooit uit inkoop en nooit van een andere leverancier. Zonder bron: leeg, "uitzoeken".
+- `fysiek`: Past fysiek: de Picqer-afmetingen per stuk in alle richtingen op de palletmaat, 7 cm overstek, tot 250 cm hoog incl. 15 cm pallet. Meer dan 15% boven wat past = twijfel. Kloppen de afmetingen in Picqer niet (bijv. doosdikte), dan zie je dat hier.
+- `labelqty`: Een palletlabel met een aantal dat geen getal is (bijv. "6090WM") telt niet als stuks per pallet.
+- `grootwb`: Grote whiteboards (200 cm en langer) krijgen een palletmaat met ruimte in de lengte (120x200 → 120x210, 120x240 → 130x250), zoals in jouw eigen invoer.
+- `ringmat`: Ringmatten met een maat in de naam liggen plat op de kleinste opslagmaat waar ze op passen (100x100, 80x120, 100x200); ringmat op rol → 100x150.
+- `lvlnaam`: Bureaustoelen bij 0 en whiteboards bij 3 gelden ook voor producten zonder picklocatie (de aanvulregel zelf geldt alleen met picklocatie).
+- `vnregel`: Vloernaam = code + " - " + korte omschrijving (code langer dan 14 tekens: alleen de omschrijving). Je oude vloernamen waren vaak alleen de code, dus de gemeten score (1%) zegt hier niets en maakt geen twijfel.
+- `maxverk`: Max op pick: "controleer" (oranje) als het meer is dan 3 maanden verkoop, gemeten als het hoogste van 6-maanden- en 28-dagengemiddelde per maand; zonder verkoop ook "controleer".
 - `tegen`: Per pallet meer dan ooit besteld: stuks per pallet groter dan de grootste inkooporder van 12 maanden, of twee bronnen noemen een ander aantal.
 - `vk28`: Verkoop over 28 dagen = Picqer-analyse "stuks per dag" × 30 (zoals in Per familie).
 - `gewafw`: Gewicht "sterk anders": meer dan 30% afwijking van het midden (mediaan) van de familie, per m² als de maat in de naam staat, anders per stuk binnen dezelfde maat.
@@ -314,6 +375,6 @@ het oordeel komt mee in "Kopieer alles voor Claude". Bron in de code: `AANNAMES`
 - `famtop`: Zonder familiekeuze staan de 24 belangrijkste families als tegel. Belang = 3 per A-product + 2 per B-product + 2 per inkomend product + 1 per aandachtspunt; "Meer" toont de rest.
 - `live`: Voorraad per locatie: live uit Picqer (de rijen die op het scherm staan, 20 per vraag, 3 s ertussen; ook de pickstand van het live advies telt als live). Live geldt 30 minuten en wordt na 10 minuten ververst. Wacht als de live-ronde van 3.0 bezig is of Picqer net "te veel" zei; bij een fout 2, 4, 8 … max 30 min pauze. Niet gekoppeld of nog niet opgehaald: de export, met de datum erbij.
 - `wandrek`: Wandrekken: aanvullen bij 2 (met hele omdozen) geldt voor producten met "wandrek" in de naam.
-- `vn`: Vloernaam: zonder palletlabel of voorbeeld in de familie stelt 2.0 alleen de code voor (Daans meest gebruikte vorm, 35% van zijn vloernamen); de gemeten score is laag, dus het staat als twijfel.
+- `vn`: Vloernaam: een naam op het palletlabel gaat voor, tenzij die alleen de code is (of bijna). Verschillen de labels, dan twijfel met de opties.
 - `rolkand`: Rol (voorstel, met "is rol / geen rol") alleen bij Picqer-eenheid meter, cm of rol, of als de naam "op rol", "rol van", "per rol", "volle rol", "rollen", "per meter" of "per cm" zegt, of "rol" samen met een breedte of dikte (niet bij rolstoel, roller, rolluik). Zo'n product staat ook in Rollen tot je kiest; het telt als open tot je kiest.
 - `rolregel`: Rolregels ronde 2: kokos rol = 600 cm lang (6 m); kokos 200 cm 17 mm = 12 rollen per pallet, 24 mm = 6 (vaste aantallen); voor 100 cm kokos geen aantal bekend. Ringmat op rol heavy duty: staand, 6 per pallet, palletmaat 100x150. Gewicht volle rol = gewicht per meter of cm × lengte.
