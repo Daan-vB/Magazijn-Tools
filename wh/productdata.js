@@ -144,12 +144,22 @@ const KLEUR_I = new RegExp(KLEUR.source, 'gi');
 const STOP = new Set('per breedte breed dikte dik lengte lang hoogte hoog let op uit de het een en van voor met in rol cm mm incl ca stuk stuks set'.split(' '));
 // "uitlopend" (elke schrijfwijze) hoort niet bij de familie: uitlopende varianten komen bij hun familie. Met kl (de oude kleurenlijst) blijft de oude sleutel zoals hij was.
 const UITL_RE = /uit[\s\-_.]*lopend\w*/gi;
+// maten en eenheden: alleen direct na een getal of als los woord ("10 m", "per m2", "135 cm", "10 x 1 m"), nooit binnen een woord ("10 x 1 meter" blijft "meter")
+const NA = '(?![a-zà-ÿ0-9])';
+const PRIJS_RE = new RegExp('€\\s*[\\d.,]+(?:\\s*per\\s*m(?:2|²)' + NA + ')?', 'gi');
+const MAAT_RE = new RegExp('\\d+[.,]?\\d*\\s*[x×]\\s*\\d+[.,]?\\d*(?:\\s*[x×]\\s*\\d+[.,]?\\d*)?(?:\\s*(?:cm|mm|m)' + NA + ')?', 'gi');
+const EENH_RE = new RegExp('\\d+[.,]?\\d*\\s*(?:mm|cm|m2|m²|m|kg|gr|g|kv|l|st|stuks)' + NA, 'gi');
+// kl = de oude kleurenlijst: dan ook de oude opschoning (met de afkapfout "meter" → "eter"), zodat de oude sleutel van bewaarde namen en concepten herkenbaar blijft
 function famNaam(n, kl){
   let s = String(n || '').toLowerCase();
-  if(!kl) s = s.replace(UITL_RE, ' ');
-  s = s.replace(/€\s*[\d.,]+(\s*per\s*m2)?/g, ' ').replace(kl || KLEUR, ' ');
-  s = s.replace(/\d+[.,]?\d*\s*[x×]\s*\d+[.,]?\d*(\s*[x×]\s*\d+[.,]?\d*)?\s*(cm|mm|m)?/g, ' ');
-  s = s.replace(/\d+[.,]?\d*\s*(mm|cm|m2|m²|m|kg|gr|g|kv|l|st|stuks)\b/g, ' ').replace(/\d+/g, ' ').replace(/[^a-zà-ÿ]+/g, ' ');
+  if(kl){
+    s = s.replace(/€\s*[\d.,]+(\s*per\s*m2)?/g, ' ').replace(kl, ' ');
+    s = s.replace(/\d+[.,]?\d*\s*[x×]\s*\d+[.,]?\d*(\s*[x×]\s*\d+[.,]?\d*)?\s*(cm|mm|m)?/g, ' ');
+    s = s.replace(/\d+[.,]?\d*\s*(mm|cm|m2|m²|m|kg|gr|g|kv|l|st|stuks)\b/g, ' ');
+  }else{
+    s = s.replace(UITL_RE, ' ').replace(PRIJS_RE, ' ').replace(KLEUR, ' ').replace(MAAT_RE, ' ').replace(EENH_RE, ' ');
+  }
+  s = s.replace(/\d+/g, ' ').replace(kl ? /[^a-zà-ÿ]+/g : /[^a-zà-ÿß]+/g, ' ');   // ß hoort bij het woord (Größen, Weiß), anders blijft "grö" of "wei" over
   return s.split(' ').filter(w => w.length > 1 && !STOP.has(w)).join(' ');
 }
 function maatSig(n){
@@ -1726,9 +1736,8 @@ function famCorWaarde(tak, fk){
 // productnaam zonder kleur, maat, prijs en uitlopend, met de productlijn erin ("Schoonloopmat Rood - Mars - 135 x 200 cm" → "Schoonloopmat Mars")
 function schoneNaam(n){
   let s = String(n || '');
-  s = s.replace(UITL_RE, ' ').replace(/€\s*[\d.,]+(\s*per\s*m2)?/gi, ' ').replace(KLEUR_I, ' ');
-  s = s.replace(/\d+[.,]?\d*\s*[x×]\s*\d+[.,]?\d*(\s*[x×]\s*\d+[.,]?\d*)?\s*(cm|mm|m)?/gi, ' ');
-  s = s.replace(/\d+[.,]?\d*\s*(mm|cm|m2|m²|m|kg|gr|g|kv|l|st|stuks)\b/gi, ' ').replace(/\d+/g, ' ').replace(/[^a-zA-Zà-ÿÀ-ß]+/g, ' ');
+  s = s.replace(UITL_RE, ' ').replace(PRIJS_RE, ' ').replace(KLEUR_I, ' ').replace(MAAT_RE, ' ').replace(EENH_RE, ' ');
+  s = s.replace(/\d+/g, ' ').replace(/[^a-zA-Zà-ÿÀ-ß]+/g, ' ');
   const t = s.split(' ').filter(w => w.length > 1 && !STOP.has(w.toLowerCase()) && w.toLowerCase() !== 'uitlopend').join(' ');
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
