@@ -1,7 +1,7 @@
 /* =====================================================================
    IVOL Warehouse 3.0 — nulpunt (10-10-2026)
    Eén ingang voor alles wat in vier weken is gebouwd. Eén menu, ingedeeld op het fundament:
-   aanvuladvies → locaties → producten → inkomend. Rollen: Daan (alles), Karin (administratie), Vloer (Kate, Salah).
+   aanvuladvies → locaties → producten → inkomend. Rollen: Daan (alles), Karin (administratie), Vloer (Kate, Sala).
    De onderdelen zelf zijn de bestaande pagina's (Warehouse, Test, Containers, Junior, Palletlabels …),
    hier in één schil. Vanaf hier wordt elk onderdeel één voor één naar de gedeelde modules overgezet.
    Startpagina "Fundament": de stand van de vier fundamentpunten, uit de echte gegevens.
@@ -77,7 +77,7 @@ const M = [
   { id:'containerlabels', g:'labels', t:'Container / Stockmove-PDF', u:'./container-labels.html', st:'draait', r:ALLE, data:'catalog-ean', uit:'Labels voor een hele container.' },
 
   { id:'zoek', g:'vloer', t:'Product zoeken', native:'x-zoek', st:'proef', r:IEDEREEN, uit:'Waar ligt het, wat weten we erover, en een meldknop voor de vloer.' },
-  { id:'junior', g:'vloer', t:'Junior', u:'./junior.html', st:'draait', r:ALLE, eigenKop:true, data:'zelfde database', uit:'Kate, Salah, rijders: Nu verplaatsen, Aanvulronde, Containers, Handleiding (NL/EN/ES/EL).' },
+  { id:'junior', g:'vloer', t:'Junior', u:'./junior.html', st:'draait', r:ALLE, eigenKop:true, data:'zelfde database', uit:'Kate, Sala, rijders: Nu verplaatsen, Aanvulronde, Containers, Handleiding (NL/EN/ES/EL).' },
 
   { id:'bronnen', g:'geg', t:'Koppeling Picqer', native:'bronnen', st:'draait', r:DV, uit:'Wat live uit Picqer komt, hoe vers, en wat nog een export is.' },
   { id:'gegevens', g:'geg', t:'Gegevens inladen', u:W('#/gegevens'), st:'draait', r:DK, data:'alle exports', uit:'Picqer-exports inslepen.' },
@@ -360,7 +360,7 @@ const NASLAG = [
   { g:'Apps', rijen:[
     ['IVOL Warehouse 3.0', './ivol.html', 'Jouw ingang: alles in één menu'],
     ['IVOL Warehouse', './warehouse.html', 'Dagelijkse basis voor Daan en Karin'],
-    ['Junior', './junior.html', 'Kate, Salah, Valerii · NL/EN/ES/EL'],
+    ['Junior', './junior.html', 'Kate, Sala, Valerii · NL/EN/ES/EL'],
     ['Containers', './containerplanning.html', 'Pakbon, verdeling, losdag, labels, Stockmove, VST-mail'],
     ['Palletlabels', './index.html', 'Labels printen; het oude productgeheugen (catalog-ean)'],
     ['Productkaart', './productkaart.html', 'Alles over één product'],

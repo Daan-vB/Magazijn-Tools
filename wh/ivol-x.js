@@ -311,7 +311,7 @@ function contDagen(w){ w = String(w || '').toLowerCase(); if(/vooraf/.test(w)){ 
 function sorteer(w, lostijd){
   const m = String(w || '').match(/(\d\d):(\d\d)/); if(m) return m[1] + ':' + m[2];
   w = String(w || '').toLowerCase();
-  if(/hele dag/.test(w)) return '00:00'; if(/ochtend/.test(w)) return '07:45'; if(/aankomst/.test(w)) return /^\d\d:\d\d/.test(lostijd || '') ? lostijd.slice(0, 5) : '10:00';
+  if(/hele dag/.test(w)) return '00:00'; if(/ochtend/.test(w)) return '07:45'; if(/aankomst/.test(w)) return /^\d\d:\d\d/.test(lostijd || '') ? lostijd.slice(0, 5) : '09:00';
   if(/einde dag/.test(w)) return '17:30'; if(/vooraf/.test(w)) return '09:00'; if(/ervoor/.test(w)) return '15:00'; return '99:99';
 }
 // ochtendoverleg en einde dag uit de aannames (d-01a, d-01b, d-10); de planning hoort er een half uur na het laatste overleg te staan
