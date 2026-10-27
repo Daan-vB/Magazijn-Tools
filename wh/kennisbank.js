@@ -3,7 +3,8 @@
    Daans eigen plek: 158 korte vragen, één per scherm, wanneer hij er ruimte voor heeft.
    Los van bouwplan, Te doen, Vandaag en kerncijfers: geen taak, geen deadline, geen melding.
    Vragen: wh/kennisbank-vragen.js (window.WHKB_DATA). Antwoorden en voorstellen NIET in de repo:
-   catalog-rij wh-kennisbank = { antw:{ <id>:{ a, s:'ok'|'wie'|'later', wie, van, t } }, voorstel:{ <id>:{ a, bron:'doc'|'gok' } } }
+   catalog-rij wh-kennisbank = { antw:{ <id>:{ a, s:'ok'|'wie'|'later', wie, van, t, keuzes:[…] } }, voorstel:{ <id>:{ a, bron:'doc'|'gok' } } }
+   keuzes = personen/keuzes van de knoppen (Gino, Karin, "ja, bewust"): een apart veld, nooit achter de antwoordtekst a geplakt.
    Reserve: localStorage 'ivol-kennisbank' (als de catalog niet bereikbaar is).
    Eigen antwoorden van Daan worden nooit stil overschreven (samenvoegen per vraag op tijd t).
    ===================================================================== */
@@ -14,7 +15,7 @@ const KEY = 'wh-kennisbank', LKEY = 'ivol-kennisbank';
 const DATA = window.WHKB_DATA || { blokken:{}, mensen:[], vragen:[] };
 const V = DATA.vragen;
 const WIE = DATA.mensen.concat(['Elise', 'Jolijn'].filter(n => !DATA.mensen.includes(n)));
-const S = { d:null, laden:null, i:null, blok:null, el:null, opslag:'', timer:null, fout:false, aangeraakt:false };
+const S = { d:null, laden:null, i:null, blok:null, el:null, opslag:'', timer:null, fout:false, aangeraakt:false, kz:[], kzId:null };
 
 /* ---------- staat ---------- */
 const lsLees = () => { try{ return JSON.parse(localStorage.getItem(LKEY) || 'null'); }catch(e){ return null; } };
@@ -37,7 +38,7 @@ function laad(){
     try{ const r = await WH.catHaal(KEY); S.d = voegSamen((r && r.data) || null, S.d); S.fout = false; }
     catch(e){ S.fout = true; }
     lsZet(S.d); teller();
-    if(!S.aangeraakt && !(($('kb-tekst') || {}).value)){ S.i = null; S.blok = null; herteken(); }   // online stand binnen: opnieuw naar de eerste open vraag
+    if(!S.aangeraakt && !(($('kb-tekst') || {}).value)){ S.i = null; S.blok = null; S.kzId = null; herteken(); }   // online stand binnen: opnieuw naar de eerste open vraag
   })();
   return S.laden;
 }
@@ -61,6 +62,8 @@ function zetOpslag(){ const s = $('kb-opslag'); if(s) s.textContent = S.opslag; 
 
 /* ---------- tellers ---------- */
 const antw = id => (S.d && S.d.antw[id]) || null;
+const kzVan = a => Array.isArray(a && a.keuzes) ? a.keuzes.map(String) : [];
+const zelfde = (x, y) => x.length === y.length && x.every((k, i) => k === y[i]);
 const voorstel = id => (S.d && S.d.voorstel[id]) || null;
 const ok = id => (antw(id) || {}).s === 'ok';
 const nBevestigd = () => V.filter(v => ok(v.id)).length;
@@ -135,11 +138,6 @@ function status(id){
   if(v) return ['voorstel', 'vs'];
   return ['open', ''];
 }
-function keuzesNu(v, tekst){
-  const t = String(tekst || '').toLowerCase();
-  if(v.soort === '1') return v.keuzes.filter(k => t.trim() === k.toLowerCase());
-  return v.keuzes.filter(k => t.split(/\s*,\s*/).map(x => x.trim()).includes(k.toLowerCase()));
-}
 function view(){
   if(!V.length) return '<div class="kb"><p class="leeg">Geen vragen gevonden.</p></div>';
   if(S.i === null) S.i = antw(V[0].id) ? volgendOpen(-1) : 0;
@@ -151,7 +149,8 @@ function view(){
   const nB = nBevestigd();
   const toonVs = vs && !(a && a.s === 'ok');
   const vraagteken = vs && /^\s*\?/.test(vs.a || '');
-  const gekozen = keuzesNu(v, tekst);
+  if(S.kzId !== v.id){ S.kzId = v.id; S.kz = kzVan(a); }   // de gekozen knoppen horen bij het antwoord, niet bij de tekst
+  const gekozen = S.kz;
   const blokken = Object.keys(DATA.blokken);
   const inBlok = V.map((x, j) => [x, j]).filter(([x]) => blokVan(x.id) === S.blok);
   return `<div class="kb">
@@ -199,7 +198,7 @@ function render(el){
   S.el = el;
   el.innerHTML = '<div id="kb-root"></div>';
   if(!S.d) laad();
-  S.i = null; S.blok = null; S.aangeraakt = false;   // altijd verder waar Daan stopte: eerste open vraag
+  S.i = null; S.blok = null; S.aangeraakt = false; S.kzId = null;   // altijd verder waar Daan stopte: eerste open vraag
   herteken();
   if(!el.dataset.kb){ el.dataset.kb = '1'; koppel(el); }
 }
@@ -207,39 +206,35 @@ const groei = ta => { ta.style.height = 'auto'; ta.style.height = Math.max(96, t
 
 /* ---------- acties ---------- */
 const nu = () => new Date().toISOString();
-function zet(id, r){ S.d.antw[id] = Object.assign({ a:'', s:'ok', wie:'', van:'', t:nu() }, r); bewaar(); teller(); }
+function zet(id, r){ S.d.antw[id] = Object.assign({ a:'', s:'ok', wie:'', van:'', keuzes:[], t:nu() }, r); bewaar(); teller(); }
 function ga(i){ S.aangeraakt = true; S.i = (i + V.length) % V.length; S.blok = blokVan(V[S.i].id); herteken(); const k = S.el && S.el.querySelector('.kb'); if(k && k.scrollIntoView) S.el.scrollTop = 0; }
 function opslaan(){
   const v = V[S.i], vs = voorstel(v.id), a = antw(v.id);
-  const t = ($('kb-tekst').value || '').trim();
-  if(!t){
+  const t = ($('kb-tekst').value || '').trim(), kzs = S.kz.slice();
+  if(!t && !kzs.length){
     if(vs && !(a && a.s === 'ok')){
       if(/^\s*\?/.test(vs.a || '')){ $('kb-tekst').focus(); return; }   // voorstel met "?": eerst zelf antwoorden
       zet(v.id, { a:vs.a, van:'claude-bevestigd' });
     }
     ga(volgendOpen(S.i)); return;
   }
-  if(!(a && a.s === 'ok' && a.a === t)) zet(v.id, { a:t, van:vs ? (t === String(vs.a).trim() ? 'claude-bevestigd' : 'claude-aangepast') : (a && a.van) || '' });
+  if(!(a && a.s === 'ok' && a.a === t && zelfde(kzVan(a), kzs))) zet(v.id, { a:t, keuzes:kzs, van:vs ? (t && t === String(vs.a).trim() && !kzs.length ? 'claude-bevestigd' : 'claude-aangepast') : (a && a.van) || '' });
   ga(volgendOpen(S.i));
 }
 function klopt(){ const v = V[S.i], vs = voorstel(v.id); if(!vs || /^\s*\?/.test(vs.a || '')) return; zet(v.id, { a:vs.a, van:'claude-bevestigd' }); ga(volgendOpen(S.i)); }
+// een knop zet alleen de keuze aan of uit in het aparte veld keuzes; de antwoordtekst blijft zoals hij is
 function chip(n){
-  const v = V[S.i], k = v.keuzes[n], ta = $('kb-tekst'); if(!ta) return;
-  if(v.soort === '1') ta.value = ta.value.trim() === k ? '' : k;
-  else {
-    const xs = ta.value.split(/\s*,\s*/).map(x => x.trim()).filter(Boolean);
-    const j = xs.findIndex(x => x.toLowerCase() === k.toLowerCase());
-    if(j >= 0) xs.splice(j, 1); else xs.push(k);
-    ta.value = xs.join(', ');
-  }
-  const aan = keuzesNu(v, ta.value);
-  S.el.querySelectorAll('[data-kb="chip"]').forEach(b => b.classList.toggle('aan', aan.includes(v.keuzes[+b.dataset.n])));
-  groei(ta);
+  const v = V[S.i], k = v.keuzes[n]; if(!$('kb-tekst')) return;
+  if(v.soort === '1') S.kz = S.kz.includes(k) ? [] : [k];
+  else { const j = S.kz.findIndex(x => x.toLowerCase() === k.toLowerCase()); if(j >= 0) S.kz.splice(j, 1); else S.kz.push(k); }
+  S.el.querySelectorAll('[data-kb="chip"]').forEach(b => b.classList.toggle('aan', S.kz.includes(v.keuzes[+b.dataset.n])));
 }
 function nietWeten(){ const w = $('kb-wie'); if(w) w.hidden = !w.hidden; }
-function wie(naam){ const v = V[S.i], a = antw(v.id) || {}; zet(v.id, { a:($('kb-tekst').value || '').trim() || (a.s !== 'ok' ? a.a || '' : ''), s:'wie', wie:naam, van:a.van || '' }); ga(volgendOpen(S.i)); }
-function later(){ const v = V[S.i], a = antw(v.id) || {}; zet(v.id, { a:($('kb-tekst').value || '').trim() || a.a || '', s:'later', van:a.van || '' }); ga(volgendOpen(S.i)); }
+function wie(naam){ const v = V[S.i], a = antw(v.id) || {}; zet(v.id, { a:($('kb-tekst').value || '').trim() || (a.s !== 'ok' ? a.a || '' : ''), s:'wie', wie:naam, van:a.van || '', keuzes:S.kz.slice() }); ga(volgendOpen(S.i)); }
+function later(){ const v = V[S.i], a = antw(v.id) || {}; zet(v.id, { a:($('kb-tekst').value || '').trim() || a.a || '', s:'later', van:a.van || '', keuzes:S.kz.slice() }); ga(volgendOpen(S.i)); }
 
+// antwoordtekst en personen/keuzes blijven gescheiden, ook in de export
+const antwTekst = a => (a.a || '') + (kzVan(a).length ? (a.a ? ' | ' : '') + 'personen/keuzes: ' + kzVan(a).join(', ') : '');
 function alsTekst(){
   const regels = [];
   Object.keys(DATA.blokken).forEach(b => {
@@ -247,9 +242,9 @@ function alsTekst(){
     V.filter(x => blokVan(x.id) === b).forEach(x => {
       const a = antw(x.id), vs = voorstel(x.id);
       let r = '';
-      if(a && a.s === 'ok') r = a.a + (a.van === 'claude-bevestigd' ? ' (voorstel Claude, klopt)' : a.van === 'claude-aangepast' ? ' (voorstel Claude, aangepast)' : '');
-      else if(a && a.s === 'wie') r = '[weet ik niet: ' + (a.wie || '?') + ']' + (a.a ? ' ' + a.a : '');
-      else if(a && a.s === 'later') r = '[later]' + (a.a ? ' ' + a.a : '');
+      if(a && a.s === 'ok') r = antwTekst(a) + (a.van === 'claude-bevestigd' ? ' (voorstel Claude, klopt)' : a.van === 'claude-aangepast' ? ' (voorstel Claude, aangepast)' : '');
+      else if(a && a.s === 'wie') r = '[weet ik niet: ' + (a.wie || '?') + ']' + (antwTekst(a) ? ' ' + antwTekst(a) : '');
+      else if(a && a.s === 'later') r = '[later]' + (antwTekst(a) ? ' ' + antwTekst(a) : '');
       else r = vs ? '[open, voorstel: ' + vs.a + ']' : '[open]';
       regels.push(x.id + ' ' + x.vraag + '\n→ ' + r);
     });
@@ -280,8 +275,8 @@ function inlezen(j){
     if(antw(id)){ nOver++; return; }
     const o = typeof r === 'string' ? { a:r } : r;
     const s = ['ok', 'wie', 'later'].includes(o.s) ? o.s : 'ok';
-    const a = String(o.a ?? o.antwoord ?? '').trim(); if(!a && s === 'ok') return;
-    S.d.antw[id] = { a, s, wie:o.wie || '', van:['claude-bevestigd', 'claude-aangepast'].includes(o.van) ? o.van : '', t:o.t || nu() };
+    const a = String(o.a ?? o.antwoord ?? '').trim(), keuzes = Array.isArray(o.keuzes) ? o.keuzes.map(String) : []; if(!a && s === 'ok' && !keuzes.length) return;
+    S.d.antw[id] = { a, s, wie:o.wie || '', van:['claude-bevestigd', 'claude-aangepast'].includes(o.van) ? o.van : '', keuzes, t:o.t || nu() };
     nA++;
   });
   lijstVan(j.voorstellen).forEach(([id, r]) => {
@@ -330,8 +325,6 @@ function koppel(el){
   el.addEventListener('input', ev => {
     if(ev.target.id !== 'kb-tekst') return;
     groei(ev.target);
-    const v = V[S.i], aan = keuzesNu(v, ev.target.value);
-    el.querySelectorAll('[data-kb="chip"]').forEach(b => b.classList.toggle('aan', aan.includes(v.keuzes[+b.dataset.n])));
   });
   el.addEventListener('change', ev => { if(ev.target.id === 'kb-bestand'){ bestand(ev.target.files[0]); ev.target.value = ''; } });
 }
