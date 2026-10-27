@@ -21,6 +21,9 @@
 .pd2-terug{justify-self:start;font-size:13.5px}
 .pd2-in{width:100%;font:inherit;font-size:15px;padding:8px 10px;min-height:44px;border:1px solid #c5ccd6;border-radius:8px;background:#fff;color:var(--ink)}
 .pd2-in.ok{background:#f3f9f5;border-color:#b9dbc5}
+.pd2-kaart .pd2-in{font-size:14px;padding:2px 7px;min-height:28px;height:28px;border-radius:6px}
+.pd2-kaart .pd2-mini{min-height:26px;padding:1px 6px;font-size:12px}
+.pd2-kaart .pd2-ic{min-width:28px;min-height:26px}
 .pd2-in::placeholder{color:#8a96a3}
 .pd2-zoekrij{display:flex;gap:8px;align-items:center}
 .pd2-zoekrij .pd2-in{flex:1 1 auto;max-width:420px}
@@ -41,8 +44,8 @@
 .pd2-voet{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;color:var(--muted);font-size:13px;margin-top:8px}
 .pd2-voet .pd2-link{font-size:13px;color:var(--muted)}
 .pd2-blok{background:#fff;border:1px solid #d6dde5;border-radius:10px;padding:12px 14px;display:grid;gap:8px}
-.pd2-fkop{display:flex;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;align-items:flex-start}
-.pd2-fkop .kn{display:grid;gap:2px;flex:1 1 300px}
+.pd2-fkop{display:grid;gap:8px;align-content:start}
+.pd2-fkop .kn{display:grid;gap:2px}
 .pd2-vg{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px}
 .pd2-vg .balk{height:6px;background:#e3e8ee;border-radius:3px;overflow:hidden;flex:1 1 160px;max-width:420px}
 .pd2-vg .balk i{display:block;height:100%;background:var(--ok)}
@@ -73,47 +76,70 @@
 .pd2-alle{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);min-height:40px;cursor:pointer}
 .pd2-mg,.pd2-wegalle{display:flex;flex-wrap:wrap;gap:0 14px;align-items:center}
 .pd2-actie b{order:-2} .pd2-actie .pd2-x{order:9}
-.pd2-kaarten{display:grid;gap:12px}
-.pd2-kaart{border:1px solid #d6dde5;border-radius:10px;padding:10px 12px;display:grid;gap:8px;background:#fff}
+.pd2-kaarten{display:grid;gap:10px}
+.pd2-kaart{border:1px solid #d6dde5;border-radius:10px;padding:6px 12px 7px;display:grid;gap:4px;background:#fff;scroll-margin-top:8px}
 .pd2-kaart.sel{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
-.pd2-kk{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:start}
-.pd2-kk input[type=checkbox]{width:22px;height:22px;margin-top:2px;accent-color:var(--ink)}
+.pd2-kk{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center}
+.pd2-kk input[type=checkbox]{width:20px;height:20px;accent-color:var(--ink)}
 .pd2-kk .kn b{font-size:15px;overflow-wrap:anywhere}
-.pd2-kk .ic{display:flex;gap:0}
+@media (min-width:601px){.pd2-kk .kn{display:flex;gap:6px;align-items:baseline;min-width:0} .pd2-kk .kn b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}}
+.pd2-kk .ic{display:flex;gap:2px;align-items:center}
+.pd2-kk .kn .u{white-space:nowrap}
 .pd2-abc{display:inline-block;font-size:11px;font-weight:800;border-radius:4px;padding:0 5px;background:#eef1f5;color:#4a5560;margin-left:2px}
 .pd2-abc.A{background:#dff3e8;color:var(--ok)} .pd2-abc.B{background:#eef1f5;color:var(--ink)}
 .pd2-ic{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;min-width:36px;min-height:36px;border-radius:8px;font-size:15px;color:var(--muted)}
 .pd2-ic:hover{background:#eef1f5} .pd2-ic:focus-visible{outline:3px solid #9db8e3}
 .pd2-ic sup{font-size:10px;font-weight:800;color:var(--ink)}
-.pd2-feiten{display:grid;gap:3px;font-size:13px;color:#4a5a6a;overflow-wrap:anywhere}
+.pd2-feiten{display:flex;flex-wrap:wrap;gap:0 22px;font-size:12.5px;line-height:1.35;color:#4a5a6a;overflow-wrap:anywhere}
 .pd2-feiten .l,.pd2-gw .l,.pd2-vragen .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;margin-right:4px}
-.pd2-gw{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;background:#f8fafc;border-radius:8px;padding:6px 10px}
+.pd2-rij2{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+.pd2-rij2 .pd2-soort,.pd2-rij2 .pd2-gw{gap:4px 6px}
+.pd2-gw{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
 .pd2-gw .kg{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
-.pd2-gw .kg .pd2-in{width:110px;min-height:40px;padding:6px 8px}
+.pd2-gw .kg .pd2-in{width:68px}
 .knopjes{display:inline-flex;flex-wrap:wrap;gap:4px}
 .pd2-mini{border:1px solid #c9ced6;background:#fff;border-radius:7px;padding:4px 10px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;min-height:36px;color:inherit}
 .pd2-mini:hover{border-color:var(--ink)}
 .pd2-mini.aan{background:var(--ok);border-color:var(--ok);color:#fff}
 .pd2-mini.aan.nee{background:var(--rood);border-color:var(--rood)}
 .pd2-mini.groot{min-height:44px;padding:6px 16px;font-size:14px}
-.pd2-soort{display:grid;gap:4px}
-.pd2-soort > label,.pd2-f > label{font-weight:700;font-size:13.5px}
-.pd2-soort > select{max-width:420px}
+.pd2-soort{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.pd2-soort > label{font-weight:700;font-size:13px;text-transform:none;letter-spacing:0;color:var(--ink)}
+.pd2-soort > select{width:96px}
+.pd2-f > label{font-weight:700;font-size:12px;line-height:1.2;color:#36414d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pd2-vs{font-size:12.5px;color:#123a7a;background:#eaf1fd;border-left:4px solid var(--blauw);border-radius:6px;padding:5px 8px;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;overflow-wrap:anywhere}
 .pd2-vs span{flex:1 1 0;min-width:120px}
 .pd2-vs button{flex:none}
 .pd2-vs button{background:var(--blauw);border:1px solid var(--blauw);color:#fff;border-radius:8px;padding:4px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;min-height:36px}
 .pd2-hint{font-size:12.5px;color:#4a5a6a;background:#f6f7f9;border-radius:6px;padding:5px 8px;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .pd2-hint span{flex:1 1 160px}
-.pd2-velden{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(200px,calc((100% - 30px) / 4)),1fr));gap:10px}
-.pd2-f{display:grid;gap:3px;align-content:start}
+.pd2-velden{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:4px 8px}
+.pd2-f.breed{grid-column:span 2}
+.pd2-f{display:grid;gap:2px;align-content:start}
+.pd2 .kort{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pd2-pick{display:flex;gap:6px;align-items:center}
+.pd2-pick .m{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;max-width:55%}
+.pd2-pick select{flex:1 1 110px}
+.pd2-vr{font-size:12px;color:#123a7a;display:flex;gap:5px;align-items:center;min-height:20px;white-space:nowrap}
+.pd2-vr span{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pd2-vr b{overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
+.pd2-vr .vw{flex:0 1 auto}
+.pd2-f{container-type:inline-size}
+@container (max-width:140px){.pd2-vr .vw{display:none}}
+.pd2-vr.grijs{color:#4a5a6a}
+.pd2-vr button{flex:none;background:var(--blauw);border:1px solid var(--blauw);color:#fff;border-radius:6px;padding:1px 9px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;min-height:20px;line-height:1.3}
+.pd2-vr .pd2-mini{background:#fff;color:var(--ink);border-color:#c9ced6;min-height:24px;padding:1px 8px;font-size:12px}
+.pd2-in.vsel{color:#123a7a;background:#f5f8fe;border-color:#b9c9e6}
+.pd2-calc{display:flex;flex-wrap:wrap;gap:2px 18px;font-size:13px;color:#4a5a6a}
+.pd2-calc .l{font-size:12px;color:var(--muted)}
+.pd2-calc .cv{font-variant-numeric:tabular-nums}
 .pd2-f.calc .cv{font-size:15px;color:#4a5a6a;font-variant-numeric:tabular-nums;padding:8px 0;min-height:40px}
 .pd2-f.calc > label{color:var(--muted)}
 .pd2-verp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:6px}
-.pd2-rolvraag{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:700;font-size:13.5px}
+.pd2-rolvraag{display:flex;gap:4px;align-items:center;flex-wrap:wrap;font-weight:700;font-size:12.5px;margin-right:8px}
 .pd2-rol{border-top:1px solid #eef1f4;padding-top:2px}
 .pd2-rol > .pd2-velden{padding:4px 0 2px}
-.pd2-weg{display:grid;gap:6px}
+.pd2-weg{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
 .pd2-acties{display:flex;gap:6px;flex-wrap:wrap}
 .pd2-af{border-top:1px solid #e3e8ee;padding-top:4px}
 .pd2-afrij{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #eef1f4;font-size:14px}
@@ -167,7 +193,13 @@ body:has(#pd2-actie .pd2-actie) .pd2-oefkaart{bottom:calc(90px + env(safe-area-i
 .pd2-modal .knop{min-height:44px}
 .pd2-modal pre{white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,Consolas,monospace;font-size:12px;background:var(--zacht);padding:10px;border-radius:8px;max-height:45vh;overflow:auto}
 @media (max-width:600px){
-  .pd2{padding:12px 16px 150px}
+  .pd2,.pd2[data-scherm="fam"]{padding:12px 16px 150px}
+  .pd2-kaart .pd2-in{min-height:42px;height:auto;font-size:15px}
+  .pd2-kaart .pd2-mini{min-height:36px}
+  .pd2-kk{grid-template-columns:auto minmax(0,1fr)} .pd2-kk .ic{grid-column:1 / -1;flex-wrap:wrap;justify-content:flex-end}
+  .pd2-velden{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+  .pd2-vr,.pd2-vr button{min-height:30px}
+  .pd2-soort > select{flex:1 1 140px}
   .pd2 h1{font-size:20px}
   .pd2 > .pd2-hoofd{justify-self:stretch}
   .pd2-zoekrij .pd2-in{max-width:none}
@@ -179,6 +211,24 @@ body:has(#pd2-actie .pd2-actie) .pd2-oefkaart{bottom:calc(90px + env(safe-area-i
   .pd2-actie b{flex:1 1 auto;font-size:13px} .pd2-actie .pd2-x{order:-1;flex:none}
   .pd2-actie .knop{flex:1 1 auto;font-size:13px}
   .pd2-oefkaart{left:12px;right:12px;width:auto}
+}
+/* familiescherm: volle breedte; desktop links kop en maten (blijft staan), rechts de kaarten */
+.pd2[data-scherm="fam"]{max-width:none;padding:16px 18px 140px}
+.pd2-famgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}
+.pd2-zij{display:grid;gap:10px;align-content:start;min-width:0}
+.pd2-volg{display:flex;gap:6px;flex-wrap:wrap}
+.pd2-segbalk{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-content:space-between}
+.pd2-segbalk .pd2-segrij{flex:1 1 auto}
+.pd2-onder{display:flex;justify-content:flex-end}
+@media (min-width:1100px){
+  .pd2-famgrid{grid-template-columns:280px minmax(0,1fr);gap:16px}
+  .pd2-zij{position:sticky;top:10px;max-height:calc(100vh - 76px);max-height:calc(100dvh - 76px);overflow:auto;padding-bottom:4px}
+  .pd2-zij .pd2-maten{flex-direction:column;flex-wrap:nowrap;gap:2px;background:#fff;border:1px solid #d6dde5;border-radius:10px;padding:6px}
+  .pd2-zij .pd2-maat{display:flex;justify-content:space-between;align-items:baseline;gap:8px;min-height:34px;padding:5px 10px;border:0;border-radius:7px;font-size:13.5px}
+  .pd2-zij .pd2-maat:hover{background:#f1f4f7} .pd2-zij .pd2-maat.aan:hover{background:var(--ink)}
+  .pd2-zij .pd2-maat.af .n{color:var(--ok)}
+  .pd2-zij .pd2-volg .knop{flex:1 1 auto}
+  .pd2-maatblok{padding:10px 12px}
 }
 #pd2-printvak{display:none}
 @media print{

@@ -11,7 +11,8 @@ ook de versie vóór 2.0 of `main` op 8812 (`git worktree add ../main-wt <commit
 | Script | Wat |
 |---|---|
 | `oefening.js` | doet elke oefening via de echte kaarten, maattegels, groepsbalk en het oefenkaartje en controleert de uitkomst (Mars 8 maattegels, Mars 120x180 Antraciet = Deel, alleen de velden van de soort, afgerond klapt in, ongedaan, gewicht, palletmaat anders…, kopieer voor Claude, opslag, wissen) |
-| `schermen.js` | ronde 3: schermafdruk op 390 en 1440 px van start, familie Whiteboard Magnetisch, maat 30x45, Mars 40x60, een rol, Weg en de groepsbalk; controleert: geen horizontale scroll, niets buiten beeld, geen gestippelde randen, geen oranje vlakken, geen tabellen of chips, startscherm ≤ 7 blokken boven de vouw |
+| `ronde4.js` | ronde 4: geen maatstap bij 1 product per maat (inhoudsopgave), picklocatie als tekst + keuze op het voorstel, korte voorstelregel, max op pick bij Deel, uitlopend ook als het verkoopt, oefenantwoorden tellen niet mee |
+| `schermen.js` | ronde 3/4: schermafdruk van start (390, 1440) en het familiescherm op 1440, 1920 en 390 px voor Whiteboard Magnetisch, Schoonloopmat Mars en Kokos op rol, plus een rol, Weg en de groepsbalk; desktop: twee kolommen, inhoud ≥ 85% breed, op 1440 ≥ 3 kaarten in beeld; controleert: geen horizontale scroll, niets buiten beeld, geen gestippelde randen, geen oranje vlakken, geen tabellen of chips, startscherm ≤ 7 blokken boven de vouw |
 | `regressie.js` | laadt elke oude pagina op main en op deze tak en vergelijkt tekst en DOM-structuur; in 3.0 apart het menu (er mag precies één regel bij) |
 | `live.js` | Picqer nagebootst: live voorraad per rij (20 per vraag, 3 s ertussen) en bij 429 terugval op de export met datum en pauze |
 | `meting.js` | ronde 2: per veld hoe vaak het voorstel klopt bij Daans eigen invoer (doet alsof elke waarde er niet is); schrijft alleen aantallen |

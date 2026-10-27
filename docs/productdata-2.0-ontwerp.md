@@ -367,7 +367,31 @@ gebleven. Eén ding tegelijk: start = families, familie = maten, maat = productk
   gestippelde randen, geen oranje vlakken, geen tabellen of chips, startscherm 4 blokken boven de vouw; regressie oude
   pagina's gelijk; database-hashes van productdata, wh-pd-fam en catalog-ean ongewijzigd.
 
-## Aannames (ronde 1 t/m 3)
+## Ronde 4 (27-10-2026): familiescherm vol scherm en compact
+Startscherm ongewijzigd. Vervangt de familie- en kaartopbouw uit ronde 3.
+- **Volle breedte**: het familiescherm gebruikt de hele breedte van het 3.0-venster (marges 18 px). Desktop (≥ 1100 px): twee
+  kolommen. Links (280 px, blijft staan bij scrollen): familiekop (naam, leverancier, verkoop, ABC, inkomend), voortgang, max 3
+  aandachtspunten, "voorraad live · tijd", de maten als verticale lijst ("45x60 · 6 open") en Volgende maat / Volgende familie.
+  Rechts de kaarten. Telefoon/tablet: onder elkaar, maten als tegels; Volgende maat staat ook onderaan de kaarten.
+- **Maten alleen als het iets toevoegt**: heeft elke maat maar 1 product (bijv. Whiteboard Magnetisch), dan geen maatstap: alle
+  producten als kaarten onder elkaar, op maat gesorteerd; de maatlijst is dan een inhoudsopgave (tik = naar die kaart).
+- **Compacte kaart** (± 190 px op 1920, ± 260 px op 1440: 3 kaarten in beeld op 1440, 5 op 1920): bovenste regel vinkje · naam ·
+  code · ABC, rechts (Is dit een rol? ja/nee) · Alles klopt (n) · ⓘ · 💬. Voorraad · Inkoop · Verkoop (verkoop als "13*6 / 8*28")
+  naast elkaar. "Hoe komt dit binnen?" en Gewicht op één regel. Velden van de soort op één rij over de volle breedte (zoveel als
+  passen, dan de volgende rij); per veld label, vak en direct eronder één korte regel "voorstel 3 · Klopt" (op smalle velden
+  alleen "3 · Klopt"); de reden bij hover of ⓘ. Berekende velden als één grijze regel eronder.
+- **Picklocatie**: "AD01B04 · 12 · vast" als tekst met daarnaast de keuze (klopt / moet anders / geen pick). Keuzelijsten staan
+  standaard op het voorstel (blauwe tekst); pas Klopt of een andere keuze slaat iets op.
+- **Max op pick bij Deel**: wat op de picklocatie past, nooit "bij + stuks per pallet": huidige Picqer-instelling, anders de
+  grootste aanvulling van bulk naar pick in de verplaatsingen, anders kleurgenoot; anders leeg (uitzoeken).
+- **Uitlopend**: nog voorraad en geen inkoop in 12 maanden, ook als het nog verkoopt (niet als het binnenkomt).
+- **Oefenantwoorden** (oefenkaartje aan) krijgen een oefen-merk en tellen niet mee voor kleurgenoten, leren, de telling in
+  "Kopieer alles voor Claude" en het overzetten. Score en leren gebruiken alleen productdata.
+- **Getest**: oefentest 86, ronde 2 17, ronde 4 10 checks; live/429; schermafdrukken familiescherm op 1440, 1920 en 390 px voor
+  Whiteboard Magnetisch, Schoonloopmat Mars en Kokos op rol (inhoud 97–98% van de breedte, geen horizontale scroll, 3 kaarten
+  in beeld op 1440); regressie oude pagina's gelijk; hashes van productdata, wh-pd-fam en catalog-ean ongewijzigd.
+
+## Aannames (ronde 1 t/m 4)
 Staan in één lijst "Aannames (n)" (link onderaan het startscherm), met klopt / keur af en een opmerking; het oordeel komt mee
 in "Kopieer alles voor Claude". Bron in de code: `AANNAMES` bovenin `wh/pd2-reken.js` (samen bijwerken).
 - `zoek`: Zoeken kijkt in alle actieve producten, ook buiten de gekozen scope (anders vind je bijv. Waterhog zonder voorraad niet).
@@ -375,7 +399,7 @@ in "Kopieer alles voor Claude". Bron in de code: `AANNAMES` bovenin `wh/pd2-reke
 - `selgew`: "Selectie klopt", "Alle voorstellen … kloppen" laten het gewicht staan: gewicht keur je apart goed (knopjes bij Gewicht, of Gewicht… → kloppen).
 - `blijf`: Een product dat compleet wordt (alle velden van zijn soort en het gewicht), klapt meteen in tot één regel en staat dan onder "Afgerond (n)" onderaan de maat. Weg-producten zet je daar terug met "terugzetten".
 - `geenpick`: Bij picklocatie "geen pick" (alleen bulk, per order verplaatsen) zijn Aanvullen bij en Max op pick niet nodig.
-- `uitl`: Uitlopend wordt alleen voorgesteld als er nog voorraad is, geen inkoop in 12 maanden én geen verkoop meer (of "uitlopend" in de naam). Verkoopt het nog, dan blijft de gewone soort staan.
+- `uitl`: Uitlopend wordt voorgesteld als er nog voorraad is en geen inkoop in 12 maanden, ook als het nog verkoopt (verkoop is geen voorwaarde). Komt het binnen (open pakbon/container), dan niet.
 - `backord`: Backorder wordt voorgesteld bij geen voorraad en wel inkoop, backorders of verkoop in de laatste 12 maanden.
 - `mix`: Mix wordt voorgesteld als alle bulkplekken van het product ook voorraad van andere producten hebben (gedeelde plek of mixpallet), er geen pallet-aantal bekend is en er geen volle pallet wordt ingekocht. Gedeelde plek mét pallet-aantal, of eigen én gedeelde plekken = twijfel Deel/Mix. Let op: een 20-locatie kan meerdere pallets van verschillende producten hebben.
 - `pallet85`: Pallet: meest voorkomende inkoop ≥ 85% van stuks per pallet én de verplaatsingen laten zien dat de hele bulkvoorraad in één keer naar pick gaat. Alleen per volle pallet verplaatst = twijfel Pallet/Deel; alleen een volle pallet ingekocht maar in delen verplaatst = Deel.
@@ -410,8 +434,11 @@ in "Kopieer alles voor Claude". Bron in de code: `AANNAMES` bovenin `wh/pd2-reke
 - `rolkand`: Rol (vraag "Is dit een rol? ja / nee" op de kaart) alleen bij Picqer-eenheid meter, cm of rol, of als de naam "op rol", "rol van", "per rol", "volle rol", "rollen", "per meter" of "per cm" zegt, of "rol" samen met een breedte of dikte (niet bij rolstoel, roller, rolluik). Het telt als open tot je kiest.
 - `famheel`: In een familie zie je altijd alle actieve producten van die familie (zoals Per familie), ook als de scope of de filters op het startscherm een deel ervan weglaten. Koppelproducten staan alleen als aantal in de kop.
 - `maatauto`: Bij het openen van een familie staat de eerste maat met iets open gekozen, en de soortkeuze op "Open" (alles wat nog niet af is). Rollen hebben geen eigen tab meer: rolgegevens staan op de kaart.
-- `invoer`: Een voorstel staat alleen in het blauwe vak (en grijs in het lege veld); het veld zelf blijft leeg tot je op Klopt drukt, het zelf typt of Enter geeft in het lege veld. Groen = door jou bevestigd of vastgelegd in productdata.
+- `invoer`: Een voorstel staat als korte regel "voorstel 3 · Klopt" onder het vak (reden bij hover of ⓘ). Invulvakken blijven leeg (voorstel grijs als hint); keuzelijsten staan op het voorstel in blauwe tekst. Opgeslagen wordt pas bij Klopt, typen, een andere keuze of Enter in een leeg vak. Groen = door jou bevestigd of vastgelegd.
 - `aand3`: Bovenaan een familie staan hooguit de 3 aandachtspunten die het vaakst voorkomen; tikken toont alleen die producten (uit alle maten).
 - `gewknop`: Gewicht: getal typen = gewogen. "vertrouwd" = het Picqer-gewicht klopt. "gewogen" zonder getal vraagt eerst het gewicht. Nog een keer op de gekozen knop = terug naar niet gecontroleerd.
+- `plat`: Heeft elke maat in de familie maar 1 product, dan is er geen maatstap: alle kaarten onder elkaar op maat, de maten zijn een inhoudsopgave.
+- `maxdeel`: Max op pick bij Deel: Picqer-instelling, anders de grootste aanvulling van bulk naar pick in de verplaatsingen (één verplaatsing), anders kleurgenoot; geen aanvulregel of leren (die gaven bij + pallet).
+- `oefentel`: Wat je invult terwijl het oefenkaartje aan staat, krijgt een oefen-merk: het geldt voor dat product, maar telt niet mee voor kleurgenoten, leren, de telling in "Kopieer alles voor Claude" en het overzetten. Alleen invoer met oefenen uit telt.
 - `oefen`: Oefenen staat standaard uit (Oefenmodus ⋯ → Oefenen); dan één kaartje rechtsonder met de opdrachten per soort en na de laatste de vier vragen. Je bewerkt de oefenkopie ook als oefenen uit staat.
 - `rolregel`: Rolregels ronde 2: kokos rol = 600 cm lang (6 m); kokos 200 cm 17 mm = 12 rollen per pallet, 24 mm = 6 (vaste aantallen); voor 100 cm kokos geen aantal bekend. Ringmat op rol heavy duty: staand, 6 per pallet, palletmaat 100x150. Gewicht volle rol = gewicht per meter of cm × lengte.

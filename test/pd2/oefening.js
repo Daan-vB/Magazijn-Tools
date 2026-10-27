@@ -251,7 +251,7 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
   await P.click('[data-a="famweg"]'); await wacht();
   await P.click('[data-a="oefmenu"]'); await P.click('.pd2-modal [data-a="kopieer"]'); await wacht(400);
   const tekst = await P.textContent('.pd2-modal pre');
-  check('Kopieer alles voor Claude geeft leesbare tekst', /== Pallet ==/.test(tekst) && /== Voorstellen/.test(tekst) && tekst.includes(ant + ' · Palletmaat: Test: palletmaat klopt niet') && /stuks per pallet: \d+× klopt/i.test(tekst) && /algemene opmerking/.test(tekst), tekst.length + ' tekens');
+  check('Kopieer alles voor Claude geeft leesbare tekst', /== Pallet ==/.test(tekst) && /== Voorstellen/.test(tekst) && tekst.includes(ant + ' · Palletmaat: Test: palletmaat klopt niet') && /\d+ oefenantwoorden met het oefenkaartje aan: niet meegeteld/.test(tekst) && /algemene opmerking/.test(tekst), tekst.length + ' tekens');
   require('fs').writeFileSync(SCRATCH + '/claude-tekst.txt', tekst);
   await P.click('.pd2-modal [data-m="nee"]');
 
