@@ -28,7 +28,7 @@ const AANNAMES = {
   score:    'Een voorstel waarvan de regel bij jouw eigen invoer minder dan 60% klopte (minstens 5 keer getoetst), staat als twijfel: in het blauwe vak staat "twijfel" en hoe vaak hij klopte.',
   leer:     'Leren van jouw invoer: een waarde telt als patroon als minstens 2 producten (kleurgenoot: 1) in die groep hem hebben en hij ≥ 60% van die groep is. Groepen: kleurgenoten, familie, leverancier + maat, leverancier.',
   reach:    'Weeglijst: hoe wegen volgt uit de soort. Pallet of Deel met stuks per pallet = volle pallet met de reachtruck (palletgewicht − 15 kg, gedeeld door stuks per pallet); de rest los op de weegschaal.',
-  ligger:   'Palletgewicht boven ligger-limiet: een pallet van meer dan 2.000 kg, of zo zwaar dat door het gewicht minder pallets op een ligger passen dan door de plaatsen (3 plaatsen per ligger).',
+  liggerkg: 'Palletgewicht boven ligger-limiet: een pallet van meer dan 2.000 kg, of zo zwaar dat door het gewicht minder pallets op een ligger passen dan door de plaatsen (3 plaatsen per ligger).',
   wegalle:  'Weg-voorstel voor alle producten: dezelfde regels als in tab 5. Heeft Daan in de familie al een soort gekozen, dan telt "geen voorraad" als tijdelijk op en komt er geen Weg-voorstel.',
   snap:     'Snel openen: 2.0 bewaart na het laden een kopie op dit apparaat (IndexedDB, max 7 dagen oud) en tekent daar eerst mee ("gegevens van hh:mm, bijwerken…"); daarna ververst het op de achtergrond. Typ je net, dan wacht het verversen tot je klaar bent.',
   overzet:  'Overzetten naar de echte productdata is gebouwd maar staat uit (pd2Overzetten = false, knop verborgen). Overgezet wordt alleen wat jij bevestigde of aanpaste; Uitlopend gaat als datum mee, Backorder en Archief hebben nog geen veld in productdata.',
@@ -61,6 +61,12 @@ const AANNAMES = {
   gewknop:  'Gewicht: getal typen = gewogen. "vertrouwd" = het Picqer-gewicht klopt. "gewogen" zonder getal vraagt eerst het gewicht. Nog een keer op de gekozen knop = terug naar niet gecontroleerd.',
   plat:     'Heeft elke maat in de familie maar 1 product, dan is er geen maatstap: alle kaarten onder elkaar op maat, de maten zijn een inhoudsopgave.',
   maxdeel:  'Max op pick bij Deel: Picqer-instelling, anders de grootste aanvulling van bulk naar pick in de verplaatsingen (één verplaatsing), anders kleurgenoot; geen aanvulregel of leren (die gaven bij + pallet).',
+  vnoud:    'Overzetten: een vloernaam in productdata die alleen de productcode is, telt niet als eigen afwijkende invoer; die wordt overschreven door de vloernaam die je in 2.0 bevestigde (jouw regel code + omschrijving).',
+  overzet1: 'Week 1: overgezet is alles wat je in 2.0 bevestigde of aanpaste (niet met het oefenkaartje aan). Gewicht vertrouwd = de Picqer-kg van dat moment. Daarna schrijft 2.0 direct naar productdata (bron pd2), met per schrijfactie een kopie van de rij in wh-pd2-kopie-<datum>.',
+  ligger:   'Max per ligger: liggertype uit de bulklocatie (letters per gang+sectie+niveau in wh-locaties: A–B = 2-ligger, A–C = 3, A–D = 4). Plaatsen 1 → 2/3/4 per ligger, 2 → 1/1/2, 3 → 1. Zonder bulklocatie: "3-ligger x · 4-ligger y". Daarnaast 2.000 kg per ligger.',
+  nacontrole: 'Controle na invoer (oranje onder het veld): VST-pallets (≥ 2 gelijk), verplaatsingen naar VST of naar pick, of palletlabels zeggen een ander stuks per pallet dan wat je invulde; bij Deel ook de grootste aanvulling naar pick tegenover max op pick. Nooit automatisch gewijzigd.',
+  binnenkomst: 'Binnenkomst (Pallet en Deel): pallet van leverancier of los, zelf pallets bouwen. Voorstel uit inkoop tegenover stuks per pallet (≥ 85% = pallet van leverancier). Bij zelf bouwen komt stuks per pallet alleen uit palletlabels, VST/bulk-pallets en verplaatsingen; bij pallet van leverancier mag inkoop meestal als laatste bron.',
+  labelfout: 'Een palletlabel waarvan de hele naam (zonder spaties/streepjes) een andere productcode is, telt niet voor stuks per pallet of vloernaam en staat op "Palletlabels om te verbeteren".',
   oefentel: 'Wat je invult terwijl het oefenkaartje aan staat, krijgt een oefen-merk: het geldt voor dat product, maar telt niet mee voor kleurgenoten, leren, de telling in "Kopieer alles voor Claude" en het overzetten. Alleen invoer met oefenen uit telt.',
   oefen:    'Oefenen staat standaard uit (Oefenmodus ⋯ → Oefenen); dan één kaartje rechtsonder met de opdrachten per soort en na de laatste de vier vragen. Je bewerkt de oefenkopie ook als oefenen uit staat.',
   rolregel: 'Rolregels ronde 2: kokos rol = 600 cm lang (6 m); kokos 200 cm 17 mm = 12 rollen per pallet, 24 mm = 6 (vaste aantallen); voor 100 cm kokos geen aantal bekend. Ringmat op rol heavy duty: staand, 6 per pallet, palletmaat 100x150. Gewicht volle rol = gewicht per meter of cm × lengte.'
@@ -134,6 +140,7 @@ function laad(vers){
       if(window.WHAL && !WHAL.S.geladen) await WHAL.laadOpslag().catch(() => {});
       await haalEigen();
       S.idx = null; dataVers(); S.ver++; S.klaar = true; S.uitSnap = null; S.bijgewerkt = Date.now(); S.fout = null; S.achterFout = null;
+      try{ herstel(); }catch(e){ console.error(e); }
       setTimeout(() => snapSchrijf().catch(() => {}), 2000);
     }catch(e){ if(S.klaar) S.achterFout = e; else S.fout = e; console.error(e); }
     meld();
@@ -217,15 +224,119 @@ function poZet(c, fn){
   const oud = JSON.parse(JSON.stringify(p));
   fn(p);
   const merk = x => { if(!x || typeof x !== 'object') return; if(S.oefenen) x.oef = 1; else delete x.oef; };
+  const veranderd = Object.keys(Object.assign({}, p.f, oud.f)).filter(k => !zelfde(p.f[k], oud.f[k])).map(k => 'f.' + k).concat(['so', 'weg', 'gew', 'rol'].filter(k => !zelfde(p[k], oud[k])));
   Object.keys(p.f).forEach(k => { if(!zelfde(p.f[k], oud.f[k])) merk(p.f[k]); });
   ['so', 'weg', 'gew', 'rol'].forEach(k => { if(!zelfde(p[k], oud[k])) merk(p[k]); });
+  if(!S.oefenen && S.echt !== false && pd2Overzetten && veranderd.length) pdPlan(c, p, veranderd);
   p.t = new Date().toISOString();
   S.o.p[c] = p; S.vuil.add(c); ongeldig(c); plan();
 }
-function poHerstel(c, oud){ if(oud) S.o.p[c] = oud; else delete S.o.p[c]; S.vuil.add(c); ongeldig(c); plan(); }
+function poHerstel(c, oud){
+  const nu = S.o.p[c] || { f:{} };
+  if(oud) S.o.p[c] = oud; else delete S.o.p[c]; S.vuil.add(c); ongeldig(c); plan();
+  // ongedaan maken: ook in productdata terug (alleen velden die 2.0 zelf zette)
+  if(!S.oefenen && S.echt !== false && pd2Overzetten){ const o = oud || { f:{} }, ks = Object.keys(Object.assign({}, nu.f, o.f)).filter(k => !zelfde((nu.f || {})[k], (o.f || {})[k])).map(k => 'f.' + k).concat(['so', 'weg', 'gew'].filter(k => !zelfde(nu[k], o[k]))); if(ks.length) pdPlan(c, o, ks); }
+}
+
+/* ---------- direct naar productdata (week 1): wat Daan bevestigt of aanpast gaat meteen naar productdata, bron pd2 ----------
+   Alleen velden die productdata kent. Vooraf een kopie van de rij in catalog wh-pd2-kopie-<datum> (per schrijfactie).
+   Met het oefenkaartje aan gaat niets naar productdata (alleen wh-pd2-oefen). */
+const PD_RIJ = { lvl:'lvl', maxpick:'maxpick', spp:'spp', maat:'maat', hoogte:'hoogte', vn:'vn', mixgroep:'mixgroep', binnen:'binnenkomst' };
+const echtOk = x => x && ['bevestigd', 'aangepast'].includes(x.st) && !leeg(x.v) && !x.oef;
+function pdWijz(c, p, keys){
+  const w = {}, r = (P().S.pd[c] || {}), pdBron = k => (((r.meta || {})[k] || {}).bron || '');
+  const leegOfEigen = k => pdBron(k) === 'pd2' ? '' : undefined;   // weghalen alleen als 2.0 het zelf zette
+  keys.forEach(key => {
+    if(key.startsWith('f.')){
+      const k = key.slice(2), x = (p.f || {})[k];
+      const doel = PD_RIJ[k] || (k === 'verp' ? 'spd' : k === 'pickc' ? 'pick' : null); if(!doel) return;
+      if(!echtOk(x)){ const l = leegOfEigen(doel); if(l !== undefined) w[doel] = l; if(k === 'pickc' && pdBron('pickkeuze') === 'pd2') w.pickkeuze = ''; return; }
+      if(PD_RIJ[k]) w[doel] = String(x.v);
+      else if(k === 'verp'){ const n = num((String(x.v).match(/^\s*(\d+(?:[.,]\d+)?)/) || [])[1]); if(n > 0) w.spd = String(n); }
+      else if(k === 'pickc'){ if(x.v === 'klopt') w.pick = 'ja'; else if(x.v === 'geenpick') w.pick = 'nee'; else if(x.v === 'moetpick') w.pickkeuze = 'moet pick krijgen'; }
+    } else if(key === 'so' || key === 'weg'){
+      const so = p.so;
+      if(echtOk(so) && so.v !== 'weg') w.opslag = so.v;
+      else if(echtOk(so) && so.v === 'weg' && echtOk(p.weg) && p.weg.v === 'uitlopend') w.uitlopend = (p.weg.t || new Date().toISOString()).slice(0, 10);
+      else if(!echtOk(so) && pdBron('opslag') === 'pd2') w.opslag = '';
+    } else if(key === 'gew'){
+      const g = p.gew;
+      if(g && !g.oef && g.st === 'tewegen') w.kgst = 'onb';
+      else if(g && !g.oef && ['gewogen', 'vertrouwd'].includes(g.st) && num(g.kg) > 0) w.kgst = g.st === 'gewogen' ? { v:String(num(g.kg)), gew:1 } : String(num(g.kg));
+      else if(!g && pdBron('kgst') === 'pd2') w.kgst = '';
+    }
+  });
+  // al gelijk in productdata: niet opnieuw schrijven
+  Object.keys(w).forEach(k => { const v = w[k] && typeof w[k] === 'object' ? w[k].v : w[k], oud = (r.data || {})[k]; if(String(oud ?? '').trim().toLowerCase() === String(v ?? '').trim().toLowerCase()) delete w[k]; });
+  return w;
+}
+const PDQ = { w:{}, t:null, p:Promise.resolve(), n:0, fout:null };
+function pdPlan(c, p, keys){
+  const w = pdWijz(c, p, keys); if(!Object.keys(w).length) return;
+  PDQ.w[c] = Object.assign(PDQ.w[c] || {}, w);
+  clearTimeout(PDQ.t); PDQ.t = setTimeout(pdFlush, 800);
+}
+function pdFlush(){
+  clearTimeout(PDQ.t);
+  PDQ.p = PDQ.p.catch(() => {}).then(async () => {
+    const wijz = PDQ.w; PDQ.w = {}; const codes = Object.keys(wijz); if(!codes.length) return;
+    try{
+      // eerst de kopie van de huidige rijen (vóór elke schrijfactie)
+      const oud = {};
+      for(let i = 0; i < codes.length; i += 80){ const r = await WH.api('GET', 'productdata?productcode=in.(' + encodeURIComponent(codes.slice(i, i + 80).map(c => '"' + String(c).replace(/"/g, '\\"') + '"').join(',')) + ')&select=productcode,data,meta'); (r || []).forEach(x => { oud[x.productcode] = { data:x.data || {}, meta:x.meta || {} }; }); }
+      const dag = new Date().toISOString().slice(0, 10), key = 'wh-pd2-kopie-' + dag, k0 = await WH.catHaal(key).catch(() => null), kd = (k0 && k0.data && Array.isArray(k0.data.rijen)) ? k0.data : { dag, rijen:[] };
+      codes.forEach(c => kd.rijen.push({ c, t:new Date().toISOString(), rij:oud[c] || null, wijz:Object.keys(wijz[c]) }));
+      await WH.catZet(key, kd);
+      const pdw = {}; codes.forEach(c => { pdw[c] = {}; Object.entries(wijz[c]).forEach(([k, v]) => { pdw[c][k] = v && typeof v === 'object' ? Object.assign({ bron:'pd2', uit:'Productdata 2.0' }, v) : { v, bron:'pd2', uit:'Productdata 2.0' }; }); });
+      await P().opslaan(pdw, 'pd2');
+      PDQ.n += codes.length; PDQ.fout = null; PDQ.op = new Date();
+      codes.forEach(ongeldig);
+    }catch(e){ Object.entries(wijz).forEach(([c, w]) => { PDQ.w[c] = Object.assign({}, w, PDQ.w[c] || {}); }); PDQ.fout = e; console.error(e); setTimeout(pdFlush, 8000); }
+    meld();
+  });
+  return PDQ.p;
+}
+// verschil: Daans eigen invoer in productdata wijkt af van wat in 2.0 staat (niet overschreven bij het overzetten)
+function verschil(c, k){
+  const doel = PD_RIJ[k] || (k === 'soort' ? 'opslag' : null); if(!doel) return null;
+  const p = po(c), x = k === 'soort' ? p && p.so : p && p.f && p.f[k]; if(!echtOk(x)) return null;
+  const r = P().S.pd[c], v = r && r.data ? r.data[doel] : null, m = (r && r.meta && r.meta[doel]) || {};
+  if(leeg(v) || isOnb(v) || m.tw || !TOETSBRON.has(m.bron || '') || (k === 'vn' && alleenCode(c, v))) return null;
+  const a = k === 'soort' ? (X().soortVan ? X().soortVan(c) : String(v)) : String(v);
+  return String(a).trim().toLowerCase() === String(x.v).trim().toLowerCase() ? null : { pd:String(v), bron:m.bron, twee:String(x.v) };
+}
+function verschilKies(c, k, welk){
+  const d = verschil(c, k); if(!d) return;
+  if(welk === 'pd2'){ const doel = PD_RIJ[k] || 'opslag'; PDQ.w[c] = Object.assign(PDQ.w[c] || {}, { [doel]:d.twee }); return pdFlush(); }
+  // productdata houdt gelijk: 2.0 neemt die waarde over (zonder te schrijven)
+  const was = S.echt; S.echt = false;
+  try{ poZet(c, q => { if(k === 'soort') q.so = { v:(X().soortVan && X().soortVan(c)) || d.pd, st:'aangepast', voor:d.twee, t:new Date().toISOString() }; else q.f[k] = { v:d.pd, st:'aangepast', voor:d.twee, t:new Date().toISOString() }; }); }
+  finally{ S.echt = was; }
+}
+/* ---------- herstel (week 1): afgerond zonder opgeslagen soort → de soort die het scherm toonde; gewicht vertrouwd zonder kg → Picqer-kg ---------- */
+function herstel(){
+  let n = 0;
+  Object.entries(S.o.p).forEach(([c, p]) => {
+    if(!D.P[c] || !p) return;
+    let raak = false;
+    const st = status(c);
+    if(st.af && !(p.so && p.so.v) && st.so){ p.so = { v:st.so, st:'bevestigd', voor:st.so, bron:'herstel', t:new Date().toISOString() }; raak = true; }
+    if(p.gew && ['vertrouwd', 'gewogen'].includes(p.gew.st) && !(num(p.gew.kg) > 0)){ const kg = kgPq(c); if(kg > 0){ p.gew.kg = kg; p.gew.bron = 'herstel'; raak = true; } }
+    if(raak){ S.vuil.add(c); ongeldig(c); n++; }
+  });
+  if(n){ S.herstelN = n; plan(); }
+  return n;
+}
 function ongeldig(c){ const fk = famVan(c); S.famVer[fk] = (S.famVer[fk] || 0) + 1; S.ver++; S.sel = null; }
+// "Oefendata wissen" (week 1): alleen wat met het oefenkaartje aan is ingevuld; echte invoer blijft
 function wisAlles(){
-  S.o = leegO(); S.o.gewist = new Date().toISOString(); S.alles = true; S.vuil.clear(); S.cache.clear(); S.famVer = {}; S.ver++; S.sel = null;
+  Object.entries(S.o.p).forEach(([c, p]) => {
+    let raak = false;
+    Object.keys(p.f || {}).forEach(k => { if(p.f[k] && p.f[k].oef){ delete p.f[k]; raak = true; } });
+    ['so', 'weg', 'gew', 'rol'].forEach(k => { if(p[k] && p[k].oef){ delete p[k]; raak = true; } });
+    if(raak){ if(!Object.keys(p.f || {}).length && !p.so && !p.weg && !p.gew && !p.rol) delete S.o.p[c]; S.vuil.add(c); ongeldig(c); }
+  });
+  S.cache.clear(); S.famVer = {}; S.ver++; S.sel = null;
   return flush();
 }
 function oefDone(tab, id){ if(!S.o.oef[tab]) S.o.oef[tab] = {}; if(S.o.oef[tab][id]) return false; S.o.oef[tab][id] = new Date().toISOString(); S.metaVuil = true; plan(); return true; }
@@ -337,7 +448,7 @@ function bulkBezet(){
 const anderOpPlek = (c, l) => [...(bulkBezet()[l] || [])].filter(x => x !== c && koppelVan(x) !== c);
 
 /* ---------- vastgelegd in productdata door Daan ---------- */
-const DAANBRON = new Set(['daan', 'invul', 'familie', 'samen', 'kleuren', 'klein', 'spraak', 'basisregel', 'regel']);
+const DAANBRON = new Set(['daan', 'invul', 'familie', 'samen', 'kleuren', 'klein', 'spraak', 'basisregel', 'regel', 'pd2', 'herstel']);
 function vastPd(c, k){
   if(S.verberg && S.verberg.c === c && S.verberg.k === k) return null;   // meting: doen alsof Daans waarde er niet is
   const r = P().S.pd[c]; if(!r || !r.data) return null;
@@ -361,6 +472,7 @@ const VELD = {
   vn:{ t:'Vloernaam', type:'tekst' },
   verp:{ t:'Inkoopverpakking', type:'verp' },
   mixgroep:{ t:'Mixgroep', type:'mix' },
+  binnen:{ t:'Binnenkomst', type:'keus', opt:[['pallet', 'pallet van leverancier'], ['los', 'los, zelf pallets bouwen']] },
   maxcalc:{ t:'Max op pick', calc:1 },
   aanvmet:{ t:'Aanvullen met', calc:1 },
   gewpal:{ t:'Gewicht volle pallet (kg)', kort:'Gewicht pallet', calc:1 },
@@ -381,8 +493,8 @@ const SOORTEN = [['pallet', '1 Pallet'], ['deel', '2 Deel'], ['pick', '3 Pick'],
 const SOORTT = { pallet:'Pallet', deel:'Deel', pick:'Pick', mix:'Mix', weg:'Weg' };
 const WEG = [['uitlopend', 'Uitlopend'], ['backorder', 'Backorder'], ['archief', 'Archief']];
 const KOLOMMEN = {
-  pallet:['pickc', 'lvl', 'spp', 'maat', 'hoogte', 'vn', 'maxcalc', 'gewpal', 'plaatsen', 'maxlig'],
-  deel:['pickc', 'lvl', 'maxpick', 'aanvmet', 'verp', 'spp', 'maat', 'hoogte', 'vn', 'gewpal', 'plaatsen', 'maxlig'],
+  pallet:['pickc', 'lvl', 'binnen', 'spp', 'maat', 'hoogte', 'vn', 'maxcalc', 'gewpal', 'plaatsen', 'maxlig'],
+  deel:['pickc', 'lvl', 'maxpick', 'aanvmet', 'verp', 'binnen', 'spp', 'maat', 'hoogte', 'vn', 'gewpal', 'plaatsen', 'maxlig'],
   pick:['pickc', 'maxpick'],
   mix:['pickc', 'lvl', 'maxpick', 'aanvmet', 'verp', 'mixgroep'],
   rollen:['rb', 'rd', 'rl', 'rdia', 'rkg', 'rstand', 'rmax', 'rvast', 'kgm', 'kgcm']
@@ -453,7 +565,7 @@ function gewAfwijking(c){
 }
 
 /* ---------- waarde van een veld: oefen → vastgelegd → voorstel ---------- */
-const PDK = { lvl:'lvl', maxpick:'maxpick', spp:'spp', maat:'maat', hoogte:'hoogte', vn:'vn', mixgroep:'mixgroep' };
+const PDK = { lvl:'lvl', maxpick:'maxpick', spp:'spp', maat:'maat', hoogte:'hoogte', vn:'vn', mixgroep:'mixgroep', binnen:'binnenkomst' };
 function eigen(c, k){ const p = po(c); return p && p.f && p.f[k] && !leeg(p.f[k].v) ? p.f[k] : null; }
 // echte invoer (niet tijdens oefenen): alleen die telt voor kleurgenoten en andere producten
 const echtEigen = (c, k) => { const e = eigen(c, k); return e && !e.oef ? e : null; };
@@ -593,7 +705,20 @@ function leerOf(c, k, nivs){ for(const [niv, min] of nivs){ const x = leer(c, k,
    g. inkoop: alleen bewijs voor de soort, nooit stuks per pallet. Daarna pas Daans patronen bij dezelfde leverancier en maat.
    Elk voorstel gaat door controle() voordat het in beeld komt (hoogte 30–250 cm, past fysiek, gewicht, max t.o.v. verkoop). */
 // palletlabels (catalog-ean): alleen een echt getal telt (een qty als "6090WM" is een tikfout, geen 6090 per pallet); laatst gebruikt eerst
-const labelSppLijst = c => { if(S.verberg && S.verberg.c === c && S.verberg.k === 'spp') return []; const l = (D.GEH[String(c).toLowerCase()] || []).slice().sort((a, b) => (b.used || 0) - (a.used || 0)).map(g => String(g.qty ?? '').trim()).filter(q => /^\d+([.,]\d+)?$/.test(q)).map(num).filter(v => v > 0); return [...new Set(l)]; };
+// palletlabel waarvan de naam een andere productcode is (label van 100150WM heet "100200WM"): niet gebruiken, op de lijst om te verbeteren
+// alleen als de hele labelnaam (zonder spaties, streepjes, punten) een andere productcode is
+const codeNorm = x => String(x || '').toLowerCase().replace(/[\s\-_.\/]+/g, '');
+let CN = { n:-1, m:null };
+function codeIndex(){ const n = Object.keys(D.P || {}).length; if(CN.n === n && CN.m) return CN.m; const m = {}; Object.keys(D.P || {}).forEach(c => { const k = codeNorm(c); if(k && !m[k]) m[k] = c; }); CN = { n, m }; return m; }
+const labelCode = g => { const t = codeNorm(g && g.name); return t ? codeIndex()[t] || null : null; };
+const labelFout = (c, g) => { const k = labelCode(g); return !!k && codeNorm(k) !== codeNorm(c); };
+const labelsGoed = c => (D.GEH[String(c).toLowerCase()] || []).filter(g => !labelFout(c, g));
+function labelsVerbeteren(){
+  const uit = [];
+  Object.entries(D.GEH || {}).forEach(([k, l]) => { const c = (D.PLOW || {})[k] || k; if(!D.P[c] || !actief(c)) return; (l || []).forEach(g => { if(labelFout(c, g)) uit.push({ c, naam:String(g.name || '').trim(), qty:String(g.qty ?? ''), ander:labelCode(g) }); }); });
+  return uit.sort((a, b) => a.c.localeCompare(b.c));
+}
+const labelSppLijst = c => { if(S.verberg && S.verberg.c === c && S.verberg.k === 'spp') return []; const l = labelsGoed(c).slice().sort((a, b) => (b.used || 0) - (a.used || 0)).map(g => String(g.qty ?? '').trim()).filter(q => /^\d+([.,]\d+)?$/.test(q)).map(num).filter(v => v > 0); return [...new Set(l)]; };
 function sppUitBronnen(c, metGenoot){
   const uit = [];
   const lab = labelSppLijst(c);
@@ -612,9 +737,27 @@ function sppUitBronnen(c, metGenoot){
   }
   return uit.filter(x => x.v > 0);
 }
-function vsSpp(c){
+// binnenkomst bij Pallet en Deel: pallet van de leverancier, of los binnen en zelf pallets bouwen
+const BRON_ZELF = new Set(['spp:label', 'spp:verplaatst', 'spp:pallets']);
+function vsBinnen(c, ink){
   if(isSam(c)) return null;
+  const br = sppUitBronnen(c, false).filter(x => BRON_ZELF.has(x.id)), s = br.length ? br[0].v : null;
+  if(ink && s && ink.meestal >= 0.85 * s) return { v:'pallet', why:'inkoop meestal ' + nf(ink.meestal) + ' ≈ een volle pallet van ' + nf(s), r:'binnen:inkoop' };
+  if(ink && s) return { v:'los', why:'inkoop meestal ' + nf(ink.meestal) + ', minder dan een pallet van ' + nf(s) + ': zelf pallets bouwen', r:'binnen:inkoop' };
+  return null;
+}
+function vsSpp(c, I){
+  if(isSam(c)) return null;
+  const bk = I ? waarde(c, 'binnen', I).v : '';
+  if(bk === 'los'){
+    // zelf pallets bouwen: alleen palletlabels, VST/bulk-pallets en verplaatsingen, nooit inkoop
+    const z = sppUitBronnen(c, false).filter(x => BRON_ZELF.has(x.id));
+    if(!z.length) return { mis:'zelf pallets bouwen: geen palletlabel, VST-pallets of verplaatsingen: uitzoeken (nooit uit inkoop)' };
+    const t = z[0], a = z.filter(x => x.v !== t.v);
+    return Object.assign({ v:String(t.v), why:t.why + ' (zelf pallets bouwen)', r:t.id }, t.alt || a.length ? { tw:true, alt:[...new Set((t.alt || [t.v]).concat(a.map(x => x.v)).map(String))] } : {});
+  }
   const br = sppUitBronnen(c, true);
+  if(!br.length && bk === 'pallet' && I && I.ink) return { v:String(I.ink.meestal), why:'pallet van de leverancier: inkoop meestal ' + nf(I.ink.meestal) + ' per order', r:'spp:inkoop' };
   if(!br.length){ const l = leerOf(c, 'spp', [['levmaat', 2]]); return l ? Object.assign(l, { why:l.why + ' (zelfde leverancier en maat)' }) : { mis:'geen palletlabel, verplaatsingen, pallets, pakbon of kleurgenoot: uitzoeken (inkoop zegt niets over stuks per pallet)' }; }
   const top = br[0], ander = br.filter(x => x !== top && x.v !== top.v);
   const uit = { v:String(top.v), why:top.why, r:top.id, bron:br.map(x => x.why) };
@@ -749,7 +892,7 @@ function korteOmschrijving(c){
 const alleenCode = (c, v) => vnN(v) === vnN(c) || vnN(v).replace(vnN(c), '').length < 3;
 function vnRegel(c){ const k = korteOmschrijving(c); if(!k) return c; return String(c).length > 14 ? k : c + ' - ' + k; }
 function vsVn(c){
-  try{ const o = X().oudeWaarde(c, 'vn'); if(o && !o.conflict && o.v && !alleenCode(c, o.v)) return { v:o.v, why:'staat al op het palletlabel', r:'vn:label' };
+  try{ const o = X().oudeWaarde(c, 'vn'); const fout = v => labelFout(c, { name:v }); if(o && o.conflict) o.conflict = o.conflict.filter(x => !fout(x.v)); if(o && !o.conflict && o.v && !alleenCode(c, o.v) && !fout(o.v)) return { v:o.v, why:'staat al op het palletlabel', r:'vn:label' };
     if(o && o.conflict){ const l = o.conflict.map(x => x.v).filter(v => v && !alleenCode(c, v)); if(l.length) return { v:l[0], why:'palletlabels verschillen: ' + l.join(' / '), alt:l, tw:l.length > 1, r:'vn:label' }; } }catch(e){}
   return { v:vnRegel(c), why:String(c).length > 14 ? 'code is lang (> 14 tekens): alleen de korte omschrijving' : 'productcode + korte omschrijving met de onderscheidende kenmerken', r:'vn:regel' };
 }
@@ -866,7 +1009,8 @@ function bereken(c){
   I.vs.pickc = vsPickc(c, f);
   I.vs.lvl = vsLvl(c); if(I.vs.lvl && I.vs.lvl.aan) I.aan.add(I.vs.lvl.aan);
   I.vs.maxpick = vsMax(c, so, ink);
-  I.vs.spp = vsSpp(c, f, ink);
+  I.vs.binnen = vsBinnen(c, ink);
+  I.vs.spp = vsSpp(c, I);
   I.vs.maat = vsMaat(c);
   I.vs.vn = sam ? null : vsVn(c); if(I.vs.vn && I.vs.vn.aan) I.aan.add(I.vs.vn.aan);
   I.vs.verp = sam ? null : vsVerp(c);
@@ -875,6 +1019,31 @@ function bereken(c){
   I.vs.hoogte = vsHoogte(c, sppE, maatE);
   ROLNODIG.forEach(k => { I.vs[k] = vsRol(c, k, I); });
   return I;
+}
+
+/* ---------- liggertype per gang+sectie+niveau (aantal posities A–D op die ligger in wh-locaties) ---------- */
+const LIG = { dv:-1, m:null }, LIGRE = /^([A-Z]{2}\d{2})([A-F])(\d{2})$/;
+function liggerIndex(){
+  if(LIG.dv === S.dataVer && LIG.m) return LIG.m;
+  const m = {}; Object.keys(D.LOC || {}).forEach(n => { const x = String(n).toUpperCase().match(LIGRE); if(x) (m[x[1] + '|' + x[3]] = m[x[1] + '|' + x[3]] || new Set()).add(x[2]); });
+  LIG.dv = S.dataVer; LIG.m = m; return m;
+}
+function liggerVan(loc){ const x = String(loc || '').toUpperCase().match(LIGRE); if(!x) return null; const s = liggerIndex()[x[1] + '|' + x[3]]; return s && s.size >= 2 ? s.size : null; }
+/* ---------- controle na invoer: zeggen VST-pallets, verplaatsingen of palletlabels iets anders dan wat Daan invulde? Nooit wijzigen. ---------- */
+function naControle(c, k, I){
+  I = I || info(c);
+  const w = waarde(c, k, I); if(!['bevestigd', 'aangepast', 'vastgelegd'].includes(w.st)) return '';
+  const v = nOf(w.v); if(!(v > 0)) return '';
+  const uit = [];
+  if(k === 'spp'){
+    let b = {}; try{ b = X().sppBronnen(c) || {}; }catch(e){}
+    if(b.vst2 && num(b.vst2.v) !== v) uit.push(b.vst2.t);
+    if(b.mvvst && num(b.mvvst.v) !== v) uit.push(b.mvvst.t);
+    if(b.mvpick && num(b.mvpick.v) !== v) uit.push('naar pick: ' + b.mvpick.t);
+    const lab = labelSppLijst(c); if(lab.length && !lab.includes(v)) uit.push('palletlabel: ' + lab.map(x => nf(x)).join(' / ') + ' per pallet');
+  }
+  if(k === 'maxpick' && soortWaarde(c, I).v === 'deel'){ const g = grootstePick(c); if(g && g !== v) uit.push('verplaatsingen naar pick: grootste aanvulling ' + nf(g)); }
+  return uit.join(' · ');
 }
 
 /* ---------- berekende velden ---------- */
@@ -893,9 +1062,14 @@ function calc(c, k, I){
     case 'gewpal': { const s = nOf(w('spp').v); if(s === null) return { v:'', why:'eerst stuks per pallet' }; if(!(g.kg > 0)) return { v:'', why:'gewicht per stuk onbekend' }; const v = Math.ceil(s * g.kg + 15); return { v:String(v), why:nf(s) + ' × ' + nf(g.kg, 3) + ' kg + 15 kg pallet', vs:uitVs('spp') || g.st === 'niet', uitzoeken:v > 1500, oranje:v > 1000 && v <= 1500, warn:v > 1500 ? 'boven 1.500 kg: klopt stuks per pallet of het gewicht? uitzoeken' : v > 1000 ? 'controleer: boven 1.000 kg' : '' }; }
     case 'plaatsen': { const m = w('maat').v; const v = m ? X().plaatsenUitMaat(m) : null; return v ? { v:String(v), why:'uit palletmaat ' + m + ' (plaats = 90 cm)', vs:uitVs('maat') } : { v:'', why:'eerst palletmaat' }; }
     case 'maxlig': {
-      const pl = num(calc(c, 'plaatsen', I).v), gw = num(calc(c, 'gewpal', I).v); if(!pl && !gw) return { v:'', why:'eerst palletmaat en gewicht' };
-      const a = pl ? Math.max(1, Math.floor(3 / pl)) : null, b = gw ? Math.max(1, Math.floor(2000 / gw)) : null, v = Math.min(...[a, b].filter(x => x !== null));
-      return { v:String(v), why:(a !== null ? '3 plaatsen / ' + nf(pl, 1) + ' = ' + a : '') + (a !== null && b !== null ? ' · ' : '') + (b !== null ? '2.000 kg / ' + nf(gw) + ' kg = ' + b : ''), vs:uitVs('maat', 'spp') };
+      // liggertype uit de bulklocatie (letters per gang+sectie+niveau in wh-locaties: A–B = 2, A–C = 3, A–D = 4) en de 2.000 kg-grens
+      const pl = num(calc(c, 'plaatsen', I).v), gw = num(calc(c, 'gewpal', I).v); if(!pl) return { v:'', why:'eerst palletmaat' };
+      const per = n => Math.max(1, Math.floor(n / pl)), kg = gw ? Math.max(1, Math.floor(2000 / gw)) : null, met = n => kg !== null ? Math.min(per(n), kg) : per(n);
+      const bulk = (I.f.bulk || []).map(x => [x.n, liggerVan(x.n)]).filter(x => x[1]), typen = [...new Set(bulk.map(x => x[1]))].sort();
+      const kgT = kg !== null ? ' · 2.000 kg / ' + nf(gw) + ' kg = ' + kg : '';
+      if(typen.length === 1){ const n = typen[0]; return { v:String(met(n)), why:n + '-ligger (' + bulk.filter(x => x[1] === n).map(x => x[0]).slice(0, 2).join(', ') + '): ' + n + ' / ' + nf(pl, 1) + ' plaatsen = ' + per(n) + kgT, vs:uitVs('maat', 'spp') }; }
+      const l = typen.length ? typen : [3, 4];
+      return { v:l.map(n => n + '-ligger ' + met(n)).join(' · '), why:(typen.length ? 'bulk op verschillende liggers: ' + bulk.map(x => x[0] + ' (' + x[1] + ')').join(', ') : 'geen bulklocatie: per liggertype') + kgT, vs:uitVs('maat', 'spp') };
     }
     case 'kgm': case 'kgcm': { const kg = nOf(w('rkg').v), L = nOf(w('rl').v); if(!(kg > 0 && L > 0)) return { v:'', why:'eerst gewicht en lengte volle rol' }; const v = kg / L / (k === 'kgcm' ? 100 : 1); return { v:nf(v, k === 'kgcm' ? 4 : 3), why:nf(kg) + ' kg / ' + nf(L) + ' m' + (k === 'kgcm' ? ' / 100' : ''), vs:uitVs('rkg', 'rl') }; }
   }
@@ -1086,7 +1260,7 @@ const SCORE_VOOR = {"op":"2026-10-27","n":2742,"velden":{"opslag":{"tot":465,"me
    (bron daan, invul, samen, familie …) wordt nooit stil overschreven: verschil tonen en laten kiezen. Vooraf een kopie van de
    geraakte rijen (catalog-rij wh-pd2-kopie-<tijd>), terugdraaien kan met die kopie. Vlag pd2Overzetten staat op false:
    de knop is verborgen en overzetEcht() weigert. Getest alleen tegen een kopie van de data (overzetToepassen is zuiver). */
-const pd2Overzetten = false;
+const pd2Overzetten = true;   // week 1 (28-10): aan; daarna schrijft 2.0 direct naar productdata (bron pd2)
 const OVERZETVELD = { lvl:'lvl', maxpick:'maxpick', spp:'spp', maat:'maat', hoogte:'hoogte', vn:'vn', mixgroep:'mixgroep' };
 // zonder oefenantwoorden
 function echtDeel(p){ const q = JSON.parse(JSON.stringify(p)); Object.keys(q.f || {}).forEach(k => { if(q.f[k] && q.f[k].oef) delete q.f[k]; }); ['so', 'weg', 'gew', 'rol'].forEach(k => { if(q[k] && q[k].oef) delete q[k]; }); return q; }
@@ -1099,6 +1273,7 @@ function overzetPlan(rows){
       const r = rows[c] || {}, oud = r.data ? r.data[k] : undefined, m = (r.meta || {})[k] || {};
       const x = { c, k, nieuw:String(v), oud:leeg(oud) ? '' : String(oud), oudBron:m.bron || '', extra:extra || null };
       if(x.oud && x.oud.trim().toLowerCase() === x.nieuw.trim().toLowerCase()) x.actie = 'gelijk';
+      else if(k === 'vn' && x.oud && alleenCode(c, x.oud)) x.actie = 'zet';   // oude vloernaam = alleen de code: geen eigen keuze, Daans vloernaam-regel gaat voor (aanname vnoud)
       else if(x.oud && !isOnb(x.oud) && TOETSBRON.has(m.bron || '') && !m.tw) x.actie = 'kies';   // Daans eigen invoer: nooit zonder keuze
       else x.actie = 'zet';
       plan.push(x);
@@ -1110,6 +1285,7 @@ function overzetPlan(rows){
     Object.entries(p.f || {}).forEach(([k, x]) => {
       if(!ok(x)) return;
       if(OVERZETVELD[k]) zet(OVERZETVELD[k], x.v);
+      else if(k === 'binnen') zet('binnenkomst', x.v);
       else if(k === 'pickc'){ if(x.v === 'klopt') zet('pick', 'ja'); else if(x.v === 'geenpick') zet('pick', 'nee'); else if(x.v === 'moetpick') zet('pickkeuze', 'moet pick krijgen'); }
       else if(k === 'verp'){ const n = num((String(x.v).match(/^\s*(\d+(?:[.,]\d+)?)/) || [])[1]); if(n > 0) zet('spd', String(n)); }
     });
@@ -1141,14 +1317,16 @@ async function overzetEcht(keuzes){
   if(!pd2Overzetten) throw new Error('Overzetten naar de echte productdata staat uit (pd2Overzetten = false).');
   const codes = [...new Set(Object.keys(S.o.p))], rows = {};
   for(let i = 0; i < codes.length; i += 80){
-    const r = await WH.api('GET', 'productdata?productcode=in.(' + codes.slice(i, i + 80).map(c => '"' + String(c).replace(/"/g, '\\"') + '"').join(',') + ')&select=productcode,data,meta');
+    const r = await WH.api('GET', 'productdata?productcode=in.(' + encodeURIComponent(codes.slice(i, i + 80).map(c => '"' + String(c).replace(/"/g, '\\"') + '"').join(',')) + ')&select=productcode,data,meta');
     (r || []).forEach(x => { rows[x.productcode] = { data:x.data || {}, meta:x.meta || {} }; });
   }
   const plan = overzetPlan(rows), t = overzetToepassen(rows, plan, keuzes), key = 'wh-pd2-kopie-' + new Date().toISOString().replace(/[:.]/g, '-');
   await WH.catZet(key, { t:new Date().toISOString(), kopie:t.kopie });   // eerst de kopie
-  const nu = new Date().toISOString(), upd = Object.keys(t.kopie).map(c => ({ productcode:c, data:t.rows[c].data, meta:t.rows[c].meta, updated_at:nu }));
-  await WH.upsert('productdata', upd, 'productcode');
-  return { key, n:t.n };
+  const nu = new Date().toISOString(), upd = Object.keys(t.kopie).filter(c => JSON.stringify(t.rows[c]) !== JSON.stringify(t.kopie[c])).map(c => ({ productcode:c, data:t.rows[c].data, meta:t.rows[c].meta, updated_at:nu }));   // alleen rijen die echt veranderen
+  if(upd.length) await WH.upsert('productdata', upd, 'productcode');
+  upd.forEach(r => { P().S.pd[r.productcode] = { data:r.data, meta:r.meta, t:nu }; ongeldig(r.productcode); });
+  const kies = plan.filter(x => x.actie === 'kies' && (keuzes || {})[x.c + '|' + x.k] !== 'nieuw');
+  return { key, n:t.n, rijen:upd.length, verschil:kies.length };
 }
 
 /* ---------- tellen: hoe vaak een voorstel bevestigd of aangepast is ---------- */
@@ -1167,5 +1345,6 @@ return { S, AANNAMES, KEY_OEFEN, KEY_FB, laad, flush, plan, schrijf, po, poZet, 
   koppelVan, isKoppel, koppelTekst, wegLicht, controle, maatRegel, vnRegel, sppUitBronnen, famVan, maatVan, famNaam, isSam, naamVan, abcVan, actief, kgPq, vk6, vk28, inkoop, backorders, inkomend, locInfo, som, anderOpPlek,
   VELD, SOORTEN, SOORTT, WEG, KOLOMMEN, NODIG, ROLNODIG, SAMVELD, MATEN, MATEN_WB, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
   rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
+  naControle, liggerVan, labelsVerbeteren, labelsGoed, verschil, verschilKies, herstel, pdFlush, PDQ,
   vraagLive, liveStatus, meet, meting, zetMeting, scoreVan, pd2Overzetten, overzetPlan, overzetToepassen, overzetTerug, overzetEcht, toetsItems, TOETSVELD, SCORE_VOOR, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };
 })();

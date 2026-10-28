@@ -4,7 +4,7 @@ async function start(opt = {}){
   const b = await chromium.launch(process.env.HTTPS_PROXY ? { proxy:{ server:process.env.HTTPS_PROXY, bypass:'localhost,127.0.0.1' } } : {});
   const ctx = await b.newContext({ viewport:opt.vp || { width:1440, height:900 }, deviceScaleFactor:1, isMobile:!!opt.mobiel, hasTouch:!!opt.mobiel });
   const p = await ctx.newPage();
-  const mock = opt.mock || {}, writes = [], blocked = [], errors = [];
+  const mock = opt.mock || {}, writes = [], blocked = [], errors = [], pdWrites = [];
   await p.route(/supabase\.co\/(rest|functions)\//, async r => {
     const q = r.request(), m = q.method(), u = decodeURIComponent(q.url());
     if(/\/functions\//.test(u)){ blocked.push('FUNC ' + u.slice(0, 120)); return r.fulfill({ status:503, body:'{"fout":"test: geen Picqer"}' }); }
@@ -15,13 +15,15 @@ async function start(opt = {}){
     if(m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return r.continue();
     const body = q.postData() || '';
     let rows = null; try{ rows = JSON.parse(body); }catch(e){}
-    if(/rest\/v1\/catalog/.test(u) && Array.isArray(rows) && rows.length && rows.every(x => /^wh-pd2-(oefen|feedback)$/.test(x.key))){ rows.forEach(x => { mock[x.key] = x.data; writes.push(x.key); }); return r.fulfill({ status:201, body:'' }); }
+    if(/rest\/v1\/catalog/.test(u) && Array.isArray(rows) && rows.length && rows.every(x => /^wh-pd2-(oefen|feedback|kopie-.+)$/.test(x.key))){ rows.forEach(x => { mock[x.key] = x.data; writes.push(x.key); }); return r.fulfill({ status:201, body:'' }); }
+    // week 1: 2.0 schrijft direct naar productdata (bron pd2); in de test alleen vastgelegd, nooit naar de database
+    if(/rest\/v1\/productdata/.test(u) && Array.isArray(rows) && rows.length){ rows.forEach(x => { pdWrites.push(x); writes.push('productdata'); }); return r.fulfill({ status:201, body:'' }); }
     blocked.push(m + ' ' + u.slice(0, 160) + ' ' + body.slice(0, 80));
     return r.fulfill({ status:201, body:'' });
   });
   p.on('pageerror', e => errors.push('PAGEERROR ' + e.message));
   p.on('console', m => { if(m.type() === 'error') errors.push('CONSOLE ' + m.text().slice(0, 300)); });
-  return { b, ctx, p, mock, writes, blocked, errors };
+  return { b, ctx, p, mock, writes, blocked, errors, pdWrites };
 }
 async function open(T, hash){
   await T.p.goto((process.env.PD2_URL || 'http://localhost:8811/') + 'ivol.html' + (hash || '#/pd2'));

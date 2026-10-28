@@ -391,7 +391,40 @@ Startscherm ongewijzigd. Vervangt de familie- en kaartopbouw uit ronde 3.
   Whiteboard Magnetisch, Schoonloopmat Mars en Kokos op rol (inhoud 97–98% van de breedte, geen horizontale scroll, 3 kaarten
   in beeld op 1440); regressie oude pagina's gelijk; hashes van productdata, wh-pd-fam en catalog-ean ongewijzigd.
 
-## Aannames (ronde 1 t/m 4)
+## Week 1 (28-10-2026): fundering — van oefenen naar echt
+**A. 2.0 gecorrigeerd**
+1. Soort wordt echt opgeslagen bij Klopt, Alles klopt, Selectie klopt en Alle voorstellen kloppen, ook als de soort al vastlag in
+   productdata. Herstel bij het laden: afgerond zonder opgeslagen soort → de soort die het scherm toonde (bron `herstel`).
+2. Gewicht vertrouwd of gewogen legt ook de kg vast (vertrouwd = de Picqer-kg op dat moment; bestaande vertrouwd zonder kg: herstel).
+3. Picklocatie: alle picklocaties onder elkaar met aantal en vast/tijdelijk, niet afgekapt; vloernaam breed (4 kolommen) en volledig.
+4. Max per ligger uit het liggertype van de bulklocatie (letters per gang+sectie+niveau in wh-locaties: A–B = 2, A–C = 3, A–D = 4);
+   plaatsen 1 → 2/3/4, 2 → 1/1/2, 3 → 1; zonder bulklocatie "3-ligger x · 4-ligger y"; daarnaast 2.000 kg.
+   Voorbeeld: 100150WM op BB11A10 (4-ligger), 2 plaatsen → 2.
+5. Controle na invoer: zeggen VST-pallets (≥ 2 gelijk), verplaatsingen (naar VST of naar pick) of palletlabels een ander stuks per
+   pallet dan wat Daan invulde, dan in oranje onder het veld wat de bron zegt (bijv. "VST: 3 van 3 pallets hebben 40"). Nooit wijzigen.
+6. "Hoe komt dit binnen?" heet "Hoe vul je pick aan?". Bij Pallet en Deel een extra keuze Binnenkomst: pallet van leverancier /
+   los, zelf pallets bouwen (productdata-veld `binnenkomst`). Zelf bouwen: stuks per pallet alleen uit palletlabels, VST en
+   verplaatsingen, nooit uit inkoop.
+7. Palletlabel waarvan de naam een andere productcode is (label van 100150WM heet "100200WM"): niet gebruikt; lijst "Palletlabels om
+   te verbeteren" onderaan het startscherm.
+
+**B. Echt**: `pd2Overzetten` staat aan. Alles wat Daan in wh-pd2-oefen bevestigde of aanpaste (niet met het oefenkaartje aan) is
+overgezet naar productdata (meta-bron `pd2`), na een volledige kopie. Eigen invoer van Daan die afwijkt wordt niet overschreven en
+staat in 2.0 als "verschil" met kies-knoppen (neem 2.0 / neem productdata). Daarna schrijft 2.0 direct naar productdata (bron `pd2`)
+met per schrijfactie een kopie van de rij in catalog `wh-pd2-kopie-<datum>`; ongedaan maken draait ook productdata terug. Het
+oefenkaartje blijft als optie en schrijft dan alleen naar wh-pd2-oefen. "Oefenantwoorden wissen" wist alleen wat met het kaartje
+aan is ingevuld.
+
+**C. Menu 3.0 op de pilaren**: Deze week (Te doen) · Fundering (Productdata 2.0, Locaties) · 1 Aanvullen (Aanvullen, Live advies) ·
+2 Voorraad op plek (Geen locatie, A/B-check) · 3 Inkomend (Containers, Containerdag) · 4 VST (Van VST) · 5 Orders (Dagstart,
+Backorders) · Meer (ingeklapt, alle andere onderdelen ongewijzigd). Nieuw als menuregel: Geen locatie (Test #/invul/geen) en Van VST
+(Warehouse #/aanvullen/vst). Te doen toont bovenaan de link naar de bouwtekening.
+
+**D. Containers lezen productdata** (alleen lezen): een pakbonregel "los, per 1" van een product dat in productdata Pallet of Deel is
+met stuks per pallet (≥ 2) krijgt het voorstel "pallets, per <stuks per pallet>" (geel, met reden). Bevestigen met ✓ of "Alle
+voorstellen kloppen" per container. Een regel die Daan bevestigde of zelf aanpaste (`soortOk`) wordt nooit stil gewijzigd.
+
+## Aannames (ronde 1 t/m week 1)
 Staan in één lijst "Aannames (n)" (link onderaan het startscherm), met klopt / keur af en een opmerking; het oordeel komt mee
 in "Kopieer alles voor Claude". Bron in de code: `AANNAMES` bovenin `wh/pd2-reken.js` (samen bijwerken).
 - `zoek`: Zoeken kijkt in alle actieve producten, ook buiten de gekozen scope (anders vind je bijv. Waterhog zonder voorraad niet).
@@ -406,7 +439,7 @@ in "Kopieer alles voor Claude". Bron in de code: `AANNAMES` bovenin `wh/pd2-reke
 - `score`: Een voorstel waarvan de regel bij jouw eigen invoer minder dan 60% klopte (minstens 5 keer getoetst), staat als twijfel: in het blauwe vak staat "twijfel" en hoe vaak hij klopte.
 - `leer`: Leren van jouw invoer: een waarde telt als patroon als minstens 2 producten (kleurgenoot: 1) in die groep hem hebben en hij ≥ 60% van die groep is. Groepen: kleurgenoten, familie, leverancier + maat, leverancier.
 - `reach`: Weeglijst: hoe wegen volgt uit de soort. Pallet of Deel met stuks per pallet = volle pallet met de reachtruck (palletgewicht − 15 kg, gedeeld door stuks per pallet); de rest los op de weegschaal.
-- `ligger`: Palletgewicht boven ligger-limiet: een pallet van meer dan 2.000 kg, of zo zwaar dat door het gewicht minder pallets op een ligger passen dan door de plaatsen (3 plaatsen per ligger).
+- `liggerkg`: Palletgewicht boven ligger-limiet: een pallet van meer dan 2.000 kg, of zo zwaar dat door het gewicht minder pallets op een ligger passen dan door de plaatsen (3 plaatsen per ligger).
 - `wegalle`: Weg-voorstel voor alle producten: dezelfde regels als in tab 5. Heeft Daan in de familie al een soort gekozen, dan telt "geen voorraad" als tijdelijk op en komt er geen Weg-voorstel.
 - `snap`: Snel openen: 2.0 bewaart na het laden een kopie op dit apparaat (IndexedDB, max 7 dagen oud) en tekent daar eerst mee ("gegevens van hh:mm, bijwerken…"); daarna ververst het op de achtergrond. Typ je net, dan wacht het verversen tot je klaar bent.
 - `overzet`: Overzetten naar de echte productdata is gebouwd maar staat uit (pd2Overzetten = false, knop verborgen). Overgezet wordt alleen wat jij bevestigde of aanpaste; Uitlopend gaat als datum mee, Backorder en Archief hebben nog geen veld in productdata.
@@ -439,6 +472,12 @@ in "Kopieer alles voor Claude". Bron in de code: `AANNAMES` bovenin `wh/pd2-reke
 - `gewknop`: Gewicht: getal typen = gewogen. "vertrouwd" = het Picqer-gewicht klopt. "gewogen" zonder getal vraagt eerst het gewicht. Nog een keer op de gekozen knop = terug naar niet gecontroleerd.
 - `plat`: Heeft elke maat in de familie maar 1 product, dan is er geen maatstap: alle kaarten onder elkaar op maat, de maten zijn een inhoudsopgave.
 - `maxdeel`: Max op pick bij Deel: Picqer-instelling, anders de grootste aanvulling van bulk naar pick in de verplaatsingen (één verplaatsing), anders kleurgenoot; geen aanvulregel of leren (die gaven bij + pallet).
+- `vnoud`: Overzetten: een vloernaam in productdata die alleen de productcode is, telt niet als eigen afwijkende invoer; die wordt overschreven door de vloernaam die je in 2.0 bevestigde (jouw regel code + omschrijving).
+- `overzet1`: Week 1: overgezet is alles wat je in 2.0 bevestigde of aanpaste (niet met het oefenkaartje aan). Gewicht vertrouwd = de Picqer-kg van dat moment. Daarna schrijft 2.0 direct naar productdata (bron pd2), met per schrijfactie een kopie van de rij in wh-pd2-kopie-<datum>.
+- `ligger`: Max per ligger: liggertype uit de bulklocatie (letters per gang+sectie+niveau in wh-locaties: A–B = 2-ligger, A–C = 3, A–D = 4). Plaatsen 1 → 2/3/4 per ligger, 2 → 1/1/2, 3 → 1. Zonder bulklocatie: "3-ligger x · 4-ligger y". Daarnaast 2.000 kg per ligger.
+- `nacontrole`: Controle na invoer (oranje onder het veld): VST-pallets (≥ 2 gelijk), verplaatsingen naar VST of naar pick, of palletlabels zeggen een ander stuks per pallet dan wat je invulde; bij Deel ook de grootste aanvulling naar pick tegenover max op pick. Nooit automatisch gewijzigd.
+- `binnenkomst`: Binnenkomst (Pallet en Deel): pallet van leverancier of los, zelf pallets bouwen. Voorstel uit inkoop tegenover stuks per pallet (≥ 85% = pallet van leverancier). Bij zelf bouwen komt stuks per pallet alleen uit palletlabels, VST/bulk-pallets en verplaatsingen; bij pallet van leverancier mag inkoop meestal als laatste bron.
+- `labelfout`: Een palletlabel waarvan de hele naam (zonder spaties/streepjes) een andere productcode is, telt niet voor stuks per pallet of vloernaam en staat op "Palletlabels om te verbeteren".
 - `oefentel`: Wat je invult terwijl het oefenkaartje aan staat, krijgt een oefen-merk: het geldt voor dat product, maar telt niet mee voor kleurgenoten, leren, de telling in "Kopieer alles voor Claude" en het overzetten. Alleen invoer met oefenen uit telt.
 - `oefen`: Oefenen staat standaard uit (Oefenmodus ⋯ → Oefenen); dan één kaartje rechtsonder met de opdrachten per soort en na de laatste de vier vragen. Je bewerkt de oefenkopie ook als oefenen uit staat.
 - `rolregel`: Rolregels ronde 2: kokos rol = 600 cm lang (6 m); kokos 200 cm 17 mm = 12 rollen per pallet, 24 mm = 6 (vaste aantallen); voor 100 cm kokos geen aantal bekend. Ringmat op rol heavy duty: staand, 6 per pallet, palletmaat 100x150. Gewicht volle rol = gewicht per meter of cm × lengte.

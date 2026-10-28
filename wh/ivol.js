@@ -26,6 +26,17 @@ const GROEPEN = [
   { k:'geg', t:'Gegevens' },
   { k:'park', t:'Geparkeerd' }
 ];
+// menu op de pilaren (week 1, 28-10): wat nu telt staat bovenaan; al het andere onder "Meer" (ingeklapt, ongewijzigd bereikbaar)
+const PIJLERS = [
+  { k:'week', t:'Deze week', ids:['todo'] },
+  { k:'fund', t:'Fundering', ids:['pd2', 'locaties'] },
+  { k:'p1', t:'1 · Aanvullen', ids:['aanvullen', 'aanvullive'] },
+  { k:'p2', t:'2 · Voorraad op plek', ids:['geenloc', 'abcheck'] },
+  { k:'p3', t:'3 · Inkomend', ids:['containers', 'containerdag'] },
+  { k:'p4', t:'4 · VST', ids:['vanvst'] },
+  { k:'p5', t:'5 · Orders', ids:['dag', 'backorders'] }
+];
+const pijlerVan = id => PIJLERS.find(p => p.ids.includes(id));
 const M = [
   { id:'stand', g:'start', t:'Hoe staat het ervoor', native:'x-stand', st:'proef', r:['daan', 'karin', 'mgmt'], uit:'Daans tien punten met het cijfer dat de app erover kan geven. Alleen lezen, voor Jim, Maxime, Ryan en Gino.' },
   { id:'nakijken', g:'start', t:'Te controleren', native:'x-nakijken', st:'proef', r:DV, uit:'Schattingen van Claude in Productdata en aannames (kerncijfers, dagritme): Klopt of aanpassen.' },
@@ -58,7 +69,7 @@ const M = [
   { id:'invul', g:'prod', t:'Invullen', u:T('#/invul'), st:'proef', r:DV, data:'wh-aanvul, catalog-ean', uit:'Op de telefoon, één product per scherm.' },
   { id:'productdata', g:'prod', t:'Productdata', u:T('#/productdata'), st:'proef', r:DV, data:'producten, catalog-ean', uit:'Afdelingen doorlopen, automatisch invullen, importeren.' },
   { id:'pdfamilie', g:'prod', t:'Per familie', u:T('#/productdata/familie'), st:'proef', r:DV, data:'productdata, wh-pd-fam, wh-inkoop, wh-verplaatsingen', uit:'Een hele familie in één keer: familie, maatgroep, product, met voorraad per locatie, inkoop en backorders per product.' },
-  { id:'pd2', g:'prod', t:'Productdata 2.0', native:'pd2', st:'oefen', r:DV, data:'wh-pd2-oefen, wh-pd2-feedback (lezen: productdata, wh-pd-fam, wh-inkoop, wh-verplaatsingen)', uit:'Oefensimulatie: per soort-tab oefenen met echte producten; niets gaat naar de echte productdata.' },
+  { id:'pd2', g:'prod', t:'Productdata 2.0', native:'pd2', st:'proef', r:DV, data:'productdata (schrijft met bron pd2, vooraf een kopie in wh-pd2-kopie-*), wh-pd2-oefen, wh-pd2-feedback (lezen: wh-pd-fam, wh-inkoop, wh-verplaatsingen, wh-locaties)', uit:'Productdata per familie, maat en product: voorstellen met reden, Klopt of aanpassen; gaat direct naar productdata. Met het oefenkaartje aan alleen naar een oefenkopie.' },
   { id:'gelijk', g:'prod', t:'Gelijkzetten', u:T('#/productdata/gelijk'), st:'proef', r:DV, data:'productdata, catalog-ean, producten', uit:'Productdata naar Palletlabels en Containers zetten.' },
   { id:'soorten', g:'prod', t:'Soorten', u:T('#/productdata/soort'), st:'proef', r:DV, data:'opslag', uit:'1 pallet · 2 deel · 3 mix · 4 pick · 5 rol alleen backorder.' },
   { id:'productkaart', g:'prod', t:'Productkaart', u:'./productkaart.html', st:'draait', r:DK, data:'catalog-ean, producten', uit:'Alles over één product.' },
@@ -86,6 +97,8 @@ const M = [
   { id:'picqertest', g:'geg', t:'Picqer API-test', u:'./picqer-test.html', st:'naslag', r:DV, data:'Picqer API', uit:'Eerste leestest van de koppeling.' },
   { id:'testdata', g:'geg', t:'Testdata Picqer', u:'./testdata.html', st:'naslag', r:DV, data:'Picqer-testomgeving', uit:'Testgegevens voor de Picqer-testomgeving.' },
 
+  { id:'geenloc', g:'aanvul', t:'Geen locatie', u:T('#/invul/geen'), st:'proef', r:DV, data:'wh-voorraad, wh-locaties', uit:'Voorraad op geen specifieke locatie, lopers eerst: een plek geven.' },
+  { id:'vanvst', g:'aanvul', t:'Van VST', u:W('#/aanvullen/vst'), st:'draait', r:DK, data:'backorders, wh-vst-voorraad', uit:'Orders die alleen met de VST-voorraad compleet zijn: wat van VST halen, met de VST-mail.' },
   { id:'ploeg', g:'park', t:'Ploeg', u:'./ploeg.html', st:'geparkeerd', r:DV, data:'wh-ploeg', uit:'Takenverdeling per persoon. Pas na fundament 1–3.' }
 ];
 // alleen in de kaart: oude pagina's die niet meer in het menu horen
@@ -121,12 +134,14 @@ function huidig(){
 function tekenMenu(){
   const nu = huidig();
   const lijst = inMenu();
-  $('menulijst').innerHTML = GROEPEN.map(g => {
-    const items = lijst.filter(m => m.g === g.k); if(!items.length) return '';
-    return `<div class="groep"><div class="gt">${esc(g.t)}</div>${items.map(m => `<a href="${m.ext ? esc(m.ext) + '" target="_blank" rel="noopener' : '#/' + m.id}" class="${m === nu ? 'aan' : ''}">${esc(m.t)}${m.native === 'kennisbank' && window.WHKB ? ` <i class="st grijs" data-kbtel>${WHKB.open()} open</i>` : ''}${UI.rol === 'daan' && m.st !== 'draait' ? ` <i class="st ${ST[m.st][1]}">${ST[m.st][0]}</i>` : ''}</a>`).join('')}</div>`;
-  }).join('');
+  const link = m => `<a href="${m.ext ? esc(m.ext) + '" target="_blank" rel="noopener' : '#/' + m.id}" class="${m === nu ? 'aan' : ''}">${esc(m.t)}${m.native === 'kennisbank' && window.WHKB ? ` <i class="st grijs" data-kbtel>${WHKB.open()} open</i>` : ''}${UI.rol === 'daan' && m.st !== 'draait' ? ` <i class="st ${ST[m.st][1]}">${ST[m.st][0]}</i>` : ''}</a>`;
+  const pijl = PIJLERS.map(p => { const items = p.ids.map(id => lijst.find(m => m.id === id)).filter(Boolean); return items.length ? `<div class="groep"><div class="gt">${esc(p.t)}</div>${items.map(link).join('')}</div>` : ''; }).join('');
+  const rest = GROEPEN.map(g => { const items = lijst.filter(m => m.g === g.k && !pijlerVan(m.id)); return items.length ? `<div class="groep"><div class="gt sub">${esc(g.t)}</div>${items.map(link).join('')}</div>` : ''; }).join('');
+  const meerOpen = UI.meer !== undefined ? UI.meer : !!(nu && !pijlerVan(nu.id));
+  $('menulijst').innerHTML = pijl + (rest ? `<details class="groep meer" ${meerOpen ? 'open' : ''}><summary class="gt">Meer</summary>${rest}</details>` : '');
+  const md = $('menulijst').querySelector('details.meer'); if(md) md.addEventListener('toggle', () => { UI.meer = md.open; });
   document.querySelectorAll('#rollen button').forEach(b => b.classList.toggle('aan', b.dataset.rol === UI.rol));
-  $('kruimel').textContent = nu ? ((GROEPEN.find(g => g.k === nu.g) || {}).t || '') + ' · ' + nu.t + (nu.id === 'taak' && UI.rest ? ' ' + decodeURIComponent(UI.rest) : '') : '';
+  $('kruimel').textContent = nu ? ((pijlerVan(nu.id) || GROEPEN.find(g => g.k === nu.g) || {}).t || '') + ' · ' + nu.t + (nu.id === 'taak' && UI.rest ? ' ' + decodeURIComponent(UI.rest) : '') : '';
   const uit = $('nieuwtab');
   if(nu && nu.u){ uit.href = nu.u; uit.hidden = false; } else uit.hidden = true;
 }
@@ -550,5 +565,5 @@ toon();
 IVL.opNieuw(herreken);
 WHAL.opNieuw(herreken);
 geladen().then(() => { tekenPill(); herreken(); IVL.ronde(false); });
-return { M, GROEPEN, toon, huidig, geladen, stats:() => UI.stats || null };
+return { M, GROEPEN, PIJLERS, toon, huidig, geladen, stats:() => UI.stats || null };
 })();

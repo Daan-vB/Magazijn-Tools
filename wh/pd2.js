@@ -6,7 +6,7 @@
    Herbouw in de stijl van Per familie: één ding tegelijk.
      start   = families (zoeken, filter ingeklapt, volgende familie)
      familie = maten (tegels) en binnen de gekozen maat de productkaarten onder elkaar
-     kaart   = feiten in grijze regels, gewicht, "Hoe komt dit binnen?" en alleen de velden van die soort
+     kaart   = feiten in grijze regels, gewicht, "Hoe vul je pick aan?" en alleen de velden van die soort
    Geen tabellen, geen chips: voorstel = blauw vak met Klopt, groen = vast, rood = ontbreekt of kan niet.
    ===================================================================== */
 window.WHPD2 = (function(){
@@ -192,7 +192,7 @@ const OPDR = {
   pallet:[
     { id:'p1', t:'Open Whiteboard zonder rand (FWB), vink in een maat de Pallet-kaarten aan en druk onderaan op "Selectie klopt".', toon:{ zoek:VB.fwb, seg:'pallet' }, ev:'selklopt', als:d => d.tab === 'pallet' },
     { id:'p2', t:'Pas bij een Pallet-product Stuks per pallet aan en kijk hoe Gewicht volle pallet (grijs) meerekent.', ev:'veld', als:d => d.tab === 'pallet' && d.k === 'spp' },
-    { id:'p3', t:'Zet één Pallet-product op Deel bij "Hoe komt dit binnen?".', ev:'soort', als:d => d.van === 'pallet' && d.naar === 'deel' },
+    { id:'p3', t:'Zet één Pallet-product op Deel bij "Hoe vul je pick aan?".', ev:'soort', als:d => d.van === 'pallet' && d.naar === 'deel' },
     { id:'p4', t:'Vul een Hoogte in die niet past (bijv. 190 bij een 20-locatie in hal A) en zie de melding eronder.', ev:'veld', als:d => d.k === 'hoogte' && d.warn }
   ],
   deel:[
@@ -326,19 +326,27 @@ function ctlHtml(c, k, w){
   return '';
 }
 const BREED = new Set(['pickc', 'vn', 'verp']);
+// verschil met Daans eigen invoer in productdata (niet overschreven bij het overzetten): kies welke klopt
+function verschilHtml(c, k){
+  const d = R.verschil(c, k); if(!d) return '';
+  const t = x => k === 'soort' ? (R.SOORTT[x] || x) : x;
+  return `<div class="pd2-verschil">verschil: productdata <b>${esc(t(d.pd))}</b> · 2.0 <b>${esc(t(d.twee))}</b> <button class="pd2-mini" data-a="verschil" data-k="${k}" data-v="pd2">neem 2.0</button><button class="pd2-mini" data-a="verschil" data-k="${k}" data-v="pd">neem productdata</button></div>`;
+}
 const KORT = { spp:'Per pallet', hoogte:'Hoogte (cm)', maxpick:'Max op pick', lvl:'Aanvullen bij', rl:'Lengte (m)', rkg:'kg per rol', rmax:'Max rollen', rvast:'Vast aantal', rstand:'Staand/liggend', rdia:'Diameter', rb:'Breedte (cm)', rd:'Dikte (mm)' };
 function veldHtml(c, k, I, nodig){
   const d = R.VELD[k], w = R.waarde(c, k, I);
   let onder = '', ctl = ctlHtml(c, k, w);
   if(k === 'pickc'){
     const f = I.f, e = R.eigen(c, 'pickc');
-    ctl = `<div class="pd2-pick"><span class="m">${f.pick.length ? f.pick.slice(0, 2).map(x => esc(x.n) + ' · ' + nf(x.v) + ' · ' + (x.tijd ? 'tijdelijk' : 'vast')).join(', ') : 'geen picklocatie'}</span>${ctl}</div>`;
+    ctl = `<div class="pd2-pick"><div class="locs">${f.pick.length ? f.pick.map(x => `<span class="m">${esc(x.n)} · ${nf(x.v)} · ${x.tijd ? 'tijdelijk' : 'vast'}</span>`).join('') : '<span class="m">geen picklocatie</span>'}</div>${ctl}</div>`;
     if(e && e.opm) onder += `<div class="u kort" title="${esc(e.opm)}">${esc(e.opm)}</div>`;
   }
   if(k === 'hoogte'){ const hw = R.hoogteWaarsch(c, w.v, I); if(hw) onder += `<div class="u kort" title="${esc(hw)}">${esc(hw)}</div>`; }
+  { const nc = R.naControle(c, k, I); if(nc) onder += `<div class="pd2-oranje">${esc(nc)}</div>`; }
+  onder += verschilHtml(c, k);
   if(w.st === 'uitzoeken') onder += `<div class="rood kort" title="${esc(w.why)}">uitzoeken: ${esc(w.why.split(' (voorstel was')[0])}</div>`;
   else if(w.st === 'leeg' && nodig) onder += `<div class="rood kort" title="${esc(w.why || '')}">ontbreekt${w.why ? ': ' + esc(w.why.split(':')[0]) : ''}</div>`;
-  return `<div class="pd2-f${BREED.has(k) ? ' breed' : ''}" data-kc="${k}"><label title="${esc(d.t)}">${esc(KORT[k] || d.kort || d.t)}</label>${ctl}${onder}${vsRegel(k, w)}</div>`;
+  return `<div class="pd2-f${BREED.has(k) ? ' breed' : ''}${k === 'vn' ? ' vnveld' : ''}" data-kc="${k}"><label title="${esc(d.t)}">${esc(KORT[k] || d.kort || d.t)}</label>${ctl}${onder}${vsRegel(k, w)}</div>`;
 }
 // berekende velden: één grijze regel, geen vakken
 function calcRegel(c, ks, I){
@@ -375,7 +383,8 @@ function soortHtml(c, I){
   if(isVs(w)) onder = `<div class="pd2-vr" title="${esc(reden(Object.assign({}, w, { alt:w.alt ? w.alt.map(a => R.SOORTT[a]) : null })))}"><span>voorstel <b>${esc(R.SOORTT[w.v])}</b>${w.st === 'twijfel' ? ' (twijfel)' : ''}</span><button data-a="klopt" data-k="soort">Klopt</button></div>`;
   else if(gekozen && I.vsSo && I.vsSo.v && I.vsSo.v !== gekozen && w.st !== 'vastgelegd') onder = `<div class="pd2-vr grijs" title="${esc(I.vsSo.why || '')}"><span>de data wijst op <b>${esc(R.SOORTT[I.vsSo.v])}</b></span><button class="pd2-mini" data-a="zetsoort" data-v="${I.vsSo.v}">Zet op ${esc(R.SOORTT[I.vsSo.v])}</button></div>`;
   else if(!w.v) onder = '<div class="u">geen voorstel: kies</div>';
-  return `<div class="pd2-soort"><label class="l" for="pd2-so-${esc(c)}">Hoe komt dit binnen?</label><select id="pd2-so-${esc(c)}" class="pd2-in${klasse(w)}" data-k="soort"><option value=""></option>${R.SOORTEN.map(([a]) => `<option value="${a}" ${a === kies ? 'selected' : ''}>${esc(R.SOORTT[a])}</option>`).join('')}</select>${onder}</div>`;
+  onder += verschilHtml(c, 'soort');
+  return `<div class="pd2-soort"><label class="l" for="pd2-so-${esc(c)}">Hoe vul je pick aan?</label><select id="pd2-so-${esc(c)}" class="pd2-in${klasse(w)}" data-k="soort"><option value=""></option>${R.SOORTEN.map(([a]) => `<option value="${a}" ${a === kies ? 'selected' : ''}>${esc(R.SOORTT[a])}</option>`).join('')}</select>${onder}</div>`;
 }
 function rolHtml(c, I, so){
   if(isWegSt(so) || R.isSam(c)) return '';
@@ -429,12 +438,12 @@ function famRijen(){
 }
 function startHtml(){
   const L = families(), klaar = L.filter(f => f.af === f.n).length, fn = filterN(), sn = snapTxt();
-  return `<header class="pd2-kop"><h1>Productdata 2.0 <i class="st grijs">oefen</i></h1><p class="u" id="pd2-klaar">${nf(klaar)} van ${nf(L.length)} families klaar${sn ? ' · ' + esc(sn) : ''}${R.S.bewaar.fout ? ' · <b class="rood">bewaren mislukt</b>' : ''}</p></header>
+  return `<header class="pd2-kop"><h1>Productdata 2.0${UI.oefenen ? ' <i class="st grijs">oefenen</i>' : ''}</h1><p class="u" id="pd2-klaar">${nf(klaar)} van ${nf(L.length)} families klaar${sn ? ' · ' + esc(sn) : ''}${R.S.bewaar.fout ? ' · <b class="rood">bewaren mislukt</b>' : ''}${R.PDQ.fout ? ' · <b class="rood">naar productdata schrijven mislukt, opnieuw over 8 s</b>' : ''}</p></header>
     <button class="knop pd2-hoofd" data-a="volgfam">Volgende familie →</button>
     <div class="pd2-zoekrij"><input type="search" id="pd2-zoek" class="pd2-in" placeholder="Zoek familie, code, naam of locatie" value="${esc(UI.zoek)}" aria-label="Zoeken" autocomplete="off"><button class="knop${UI.filterOpen ? ' aan' : ''}" data-a="filter" aria-expanded="${UI.filterOpen}">Filter${fn ? ' (' + fn + ')' : ''}</button></div>
     ${UI.filterOpen ? filtersHtml() : ''}
     <div class="pd2-famlijst" id="pd2-fams">${famRijen()}</div>
-    <nav class="pd2-voet" aria-label="Meer"><button class="pd2-link" data-a="view" data-v="weeg">Weeglijst (${nf(weegCodes().length)})</button><span>·</span><button class="pd2-link" data-a="view" data-v="aann">Aannames (${nf(Object.keys(R.AANNAMES).length)})</button><span>·</span><button class="pd2-link" data-a="oefmenu">Oefenmodus ⋯</button></nav>`;
+    <nav class="pd2-voet" aria-label="Meer"><button class="pd2-link" data-a="view" data-v="weeg">Weeglijst (${nf(weegCodes().length)})</button><span>·</span><button class="pd2-link" data-a="view" data-v="aann">Aannames (${nf(Object.keys(R.AANNAMES).length)})</button><span>·</span><button class="pd2-link" data-a="view" data-v="labels">Palletlabels om te verbeteren (${nf(R.labelsVerbeteren().length)})</button><span>·</span><button class="pd2-link" data-a="oefmenu">Oefenmodus ⋯</button></nav>`;
 }
 
 /* ---------- scherm 2: familie (desktop: links kop en maten, rechts de kaarten; telefoon: onder elkaar) ---------- */
@@ -542,6 +551,13 @@ function weegPrint(){
 }
 
 /* ---------- aannames (één lijst) en scores ---------- */
+// palletlabels waarvan de naam een andere productcode is: niet gebruikt als voorstel, hier om te verbeteren (in Palletlabels)
+function labelsHtml(){
+  const l = R.labelsVerbeteren();
+  return `<button class="pd2-link pd2-terug" data-a="viewweg">← Alle families</button>
+    <section class="pd2-blok"><h2>Palletlabels om te verbeteren (${nf(l.length)})</h2><p class="u">Het label staat bij het ene product maar heeft de naam van een andere productcode (bijv. label van 100150WM heet "100200WM"). 2.0 gebruikt zo'n label niet voor stuks per pallet of vloernaam. Verbeteren doe je in Palletlabels.</p>
+    <div class="pd2-aannlijst">${l.map(x => `<div class="pd2-aannrij"><p><b class="m">${esc(x.c)}</b> ${esc(R.naamVan(x.c))}</p><p class="u">label heet "${esc(x.naam)}" (= ${esc(x.ander)})${x.qty ? ' · aantal ' + esc(x.qty) : ''}</p></div>`).join('') || '<div class="pd2-leeg">Geen verkeerde labels gevonden.</div>'}</div></section>`;
+}
 function aannHtml(){
   const ids = Object.keys(R.AANNAMES), af = ids.filter(i => R.S.fb.aann[i] && R.S.fb.aann[i].v === 'nee').length;
   return `<button class="pd2-link pd2-terug" data-a="viewweg">← Alle families</button>
@@ -601,6 +617,7 @@ const oefBewaar = () => lsZet('oef', JSON.stringify(UI.oef));
 function schermHtml(){
   if(UI.view === 'weeg') return ['weeg', weegHtml()];
   if(UI.view === 'aann') return ['aann', aannHtml()];
+  if(UI.view === 'labels') return ['labels', labelsHtml()];
   if(UI.view === 'scores') return ['scores', scoresHtml()];
   if(UI.view === 'wegalle') return ['wegalle', wegAlleHtml()];
   if(UI.fk && famEcht(UI.fk).length) return ['fam', famHtml()];
@@ -610,7 +627,7 @@ function schermHtml(){
 function teken(){
   const el = UI.el; if(!el || !document.body.contains(el)) return;
   if(R.S.fout){ el.innerHTML = `<div class="pagina pd2" data-scherm="fout"><h1>Productdata 2.0</h1><div class="melding">Laden lukte niet: ${esc(R.S.fout.message || String(R.S.fout))}</div><button class="knop" data-a="opnieuw">Opnieuw</button></div>`; return; }
-  if(!R.S.klaar){ el.innerHTML = `<div class="pagina pd2" data-scherm="laden"><h1>Productdata 2.0 <i class="st grijs">oefen</i></h1><div class="pd2-leeg">Producten, inkoop, verplaatsingen en voorraad laden…</div></div>`; return; }
+  if(!R.S.klaar){ el.innerHTML = `<div class="pagina pd2" data-scherm="laden"><h1>Productdata 2.0</h1><div class="pd2-leeg">Producten, inkoop, verplaatsingen en voorraad laden…</div></div>`; return; }
   staatCheck();
   UI.dv = R.S.dataVer;
   const t0 = performance.now(), [naam, html] = schermHtml();
@@ -743,10 +760,10 @@ function bevestig(c){
   const I = R.info(c), so = R.soortWaarde(c, I);
   R.poZet(c, p => {
     delete p.heropend;
-    if(so.v && ['voorstel', 'twijfel'].includes(so.st)) p.so = { v:so.v, st:'bevestigd', voor:so.v, t:now() };
+    if(so.v && (['voorstel', 'twijfel'].includes(so.st) || !(p.so && p.so.v))) p.so = { v:so.v, st:'bevestigd', voor:so.v, t:now() };   // ook een vastgelegde soort expliciet opslaan
     const sv = p.so ? p.so.v : so.v;
     if(R.rolVoorstel(c) && sv !== 'weg') p.rol = { v:true, st:'bevestigd', t:now() };
-    if(sv === 'weg'){ const w = R.wegWaarde(c, I); if(w.v && w.st === 'voorstel') p.weg = { v:w.v, st:'bevestigd', voor:w.v, t:now() }; return; }
+    if(sv === 'weg'){ const w = R.wegWaarde(c, I); if(w.v && (w.st === 'voorstel' || !(p.weg && p.weg.v))) p.weg = { v:w.v, st:'bevestigd', voor:w.v, t:now() }; return; }
     const kols = new Set(R.nodigVan(c, sv, I).concat(R.KOLOMMEN[sv] || []).concat(R.isRol(c) ? R.ROLNODIG : []));
     kols.forEach(k => { if(R.VELD[k] && R.VELD[k].calc) return; if(I.sam && !R.SAMVELD.has(k)) return; const w = R.waarde(c, k, I); if(['voorstel', 'twijfel'].includes(w.st) && !leeg(w.v)) p.f[k] = { v:w.v, st:'bevestigd', voor:w.v, t:now() }; });
   });
@@ -830,12 +847,13 @@ function gewPopModal(){
 }
 function oefMenu(){
   const b = R.S.bewaar, st = [snapTxt() || (R.S.bijgewerkt ? 'gegevens bijgewerkt ' + uur(R.S.bijgewerkt) : ''), b.bezig ? 'bewaren…' : b.fout ? 'bewaren mislukt, opnieuw over 5 s' : b.op ? 'bewaard ' + uur(b.op) : ''].filter(Boolean).join(' · ');
-  modal(`<h3>Oefenmodus</h3><p class="u">Niets gaat naar de echte productdata: alles staat in een oefenkopie (wh-pd2-oefen). ${esc(st)}</p>
+  const pq = R.PDQ, pst = pq.fout ? 'naar productdata schrijven mislukt (opnieuw over 8 s)' : pq.op ? 'productdata bijgewerkt ' + uur(pq.op) : '';
+  modal(`<h3>Oefenmodus</h3><p class="u">Wat je bevestigt of aanpast gaat direct naar productdata (bron pd2; vooraf een kopie van de rij). Met het oefenkaartje aan gaat niets naar productdata: dan alleen naar een oefenkopie (wh-pd2-oefen). ${esc([st, pst].filter(Boolean).join(' · '))}</p>
     <div class="pd2-menu"><button class="knop" data-a="oefaan">${UI.oefenen ? 'Oefenen uitzetten' : 'Oefenen'}</button>
     <button class="knop" data-a="view" data-v="scores">Hoe goed zijn de voorstellen</button>
     <button class="knop" data-a="opmalg">💬 Opmerking</button>
     <button class="knop" data-a="kopieer">Kopieer alles voor Claude</button>
-    <button class="knop" data-a="wissen">Oefendata wissen</button>${R.pd2Overzetten ? '<button class="knop" data-a="overzet">Bevestigd naar echte productdata</button>' : ''}</div>`);
+    <button class="knop" data-a="wissen">Oefenantwoorden wissen</button>${R.pd2Overzetten ? '<button class="knop" data-a="overzet">Bevestigd naar echte productdata</button>' : ''}</div>`);
 }
 
 /* ---------- bevestigd naar echte productdata (vlag pd2Overzetten; nu uit, knop verborgen) ---------- */
@@ -919,7 +937,7 @@ function klik(ev){
   switch(A){
     case 'opnieuw': R.laad(true).then(teken); teken(); return;
     case 'wissen':
-      if(confirm('Alle oefendata wissen? Alles wat je in Productdata 2.0 hebt ingevuld (wh-pd2-oefen) verdwijnt. Je feedback en opmerkingen blijven staan.')){ R.wisAlles().then(() => { UI.sel.clear(); WH.toast('Oefendata gewist', 2500); teken(); }); }
+      if(confirm('Oefenantwoorden wissen? Alleen wat je met het oefenkaartje aan hebt ingevuld verdwijnt. Echte invoer, feedback en opmerkingen blijven staan.')){ R.wisAlles().then(() => { UI.sel.clear(); WH.toast('Oefenantwoorden gewist', 2500); teken(); }); }
       return;
     case 'kopieer': kopieer(); return;
     case 'oefmenu': oefMenu(); return;
@@ -962,12 +980,13 @@ function klik(ev){
       return zetVeld(c, k, R.waarde(c, k).v);
     }
     case 'zetsoort': return zetSoort(c, a.dataset.v);
+    case 'verschil': { const wasAf = R.status(c).af; Promise.resolve(R.verschilKies(c, a.dataset.k, a.dataset.v)).then(() => na([c], wasAf, true)); return; }
     case 'wegkies': return zetWeg(c, a.dataset.v);
     case 'gewst': {
       const v = a.dataset.v, g = R.gewicht(c), inp = kaart.querySelector('[data-a="gewkg"]'), kg = num(inp && inp.value);
       if(v === 'gewogen'){ if(kg > 0) zetGew(c, { st:'gewogen', kg }); else if(g.gk) zetGew(c, { st:'gewogen', kg:g.gk }); else { WH.toast('Typ eerst het gewogen gewicht in kg', 2500); if(inp) inp.focus(); return; } }
       else if(g.st === v) zetGew(c, null);
-      else zetGew(c, { st:v, kg:v === 'tewegen' ? null : (kg > 0 ? kg : null) });
+      else zetGew(c, { st:v, kg:v === 'tewegen' ? null : (kg > 0 ? kg : (g.pq > 0 ? g.pq : null)) });   // vertrouwd: de Picqer-kg van nu vastleggen
       meld('gewst', { st:v }); return;
     }
     case 'rijklopt': groep([c], bevestig, 'Alle voorstellen kloppen: ' + c); meld('selklopt', { tab:soortVan(c), n:1 }); return;
@@ -1010,7 +1029,7 @@ function koppel(){
       if(!v) return;
       const cs = selLijst();
       if(a2 === 'allemaal'){ groep(cs, x => { const nu = R.soortWaarde(x), voor = nu.st === 'vastgelegd' ? nu.v : (R.info(x).vsSo || {}).v || ''; R.poZet(x, p => { p.so = { v, st:voor === v ? 'bevestigd' : 'aangepast', voor, t:now() }; }); }, 'Allemaal ' + R.SOORTT[v] + ': ' + mv(cs.length, 'product', 'producten')); cs.forEach(x => meld('soort', { c:x, van:'', naar:v })); UI.sel.clear(); verversAlles(); return; }
-      if(a2 === 'gewicht'){ if(v === 'klopt'){ groep(cs, x => R.poZet(x, p => { p.gew = { st:'vertrouwd', kg:null, t:now() }; }), 'Gewichten kloppen: ' + mv(cs.length, 'product', 'producten')); meld('gewklopt', {}); } else gewPopModal(); return; }
+      if(a2 === 'gewicht'){ if(v === 'klopt'){ groep(cs, x => R.poZet(x, p => { p.gew = { st:'vertrouwd', kg:R.kgPq(x) > 0 ? R.kgPq(x) : null, t:now() }; }), 'Gewichten kloppen: ' + mv(cs.length, 'product', 'producten')); meld('gewklopt', {}); } else gewPopModal(); return; }
       if(a2 === 'zelfde'){ kolomModal(v); return; }
       return;
     }

@@ -20,7 +20,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   const pk = await ev(() => WHPD2.kaartCodes().find(c => PD2R.info(c).f.pick.length && PD2R.waarde(c, 'pickc').st === 'voorstel'));
   const pi = await ev(c => { const f = document.querySelector(`article.pd2-kaart[data-c="${c}"] [data-kc="pickc"]`); return { tekst:f.querySelector('.pd2-pick .m').textContent, keuze:f.querySelector('select').value, vs:PD2R.waarde(c, 'pickc').v, opgeslagen:!!PD2R.eigen(c, 'pickc') }; }, pk);
   check('Picklocatie: "AD01B04 · 12 · vast" als tekst, keuze staat op het voorstel, niets opgeslagen', /^[A-Z]{2}\d{2}[A-Z]\d{2} · \d+ · (vast|tijdelijk)/.test(pi.tekst) && pi.keuze === pi.vs && !pi.opgeslagen, JSON.stringify(pi));
-  check('Kaart: voorstel als één korte regel met Klopt, reden alleen bij hover/ⓘ (geen blauwe blokken)', await ev(c => { const k = document.querySelector(`article.pd2-kaart[data-c="${c}"]`); return !k.querySelector('.pd2-vs') && k.querySelectorAll('.pd2-vr [data-a="klopt"]').length > 2 && [...k.querySelectorAll('.pd2-vr')].every(x => x.getBoundingClientRect().height <= 32 && x.title); }, pk));
+  check('Kaart: voorstel als één korte regel met Klopt, reden alleen bij hover/ⓘ (geen blauwe blokken)', await ev(c => { const k = document.querySelector(`article.pd2-kaart[data-c="${c}"]`); return !k.querySelector('.pd2-vs') && k.querySelectorAll('.pd2-vr [data-a="klopt"]').length > 2 && [...k.querySelectorAll('.pd2-f:not(.vnveld) .pd2-vr')].every(x => x.getBoundingClientRect().height <= 32 && x.title); }, pk));
   // 3 max op pick bij Deel: nooit bij + stuks per pallet; alleen Picqer, aanvulling naar pick of kleurgenoot
   const mx = await ev(() => { const t = {}; let fout = 0, n = 0; Object.keys(WH.D.P).filter(c => PD2R.actief(c) && !PD2R.isKoppel(c) && !PD2R.isSam(c) && PD2R.soortWaarde(c).v === 'deel').slice(0, 800).forEach(c => { const I = PD2R.info(c), v = I.vs.maxpick; n++; const r = v ? (v.r || (v.mis ? 'leeg' : '?')) : 'leeg'; t[r] = (t[r] || 0) + 1; if(v && v.v && !/^max:(picqer|mvpick|genoot)$/.test(v.r)) fout++; }); return { n, t, fout }; });
   check('Max op pick bij Deel alleen uit Picqer, aanvulling naar pick of kleurgenoot (anders leeg)', mx.fout === 0 && mx.n > 50, JSON.stringify(mx));
@@ -40,7 +40,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('Oefenantwoord (kaartje aan) krijgt oefen-merk en telt niet mee voor kleurgenoot en telling', oe.tijdensOef && oe.genootOef && oe.telOef, JSON.stringify(oe));
   check('Zelfde invoer met oefenen uit telt wel mee', oe.echt && oe.genootEcht && oe.telEcht);
   await ev(() => PD2R.flush()); await P.waitForTimeout(800);
-  check('Alleen geschreven naar wh-pd2-oefen en wh-pd2-feedback', T.blocked.length === 0 && T.writes.every(k => /^wh-pd2-(oefen|feedback)$/.test(k)), 'writes ' + T.writes.length + ' geblokkeerd ' + T.blocked.length);
+  check('Alleen geschreven naar wh-pd2-* en productdata (bron pd2)', T.blocked.length === 0 && T.writes.every(k => /^(wh-pd2-(oefen|feedback|kopie-.+)|productdata)$/.test(k)), 'writes ' + T.writes.length + ' geblokkeerd ' + T.blocked.length);
   console.log('ERRORS', T.errors.join('\n'));
   console.log(ok.length + ' OK, ' + fout.length + ' FOUT');
   await T.b.close();

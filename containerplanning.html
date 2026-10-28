@@ -94,6 +94,7 @@
   td.n,th.n{text-align:right;white-space:nowrap}
   tr.err td{background:#fff6f5}
   tr.warn td{background:#fffaf0}
+  .pdvs{background:#fff3bf;border:1px solid #e9cf6a;border-radius:6px;padding:3px 6px;margin-top:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px}
   .code{font-family:ui-monospace,Consolas,monospace;font-weight:700;font-size:12.5px;white-space:nowrap}
   .desc{font-size:11.5px;color:var(--muted);max-width:280px}
 
@@ -469,6 +470,7 @@ async function load(){
     indexBackorders(bo);
     ALIAS = al; CONT = co; TODOS = td;
     CONT.forEach(ensureData);
+    laadPdVoorstel().then(n => { if(n) rerenderLater(); }).catch(() => {});   // productdata (alleen lezen) voor de voorstellen los → pallets
     GELADEN = Date.now();
     await opslagCheck();
     setSync('verbonden', 'ok');
@@ -479,6 +481,45 @@ async function load(){
       '<p class="mt8">Staat Supabase op pauze? Ga naar <a href="https://supabase.com/dashboard" target="_blank">supabase.com/dashboard</a>, open project <b>Palletlabels</b> en klik <b>Resume project</b>. Herlaad daarna deze pagina.</p></div>';
     return false;
   }
+}
+
+/* =====================================================================
+   Productdata lezen voor de pakbon (week 1, 28-10): een regel "los, per 1" van een product dat in productdata
+   Pallet of Deel is met stuks per pallet, krijgt een voorstel "pallets, per <stuks per pallet>" (geel, met reden).
+   Alleen lezen; nooit automatisch toegepast. Daan bevestigt per regel of "alle voorstellen kloppen" per container.
+   Een regel die Daan al bevestigde (of zelf aanpaste: soortOk) wordt nooit stil gewijzigd.
+   ===================================================================== */
+let PDS = {};   // productcode -> { soort, spp, bron }
+async function laadPdVoorstel(){
+  const codes = [...new Set(CONT.filter(c => c.status !== 'afgerond').flatMap(c => ((c.data || {}).regels || []).map(r => r.productcode)).filter(Boolean))];
+  const nieuw = codes.filter(c => !(c in PDS)); if(!nieuw.length) return 0;
+  for(let i = 0; i < nieuw.length; i += 80){
+    const deel = nieuw.slice(i, i + 80), lijst = encodeURIComponent(deel.map(c => '"' + String(c).replace(/"/g, '\\"') + '"').join(','));
+    const rows = await api('GET', 'productdata?productcode=in.(' + lijst + ')&select=productcode,data,meta');
+    deel.forEach(c => { PDS[c] = null; });
+    (rows || []).forEach(r => {
+      const d = r.data || {}, m = r.meta || {}, ok = k => d[k] !== undefined && d[k] !== null && String(d[k]).trim() !== '' && !/^onb$/i.test(String(d[k]).trim()) && !(m[k] && m[k].tw);
+      const so = ok('opslag') ? String(d.opslag).trim().toLowerCase() : '', soort = /^(1|pal)/.test(so) ? 'pallet' : /^(2|de)/.test(so) ? 'deel' : '';
+      const spp = ok('spp') ? num(d.spp) : null;
+      PDS[r.productcode] = soort && spp > 0 ? { soort, spp, bron:(m.spp && m.spp.bron) || '' } : null;
+    });
+  }
+  return nieuw.length;
+}
+function pdVoorstel(r){
+  if(!r || r.soortOk || r.soort === 'pallet' || !r.productcode) return null;
+  const per = num(r.per); if(per !== null && per > 1) return null;   // alleen "los, per 1"
+  if((num(r.factor) || 1) !== 1) return null;                        // omrekenfactor: dan niet raden
+  const x = PDS[r.productcode]; if(!x || x.spp < 2) return null;   // 1 per pallet: niets te winnen
+  const t = num(r.totaal) || num(r.aantal) || 0;
+  return { per:x.spp, aantal:t ? Math.ceil(t / x.spp) : null, why:'productdata: ' + (x.soort === 'pallet' ? 'Pallet' : 'Deel') + ', ' + nf(x.spp) + ' per pallet' };
+}
+// voor de tests (alleen lezen): test/pd2/containers.js
+window.CPTEST = { pdVoorstel:r => pdVoorstel(r), laadPdVoorstel:() => laadPdVoorstel(), PDS:() => PDS, CONT:() => CONT };
+function pdToepassen(r){
+  const v = pdVoorstel(r); if(!v) return false;
+  r.soort = 'pallet'; r.per = v.per; if(v.aantal) r.aantal = v.aantal; r.soortOk = true; r.soortBron = 'productdata';
+  return true;
 }
 
 /* =====================================================================
@@ -2400,11 +2441,13 @@ function puntenKaart(c, pts){
 const MATCH = { alias:['b-ok', 'geleerd'], exact:['b-ok', 'exact'], handmatig:['b-ok', 'gekozen'], voorstel:['b-warn', 'voorstel'], onbekend:['b-bad', 'onbekend'] };
 function tabPakbon(c, g){
   const R = c.data.regels, pb = c.data.pakbon || {};
+  if(R.some(r => r.productcode && !(r.productcode in PDS))) laadPdVoorstel().then(n => { if(n) rerenderLater(); }).catch(() => {});
   const somOk = pb.totaal_stuks == null || R.reduce((a, r) => a + (num(r.totaal) || 0), 0) === pb.totaal_stuks;
   const tabelDicht = R.length && R.every(r => r.productcode) && somOk;
-  const tabelOpen = UI.open.pbtabel !== undefined ? UI.open.pbtabel : !tabelDicht;
+  const tabelOpen = UI.open.pbtabel !== undefined ? UI.open.pbtabel : (!tabelDicht || R.some(r => pdVoorstel(r)));
   const sumT = R.reduce((a, r) => a + (num(r.totaal) || 0), 0), sumA = R.reduce((a, r) => a + (num(r.aantal) || 0), 0);
   const nVoorstel = R.filter(r => r.productcode && !r.bevestigd).length;
+  const nPd = R.filter(r => pdVoorstel(r)).length;
   const methode = { pdf:'tekst uit PDF', ocr:'herkend uit scan (OCR)', excel:'uit Excel', plak:'geplakt', handmatig:'ingevoerd' };
   return `<div class="card">
     <div class="row between wrap"><h2>Pakbon</h2>
@@ -2421,6 +2464,7 @@ function tabPakbon(c, g){
       <textarea id="plaktekst" placeholder="Plak hier de regels. Werkt met tekst van een pakbon, of simpel: productcode ⇥ aantal pallets ⇥ stuks per pallet (één regel per product)."></textarea>
       <div class="row mt8"><button class="btn pri" data-act="plaklees">Inlezen</button><span class="small muted">Vervangt de huidige regels.</span></div>
     </div>
+    ${nPd ? `<div class="pdvs mt12"><b>${plural(nPd, 'regel staat', 'regels staan')} als losse pakken, terwijl productdata Pallet of Deel met stuks per pallet zegt.</b> <button class="btn ok sm" data-act="pdvsalle">Alle ${nPd} voorstellen kloppen</button></div>` : ''}
     ${R.length ? `
     <details class="mt12" data-det="pbtabel" ${tabelOpen ? 'open' : ''}><summary>${plural(R.length, 'pakbonregel', 'pakbonregels')}${tabelDicht ? ' · <span class="badge b-ok">alles gekoppeld' + (pb.totaal_stuks != null ? ', klopt met pakbon' : '') + '</span>' : ''} <span class="small muted">tonen/verbergen</span></summary>
     <div class="scroll mt12"><table>
@@ -2718,7 +2762,7 @@ function regelRij(c, r, i){
     <td class="small muted">${r.sl || i + 1}</td>
     <td><input class="code" data-regel="${i}" data-k="pakbon_code" value="${esc(r.pakbon_code || '')}" style="min-width:130px;padding:4px 6px"><div class="desc">${esc(r.omschrijving || '')}${r.context ? ' <span style="opacity:.7">· ' + esc(r.context).slice(0, 90) + '</span>' : ''}</div></td>
     <td class="n">${inp('totaal', t)}</td><td class="n">${inp('per', pe)}</td><td class="n">${inp('aantal', a)}</td>
-    <td><select data-regel="${i}" data-k="soort" style="width:auto;padding:4px 6px;font-size:12.5px"><option value="pallet" ${r.soort === 'pallet' ? 'selected' : ''}>pallets</option><option value="los" ${r.soort !== 'pallet' ? 'selected' : ''}>losse pakken</option></select></td>
+    <td><select data-regel="${i}" data-k="soort" style="width:auto;padding:4px 6px;font-size:12.5px"><option value="pallet" ${r.soort === 'pallet' ? 'selected' : ''}>pallets</option><option value="los" ${r.soort !== 'pallet' ? 'selected' : ''}>losse pakken</option></select>${(() => { const v = pdVoorstel(r); return v ? `<div class="pdvs" title="${esc(v.why)}">voorstel: pallets, per ${nf(v.per)}${v.aantal ? ' (' + nf(v.aantal) + ' pallets)' : ''} · <span class="muted">${esc(v.why)}</span> <button class="btn ok sm" data-act="pdvs" data-i="${i}" title="Klopt">✓</button></div>` : ''; })()}</td>
     <td class="n hide-m">${nf(num(r.bruto_per), 1)}</td>
     <td style="min-width:190px"><div class="row"><input class="code" list="dl-codes" data-regel="${i}" data-k="productcode" value="${esc(r.productcode || '')}" placeholder="kies productcode" style="padding:4px 6px">${r.productcode && !r.bevestigd ? `<button class="btn ok sm" data-act="bev" data-i="${i}" title="Klopt">✓</button>` : ''}</div>
       <div class="tiny mt8" style="margin-top:3px"><span class="badge ${cls}">${lbl}</span> ${r.productcode ? '<span class="muted">' + esc(naamVan(r.productcode)).slice(0, 60) + '</span>' : ''}</div></td>
@@ -4150,6 +4194,8 @@ const ACT = {
   },
   regeladd: () => { cur.data.regels.push({ id:'r' + uid(), sl:cur.data.regels.length + 1, pakbon_code:'', omschrijving:'', totaal:null, per:null, aantal:null, soort:'pallet', factor:1, productcode:'', match:'onbekend', bevestigd:false }); save(); rerender(); },
   regeldel: el => { const r = cur.data.regels[+el.dataset.i]; if(!confirm('Regel ' + (r.pakbon_code || '') + ' verwijderen?')) return; cur.data.regels.splice(+el.dataset.i, 1); save(); rerender(); },
+  pdvs: el => { const r = cur.data.regels[+el.dataset.i]; if(pdToepassen(r)){ save(); rerender(); } },
+  pdvsalle: () => { let n = 0; cur.data.regels.forEach(r => { if(pdToepassen(r)) n++; }); if(n){ save(); rerender(); toast(plural(n, 'regel', 'regels') + ' op pallets gezet (uit productdata).'); } },
   bev: async el => { const r = cur.data.regels[+el.dataset.i]; r.bevestigd = true; if(r.factor_bron === 'voorstel') r.factor_bron = 'bevestigd'; save(); rerender(); await leer(r); },
   allesbev: async () => {
     const lijst = cur.data.regels.filter(r => r.productcode && !r.bevestigd);
@@ -4354,9 +4400,9 @@ app.addEventListener('change', e => {
       r.productcode = canon || ''; r.match = canon ? 'handmatig' : 'onbekend'; r.bevestigd = !!canon;
       if(canon){ const fv = factorVoorstel(canon, r); r.factor = fv.factor; r.factor_bron = fv.bron === 'voorstel' ? 'bevestigd' : fv.bron; leer(r); }
     } else if(k === 'pakbon_code'){ r.pakbon_code = el.value.trim(); if(!r.bevestigd) Object.assign(r, koppel(r, cur.leverancier)); }
-    else if(k === 'soort'){ r.soort = el.value; }
+    else if(k === 'soort'){ r.soort = el.value; r.soortOk = true; }
     else if(k === 'factor'){ r.factor = num(el.value) || 1; r.factor_bron = 'bevestigd'; if(r.bevestigd) leer(r); }
-    else { r[k] = num(el.value); }
+    else { r[k] = num(el.value); if(k === 'per' || k === 'aantal') r.soortOk = true; }
     save(); rerenderLater(); return;
   }
   const portie = el.closest('.portie');

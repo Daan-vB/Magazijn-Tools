@@ -255,6 +255,7 @@ function blokLater(){
 }
 function viewTodo(){
   return `<div class="pagina">
+    <div class="bouwtekening"><a class="knop" href="https://claude.ai/artifact/8mvbCuxpKQLhz9hKG6SnVS" target="_blank" rel="noopener">Bouwtekening ↗</a><span class="muted klein">de pilaren en wat deze week gebouwd wordt</span></div>
     <h1>Te doen</h1>
     ${blokNu()}
     <h2 class="bt">Vandaag</h2>${blokVandaag()}

@@ -257,14 +257,15 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
 
   /* ===== opslag ===== */
   await ev(() => PD2R.flush()); await wacht(800); await ev(() => PD2R.flush());
-  check('Alleen geschreven naar wh-pd2-oefen en wh-pd2-feedback', T.blocked.length === 0 && T.writes.length > 0 && T.writes.every(k => /^wh-pd2-(oefen|feedback)$/.test(k)), 'writes ' + T.writes.length + ', geblokkeerd ' + T.blocked.length + ' ' + T.blocked.slice(0, 3).join(' | '));
+  check('Met het oefenkaartje aan: alleen geschreven naar wh-pd2-oefen en wh-pd2-feedback (niet naar productdata)', T.blocked.length === 0 && T.writes.length > 0 && T.writes.every(k => /^wh-pd2-(oefen|feedback)$/.test(k)), 'writes ' + T.writes.length + ', geblokkeerd ' + T.blocked.length + ' ' + T.blocked.slice(0, 3).join(' | '));
   check('wh-pd2-oefen bevat de geoefende producten', Object.keys((T.mock['wh-pd2-oefen'] || {}).p || {}).length > 5);
   check('wh-pd2-feedback bevat opmerkingen', ((T.mock['wh-pd2-feedback'] || {}).opm || []).length >= 2);
   await P.reload(); await P.waitForFunction(() => window.PD2R && PD2R.S.klaar && document.querySelector('.pd2[data-scherm="start"]'), null, { timeout:120000 });
   check('Na herladen staat de oefendata er nog', await ev(c => PD2R.status(c).af === false && PD2R.waarde(c, 'lvl').v === '8', ant));
   check('Na herladen staat oefenen nog aan (kaartje)', await P.isVisible('.pd2-oefkaart'));
   await P.click('[data-a="oefmenu"]'); await P.click('.pd2-modal [data-a="wissen"]'); await wacht(900);
-  check('Oefendata wissen: wh-pd2-oefen leeg, feedback blijft', Object.keys(T.mock['wh-pd2-oefen'].p).length === 0 && T.mock['wh-pd2-feedback'].opm.length >= 2);
+  const rest = Object.entries(T.mock['wh-pd2-oefen'].p).map(([c, p]) => [c, Object.entries(p.f || {}).filter(([k, x]) => x && x.oef).map(([k]) => k).concat(['so', 'weg', 'gew', 'rol'].filter(k => p[k] && p[k].oef))]).filter(x => x[1].length);
+  check('Oefenantwoorden wissen: geen oefenantwoord meer in wh-pd2-oefen, feedback blijft', rest.length === 0 && T.mock['wh-pd2-feedback'].opm.length >= 2, Object.keys(T.mock['wh-pd2-oefen'].p).length + ' producten over, met oefenantwoord: ' + JSON.stringify(rest.slice(0, 3)));
   console.log('\nERRORS:\n' + T.errors.join('\n'));
   console.log('\n' + ok.length + ' OK, ' + fout.length + ' FOUT');
   require('fs').writeFileSync(SCRATCH + '/oef-uitslag.json', JSON.stringify({ ok, fout, errors:T.errors, blocked:T.blocked }, null, 1));

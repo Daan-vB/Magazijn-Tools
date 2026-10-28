@@ -5,10 +5,22 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
 (async () => {
   const T = await start(); const P = T.p; await open(T);
   const ev = (f, a) => P.evaluate(f, a);
-  // overzetten: knop verborgen, echt uitvoeren weigert
-  check('Overzetten: knop verborgen (vlag uit)', !(await P.isVisible('[data-a="overzet"]')) && (await ev(() => PD2R.pd2Overzetten)) === false);
-  const echt = await ev(() => PD2R.overzetEcht({}).then(() => 'uitgevoerd', e => e.message));
-  check('Overzetten: echt uitvoeren weigert', /staat uit/.test(echt), echt);
+  // week 1: overzetten staat aan; echt overzetten (in de test alleen tegen de nagebootste database) schrijft eerst een kopie, dan productdata met bron pd2
+  const oz = await ev(async () => {
+    const rows = WHPD.S.pd, daan = Object.keys(rows).find(c => WH.D.P[c] && rows[c].meta && rows[c].meta.spp && rows[c].meta.spp.bron === 'daan' && rows[c].data.spp);
+    const vrij = Object.keys(WH.D.P).find(c => !rows[c] && PD2R.actief(c) && !PD2R.isKoppel(c));
+    PD2R.S.echt = false;
+    PD2R.poZet(daan, p => { p.f.spp = { v:String(+rows[daan].data.spp + 1), st:'aangepast', voor:'' }; });
+    PD2R.poZet(vrij, p => { p.f.lvl = { v:'4', st:'aangepast', voor:'' }; });
+    PD2R.S.echt = true;
+    const r = await PD2R.overzetEcht({});
+    return { daan, vrij, r, orig:rows[daan].data.spp, vers:PD2R.verschil(daan, 'spp') };
+  });
+  const kopieEerst = T.writes.findIndex(k => /^wh-pd2-kopie-/.test(k)) >= 0 && T.writes.findIndex(k => /^wh-pd2-kopie-/.test(k)) < T.writes.indexOf('productdata');
+  const vrijRij = T.pdWrites.find(x => x.productcode === oz.vrij), daanRij = T.pdWrites.find(x => x.productcode === oz.daan);
+  check('Overzetten staat aan: eerst een kopie (wh-pd2-kopie-…), dan productdata', (await ev(() => PD2R.pd2Overzetten)) === true && kopieEerst, JSON.stringify(T.writes));
+  check('Overzetten: nieuwe waarde met bron pd2, Daans afwijkende eigen invoer niet overschreven (verschil)', vrijRij && vrijRij.data.lvl === '4' && vrijRij.meta.lvl.bron === 'pd2' && (!daanRij || String(daanRij.data.spp) === String(oz.orig)) && !!oz.vers, JSON.stringify({ oz, vrij:vrijRij && vrijRij.data.lvl }));
+  await ev(([a, b]) => { PD2R.S.echt = false; PD2R.poHerstel(a, null); PD2R.poHerstel(b, null); PD2R.S.echt = true; }, [oz.daan, oz.vrij]);
   // oefendata maken op producten met en zonder eigen invoer van Daan, dan plan op een kopie
   const r = await ev(() => {
     const rows = JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(WHPD.S.pd).map(([c, x]) => [c, { data:x.data, meta:x.meta }]))));
@@ -71,7 +83,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   const sc = await ev(() => ({ blok:!!document.getElementById('pd2-scores'), tekst:document.getElementById('pd2-scores').textContent.slice(0, 120), rijen:document.querySelectorAll('#pd2-scores .pd2-scorerij').length, tabel:document.querySelectorAll('#pd2-scores table').length }));
   check('"Hoe goed zijn de voorstellen" via Oefenmodus ⋯, als lijst (geen tabel)', sc.blok && /Hoe goed/.test(sc.tekst) && sc.rijen > 5 && sc.tabel === 0, JSON.stringify(sc));
   await ev(() => PD2R.flush()); await P.waitForTimeout(800);
-  check('Ronde 2: alleen geschreven naar wh-pd2-oefen en wh-pd2-feedback', T.blocked.length === 0 && T.writes.every(k => /^wh-pd2-(oefen|feedback)$/.test(k)), 'writes ' + T.writes.length + ' geblokkeerd ' + T.blocked.length);
+  check('Alleen geschreven naar wh-pd2-*, en naar productdata met bron pd2', T.blocked.length === 0 && T.writes.every(k => /^(wh-pd2-(oefen|feedback|kopie-.+)|productdata)$/.test(k)) && T.pdWrites.every(x => Object.values(x.meta || {}).some(m => m.bron === 'pd2')), 'writes ' + T.writes.length + ' geblokkeerd ' + T.blocked.length);
   console.log('ERRORS', T.errors.join('\n'));
   console.log(ok.length + ' OK, ' + fout.length + ' FOUT');
   await T.b.close();
