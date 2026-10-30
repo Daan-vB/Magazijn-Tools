@@ -468,7 +468,7 @@ async function load(){
     indexProducten(prod);
     indexCatalog(cat && cat.length ? cat[0].data : {});
     indexVerkoop(vk);
-    indexBackorders(bo);
+    indexBackorders(BL.rows && !BL.fout && Date.now() - BL.t < 3e5 ? BL.rows : bo);
     ALIAS = al; CONT = co; TODOS = td;
     CONT.forEach(ensureData);
     GELADEN = Date.now();
@@ -1401,6 +1401,7 @@ function kandidaten(r, lev, n){
 const lvCode = () => { try{ return localStorage.getItem('ivol-koppelcode') || ''; }catch(e){ return ''; } };
 const lvUrl = () => { let u = ''; try{ u = localStorage.getItem('ivol-fn') || ''; }catch(e){} return u || URL_ + '/functions/v1/picqer'; };
 const LV = { idx:null, idxP:null, gevraagd:new Map() };
+let lvIdxKlaar = false;
 async function lvVraag(actie, params){
   const qs = new URLSearchParams(Object.assign({ actie }, params || {})).toString(), ac = new AbortController(), t = setTimeout(() => ac.abort(), 30000);
   let r;
@@ -1418,7 +1419,8 @@ async function lvVraag(actie, params){
 async function lvId(code){
   const k = String(code).toLowerCase();
   if(!LV.idxP) LV.idxP = api('GET', 'catalog?key=eq.wh-hist-index&select=data').then(r => { const p = (r && r[0] && r[0].data && r[0].data.p) || {}, m = {}; Object.keys(p).forEach(id => { m[String(p[id]).toLowerCase()] = +id; }); LV.idx = m; }).catch(() => { LV.idx = {}; });
-  await LV.idxP;
+  await LV.idxP; lvIdxKlaar = true;
+  if(!k) return 0;
   if(LV.idx[k]) return LV.idx[k];
   let off = 0;
   for(let n = 0; n < 40 && off !== null; n++){
@@ -1474,6 +1476,51 @@ async function liveAanvullen(){
       PLAN = null; rerender();
     }
   }finally{ liveBezig = false; }
+}
+/* ---------- backorders live (alleen lezen): actie "vandaag" van het tussenstation, productcode via de id-index ---------- */
+const BL = { rows:null, t:0, fout:'', bezig:null };
+const blLaatst = () => { try{ return JSON.parse(localStorage.getItem('cp-bo-live') || 'null'); }catch(e){ return null; } };
+const tijdTxt = t => { const d = new Date(t); return isNaN(d) ? '' : String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+function liveBackorders(vers){
+  if(BL.bezig) return BL.bezig;
+  if(!vers && Date.now() - (BL.probeer || 0) < 60000) return Promise.resolve(!BL.fout);   // hooguit één keer per minuut, ook na een mislukking
+  BL.probeer = Date.now();
+  const p = (async () => {
+    try{
+      if(!lvCode()) throw new Error('geen koppelcode op dit apparaat');
+      const r = await lvVraag('vandaag'), lijst = r.backorders || [];
+      if(!lvIdxKlaar) await lvId('');
+      const omgekeerd = {}; Object.keys(LV.idx).forEach(c => { omgekeerd[LV.idx[c]] = c; });
+      let onbekend = lijst.filter(b => !omgekeerd[b.p]);
+      let off = 0;
+      for(let n = 0; onbekend.length && n < 40 && off !== null; n++){      // nieuwe producten: id-index bijwerken
+        const x = await lvVraag('idindex', { soort:'producten', offset:off, paginas:10 });
+        (x.lijst || []).forEach(([id, c]) => { if(c){ LV.idx[String(c).toLowerCase()] = +id; omgekeerd[+id] = String(c).toLowerCase(); } });
+        onbekend = lijst.filter(b => !omgekeerd[b.p]);
+        if(x.wachtSec) break; off = x.volgende === undefined ? null : x.volgende;
+      }
+      const nu = new Date().toISOString();
+      const rows = lijst.map(b => ({ id:b.id, bestelling:'order ' + b.o, productcode:PLOW[omgekeerd[b.p]] || omgekeerd[b.p] || '', aantal:b.a, beschikbaar:b.v, magazijn:'Hoofdmagazijn', geimporteerd_op:nu })).filter(x => x.productcode);
+      BL.rows = rows; BL.t = Date.now(); BL.fout = '';
+      try{ localStorage.setItem('cp-bo-live', JSON.stringify({ t:nu, n:rows.length })); }catch(e){}
+      indexBackorders(rows); PLAN = null;
+      return true;
+    }catch(e){ BL.fout = e.message || 'geen antwoord'; return false; }
+  })();
+  BL.bezig = p; p.then(() => { if(BL.bezig === p) BL.bezig = null; });
+  return p;
+}
+// bij het openen van een container: vers ophalen en zo nodig opnieuw tekenen
+function liveBackordersOpen(){
+  const sig = () => BL.t + '|' + BL.fout;
+  const was = sig();
+  liveBackorders().then(() => { if(sig() !== was && cur && /^#\/c\//.test(location.hash)) rerender(); });
+}
+// één regel in de Uitvoer-tab: live, of de reden en de laatste stand
+function boLiveRegel(){
+  if(BL.rows && !BL.fout) return `<div class="card" style="border-left:4px solid var(--ok)"><b>Backorders live · ${esc(tijdTxt(BL.t))}</b></div>`;
+  const l = blLaatst(), ex = BO.map(b => b.geimporteerd_op).filter(Boolean).sort().pop(), stand = [l && l.t, ex].filter(Boolean).sort().pop();
+  return `<div class="card" style="border-left:4px solid var(--bad)"><b>Backorders niet live${BL.fout ? ': ' + esc(BL.fout) : ' (nog niet opgehaald)'}.</b> Laatste stand: ${stand ? esc(fdt(stand)) : 'geen'}.</div>`;
 }
 async function regelKoppel(c, r, v){
   const canon = PLOW[String(v || '').trim().toLowerCase()] || await liveZoek(v);
@@ -1788,7 +1835,7 @@ async function route(){
   if(window.WHM && !WHM.magHier('cp:' + nu)){ if(!h.startsWith('#/c/')){ if(dirty) await flushSave(); cur = null; setSaved(''); } app.innerHTML = WHM.nietHier({ producten:'Producten', vloernamen:'Vloernamen', vooruit:'Vooruit' }[nu]); return; }
   if(!h.startsWith('#/c/')){ if(dirty) await flushSave(); cur = null; setSaved(''); }
   if(['containers', 'pakbon_alias', 'verkoop', 'backorders'].some(t => MISSING.includes(t))) return viewSetup();
-  if((m = h.match(/^#\/c\/(\d+)(?:\/(\w+))?/))) return viewContainer(+m[1], m[2] || 'pakbon');
+  if((m = h.match(/^#\/c\/(\d+)(?:\/(\w+))?/))){ liveBackordersOpen(); return viewContainer(+m[1], m[2] || 'pakbon'); }
   if(h.startsWith('#/gegevens')) return viewGegevens();
   if(h.startsWith('#/vooruit')) return viewVooruit();
   if(h.startsWith('#/producten')) return viewProducten(decodeURIComponent((h.split('/')[2] || '').split('?')[0]));
@@ -3939,11 +3986,8 @@ function tabUitvoer(c, g){
   const perDest = {}; lab.forEach(l => perDest[l.dest] = (perDest[l.dest] || 0) + 1);
   const alleDest = {};
   pools(c).order.forEach(code => { const v = c.data.verdeling[code]; (v && v.porties || []).forEach(x => { if(x.soort === 'pallet' && DEST[x.dest].label) alleDest[x.dest] = (alleDest[x.dest] || 0) + (num(x.n) || 0); }); });
-  const boTijd = BO.map(b => b.geimporteerd_op).filter(Boolean).sort().pop();
-  const boUren = boTijd ? (Date.now() - new Date(boTijd).getTime()) / 36e5 : null;
-  const boOud = boUren === null || boUren > 12;
   return `${open ? `<div class="card" style="border-left:4px solid var(--bad)"><b>Let op:</b> er staan nog ${open} open punten. Je kunt alles al maken, maar controleer die eerst.</div>` : ''}
-  ${boOud ? `<div class="card" style="border-left:4px solid var(--bad)"><b>Backorders ${boTijd ? 'van ' + esc(fdt(boTijd)) : 'niet ingeladen'}.</b> Laad vlak vóór de losdag-PDF een verse backorder-export in (Gegevens → Backorders) en kijk de verdeling na (stap Verdeling). Anders gaan er meer of minder pallets direct weg dan op de werkbon staat (testdag 30-9).</div>` : ''}
+  ${boLiveRegel()}
   <div class="card out"><div class="row between wrap"><div><h3>PDF voor de losdag</h3><p class="small muted mt8">Eerst de pakbon${c.data.pakbon_bestand ? '' : ' (nog niet bewaard bij deze container)'}, dan de samenvatting, de werkbon voor het magazijn (taal van de werkbon hieronder) en de Stockmove-lijst: welke pallet, welk product, hoeveel. Maak hem als alles is ingevuld: dan staat hij ook in IVOL Junior (Sala, Kate).${c.data.magazijn_pdf ? ' <b>In Junior sinds ' + esc(fdt(c.data.magazijn_pdf.op)) + '</b>; opnieuw maken vervangt hem.' : ''}</p></div>
     <button class="btn pri" data-act="pdfall">PDF maken</button></div></div>
   ${voorboekKaart(c)}
@@ -4169,7 +4213,7 @@ async function maakOverzichtPdf(c){
   // ---- kop
   tekst('Losdag-overzicht', { bold:true, size:16, na:1 });
   tekst(cs.map(k => levKort(k.leverancier) + ' ' + (k.pakbon_ref || '') + (k.containernummer ? ' (' + k.containernummer + ')' : '')).join(' · '), { size:10.5, na:1 });
-  tekst((d0 ? fdate(d0, { weekday:'long', day:'numeric', month:'long' }) : 'geen losdatum') + ' · backorders ingeladen ' + (BO.length ? fdt(BO.map(b => b.geimporteerd_op).filter(Boolean).sort().pop()) : 'nooit'), { size:9, kleur:[100, 110, 120], na:3 });
+  tekst((d0 ? fdate(d0, { weekday:'long', day:'numeric', month:'long' }) : 'geen losdatum') + ' · backorders ' + (BL.rows && !BL.fout ? 'live ' + tijdTxt(BL.t) : 'ingeladen ' + (BO.length ? fdt(BO.map(b => b.geimporteerd_op).filter(Boolean).sort().pop()) : 'nooit')), { size:9, kleur:[100, 110, 120], na:3 });
   const vbs = [];
   cs.forEach(k => (k.data.voorboekingen || []).forEach(v => vbs.push(levKort(k.leverancier) + ' ' + (k.pakbon_ref || '') + ' — ' + (v.rc || 'ontvangst') + (v.datum ? ' (' + fdate(v.datum, { day:'numeric', month:'short' }) + ')' : '') + ': ' + v.regels.map(r => nf(r.aantal) + '× ' + r.code).join(', '))));
   if(vbs.length){ tekst('Al opgeboekt in Picqer (container nog niet gelost)', { bold:true, size:10, na:1 }); vbs.forEach(t => tekst('• ' + t, { size:9, x:M + 2, na:0.8 })); y += 2; }
@@ -4391,7 +4435,7 @@ const ACT = {
   wbprint: () => { $('print').innerHTML = werkbonHtml(cur); document.body.classList.add('printing'); if(window.Bestanden) Bestanden.printAls(bnNaam('werkbon', bnCtx(cur)).replace(/\.pdf$/, '')); window.print(); },
   wbcopy: () => kopieer(werkbonTekst(cur)),
   labels: () => maakLabels(cur),
-  pdfall: () => maakPdf(cur),
+  pdfall: async () => { await liveBackorders(true); maakPdf(cur); },
   pbkijk: () => pakbonToon(cur, window.innerWidth < 700),
   pbtab: () => pakbonToon(cur, true),
   copyopslag: () => kopieer(OPSLAG_SQL),
