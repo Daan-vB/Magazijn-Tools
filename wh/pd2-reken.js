@@ -16,6 +16,7 @@ const wacht = ms => new Promise(r => setTimeout(r, ms));
 
 /* ---------- aannames: keuzes die niet in het ontwerp staan (chip "aanname" in de pagina) ---------- */
 const AANNAMES = {
+  palletregel: 'VASTE REGEL (Daan 30-10): palletvragen (per pallet, palletmaat, hoogte, gewicht volle pallet, plaatsen, max per ligger) alleen als de data bewijst dat het product per pallet komt of ligt: bulk- of VST-voorraad, palletlabels, pallet-verplaatsingen naar pick, of inkoop van minstens één volle pallet. Zonder dat bewijs: soort-voorstel Pick (of Weg → Backorder bij alleen backorders) en nooit palletvragen.',
   zoek:     'Zoeken kijkt in alle actieve producten, ook buiten de gekozen scope (anders vind je bijv. Waterhog zonder voorraad niet).',
   soortkol: 'Elke productkaart heeft "Hoe komt dit binnen?": daar zet je een product op een andere soort; de soortkeuze boven de kaarten (Open · Pallet · …) filtert alleen.',
   selgew:   '"Selectie klopt", "Alle voorstellen … kloppen" laten het gewicht staan: gewicht keur je apart goed (knopjes bij Gewicht, of Gewicht… → kloppen).',
@@ -992,9 +993,25 @@ function wegDeel(c, f, ink){
 }
 // Weg-voorstel voor elk product (ook buiten de scope): { v:'archief'|'backorder'|'uitlopend', why } of null
 function wegLicht(c){ if(!actief(c) || isKoppel(c)) return null; const w = wegDeel(c, locInfo(c), inkoop(c)); return w.weg || null; }
+/* VASTE REGEL (Daan 30-10, docs/productdata-2.0-ontwerp.md): palletvragen alleen als de data bewijst dat het product per pallet
+   komt of ligt: bulk- of VST-voorraad, palletlabels, pallet-verplaatsingen naar pick, of inkoop van minstens één volle pallet.
+   Zonder dat bewijs: soort-voorstel Pick (of Weg → Backorder bij alleen backorders) en nooit palletvragen. Geeft de reden of ''. */
+function palletBewijs(c, f, ink){
+  const pp = D.P[c] || {};
+  if(som(f.bulk) > 0) return 'bulkvoorraad ' + nf(som(f.bulk));
+  if(f.vst > 0 || (num(pp.voorraad_vst) || 0) > 0) return 'VST-voorraad ' + nf(Math.max(f.vst, num(pp.voorraad_vst) || 0));
+  if(labelSppLijst(c).length) return 'palletlabel';
+  let ms = null; try{ ms = X().mvSoort(c); }catch(e){}
+  if(ms && ms.soort === 'pallet') return ms.t;
+  const e = eigen(c, 'spp'), sppV = e ? nOf(e.v) : nOf(vastPd(c, 'spp'));
+  if(ink && sppV > 0 && ink.max >= sppV) return 'inkoop van een volle pallet (' + nf(ink.max) + ' ≥ ' + nf(sppV) + ')';
+  return '';
+}
 function vsSoort(c, f, ink){
   const naam = naamVan(c), t = (v, why, extra) => Object.assign({ v, why }, extra || {});
-  const wd = wegDeel(c, f, ink); if(wd.so) return wd;
+  const wd = wegDeel(c, f, ink); if(wd.so && wd.weg) return wd;   // Weg (ook Weg → Backorder) gaat voor
+  if(!palletBewijs(c, f, ink)) return { r:'soort:geenpallet', so:t('pick', 'geen bewijs dat het per pallet komt of ligt (geen bulk- of VST-voorraad, palletlabel, pallet-verplaatsing of inkoop van een volle pallet): Pick, geen palletvragen', { aan:'palletregel' }) };
+  if(wd.so) return wd;
   const ls = wd.ls, stock = wd.stock;
   const bulkN = som(f.bulk), pickN = som(f.pick), cap = capPick(c);
   let ms = null; try{ ms = X().mvSoort(c); }catch(e){}
@@ -1036,6 +1053,7 @@ function bereken(c){
   const p = D.P[c] || {}, kop = koppelVan(c), sam = isSam(c), f = locInfo(c), ink = inkoop(c);
   const I = { c, kop:kop || (virt(c) ? 'samengesteld' : null), sam, f, ink, fk:famVan(c), mk:maatVan(c), vs:{}, vsSo:null, vsWeg:null, aan:new Set() };
   if(I.kop) return I;
+  I.bewijs = palletBewijs(c, f, ink);
   const s = vsSoort(c, f, ink);
   I.vsSo = s.so ? Object.assign({ r:s.r }, s.so) : null; I.vsWeg = s.weg || null;
   if(I.vsSo && I.vsSo.aan) I.aan.add(I.vsSo.aan);
@@ -1132,6 +1150,8 @@ function nodigVan(c, so, I){
   let n = isSam(c) ? NODIG.sam.slice() : (NODIG[so] || []).slice();
   if(waarde(c, 'pickc', I).v === 'geenpick') n = n.filter(k => k !== 'lvl' && k !== 'maxpick');
   if(isRol(c) && !isSam(c) && (so === 'pallet' || so === 'deel')) n = ROLNODIG.slice();
+  // vaste regel: zonder bewijs voor pallets geen palletvragen (per pallet, palletmaat, hoogte, max rollen per pallet); alleen max op pick
+  if((so === 'pallet' || so === 'deel') && !(I || info(c)).bewijs) n = isRol(c) ? ['rl'] : ['maxpick'];
   return n;
 }
 function status(c){
@@ -1405,7 +1425,7 @@ function telling(){
 return { S, AANNAMES, KEY_OEFEN, KEY_FB, laad, flush, plan, schrijf, po, poZet, poHerstel, wisAlles, oefDone, fbTab, fbOpm, fbOpmWeg, fbAann, mgPlus,
   koppelVan, isKoppel, koppelTekst, wegLicht, controle, maatRegel, vnRegel, sppUitBronnen, famVan, maatVan, famNaam, isSam, naamVan, abcVan, actief, kgPq, vk6, vk28, inkoop, backorders, inkomend, locInfo, som, anderOpPlek,
   VELD, SOORTEN, SOORTT, WEG, KOLOMMEN, NODIG, ROLNODIG, ROLVS, SAMVELD, MATEN, MATEN_WB, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
-  eenheid, rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
+  eenheid, palletBewijs, rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
   naControle, liggerVan, labelsVerbeteren, rolCheck, labelsGoed, verschil, verschilKies, herstel, pdFlush, PDQ,
   vraagLive, liveStatus, meet, meting, zetMeting, scoreVan, pd2Overzetten, overzetPlan, overzetToepassen, overzetTerug, overzetEcht, toetsItems, TOETSVELD, SCORE_VOOR, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };
 })();

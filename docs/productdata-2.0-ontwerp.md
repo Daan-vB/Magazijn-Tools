@@ -1,5 +1,12 @@
 # Productdata 2.0 — ontwerp (oefensimulatie, ronde 1, 27-10-2026)
 
+> **VASTE REGEL (geldt altijd, Daan 30-10):** palletvragen (per pallet, palletmaat, hoogte, gewicht volle pallet, plaatsen,
+> max per ligger) alleen voor producten waarvan de data bewijst dat ze per pallet komen of liggen: bulk- of VST-voorraad,
+> palletlabels, pallet-verplaatsingen naar pick, of inkoop van minstens één volle pallet. Producten zonder dat bewijs
+> (voorraad 0 of minimaal, alleen voor backorders ingekocht, per enkele stuks of rollen binnen) krijgen soort-voorstel Pick,
+> of Weg → Backorder als ze alleen voor backorders worden ingekocht, en nooit palletvragen. Geldt voor Productdata 2.0 en
+> voor Te controleren (3.0). Code: `palletBewijs()` in `wh/pd2-reken.js`; opgeslagen waarden blijven staan.
+
 Dit document is de enige bron voor Productdata 2.0. Elke volgende ronde werkt dit document bij.
 Geen bedrijfsdata in dit document: productnamen staan er alleen als voorbeeld uit het gesprek met Daan.
 
