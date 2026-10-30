@@ -1,5 +1,8 @@
-// Te controleren (3.0) → Productdata: één vraag tegelijk, alleen wat Productdata 2.0 vraagt. Echte database alleen lezen; schrijven naar een kopie in het geheugen.
-const { start, open } = require('./opzet.js');
+// Te controleren (3.0) volgens CLAUDE.md: regels eerst, soort eerst (familiekaart), daarna alleen wat per product open blijft.
+// Echte database alleen lezen; schrijven naar een kopie in het geheugen. Schrijft een verslag naar UIT_MAP (niet in de repo).
+const { start } = require('./opzet.js');
+const fs = require('fs');
+const UIT = process.env.UIT_MAP || '.';
 const ok = [], fout = [];
 const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' : 'FOUT ') + n + (x ? ' — ' + x : '')); };
 (async () => {
@@ -8,24 +11,33 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     await P.goto((process.env.PD2_URL || 'http://localhost:8811/') + 'ivol.html#/nakijken');
     await P.waitForFunction(() => window.WHX && WHX.S.pd && window.PD2R && PD2R.S.klaar && document.querySelector('.x-vraag'), null, { timeout:240000 });
     const ev = (f, a) => P.evaluate(f, a);
-    const alle = await ev(() => WHX.vraagLijst().map(q => q.k));
-    check(W + ' px: alleen vragen die Productdata 2.0 ook stelt (geen stuks per doos, picklocatie, aanvullen bij, vloernaam)', alle.length > 0 && alle.every(k => ['opslag', 'kgst', 'spp', 'maat', 'hoogte', 'maxpick', 'rol', 'rl', 'rmax'].includes(k)), [...new Set(alle)].join());
-    check(W + ' px: één kaart met één vraag en bovenaan "nog n vragen"', await ev(() => document.querySelectorAll('.x-vraag').length === 1 && document.querySelectorAll('.x-vraag .x-q').length === 1 && /^nog \d+ vragen?$/.test(document.querySelector('.x-nog').textContent.trim())));
-    const volg = await ev(() => { const L = WHX.vraagLijst(); return L.slice(0, 40).map(q => /^[AB]$/.test((WH.D.P[q.c] || {}).abc || '') ? 'AB' : 'C'); });
-    check(W + ' px: A/B eerst', volg.indexOf('C') < 0 || volg.slice(volg.indexOf('C')).every(x => x === 'C'));
-    // Kokos 100 cm zwart: alle andere vragen even op later
-    await ev(() => { WHX.vraagLijst().filter(q => q.c !== '145-0-100-007').forEach(q => WHX.S.later.add(q.c + '|' + q.k)); WHX.herteken(); });
-    const k = await ev(() => ({ code:(document.querySelector('.x-vraag') || {}).dataset?.code, tekst:(document.querySelector('.x-vraag') || {}).innerText || '', n:document.querySelector('.x-nog') && document.querySelector('.x-nog').textContent }));
-    check(W + ' px: Kokos 100 cm zwart (145-0-100-007) toont één vraag, geen "Stuks per doos"', k.code === '145-0-100-007' && !/Stuks per doos/i.test(k.tekst), k.tekst.replace(/\n+/g, ' | ').slice(0, 160) + ' · ' + k.n);
-    const n0 = +String(k.n).match(/\d+/)[0];
-    await P.click('.x-vraag [data-x="vklopt"]'); await P.waitForTimeout(1500);
-    const na = await ev(() => ({ n:document.querySelector('.x-nog') ? +document.querySelector('.x-nog').textContent.match(/\d+/)[0] : 0, q:document.querySelector('.x-vraag') ? document.querySelector('.x-vraag').dataset.k : '' }));
-    check(W + ' px: Klopt gaat meteen door naar de volgende vraag, teller loopt af', na.n === n0 - 1, n0 + ' → ' + na.n + ' (' + na.q + ')');
-    check(W + ' px: Kokos "Is dit een rol?" telt ook in Productdata 2.0 (zelfde opslag)', await ev(() => { const p = PD2R.po('145-0-100-007'); return !!(p && p.rol && p.rol.v === true); }));
+    const v = await ev(() => { const stat = {}, L = WHX.vraagLijst(stat); return { stat, keys:[...new Set(L.map(q => q.k))], n:L.length }; });
+    check(W + ' px: alleen vragen die 2.0 stelt; nooit stuks per doos, picklocatie, aanvullen bij, vloernaam, rol zonder keuze', v.n > 0 && v.keys.every(k => ['soort', 'kgst', 'spp', 'maat', 'hoogte', 'maxpick', 'rl', 'rmax'].includes(k)), v.keys.join());
+    if(W === 1440){
+      // verslag: per regel hoeveel vervielen, wat overblijft, 20 voorbeelden met de reden waarom de data ze niet kon beantwoorden
+      const r = await ev(() => { const stat = {}, L = WHX.vraagLijst(stat), wacht = stat.soorteerst || 0;
+        const vb = L.slice(0, 400).filter((q, i, a) => a.findIndex(y => y.fam === q.fam) === i).slice(0, 20).map(q => { const w = q.k === 'soort' ? PD2R.soortWaarde(q.c) : PD2R.waarde(q.c, q.k);
+          const waarom = q.k === 'soort' ? (w.st === 'twijfel' ? 'twijfel tussen ' + (w.alt || []).join(' / ') + ': ' : 'soort nog niet door Daan bevestigd; voorstel uit de data: ') + (w.why || 'geen voorstel') : (q.v ? 'schatting of regelcontrole, nog niet bevestigd: ' : 'geen bron in de data: ') + (q.uit || w.why || '');
+          return q.c + ' · ' + q.k + ' = ' + (q.v || '–') + ' — ' + waarom; });
+        return { stat, over:L.length, perVraag:L.reduce((a, q) => (a[q.k] = (a[q.k] || 0) + 1, a), {}), wacht, vb }; });
+      const tekst = ['Te controleren volgens CLAUDE.md — ' + new Date().toISOString(), '', 'Vervallen per regel:'].concat(Object.entries(r.stat).map(([k, n]) => '  ' + k + ': ' + n))
+        .concat(['', 'Over: ' + r.over + ' vragen nu zichtbaar (' + Object.entries(r.perVraag).map(([k, n]) => k + ' ' + n).join(', ') + '), plus ' + r.wacht + ' die wachten tot de soort is bevestigd.', '', '20 voorbeelden (elk uit een andere familie):']).concat(r.vb.map(x => '  ' + x));
+      fs.writeFileSync(UIT + '/tecontroleren-verslag.txt', tekst.join('\n'));
+      console.log('VERSLAG', UIT + '/tecontroleren-verslag.txt', '· over', r.over, '· wacht op soort', r.wacht, JSON.stringify(r.stat));
+    }
+    // soort eerst: de eerste kaart is een familiekaart met per product de voorgestelde soort en vinkjes
+    const k1 = await ev(() => { const L = WHX.vraagLijst(), q = L[0], k = document.querySelector('.x-vraag'); return { soort:q.k === 'soort', fam:!!k.dataset.famkaart, rijen:k.querySelectorAll('.x-famrij').length, n:L.filter(y => y.fam === q.fam && y.k === 'soort').length, sel:[...k.querySelectorAll('[data-x="vsoort"]')].map(b => b.dataset.v).join() }; });
+    check(W + ' px: eerste kaart = familiekaart (soort) met vinkjes, Selectie klopt en Selectie is: Pallet · Deel · Pick · Mix · Weg', k1.soort && k1.fam && k1.rijen === k1.n && k1.sel === 'pallet,deel,pick,mix,weg', JSON.stringify(k1));
+    const n0 = await ev(() => WHX.vraagLijst().length);
+    await P.click('.x-vraag [data-x="famklopt"]'); await P.waitForTimeout(2000);
+    const n1 = await ev(() => WHX.vraagLijst().length);
+    check(W + ' px: Selectie klopt handelt de familie in één klik af, teller loopt af', n1 < n0 && n1 >= n0 - k1.n, n0 + ' → ' + n1);
+    // een kaart met een product-vraag toont "soort: … ▾"
+    const k2 = await ev(() => { const L = WHX.vraagLijst(), q = L.find(y => y.k !== 'soort'); if(!q) return { geen:true }; L.filter(y => y !== q).forEach(y => WHX.S.later.add(y.c + '|' + y.k)); WHX.herteken(); return { k:q.k, soortw:!!document.querySelector('.x-vraag [data-x2="soortwijzig"]') }; });
+    check(W + ' px: productkaart toont "soort: … ▾" om te wijzigen', k2.geen || k2.soortw, JSON.stringify(k2));
     check(W + ' px: geen horizontale scroll', await ev(() => document.documentElement.scrollWidth <= innerWidth + 1));
     await ev(() => PD2R.flush()); await P.waitForTimeout(800);
-    check(W + ' px: 0 geblokkeerde schrijfpogingen (alleen wh-pd2-* en productdata, naar een kopie)', T.blocked.length === 0, JSON.stringify(T.blocked.slice(0, 2)));
-    if(W === 1440) console.log('VRAGEN TOTAAL', alle.length);
+    check(W + ' px: 0 geblokkeerde schrijfpogingen', T.blocked.length === 0, JSON.stringify(T.blocked.slice(0, 2)));
     console.log('ERRORS', T.errors.filter(e => !/Failed to load resource/.test(e)).join('\n'));
     await T.b.close();
   }

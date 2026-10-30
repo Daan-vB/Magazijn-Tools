@@ -520,7 +520,7 @@ const ROLNAAM = /\b(op rol|rol van|per rol|volle rol|full roll|rollen|per (strek
 const rolKand = c => { if(isKoppel(c) || isSam(c) || GEENROL.test(naamVan(c))) return false; const e = eenheid(c).e; const n = naamVan(c); return e === 'm' || e === 'cm' || e === 'rol' || ROLNAAM.test(n) || (/\brol\b/i.test(n) && /breed|dikte|\d\s*mm\b/i.test(n)); };
 const rolBeslV = c => { const p = po(c); return p && p.rol && typeof p.rol.v === 'boolean' ? p.rol.v : null; };
 // rol = door Daan gemarkeerd, of (nog niet besloten) een duidelijke rol volgens de data: dat is een voorstel
-function isRol(c){ const b = rolBeslV(c); return b !== null ? b : rolKand(c); }
+function isRol(c){ return rolBeslV(c) === true; }   // CLAUDE.md §5: alleen als Daan het product als rol koos
 const rolVoorstel = c => rolBeslV(c) === null && rolKand(c);
 const rolBesl = c => { const p = po(c); return !!(p && p.rol && typeof p.rol.v === 'boolean'); };
 function breedteNaam(c){ const n = naamVan(c); const m = n.match(/breedte\s*(\d+(?:[.,]\d+)?)\s*(mm|cm|m)?\b/i) || n.match(/(\d{2,3})\s*cm\s*(?:breed|br\b)/i) || n.match(/\b(\d{2,3})\s*cm\b/i); if(!m) return null; let v = num(m[1]); const u = (m[2] || 'cm').toLowerCase(); return u === 'm' ? v * 100 : u === 'mm' ? v / 10 : v; }
@@ -758,6 +758,8 @@ function vsBinnen(c, ink){
 }
 function vsSpp(c, I){
   if(isSam(c)) return null;
+  // CLAUDE.md §6: alleen FWB van Hebei komt in kratten van 50 (een krat telt als een pallet)
+  if(/^fwb/i.test(c) && /hebei/i.test(String((D.P[c] || {}).leverancier || ''))) return { v:'50', why:'regel: FWB van Hebei komt in kratten van 50', r:'spp:regel-fwb' };
   const bk = I ? waarde(c, 'binnen', I).v : '';
   if(bk === 'los'){
     // zelf pallets bouwen: alleen palletlabels, VST/bulk-pallets en verplaatsingen, nooit inkoop
@@ -1010,7 +1012,7 @@ function palletBewijs(c, f, ink){
 function vsSoort(c, f, ink){
   const naam = naamVan(c), t = (v, why, extra) => Object.assign({ v, why }, extra || {});
   const wd = wegDeel(c, f, ink); if(wd.so && wd.weg) return wd;   // Weg (ook Weg → Backorder) gaat voor
-  if(!palletBewijs(c, f, ink)) return { r:'soort:geenpallet', so:t('pick', 'geen bewijs dat het per pallet komt of ligt (geen bulk- of VST-voorraad, palletlabel, pallet-verplaatsing of inkoop van een volle pallet): Pick, geen palletvragen', { aan:'palletregel' }) };
+  if(!palletBewijs(c, f, ink)) return { r:'soort:geenpallet', so:t('pick', 'regel: geen bewijs dat het per pallet komt of ligt (geen bulk- of VST-voorraad, palletlabel, pallet-verplaatsing of inkoop van een volle pallet): Pick, geen palletvragen', { aan:'palletregel' }) };
   if(wd.so) return wd;
   const ls = wd.ls, stock = wd.stock;
   const bulkN = som(f.bulk), pickN = som(f.pick), cap = capPick(c);
@@ -1163,7 +1165,6 @@ function status(c){
   if(so.v === 'weg'){ const w = wegWaarde(c, I); if(!['bevestigd', 'aangepast', 'vastgelegd'].includes(w.st)) open.push('weg'); }
   nodigVan(c, so.v, I).forEach(k => { if(!ingevuld(waarde(c, k, I))) open.push(k); });
   const g = gewicht(c);
-  if(so.v !== 'weg' && rolVoorstel(c)) open.push('rol');
   if(so.v !== 'weg' && !isSam(c) && !gewKlaar(g)) open.push('gewicht');
   const af = !!so.v && !open.length && !(po(c) && po(c).heropend);
   // drie stappen: 1 Soort · 2 Gewicht · 3 Hoeveelheid; afgerond = alle drie klaar
@@ -1391,7 +1392,7 @@ async function overzetEcht(keuzes){
 /* ---------- rollen controleren: alle rollen met de berekende gegevens en een gewichtscheck ---------- */
 // kg per m² per mm dikte = kg per meter ÷ (breedte in m × dikte in mm); binnen een familie hoort dat gelijk te zijn (zelfde materiaal)
 function rolCheck(){
-  const l = Object.keys(D.P).filter(c => actief(c) && isRol(c)).map(c => {
+  const l = Object.keys(D.P).filter(c => actief(c) && (isRol(c) || rolVoorstel(c))).map(c => {
     const I = info(c), e = eenheid(c).e, g = gewicht(c), kg = g.kg > 0 ? g.kg : null;
     const B = nOf(waarde(c, 'rb', I).v), d = nOf(waarde(c, 'rd', I).v), L = nOf(waarde(c, 'rl', I).v);
     const kgm = !kg ? null : e === 'm' ? kg : e === 'cm' ? kg * 100 : L > 0 ? kg / L : null;

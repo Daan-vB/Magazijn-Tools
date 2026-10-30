@@ -139,28 +139,55 @@ function famVan(c){
   try{ if(pd2Klaar()) return PD2R.famVan(c); }catch(e){}
   return ((D.P[c] || {}).leverancier || '') + '|' + naamVan(c).split(' - ')[0].trim().toLowerCase();
 }
-function vraagLijst(){
-  const L = [], VO = Object.keys(PD2VRAAG);
-  twLijst().forEach(x => x.velden.forEach(f => {
-    if(!PD2VRAAG[f.k] || !D.P[x.c]) return;
-    if(f.k === 'opslag' && pd2Klaar()) return;   // de soort vraagt 2.0 zelf (hieronder), met zijn eigen voorstel
-    if(PD2SOORT[f.k] && !PD2SOORT[f.k].includes(soortVan(x.c))) return;
-    if(PALLETVRAAG.has(f.k) && zonderPallet(x.c)) return;
-    if(S.later.has(x.c + '|' + f.k)) return;
-    L.push({ c:x.c, k:f.k, v:f.v, uit:f.uit, fam:famVan(x.c), ab:/^[AB]$/.test(abcVan(x.c)) ? 0 : 1 });
-  }));
-  // rol (Productdata 2.0): "Is dit een rol?" en daarna lengte volle rol en max rollen per pallet, als 2.0 die open heeft
-  if(pd2Klaar()) twLijst().forEach(x => {
-    if(!D.P[x.c]) return;
+// CLAUDE.md eerst: elke regel wordt toegepast vóór een vraag aan Daan. stat (optioneel) telt per regel wat verviel.
+const REGELT = { nietin2:'niet in Productdata 2.0 (picklocatie, aanvullen bij, vloernaam, mixgroep, plaatsen, …)', doos:'stuks per doos, doosmaat, inkoopverpakking: nooit vragen (§3)',
+  sam:'SAM Europe: alleen picklocatie, bulklocaties, aanvulniveau (§6)', uitlopend:'Uitlopend: geen vragen (§3)', backorder:'Weg → Backorder: voorlopig wegfilteren (§3)', weg:'Weg: alleen het Weg-menu (§3)',
+  pallet:'palletvragen alleen bij bewijs van pallets (§3)', soortnietbij:'hoort niet bij de soort (Pick: alleen max op pick)', rol:'rollen alleen als Daan ze als rol koos (§5)',
+  soorteerst:'soort eerst: gewicht en hoeveelheid pas na een bevestigde soort (§2)', later:'op later gezet' };
+const DOOSK = new Set(['spd', 'doos', 'verp']);
+function vraagLijst(stat){
+  const L = [], VO = Object.keys(PD2VRAAG), tel = r => { if(stat) stat[r] = (stat[r] || 0) + 1; };
+  const pk = pd2Klaar(), ab = c => /^[AB]$/.test(abcVan(c)) ? 0 : 1;
+  const sam = c => { try{ return pk ? PD2R.isSam(c) : /sam europe/i.test(String((D.P[c] || {}).leverancier || '')); }catch(e){ return false; } };
+  const stand = c => { if(!pk) return { so:soortVan(c), ok:true, weg:'' }; const st = PD2R.status(c), w = st.so === 'weg' ? PD2R.wegWaarde(c).v : ''; return { so:st.so, ok:st.stap.soort, weg:w || '' }; };
+  const codes = new Set();
+  twLijst().forEach(x => {
+    if(!D.P[x.c]) return; codes.add(x.c);
+    const sd = stand(x.c);
+    x.velden.forEach(f => {
+      if(DOOSK.has(f.k)) return tel('doos');
+      if(!PD2VRAAG[f.k]) return tel('nietin2');
+      if(f.k === 'opslag' && pk) return;   // de soort vraagt 2.0 zelf (hieronder), met zijn eigen voorstel
+      if(sam(x.c) && f.k !== 'maxpick') return tel('sam');
+      if(sd.so === 'weg') return tel(sd.weg === 'uitlopend' ? 'uitlopend' : sd.weg === 'backorder' ? 'backorder' : 'weg');
+      if(PALLETVRAAG.has(f.k) && zonderPallet(x.c)) return tel('pallet');
+      if(PD2SOORT[f.k] && !PD2SOORT[f.k].includes(sd.so)) return tel('soortnietbij');
+      if(!sd.ok && !sam(x.c)) return tel('soorteerst');
+      if(S.later.has(x.c + '|' + f.k)) return tel('later');
+      // beantwoordt een regel het al (bijv. FWB van Hebei 50 per pallet): voorstel met reden "regel: …"
+      let rv = null; try{ if(pk){ const w = (PD2R.info(x.c).vs || {})[f.k]; if(w && w.v && /^regel/.test(w.why || '')) rv = w; } }catch(e){}
+      L.push({ c:x.c, k:f.k, v:rv ? String(rv.v) : f.v, uit:rv ? rv.why : f.uit, fam:famVan(x.c), ab:ab(x.c) });
+    });
+  });
+  // vragen die alleen 2.0 stelt: de soort (eerst) en, als Daan het als rol koos, de rolgegevens
+  if(pk) codes.forEach(c => {
     try{
-      const st = PD2R.status(x.c), ab = /^[AB]$/.test(abcVan(x.c)) ? 0 : 1, fam = famVan(x.c);
-      // soort eerst: nog niet door Daan bevestigd → de eerste vraag van dit product
-      if(!st.stap.soort && !S.later.has(x.c + '|soort')){ const w = PD2R.soortWaarde(x.c), ww = w.v === 'weg' ? PD2R.wegWaarde(x.c) : null; L.push({ c:x.c, k:'soort', v:w.v ? w.v + (ww && ww.v ? ':' + ww.v : '') : '', uit:w.why || '', fam, ab }); }
-      if(PD2R.rolVoorstel(x.c)){ if(!S.later.has(x.c + '|rol')) L.push({ c:x.c, k:'rol', v:'ja', uit:'naam of Picqer-eenheid wijst op een rol', fam, ab }); }
-      ['rl', 'rmax'].forEach(k => { if(!st.open.includes(k) || (k === 'rmax' && zonderPallet(x.c)) || S.later.has(x.c + '|' + k)) return; const w = PD2R.waarde(x.c, k); L.push({ c:x.c, k, v:w.v || '', uit:w.why || '', fam, ab }); });
+      const st = PD2R.status(c), fam = famVan(c), sd = stand(c);
+      if(PD2R.rolVoorstel(c)) tel('rol');
+      if(sam(c)) return;
+      if(!st.stap.soort){
+        const w = PD2R.soortWaarde(c), ww = w.v === 'weg' ? PD2R.wegWaarde(c) : null;
+        if(ww && ww.v === 'uitlopend') return tel('uitlopend');
+        if(ww && ww.v === 'backorder') return tel('backorder');
+        if(S.later.has(c + '|soort')) return tel('later');
+        L.push({ c, k:'soort', v:w.v ? w.v + (ww && ww.v ? ':' + ww.v : '') : '', uit:w.why || '', fam, ab:ab(c) });
+        return;
+      }
+      if(sd.so === 'weg') return;
+      ['rl', 'rmax'].forEach(k => { if(!st.open.includes(k)) return; if(k === 'rmax' && zonderPallet(c)) return tel('pallet'); if(S.later.has(c + '|' + k)) return tel('later'); const w = PD2R.waarde(c, k); L.push({ c, k, v:w.v || '', uit:w.why || '', fam, ab:ab(c) }); });
     }catch(e){}
   });
-  // A/B eerst, dan per familie en per vraag: dezelfde vraag komt achter elkaar
+  // A/B eerst, dan per familie en per vraag (soort eerst): dezelfde vraag komt achter elkaar
   return L.sort((a, b) => a.ab - b.ab || a.fam.localeCompare(b.fam) || VO.indexOf(a.k) - VO.indexOf(b.k) || naamVan(a.c).localeCompare(naamVan(b.c), 'nl', { numeric:true }));
 }
 // zelfde opslag als Productdata 2.0: productdata met bron pd2, vooraf een kopie van de rijen in wh-pd2-kopie-<dag>
@@ -222,8 +249,23 @@ function soortKnoppen(q){
   return `<div class="x-acties x-soorten">${Object.keys(SOORTT).map(k => `<button class="x-btn${vs === k ? ' vs' : ''}" data-x="vsoort" data-v="${k}">${SOORTT[k]}${vs === k ? ' (voorstel)' : ''}</button>`).join('')}</div>
     ${S.wegOpen || vs === 'weg' ? `<div class="x-acties">${Object.keys(WEGT).map(k => `<button class="x-btn${vw === k ? ' vs' : ''}" data-x="vsoort" data-v="weg:${k}">Weg → ${WEGT[k]}${vw === k ? ' (voorstel)' : ''}</button>`).join('')}</div>` : ''}`;
 }
+// familiekaart (soort eerst): per product de voorgestelde soort met reden en een vinkje; Selectie klopt of Selectie is: …
+function famSoortHtml(L, q){
+  const fam = L.filter(x => x.fam === q.fam && x.k === 'soort'), n = fam.filter(y => !S.famUit.has(y.c)).length;
+  const fnaam = (() => { try{ return pd2Klaar() ? PD2R.famNaam(q.fam) : naamVan(q.c); }catch(e){ return naamVan(q.c); } })();
+  return `<div class="small muted x-nog">nog ${nf(L.length)} ${L.length === 1 ? 'vraag' : 'vragen'}</div>
+    <div class="x-kaart x-vraag x-famsoort" data-code="${esc(q.c)}" data-k="soort" data-famkaart="1">
+      <div><b>${esc(fnaam)}</b><div class="small muted">${esc((D.P[q.c] || {}).leverancier || '')} · ${mv(fam.length, 'product', 'producten')} · soort eerst, daarna gewicht en hoeveelheid</div></div>
+      <div class="x-fam">${fam.map(y => `<label class="x-famrij"><input type="checkbox" data-x="famvink" data-code="${esc(y.c)}" ${S.famUit.has(y.c) ? '' : 'checked'}><span class="x-fn">${esc(naamVan(y.c))}<span class="small muted"> · <span class="code">${esc(y.c)}</span></span>${y.uit ? `<span class="x-why"> — ${esc(String(y.uit).replace(/\s+/g, ' ').slice(0, 110))}</span>` : ''}</span><b class="x-fv">${y.v ? esc(soortTekst(y.v)) : '–'}</b></label>`).join('')}</div>
+      <div class="x-acties"><button class="x-btn ok" data-x="famklopt">Selectie klopt (${nf(n)})</button><button class="x-btn" data-x="vlaterfam">Later</button></div>
+      <div class="x-acties x-soorten"><span class="small">Selectie is:</span>${Object.keys(SOORTT).map(k => `<button class="x-btn" data-x="vsoort" data-v="${k}">${SOORTT[k]}</button>`).join('')}</div>
+      ${S.wegOpen ? `<div class="x-acties">${Object.keys(WEGT).map(k => `<button class="x-btn" data-x="vsoort" data-v="weg:${k}">Weg → ${WEGT[k]}</button>`).join('')}</div>` : ''}
+    </div>`;
+}
+const mv = (n, een, meer) => nf(n) + ' ' + (n === 1 ? een : meer);
 function vraagHtml(){
   const L = vraagLijst(), q = L[0];
+  if(q && q.k === 'soort') return famSoortHtml(L, q);
   if(!q) return `<div class="blok"><b>Niets meer te controleren in Productdata.</b>${S.later.size ? ` <span class="muted">${nf(S.later.size)} op later gezet (komen terug na herladen).</span>` : ''}</div>`;
   const p = D.P[q.c] || {}, fam = L.filter(x => x.fam === q.fam && x.k === q.k);
   const feiten = [p.leverancier, abcVan(q.c) ? 'ABC ' + abcVan(q.c) : '', p.voorraad_hm != null ? 'voorraad ' + nf(+p.voorraad_hm || 0) : '', soortVan(q.c) ? 'soort ' + soortVan(q.c) : ''].filter(Boolean).join(' · ');
@@ -644,10 +686,11 @@ function bind(){
         const kaart = b.closest('.x-vraag'), c = kaart.dataset.code, v = b.dataset.v;
         if(v === 'weg'){ S.wegOpen = true; herteken(); return; }
         const L = vraagLijst(), q = L.find(y => y.c === c && y.k === 'soort');
-        const items = S.fam && q && S.fam === q.fam + '|soort' ? L.filter(y => y.fam === q.fam && y.k === 'soort' && !S.famUit.has(y.c)).map(y => ({ c:y.c, k:'soort', v })) : [{ c, k:'soort', v }];
+        const items = (kaart.dataset.famkaart || (S.fam && q && S.fam === q.fam + '|soort')) && q ? L.filter(y => y.fam === q.fam && y.k === 'soort' && !S.famUit.has(y.c)).map(y => ({ c:y.c, k:'soort', v })) : [{ c, k:'soort', v }];
         kaart.querySelectorAll('button').forEach(z => { z.disabled = true; });
         await pd2Zet(items); S.wegOpen = false; S.fam = null; S.famUit = new Set(); toast('Soort ' + soortTekst(v) + (items.length > 1 ? ' voor ' + items.length + ' producten' : ': ' + c)); herteken();
       }
+      else if(x === 'vlaterfam'){ const kaart = b.closest('.x-vraag'), L = vraagLijst(), q = L.find(y => y.c === kaart.dataset.code && y.k === 'soort'); if(q) L.filter(y => y.fam === q.fam && y.k === 'soort').forEach(y => S.later.add(y.c + '|soort')); S.famUit = new Set(); S.wegOpen = false; herteken(); }
       else if(x === 'vfam'){ const kaart = b.closest('.x-vraag'), q = vraagLijst().find(y => y.c === kaart.dataset.code && y.k === kaart.dataset.k); if(!q) return; const key = q.fam + '|' + q.k; S.fam = S.fam === key ? null : key; S.famUit = new Set(); S.famAanpas = false; herteken(); }
       else if(x === 'famvink'){ if(b.checked) S.famUit.delete(b.dataset.code); else S.famUit.add(b.dataset.code); const kn = S.el.querySelector('[data-x="famklopt"]'); if(kn) kn.textContent = 'Klopt voor selectie (' + S.el.querySelectorAll('[data-x="famvink"]:checked').length + ')'; return; }
       else if(x === 'famaanpas'){ S.famAanpas = true; herteken(); const i2 = $('x-famin'); if(i2){ i2.focus(); i2.select(); } }
