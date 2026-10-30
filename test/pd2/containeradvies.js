@@ -11,6 +11,8 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   const tekst = c => P.evaluate(c => { const t = document.body.innerText, i = t.indexOf('\n' + c + '\n'); return i < 0 ? '' : t.slice(i, i + 520); }, c);
   for(const c of ['Snowbag', 'SWB-165-BLA']){ const t = await tekst(c); check(c + ': advies "nog te bepalen — verdeel zelf"', /nog te bepalen, verdeel zelf/.test(t), t.replace(/\n+/g, ' | ').slice(0, 120)); }
   // Per 20 / Per 15: 42x22rub100 gaat deels naar pick: veelvoud van "Per"
+  await P.evaluate(() => { const v = document.querySelector('[data-code="42x22rub100"] [data-act="vopen"]'); if(v) v.click(); });   // al akkoord: details openen (advies overnemen raakt een akkoord niet)
+  await P.waitForTimeout(400);
   await P.evaluate(() => document.querySelectorAll('[data-act="advneem"]').forEach(b => { if(b.dataset.code === '42x22rub100') b.click(); }));
   await P.waitForTimeout(600);
   const n = await P.evaluate(() => { const k = [...document.querySelectorAll('[data-code="42x22rub100"]')][0]; return k ? [...k.querySelectorAll('input[data-p="n"]')].map(i => i.value) : []; });

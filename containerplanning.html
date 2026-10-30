@@ -1909,6 +1909,8 @@ function dataStrip(){
     <a href="#/gegevens" class="btn sm" style="margin-left:auto">Gegevens bijwerken</a>
   </div>`;
 }
+// stand "bij lossen bepalen": advies nog te bepalen en (nog) geen verdeling; geen fout en telt niet als onaf
+function bijLossen(c, pool){ const v = c.data.verdeling[pool.code]; return !(v && v.porties && v.porties.length) && !advies(c, pool).porties.length; }
 function voortgang(c){
   const pl = pools(c), pts = punten(c, pl);
   const R = c.data.regels;
@@ -1923,7 +1925,8 @@ function voortgang(c){
     pallets += pl.map[code].pallets.length;
     (v && v.porties || []).forEach(x => { if(x.soort !== 'pallet') return; const k = num(x.n) || 0; if(x.dest === 'VST') vst += k; else if(DEST[x.dest] && DEST[x.dest].hier) hier += k; else direct += k; });
   });
-  return { pl, pts, pakbonOk, n, akk, pdMis, open, pallets, hier, vst, direct, R };
+  const lossen = pl.order.filter(code => bijLossen(c, pl.map[code])).length, nAk = n - lossen;
+  return { pl, pts, pakbonOk, n, akk, nAk, lossen, pdMis, open, pallets, hier, vst, direct, R };
 }
 function containerKaart(c){
   const g = voortgang(c);
@@ -1937,7 +1940,7 @@ function containerKaart(c){
       <div class="small mt8">${g.R.length ? (g.R.some(r => !r.productcode) ? plural(g.R.length, 'pakbonregel', 'pakbonregels') + ' · <b style="color:var(--warn)">' + g.R.filter(r => !r.productcode).length + ' nog koppelen</b>' : plural(g.n, 'product', 'producten') + ' · ' + plural(g.pallets, 'pallet', 'pallets')) + (g.hier + g.vst + g.direct ? ` <span class="muted">(hier ${g.hier} · VST ${g.vst} · direct ${g.direct})</span>` : '') : '<span class="muted">nog geen pakbon</span>'}</div>
       <div class="steps">
         ${st(g.R.length ? g.pakbonOk : null, 'Pakbon')}
-        ${st(g.n ? g.akk === g.n : null, 'Verdeling ' + (g.n ? g.akk + '/' + g.n : ''))}
+        ${st(g.n ? g.akk >= g.nAk : null, 'Verdeling ' + (g.n ? g.akk + '/' + g.nAk + (g.lossen ? ' · ' + g.lossen + ' bij lossen' : '') : ''))}
         ${st(g.n ? g.pdMis === 0 : null, 'Productgegevens')}
         ${g.open ? `<span class="badge b-bad">${g.open} open</span>` : ''}
         ${isVerwacht(c) ? '<span class="badge b-warn">ETA verwacht</span>' : ''}
@@ -2482,7 +2485,7 @@ function viewContainer(id, t){
   const g = voortgang(c);
   const tabSt = {
     pakbon: g.R.length ? (g.pakbonOk && !g.pdMis ? 'done' : 'todo') : '',
-    verdeling: g.n ? (g.akk === g.n ? 'done' : 'todo') : '',
+    verdeling: g.n ? (g.akk >= g.nAk ? 'done' : 'todo') : '',
     uitvoer: c.status === 'afgerond' ? 'done' : ''
   };
   let body = '';
@@ -3450,7 +3453,7 @@ function wijzer(open){
     const tekort = [];
     if(nietGek) tekort.push(nietGek + ' regel' + (nietGek > 1 ? 's' : '') + ' niet gekoppeld');
     if(g.pdMis) tekort.push(g.pdMis + ' product' + (g.pdMis > 1 ? 'en' : '') + ' zonder gegevens');
-    if(g.n && g.akk < g.n) tekort.push('verdeling ' + g.akk + '/' + g.n);
+    if(g.n && g.akk < g.nAk) tekort.push('verdeling ' + g.akk + '/' + g.nAk);
     const wanneer = d === 0 ? 'vandaag' : d === 1 ? 'morgen' : 'over ' + d + ' dagen';
     if(d <= 7 && isVerwacht(c)) L.push({ prio:1, tekst:naam + ': ETA ' + wanneer + ', nog geen vaste losdatum — navragen bij de vervoerder', link:'#/c/' + c.id + '/pakbon', knop:'open' });
     else if(d <= 7 && tekort.length) L.push({ prio:d <= 2 ? 1 : 2, tekst:naam + ' lost ' + wanneer + ': ' + tekort.join(', '), link:'#/c/' + c.id + (nietGek || g.pdMis ? '/pakbon' : '/verdeling'), knop:'afmaken' });
@@ -3663,14 +3666,15 @@ function tabVerdeling(c, g){
     if(v && v.bevestigd && restVan(pl.map[code], v.porties).ok) akk++;
     (v && v.porties || []).forEach(x => { if(x.soort !== 'pallet'){ los++; return; } const k = num(x.n) || 0; if(x.dest === 'VST') vst += k; else if(DEST[x.dest].hier) hier += k; else direct += k; });
   });
-  const leeg_ = pl.order.filter(code => !(c.data.verdeling[code] && c.data.verdeling[code].porties && c.data.verdeling[code].porties.length)).length;
+  const lossen = pl.order.filter(code => bijLossen(c, pl.map[code])).length;
+  const leeg_ = pl.order.filter(code => !(c.data.verdeling[code] && c.data.verdeling[code].porties && c.data.verdeling[code].porties.length) && advies(c, pl.map[code]).porties.length).length;   // alleen producten met een echt advies
   const etaBan = isVerwacht(c) ? `<div class="card etabox"><b>Voorlopige planning (ETA ${esc(fdate(c.losdatum, { day:'numeric', month:'short' }))}).</b> Het advies rekent met de verkoop tot aankomst en met de containers die eerder komen. Leg de verdeling pas vast als de losdatum definitief is — dan kloppen voorraad en backorders van dat moment.</div>` : '';
   return `${etaBan}${pkMis}<div class="card">
     <div class="sumbar">
       <div><div class="big">${hier}</div><div class="lbl">pallets hier</div></div>
       <div><div class="big">${vst}</div><div class="lbl">naar VST</div></div>
       <div><div class="big">${direct}</div><div class="lbl">direct weg</div></div>
-      <div><div class="big">${akk}/${pl.order.length}</div><div class="lbl">akkoord</div></div>
+      <div><div class="big">${akk}/${pl.order.length - lossen}</div><div class="lbl">akkoord${lossen ? ' · ' + lossen + ' bij lossen bepalen' : ''}</div></div>
       <div class="grow"></div>
       <div class="fld" style="width:190px"><label>Voorraad hier aanvullen tot</label><select data-inst="maanden">${[1, 1.5, 2, 3].map(m => `<option value="${m}" ${num(c.data.instellingen.maanden) === m ? 'selected' : ''}>${nf(m, 1)} maand verkoop</option>`).join('')}</select></div>
     </div>
@@ -3741,7 +3745,7 @@ function verdeelKaart(c, pool){
         <span class="grow"></span>
         ${heeft ? (v.bevestigd ? `<span class="badge b-ok">akkoord</span> <button class="btn ghost sm" data-act="vakk">wijzigen</button>` : `<button class="btn ok sm" data-act="vakk" ${rest.ok ? '' : 'disabled'}>✓ Akkoord</button>`) : ''}
       </div>
-      ${heeft ? restTxt() : '<div class="rest muted small">Nog geen verdeling — neem het advies over of voeg zelf regels toe.</div>'}
+      ${heeft ? restTxt() : bijLossen(c, pool) ? '<div class="rest muted small"><span class="badge b-info">bij lossen bepalen</span> — vul na het lossen in (blok bovenaan) of verdeel zelf.</div>' : '<div class="rest muted small">Nog geen verdeling — neem het advies over of voeg zelf regels toe.</div>'}
       ${v.opmerking ? `<div class="small muted mt8">${esc(v.opmerking)}</div>` : ''}
     </div></div>`;
 }
@@ -4414,12 +4418,12 @@ const ACT = {
   advneem: el => { const code = el.dataset.code, pl = pools(cur); const a = advies(cur, pl.map[code]); if(!a.porties.length){ toast('Nog te bepalen: verdeel zelf.'); return; } if((cur.data.verdeling[code] || {}).bevestigd) return; cur.data.verdeling[code] = { porties:a.porties.map(x => Object.assign({}, x)), bevestigd:false, bron:'advies' }; save(); rerender(); },
   advalles: () => {
     const pl = pools(cur);
-    pl.order.forEach(code => { const v = cur.data.verdeling[code]; if(v && v.porties && v.porties.length) return; cur.data.verdeling[code] = { porties:advies(cur, pl.map[code]).porties.map(x => Object.assign({}, x)), bevestigd:false, bron:'advies' }; });
+    pl.order.forEach(code => { const v = cur.data.verdeling[code]; if(v && v.porties && v.porties.length) return; if(!advies(cur, pl.map[code]).porties.length) return; cur.data.verdeling[code] = { porties:advies(cur, pl.map[code]).porties.map(x => Object.assign({}, x)), bevestigd:false, bron:'advies' }; });
     save(); rerender();
   },
   akkalles: () => {
     const pl = pools(cur); let n = 0, skip = 0;
-    pl.order.forEach(code => { const v = cur.data.verdeling[code]; if(v && v.porties && v.porties.length && restVan(pl.map[code], v.porties).ok){ if(!v.bevestigd) n++; v.bevestigd = true; } else skip++; });
+    pl.order.forEach(code => { const v = cur.data.verdeling[code]; if(v && v.porties && v.porties.length && restVan(pl.map[code], v.porties).ok){ if(!v.bevestigd) n++; v.bevestigd = true; } else if(!bijLossen(cur, pl.map[code])) skip++; });   // bij lossen bepalen is geen probleem
     save(); rerender(); toast(n + ' verdeling(en) akkoord' + (skip ? ', ' + skip + ' telt nog niet op of is leeg' : '') + '.');
   },
   padd: el => {
