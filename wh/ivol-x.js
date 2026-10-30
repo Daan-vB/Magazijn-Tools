@@ -12,7 +12,7 @@
 window.WHX = (function(){
 'use strict';
 const { $, esc, nf, D, isoDag, vandaag, toast } = WH;
-const S = { later:new Set(), aanpas:false, pd:null, pdLaden:null, pdFout:null, dag:null, dagLaden:null, tab:'pd', zoek:'', gekozen:null, el:null, naam:'', rest:'' };
+const S = { later:new Set(), aanpas:false, fam:null, famUit:new Set(), famAanpas:false, pd:null, pdLaden:null, pdFout:null, dag:null, dagLaden:null, tab:'pd', zoek:'', gekozen:null, el:null, naam:'', rest:'' };
 const ik = () => { try{ return localStorage.getItem('ivol-ik') || 'Daan'; }catch(e){ return 'Daan'; } };
 const VELD = { opslag:'Soort', spp:'Stuks per pallet', pick:'Picklocatie', maxpick:'Max op pick', lvl:'Aanvullen bij', met:'Aanvullen met', geleverd:'Geleverd', mixgroep:'Mixgroep',
   maat:'Palletmaat', hoogte:'Hoogte incl. pallet (cm)', gewicht:'Gewicht volle pallet (kg)', plaatsen:'Plaatsen op ligger', vn:'Vloernaam', spd:'Stuks per doos', maxlig:'Max pallets per ligger', kgst:'Gewicht per stuk (kg)', doos:'Doosmaat', opm:'Opmerking' };
@@ -44,7 +44,7 @@ function stijl(){
   .x-why{font-size:12.5px;color:var(--muted)}
   .x-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;border:1px solid var(--lijn);background:#fff;border-radius:8px;padding:7px 12px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;text-decoration:none;color:inherit}
   .x-btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
-  .x-vraag{max-width:720px}.x-q{font-size:15px;overflow-wrap:anywhere}.x-acties{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.x-acties input{flex:1 1 160px;min-width:0;min-height:44px;border:1px solid var(--lijn);border-radius:6px;padding:7px 9px;font:inherit;font-size:15px}.x-vraag .code{font-family:ui-monospace,Consolas,monospace;font-weight:800}
+  .x-vraag{max-width:720px}.x-q{font-size:15px;overflow-wrap:anywhere}.x-acties{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.x-acties input{flex:1 1 160px;min-width:0;min-height:44px;border:1px solid var(--lijn);border-radius:6px;padding:7px 9px;font:inherit;font-size:15px}.x-vraag .code{font-family:ui-monospace,Consolas,monospace;font-weight:800}.x-btn.aan{border-color:var(--ink)}.x-fam{display:grid;gap:4px;border-top:1px solid #eef1f5;padding-top:8px}.x-famrij{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;min-height:44px;cursor:pointer}.x-famrij input{width:20px;height:20px}.x-fn{overflow-wrap:anywhere}.x-fv{font-variant-numeric:tabular-nums}
   .x-btn.pri{background:#f08a4b;border-color:#f08a4b}
   .x-btn:disabled{opacity:.5;cursor:default}
   .x-tegels{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
@@ -192,6 +192,15 @@ async function pd2Zet(items){
     try{ if(window.PD2R && PD2R.ongeldig) PD2R.ongeldig(r.productcode); }catch(e){}
   });
 }
+// familielijst onder de kaart: vinkje (standaard aan), naam, code en de huidige waarde; niet aangevinkt blijft open als eigen vraag
+function famLijst(q, fam){
+  const n = fam.filter(y => !S.famUit.has(y.c)).length;
+  return `<div class="x-fam" data-fam="${esc(q.fam + '|' + q.k)}">
+    ${fam.map(y => `<label class="x-famrij"><input type="checkbox" data-x="famvink" data-code="${esc(y.c)}" ${S.famUit.has(y.c) ? '' : 'checked'}><span class="x-fn">${esc(naamVan(y.c))}<span class="small muted"> · <span class="code">${esc(y.c)}</span></span></span><b class="x-fv">${y.v ? esc(y.v) : '–'}</b></label>`).join('')}
+    ${S.famAanpas ? `<div class="x-acties"><input id="x-famin" value="${esc(q.v)}" aria-label="${esc(PD2VRAAG[q.k])} voor de selectie" autocomplete="off"><button class="x-btn ok" data-x="famopslaan">Opslaan voor selectie</button></div>` : ''}
+    <div class="x-acties"><button class="x-btn ok" data-x="famklopt">Klopt voor selectie (${nf(n)})</button>${S.famAanpas ? '' : `<button class="x-btn" data-x="famaanpas">Aanpassen voor selectie</button>`}</div>
+  </div>`;
+}
 function vraagHtml(){
   const L = vraagLijst(), q = L[0];
   if(!q) return `<div class="blok"><b>Niets meer te controleren in Productdata.</b>${S.later.size ? ` <span class="muted">${nf(S.later.size)} op later gezet (komen terug na herladen).</span>` : ''}</div>`;
@@ -203,7 +212,8 @@ function vraagHtml(){
       <div><b>${esc(naamVan(q.c))}</b><div class="small muted"><span class="code">${esc(q.c)}</span>${feiten ? ' · ' + esc(feiten) : ''}</div></div>
       <div class="x-q"><b>${esc(PD2VRAAG[q.k])}</b>: <b class="x-vs">${q.v ? esc(q.v) : 'geen voorstel'}</b>${reden ? ` <span class="x-why">— ${esc(reden)}</span>` : ''}</div>
       ${S.aanpas ? `<div class="x-acties"><input id="x-vin" value="${esc(q.v)}" aria-label="${esc(PD2VRAAG[q.k])}" autocomplete="off"><button class="x-btn ok" data-x="vopslaan">Opslaan</button></div>` : ''}
-      <div class="x-acties">${q.v ? '<button class="x-btn ok" data-x="vklopt">Klopt</button>' : ''}${S.aanpas ? '' : '<button class="x-btn" data-x="vaanpas">Aanpassen</button>'}<button class="x-btn" data-x="vlater">Later</button>${fam.length > 1 ? `<button class="x-btn" data-x="vfam">geldt voor alle ${nf(fam.length)} in deze familie</button>` : ''}</div>
+      <div class="x-acties">${q.v ? '<button class="x-btn ok" data-x="vklopt">Klopt</button>' : ''}${S.aanpas ? '' : '<button class="x-btn" data-x="vaanpas">Aanpassen</button>'}<button class="x-btn" data-x="vlater">Later</button>${fam.length > 1 ? `<button class="x-btn${S.fam === q.fam + '|' + q.k ? ' aan' : ''}" data-x="vfam" aria-expanded="${S.fam === q.fam + '|' + q.k}">geldt voor alle ${nf(fam.length)} in deze familie</button>` : ''}</div>
+      ${fam.length > 1 && S.fam === q.fam + '|' + q.k ? famLijst(q, fam) : ''}
     </div>`;
 }
 async function bevestig(c, waarden){
@@ -608,19 +618,33 @@ function bind(){
     const x = b.dataset.x;
     try{
       if(x === 'tab'){ S.tab = b.dataset.v; herteken(); }
-      else if(['vklopt', 'vopslaan', 'vfam'].includes(x)){
+      else if(x === 'vfam'){ const kaart = b.closest('.x-vraag'), q = vraagLijst().find(y => y.c === kaart.dataset.code && y.k === kaart.dataset.k); if(!q) return; const key = q.fam + '|' + q.k; S.fam = S.fam === key ? null : key; S.famUit = new Set(); S.famAanpas = false; herteken(); }
+      else if(x === 'famvink'){ if(b.checked) S.famUit.delete(b.dataset.code); else S.famUit.add(b.dataset.code); const kn = S.el.querySelector('[data-x="famklopt"]'); if(kn) kn.textContent = 'Klopt voor selectie (' + S.el.querySelectorAll('[data-x="famvink"]:checked').length + ')'; return; }
+      else if(x === 'famaanpas'){ S.famAanpas = true; herteken(); const i2 = $('x-famin'); if(i2){ i2.focus(); i2.select(); } }
+      else if(x === 'famklopt' || x === 'famopslaan'){
+        const kaart = b.closest('.x-vraag'), k = kaart.dataset.k, L = vraagLijst(), q = L.find(y => y.c === kaart.dataset.code && y.k === k); if(!q) return;
+        const sel = L.filter(y => y.fam === q.fam && y.k === k && !S.famUit.has(y.c)), inp = $('x-famin'), w = x === 'famopslaan' ? (inp ? inp.value.trim() : '') : null;
+        if(x === 'famopslaan' && !w){ toast('Vul een waarde in'); return; }
+        const items = sel.map(y => ({ c:y.c, k, v:w === null ? y.v : w })).filter(y => y.v);
+        if(!items.length){ toast('Niets aangevinkt met een waarde'); return; }
+        kaart.querySelectorAll('button').forEach(z => { z.disabled = true; });
+        try{ await pd2Zet(items); toast(PD2VRAAG[k] + (w === null ? ' klopt' : ' ' + w) + ' voor ' + items.length + ' producten'); S.fam = null; S.famUit = new Set(); S.famAanpas = false; }
+        catch(err){ toast('Opslaan mislukt: ' + (err.message || err)); }
+        herteken();
+      }
+      else if(['vklopt', 'vopslaan'].includes(x)){
         const kaart = b.closest('.x-vraag'), c = kaart.dataset.code, k = kaart.dataset.k, inp = $('x-vin');
         const L = vraagLijst(), q = L.find(y => y.c === c && y.k === k); if(!q) return;
-        const v = x === 'vopslaan' || (x === 'vfam' && inp) ? (inp ? inp.value.trim() : q.v) : q.v;
+        const v = x === 'vopslaan' ? (inp ? inp.value.trim() : q.v) : q.v;
         if(!v){ toast('Vul een waarde in'); return; }
-        const items = x === 'vfam' ? L.filter(y => y.fam === q.fam && y.k === k).map(y => ({ c:y.c, k, v })) : [{ c, k, v }];
+        const items = [{ c, k, v }];
         kaart.querySelectorAll('button').forEach(z => { z.disabled = true; });
-        try{ await pd2Zet(items); S.aanpas = false; toast(items.length > 1 ? (PD2VRAAG[k] + ' ' + v + ' voor ' + items.length + ' producten') : c + ': ' + PD2VRAAG[k] + ' ' + v); }
+        try{ await pd2Zet(items); S.aanpas = false; S.fam = null; S.famUit = new Set(); toast(items.length > 1 ? (PD2VRAAG[k] + ' ' + v + ' voor ' + items.length + ' producten') : c + ': ' + PD2VRAAG[k] + ' ' + v); }
         catch(err){ toast('Opslaan mislukt: ' + (err.message || err)); }
         herteken(); const i2 = $('x-vin'); if(i2) i2.focus();
       }
       else if(x === 'vaanpas'){ S.aanpas = true; herteken(); const i2 = $('x-vin'); if(i2){ i2.focus(); i2.select(); } }
-      else if(x === 'vlater'){ const kaart = b.closest('.x-vraag'); S.later.add(kaart.dataset.code + '|' + kaart.dataset.k); S.aanpas = false; herteken(); }
+      else if(x === 'vlater'){ const kaart = b.closest('.x-vraag'); S.later.add(kaart.dataset.code + '|' + kaart.dataset.k); S.aanpas = false; S.fam = null; S.famUit = new Set(); herteken(); }
       else if(x === 'een' || x === 'alles'){
         const kaart = b.closest('.x-kaart'), c = b.dataset.code, w = {};
         kaart.querySelectorAll('input[data-k]').forEach(i => { if(x === 'alles' ? i.dataset.open : i.dataset.k === b.dataset.k) w[i.dataset.k] = i.value; });
