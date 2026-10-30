@@ -1,0 +1,4 @@
+# testuitvoer (bevat bedrijfsdata, nooit in de repo)
+test/pd2/*.png
+test/pd2/*.json
+test/pd2/claude-tekst.txt
