@@ -1629,7 +1629,17 @@ function adviesKern(c, pool, eerder){
   const pallets = pool.pallets.slice();
   const porties = [];
   const R = pool.regel || regelVan(code);
-  if(R.hand) return { porties:[], uitleg:'buiten de automatische regels — nog te bepalen, verdeel zelf', feiten:f, eerder, proj:0, verbruik:0, uitVst:0, mnd:maandenTot(c) };
+  const teBepalen = t => ({ porties:[], uitleg:t, feiten:f, eerder, proj:0, verbruik:0, uitVst:0, mnd:maandenTot(c) });
+  if(R.hand) return teBepalen('buiten de automatische regels — nog te bepalen, verdeel zelf');
+  // geen gecontroleerde data = geen automatisch advies: pallet onbekend (onb), of geen verkoophistorie zonder bekende pallet en zonder vaste regel
+  if(qtySoort((geh1(code) || {}).qty) === 'onb') return teBepalen('stuks per pallet onbekend — nog te bepalen, verdeel zelf');
+  if(!f.rate && !pallets.length && !sppVan(code) && !(R.losdest || R.pickmax || R.restdest || R.bulk || R.maxpal)) return teBepalen('geen verkoophistorie en geen bekende pallet — nog te bepalen, verdeel zelf');
+  // alleen hele eenheden (st., rollen, hele meters/cm) en losse goederen alleen in hele dozen ("Per" van de pakbonregel)
+  if(Math.abs(pool.losU - Math.round(pool.losU)) > 1e-9) return teBepalen('aantal is geen heel getal — nog te bepalen, verdeel zelf');
+  const dozen = pool.regels.filter(r => r.soort !== 'pallet').map(r => (num(r.per) || 0) * (num(r.factor) || 1));
+  const gcd = (a, b) => b ? gcd(b, a % b) : a;
+  const doos = dozen.length && dozen.every(x => x > 1 && Math.abs(x - Math.round(x)) < 1e-9) ? Math.round(dozen.reduce((a, x) => gcd(a, Math.round(x)), 0)) : 1;
+  const naarDozen = (x, omhoog) => doos > 1 ? (omhoog ? Math.ceil(x / doos - 1e-9) : Math.floor(x / doos + 1e-9)) * doos : (omhoog ? Math.ceil(x - 1e-9) : Math.floor(x + 1e-9));
   const psize = pallets.length ? pallets[0] : 0;
   // voorraad hier bij aankomst: nu vrij + wat eerdere containers hier brengen − verkoop tot aankomst
   const start = f.vrij + eerder.hier + eerder.bo;
@@ -1664,12 +1674,12 @@ function adviesKern(c, pool, eerder){
       uitleg.push('alles los naar ' + DEST[R.losdest].nl + (R.verplaats ? ', per ' + nf(R.verplaats) + ' naar pick verplaatsen' : ''));
     } else if(R.pickmax || R.restdest || R.bulk || R.maxpal){
       const room = R.pickmax ? Math.max(0, R.pickmax - Math.max(0, vrij)) : pool.losU;
-      const hierU = R.bulk || R.maxpal ? pool.losU : Math.min(pool.losU, room);
+      const hierU = R.bulk || R.maxpal ? pool.losU : Math.min(pool.losU, naarDozen(room, false));
       if(hierU > 0) porties.push({ soort:'los', n:hierU, dest:'PICK' });
       if(pool.losU - hierU > 0) porties.push({ soort:'los', n:pool.losU - hierU, dest:R.restdest || 'VST' });
       uitleg.push((R.pickmax ? 'max op pick ' + nf(R.pickmax) + ', ruimte ' + nf(room) : 'rest naar pick') + (pool.losU - hierU > 0 ? ' · rest naar ' + DEST[R.restdest || 'VST'].nl : ''));
     } else {
-      const hierU = Math.max(0, Math.min(pool.losU, need));
+      const hierU = Math.max(0, Math.min(pool.losU, naarDozen(need, true)));
       if(hierU > 0) porties.push({ soort:'los', n:hierU, dest:'PICK' });
       if(pool.losU - hierU > 0) porties.push({ soort:'los', n:pool.losU - hierU, dest:'VST' });
     }
@@ -1685,6 +1695,7 @@ function adviesKern(c, pool, eerder){
     if(last && last.soort === 'pallet' && last.dest === dest && last.per === s) last.n++;
     else porties.push({ soort:'pallet', n:1, per:s, dest });
   });
+  porties.forEach(x => { x.n = Math.round(x.n); });   // nooit decimalen in een verdeling
   return { porties, uitleg:uitleg.join(' · '), feiten:f, eerder, proj, verbruik, uitVst, mnd };
 }
 function portiesGelijk(a, b){
@@ -2479,7 +2490,7 @@ const GROEP = {
   code:'Nog geen productcode gekoppeld', bev:'Koppeling nog bevestigen', som:'Regel telt niet op', fac:'Omrekenfactor controleren',
   eh:'Eenheid controleren: telt Picqer per meter of cm? Dan moet de factor anders', gw:'Gewicht aanpassen in Picqer (belangrijk voor orderpickers)',
   pk:'Productgegevens aanvullen (bij het product op de pakbon-stap)', pd:'Palletdata ontbreekt', vd:'Verdeling telt niet op', spp:'Andere hoeveelheid per pallet dan in het productgeheugen (labels volgen de pakbon)',
-  nieuw:'Geen verkoophistorie (nieuw?) — verdeling zelf beoordelen', vn:'Vloernaam ontbreekt (voor het palletlabel)'
+  nieuw:'Geen verkoophistorie (nieuw?) — verdeling zelf beoordelen', vn:'Vloernaam ontbreekt (voor het palletlabel)', pal:'Palletopbouw nog te bepalen'
 };
 function groepeer(pts){
   const g = [], map = {};
@@ -4336,7 +4347,7 @@ const ACT = {
     toast(lijst.length + ' koppelingen bevestigd en onthouden.');
   },
   // verdeling
-  advneem: el => { const code = el.dataset.code, pl = pools(cur); const a = advies(cur, pl.map[code]); cur.data.verdeling[code] = { porties:a.porties.map(x => Object.assign({}, x)), bevestigd:false, bron:'advies' }; save(); rerender(); },
+  advneem: el => { const code = el.dataset.code, pl = pools(cur); const a = advies(cur, pl.map[code]); if(!a.porties.length){ toast('Nog te bepalen: verdeel zelf.'); return; } if((cur.data.verdeling[code] || {}).bevestigd) return; cur.data.verdeling[code] = { porties:a.porties.map(x => Object.assign({}, x)), bevestigd:false, bron:'advies' }; save(); rerender(); },
   advalles: () => {
     const pl = pools(cur);
     pl.order.forEach(code => { const v = cur.data.verdeling[code]; if(v && v.porties && v.porties.length) return; cur.data.verdeling[code] = { porties:advies(cur, pl.map[code]).porties.map(x => Object.assign({}, x)), bevestigd:false, bron:'advies' }; });
@@ -4354,7 +4365,7 @@ const ACT = {
     if(el.dataset.soort === 'pallet'){
       const s = Object.keys(rest.maten).map(Number).sort((a, b) => b - a).find(k => rest.maten[k] > 0) || pool.pallets[0];
       v.porties.push({ soort:'pallet', n:Math.max(1, rest.maten[s] || 0), per:s, dest:'UP' });
-    } else v.porties.push({ soort:'los', n:Math.max(0, rest.los) || 0, dest:'PICK' });
+    } else v.porties.push({ soort:'los', n:Math.max(0, Math.round(rest.los)) || 0, dest:'PICK' });
     v.bevestigd = false; save(); rerender();
   },
   pdel: el => { const code = el.closest('[data-code]').dataset.code, i = +el.closest('.portie').dataset.i; const v = cur.data.verdeling[code]; v.porties.splice(i, 1); v.bevestigd = false; save(); rerender(); },
