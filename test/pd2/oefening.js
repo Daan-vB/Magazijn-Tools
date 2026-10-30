@@ -44,7 +44,7 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
   check('Groepsbalk alleen zichtbaar als er iets is aangevinkt', !(await P.isVisible('#pd2-actie .pd2-actie')));
   check('Onderaan de stap: "Alle voorstellen kloppen"', await P.isVisible('#pd2-stapacties [data-a="stapklopt"]'));
   await P.check('.pd2-alle input[data-a="selalle"]'); await wacht();
-  check('Na aanvinken: groepsbalk met alleen "Selectie klopt"', await P.isVisible('#pd2-actie [data-a="selklopt"]') && await ev(() => document.querySelectorAll('#pd2-actie button.knop:not(.pd2-x)').length === 1));
+  check('Na aanvinken: groepsbalk met Selectie is (5 soorten) en Selectie klopt', await P.isVisible('#pd2-actie [data-a="selklopt"]') && await ev(() => document.querySelectorAll('#pd2-actie [data-a="selsoort"]').length === 5));
   await P.click('#pd2-actie [data-a="selklopt"]'); await wacht(300);
   check('Opdracht p1 (Selectie klopt) vinkt zichzelf af', await done('pallet', 'p1'));
   const naKlopt = await Promise.all(rijen.map(st));

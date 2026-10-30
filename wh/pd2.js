@@ -544,7 +544,7 @@ function scoresHtml(){
 /* ---------- groepsacties (alleen als er iets is aangevinkt) ---------- */
 function actieHtml(){
   if(!UI.sel.size) return '';
-  return `<div class="pd2-actie" role="toolbar" aria-label="Groepsacties"><b>${nf(UI.sel.size)} aangevinkt</b><button class="knop pd2-x" data-a="selweg" aria-label="Niets meer aanvinken">×</button>
+  return `<div class="pd2-actie" role="toolbar" aria-label="Groepsacties"><b>${nf(UI.sel.size)} aangevinkt</b>${UI.stap === 'soort' ? `<span class="pd2-selis">Selectie is:</span>${R.SOORTEN.map(([k]) => `<button class="knop" data-a="selsoort" data-v="${k}">${esc(R.SOORTT[k])}</button>`).join('')}` : ''}<button class="knop pd2-x" data-a="selweg" aria-label="Niets meer aanvinken">×</button>
     <button class="knop pd2-hoofd" data-a="selklopt">Selectie klopt</button>${UI.stap === 'gewicht' ? '<button class="knop" data-a="gewpop">Aanpassen</button>' : ''}
 </div>`;
 }
@@ -785,9 +785,23 @@ function aanModal(id){
   });
   document.querySelectorAll('.pd2-modal [data-av]').forEach(b => b.addEventListener('click', ev => { ev.stopPropagation(); document.querySelectorAll('.pd2-modal [data-av]').forEach(x => x.classList.toggle('aan', x === b)); }));
 }
+// één soort voor alle aangevinkte producten (zelfde opslag als de knop op de kaart); Weg vraagt één keer waarom
+function selSoort(v, weg){
+  const cs = selLijst(); if(!cs.length) return;
+  groep(cs, c => {
+    const I = R.info(c), nu = R.soortWaarde(c, I), voor = nu.st === 'vastgelegd' ? nu.v : I.vsSo ? I.vsSo.v : '', vs = I.vsWeg;
+    R.poZet(c, p => { p.so = { v, st:voor === v ? 'bevestigd' : 'aangepast', voor, t:now() }; if(v === 'weg' && weg) p.weg = { v:weg, st:vs && vs.v === weg ? 'bevestigd' : 'aangepast', voor:vs ? vs.v : '', t:now() }; });
+    meld('soort', { c, van:nu.v, naar:v, tab:nu.v }); if(v === 'weg' && weg) meld('weg', { c, v:weg });
+  }, 'Selectie is ' + (R.SOORTT[v] || v) + (weg ? ' (' + ((R.WEG.find(x => x[0] === weg) || [, weg])[1]) + ')' : '') + ': ' + mv(cs.length, 'product', 'producten'));
+  UI.sel.clear(); stapVerder(); verversAlles();
+}
+function wegKeuzeModal(){
+  modal(`<h3>Weg voor ${nf(UI.sel.size)} producten</h3><label>Waarom weg? <select id="pd2-wk">${R.WEG.map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('')}</select></label>`, m => { selSoort('weg', m.querySelector('#pd2-wk').value); }, 'Toepassen');
+}
 function gewPopModal(){
-  modal(`<h3>Gewicht voor ${nf(UI.sel.size)} producten</h3><label>Gewicht per stuk (kg) <input id="pd2-gp" inputmode="decimal" placeholder="bijv. 1,2"></label><div class="knopjes"><button class="pd2-mini aan" data-gst="gewogen">gewogen</button><button class="pd2-mini" data-gst="vertrouwd">vertrouwd</button></div>`, m => {
+  modal(`<h3>Gewicht voor ${nf(UI.sel.size)} producten</h3><label>Gewicht per stuk (kg) <input id="pd2-gp" inputmode="decimal" placeholder="bijv. 1,2"></label><div class="knopjes"><button class="pd2-mini aan" data-gst="gewogen">gewogen</button><button class="pd2-mini" data-gst="vertrouwd">vertrouwd</button><button class="pd2-mini" data-gst="tewegen">te wegen</button></div>`, m => {
     const kg = num(m.querySelector('#pd2-gp').value), st = (m.querySelector('[data-gst].aan') || {}).dataset.gst || 'gewogen';
+    if(st === 'tewegen'){ const cs = selLijst(); groep(cs, c => R.poZet(c, p => { p.gew = { st:'tewegen', kg:null, t:now() }; }), 'Gewicht te wegen voor ' + nf(cs.length)); meld('gewpop', {}); return; }
     if(!(kg > 0)){ WH.toast('Typ een gewicht in kg', 2500); return false; }
     groep(selLijst(), c => R.poZet(c, p => { p.gew = { st, kg, t:now() }; }), 'Gewicht ' + nf(kg, 3) + ' kg (' + st + ') voor ' + nf(UI.sel.size));
     meld('gewpop', {});
@@ -937,6 +951,7 @@ function klik(ev){
     case 'wegterug': UI.seg = 'open'; groep([c], x => R.poZet(x, p => { delete p.weg; delete p.so; delete p.heropend; }), c + ' teruggezet'); meld('wegterug', {}); return;
     case 'stapklopt': { const cs = kaartCodes(); groep(cs, x => bevestigStap(x, UI.stap), 'Alle voorstellen kloppen (' + STAPT[UI.stap] + '): ' + mv(cs.length, 'product', 'producten')); meld('selklopt', { tab:meerSoort(cs), n:cs.length }); stapVerder(); verversAlles(); return; }
     case 'gewklopt': { const cs = kaartCodes().filter(x => { const g = R.gewicht(x); return !R.isSam(x) && R.status(x).so !== 'weg' && g.st === 'niet' && g.pq > 0; }); if(!cs.length){ WH.toast('Geen gewichten om te laten kloppen', 2500); return; } groep(cs, x => bevestigStap(x, 'gewicht'), 'Gewichten kloppen: ' + mv(cs.length, 'product', 'producten')); meld('gewklopt', {}); stapVerder(); verversAlles(); return; }
+    case 'selsoort': if(a.dataset.v === 'weg') wegKeuzeModal(); else selSoort(a.dataset.v); return;
     case 'gewpop': if(!UI.sel.size){ WH.toast('Vink eerst de producten aan', 2500); return; } gewPopModal(); return;
     case 'selklopt': { const cs = selLijst(); groep(cs, x => bevestigStap(x, UI.stap), 'Selectie klopt (' + STAPT[UI.stap] + '): ' + mv(cs.length, 'product', 'producten')); meld('selklopt', { tab:meerSoort(cs), n:cs.length }); UI.sel.clear(); stapVerder(); verversAlles(); return; }
     case 'weegprint': weegPrint(); return;

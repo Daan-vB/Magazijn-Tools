@@ -297,3 +297,5 @@ body:has(#pd2-actie .pd2-actie) .pd2-oefkaart{bottom:calc(90px + env(safe-area-i
   .pd2-stapacties .knop{flex:1 1 auto}
   .pd2-kaart .pd2-velden{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
 }
+
+.pd2-selis{font-size:13px;color:var(--muted);font-weight:600}
