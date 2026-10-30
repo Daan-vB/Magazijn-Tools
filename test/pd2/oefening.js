@@ -33,6 +33,9 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
   const p1 = await ev(() => ({ fam:PD2R.famNaam(WHPD2.UI.fk), mk:WHPD2.UI.mk, seg:WHPD2.UI.seg }));
   let rijen = await kaarten();
   check('Pallet: Toon opent FWB met Pallet-kaarten', /whiteboard zonder rand/i.test(p1.fam) && p1.seg === 'pallet' && rijen.length > 0, JSON.stringify(p1) + ' · ' + rijen.length + ' kaarten');
+  // FWB is intussen echt ingevuld: verder met een maat waar nog Pallet-producten open staan (met gewicht en stuks per pallet open)
+  await ev(() => { const c = Object.keys(WH.D.P).find(c => PD2R.actief(c) && !PD2R.isKoppel(c) && !PD2R.isSam(c) && !PD2R.rolKand(c) && WHPD2.segVan(c) === 'pallet' && ['gewicht', 'spp'].every(k => PD2R.status(c).open.includes(k)) && WHPD2.famEcht(PD2R.famVan(c)).filter(x => PD2R.maatVan(x) === PD2R.maatVan(c) && WHPD2.segVan(x) === 'pallet').length >= 2); WHPD2.openFam(PD2R.famVan(c), PD2R.maatVan(c)); WHPD2.UI.seg = 'pallet'; WHPD2.verversAlles(); });
+  rijen = await kaarten();
   const voor = await ev(cs => cs.map(c => PD2R.po(c) ? JSON.stringify(PD2R.po(c)) : null), rijen);
   check('Groepsbalk alleen zichtbaar als er iets is aangevinkt', !(await P.isVisible('#pd2-actie .pd2-actie')));
   await P.check('.pd2-alle input[data-a="selalle"]'); await wacht();
@@ -163,13 +166,15 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
   await kaart(kr).locator('[data-a="rol"][data-v="1"]').click(); await wacht(300);
   check('Rollen: opdracht r1 (is rol) gedaan', await done('rollen', 'r1'));
   check('Rollen: kaart heeft nu een open blok Rolgegevens', await P.isVisible(`article.pd2-kaart[data-c="${kr}"] details.pd2-rol[open]`));
-  await vul(kr, 'rb', 100); await vul(kr, 'rl', 25); await vul(kr, 'rkg', 50);
-  const kgm = await ev(c => PD2R.calc(c, 'kgm').v, kr);
-  check('Rollen: kg per meter = 50 / 25 = 2', kgm === '2' || kgm === '2,000', kgm);
+  await vul(kr, 'rb', 100); await vul(kr, 'rd', 10); await vul(kr, 'rl', 25);
+  const rc = await ev(c => ({ dia:PD2R.calc(c, 'rdia').v, kg:PD2R.calc(c, 'rkg'), invul:!!document.querySelector(`article.pd2-kaart[data-c="${c}"] input[data-k="rdia"], article.pd2-kaart[data-c="${c}"] input[data-k="rkg"]`) }), kr);
+  check('Rollen: diameter berekend uit koker 10 cm, 25 m en 10 mm = √(100 + 4·2500·1/π) → 58 cm, niet in te vullen', rc.dia === '58' && !rc.invul, JSON.stringify(rc));
   await ev(() => WHPD2.verversAlles());
   check('Rollen: opdracht r2 gedaan', await done('rollen', 'r2'));
   await kies(kr, 'rstand', 'staand');
   check('Rollen: opdracht r3 gedaan', await done('rollen', 'r3'));
+  const rm = await ev(c => PD2R.waarde(c, 'rmax'), kr);
+  check('Rollen: na staand een voorstel voor max rollen per pallet (uit diameter en palletmaat)', rm && +rm.v > 0, JSON.stringify(rm));
 
   /* ===== Afgerond ===== */
   const vrijPick = x => ev(x => Object.keys(WH.D.P).find(c => !x.includes(c) && PD2R.actief(c) && !PD2R.isKoppel(c) && !PD2R.isSam(c) && WHPD2.segVan(c) === 'pick' && PD2R.info(c).f.pick.length && PD2R.info(c).ink && !PD2R.rolKand(c) && !PD2R.po(c)), x);

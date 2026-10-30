@@ -100,9 +100,13 @@ backorders, naar map Backorder; nu geen velden, de app leert later welke gegeven
 
 **Rollen** — alleen producten die Daan als rol markeert. Een rol houdt zijn soort. Producten per meter/cm of met "rol" in
 de naam krijgen in hun soort-tab een chip "rol?" met knop "is rol / geen rol".
-- Invullen: Breedte (cm) · Dikte (mm) · Lengte volle rol (m) · Diameter (cm) · Gewicht volle rol (kg) · Staand of liggend ·
-  Max rollen per pallet · Vaste palletaantallen ja/nee.
-- Berekend: kg per meter en per cm. Max op pick en aanvullen staan in de soort-tab.
+- Invullen: Breedte (cm) · Dikte (mm) · Lengte volle rol (m) · Staand of liggend · Max rollen per pallet · Vaste
+  palletaantallen ja/nee.
+- Berekend (Daan 30-10, grijs, niet in te vullen): elke rol zit op een koker van 10 cm, dus diameter volle rol =
+  ⌈√(10² + 4 · lengte (cm) · dikte (cm) / π)⌉ cm; gewicht volle rol = kg per meter × lengte (eenheid rol: Picqer-kg per rol);
+  kg per meter en per cm. Max op pick en aanvullen staan in de soort-tab.
+- Max rollen per pallet als voorstel uit staand/liggend, diameter en palletmaat (staand: rollen naast elkaar binnen de
+  pallet + 7 cm overstek per kant, alleen als breedte + pallet onder de maximale hoogte blijft; liggend: rijen × lagen).
 
 **Afgerond** — alleen lezen, met "heropenen".
 
@@ -254,8 +258,10 @@ vanzelf laag.
 **2. Rollen voorinvullen.** Rol = Picqer-eenheid meter, cm of rol, of de naam zegt op rol / rol van / per rol / volle rol /
 rollen / per meter / per cm, of "rol" met een breedte of dikte (niet rolstoel, roller, rolluik). Zo'n product is een
 rol-voorstel (staat in Rollen en in zijn soort-tab, telt als open tot "is rol / geen rol"; "Selectie klopt" bevestigt het).
-Voorstellen: breedte en dikte uit naam (kokos ook dikte uit de code -17/-24), lengte uit naam of pakbon, kokos 6 m (600 cm),
-gewicht volle rol = gewicht per meter/cm × lengte, kokos 200 cm 17 mm 12 per pallet en 24 mm 6 (vaste aantallen), ringmat op
+Voorstellen: breedte en dikte uit naam (kokos ook dikte uit de code -17/-24), lengte uit naam (rol van 10 m, of m² ÷ breedte),
+Picqer (eenheid rol, lengte ≥ 200 cm), pakbon (1 rol = 10 m) of anders de lengte die in de familie of bij de leverancier het
+meest voorkomt (≥ 3 rollen, ≥ 60%; ook ingevulde lengtes tellen mee), kokos 6 m (600 cm),
+kokos 200 cm 17 mm 12 per pallet en 24 mm 6 (vaste aantallen), ringmat op
 rol heavy duty staand, 6 per pallet, palletmaat 100x150. Elk met reden.
 
 **3. Aandacht.** Per product vooraf (en bewaard per familie-versie): gewicht te wegen; gewicht 0, leeg of > 30% afwijkend van

@@ -218,8 +218,8 @@ const OPDR = {
   ],
   rollen:[
     { id:'r1', t:'Zeg bij een Kokos-rol "Is dit een rol? ja".', toon:{ zoek:VB.kokos }, ev:'rol', als:d => d.v === true },
-    { id:'r2', t:'Vul bij Rolgegevens de breedte, lengte volle rol en gewicht volle rol in.', staat:() => Object.values(R.S.o.p).some(p => p.rol && p.rol.v && ['rb', 'rl', 'rkg'].every(k => p.f && p.f[k])) },
-    { id:'r3', t:'Zie kg per meter (grijs) en kies Staand of liggend.', ev:'veld', als:d => d.k === 'rstand' }
+    { id:'r2', t:'Bevestig bij Rolgegevens breedte, dikte en lengte volle rol en zie diameter en kg per rol (grijs) meerekenen.', staat:() => Object.values(R.S.o.p).some(p => p.rol && p.rol.v && ['rb', 'rd', 'rl'].every(k => p.f && p.f[k])) },
+    { id:'r3', t:'Kies Staand of liggend en zie max rollen per pallet als voorstel.', ev:'veld', als:d => d.k === 'rstand' }
   ],
   afgerond:[
     { id:'a1', t:'Rond een product af: alle velden groen en het gewicht goedgekeurd (vertrouwd of gewogen).', staat:() => Object.keys(R.S.o.p).some(c => D.P[c] && R.status(c).af) },

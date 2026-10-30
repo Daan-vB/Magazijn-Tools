@@ -69,6 +69,7 @@ const AANNAMES = {
   labelfout: 'Een palletlabel waarvan de hele naam (zonder spaties/streepjes) een andere productcode is, telt niet voor stuks per pallet of vloernaam en staat op "Palletlabels om te verbeteren".',
   oefentel: 'Wat je invult terwijl het oefenkaartje aan staat, krijgt een oefen-merk: het geldt voor dat product, maar telt niet mee voor kleurgenoten, leren, de telling in "Kopieer alles voor Claude" en het overzetten. Alleen invoer met oefenen uit telt.',
   oefen:    'Oefenen staat standaard uit (Oefenmodus ⋯ → Oefenen); dan één kaartje rechtsonder met de opdrachten per soort en na de laatste de vier vragen. Je bewerkt de oefenkopie ook als oefenen uit staat.',
+  rolcalc:  'Rol (Daan 30-10): elke rol zit op een koker van 10 cm. Diameter = √(10² + 4 · lengte · dikte / π), kg per rol = kg per meter × lengte (eenheid rol: het Picqer-gewicht per rol). Beide berekend, niet in te vullen. Lengte volle rol uit de naam (rol van 10 m, of m² ÷ breedte), Picqer (rol 1000 cm) of de pakbon (1 rol = 10 m); anders de lengte die in de familie (of bij de leverancier) het meest voorkomt, zodra ≥ 3 rollen bekend zijn. Max rollen per pallet volgt uit staand/liggend, diameter en palletmaat.',
   rolregel: 'Rolregels ronde 2: kokos rol = 600 cm lang (6 m); kokos 200 cm 17 mm = 12 rollen per pallet, 24 mm = 6 (vaste aantallen); voor 100 cm kokos geen aantal bekend. Ringmat op rol heavy duty: staand, 6 per pallet, palletmaat 100x150. Gewicht volle rol = gewicht per meter of cm × lengte.'
 };
 
@@ -481,8 +482,8 @@ const VELD = {
   rb:{ t:'Breedte (cm)', type:'num' },
   rd:{ t:'Dikte (mm)', type:'num' },
   rl:{ t:'Lengte volle rol (m)', kort:'Lengte (m)', type:'num' },
-  rdia:{ t:'Diameter (cm)', type:'num' },
-  rkg:{ t:'Gewicht volle rol (kg)', kort:'kg per rol', type:'num' },
+  rdia:{ t:'Diameter volle rol (cm)', kort:'Diameter', calc:1 },
+  rkg:{ t:'Gewicht volle rol (kg)', kort:'kg per rol', calc:1 },
   rstand:{ t:'Staand of liggend', kort:'Staand/liggend', type:'keus', opt:[['staand', 'staand'], ['liggend', 'liggend']] },
   rmax:{ t:'Max rollen per pallet', kort:'Max rollen', type:'num' },
   rvast:{ t:'Vaste palletaantallen', kort:'Vast aantal', type:'keus', opt:[['ja', 'ja'], ['nee', 'nee']] },
@@ -500,7 +501,7 @@ const KOLOMMEN = {
   rollen:['rb', 'rd', 'rl', 'rdia', 'rkg', 'rstand', 'rmax', 'rvast', 'kgm', 'kgcm']
 };
 const NODIG = { pallet:['pickc', 'lvl', 'spp', 'maat', 'hoogte', 'vn'], deel:['pickc', 'lvl', 'maxpick', 'verp', 'spp', 'maat', 'hoogte', 'vn'], pick:['pickc', 'maxpick'], mix:['pickc', 'lvl', 'maxpick', 'verp', 'mixgroep'], sam:['pickc', 'lvl', 'maxpick'] };
-const ROLNODIG = ['rb', 'rd', 'rl', 'rdia', 'rkg', 'rstand', 'rmax', 'rvast'];
+const ROLNODIG = ['rb', 'rd', 'rl', 'rstand', 'rmax', 'rvast'];   // diameter en kg per rol worden berekend (week 1, Daan 30-10)
 const SAMVELD = new Set(['pickc', 'lvl', 'maxpick']);
 const isNvt = v => String(v ?? '').trim().toLowerCase() === 'nvt';
 const isOnb = v => String(v ?? '').trim().toLowerCase() === 'onb';
@@ -523,7 +524,12 @@ function dikteNaam(c){ const m = naamVan(c).match(/dikte\s*(\d+(?:[.,]\d+)?)\s*m
 function lengteNaam(c){
   const n = naamVan(c).toLowerCase(), m = n.match(/(?:rol van|lengte)\s*(\d+(?:[.,]\d+)?)\s*m\b/) || n.match(/x\s*(\d+(?:[.,]\d+)?)\s*m\b/) || n.match(/\b(\d+(?:[.,]\d+)?)\s*m\s*(?:rol|lang)\b/);
   if(m) return { v:num(m[1]), why:'uit de naam' };
+  const m2 = n.match(/rol van\s*(\d+(?:[.,]\d+)?)\s*m2\b/), br = breedteNaam(c);
+  if(m2 && br > 0) return { v:Math.round(num(m2[1]) / (br / 100) * 10) / 10, why:'uit de naam: ' + nf(num(m2[1])) + ' m² / ' + nf(br) + ' cm breed' };
+  const e = eenheid(c).e;
+  if(e === 'rol'){ const x = P().S.extra[c] || {}, l = num(x.lengte_product_cm); if(l >= 200) return { v:l / 100, why:'Picqer: een rol is ' + nf(l) + ' cm lang' }; }
   const r = X().pbRegels(c).find(r => num(r.factor) >= 100); if(r) return { v:num(r.factor) / 100, why:'pakbon: ' + nf(num(r.factor)) + ' cm per rol' };
+  if(e === 'm'){ const r2 = X().pbRegels(c).find(r => num(r.factor) > 1 && num(r.factor) < 100); if(r2) return { v:num(r2.factor), why:'pakbon: 1 rol = ' + nf(num(r2.factor)) + ' m' }; }
   return null;
 }
 
@@ -915,23 +921,49 @@ function vsPickc(c, f){
 // 24 mm 6; ringmat op rol heavy duty 6 rollen rechtop op 100x150
 const isKokos = c => /^kokos\b/i.test(naamVan(c)) && !/deurmat/i.test(naamVan(c)) && rolKand(c);
 const isRingHD = c => /ringmat/i.test(naamVan(c)) && /heavy\s*duty|\bHD\b/i.test(naamVan(c) + ' ' + c) && rolKand(c);
+// rol op een koker van 10 cm: diameter = √(10² + 4 · lengte · dikte / π) (Daan 30-10)
+const KOKER = 10;
+function rolDiameter(c, I){
+  const L = nOf(waarde(c, 'rl', I).v), d = nOf(waarde(c, 'rd', I).v); if(!(L > 0 && d > 0)) return null;
+  return Math.ceil(Math.sqrt(KOKER * KOKER + 4 * (L * 100) * (d / 10) / Math.PI));
+}
+function rolKg(c, I){
+  const e = eenheid(c).e, L = nOf(waarde(c, 'rl', I).v), g = gewicht(c), kv = vsKg(c), kg = g.st !== 'niet' ? g.kg : kv ? num(kv.v) : g.pq, bron = g.st !== 'niet' ? 'jouw gewicht' : kv ? kv.why : 'Picqer';
+  if(e === 'rol' && kg > 0) return { v:Math.round(kg * 10) / 10, why:bron + ': ' + nf(kg, 1) + ' kg per rol' };
+  if((e === 'm' || e === 'cm') && kg > 0 && L > 0) return { v:Math.round(kg * L * (e === 'cm' ? 100 : 1) * 10) / 10, why:nf(kg, 3) + ' kg per ' + e + ' (' + bron + ') × ' + nf(L) + ' m' };
+  return null;
+}
+// rollen per pallet uit staand/liggend, diameter en palletmaat (7 cm overstek, tot 250 cm hoog incl. 15 cm pallet)
+function rolPallet(c, I){
+  const st = waarde(c, 'rstand', I).v, D = rolDiameter(c, I), B = nOf(waarde(c, 'rb', I).v); if(!st || !D || !(B > 0)) return null;
+  const [PL, PB] = palDims(waarde(c, 'maat', I).v || '80x120').sort((a, b) => b - a), maat = PL + 'x' + PB;
+  if(st === 'staand'){ if(B + PALH > MAXH) return null; const n = Math.floor((PL + 7) / D) * Math.floor((PB + 7) / D); return n > 0 ? { n, why:'staand op ' + maat + ': ' + Math.floor((PL + 7) / D) + ' × ' + Math.floor((PB + 7) / D) + ' rollen van ⌀ ' + D + ' cm' } : null; }
+  if(B > PL + 14) return null;   // liggend: de rol ligt in de lengte van de pallet
+  const laag = Math.floor((PB + 7) / D), lagen = Math.floor((MAXH - PALH) / D), n = laag * lagen;
+  return n > 0 ? { n, why:'liggend op ' + maat + ': ' + laag + ' per laag × ' + lagen + ' lagen (⌀ ' + D + ' cm, tot ' + MAXH + ' cm)' } : null;
+}
+// lengte volle rol zonder eigen bron: de lengte (ingevuld of uit de naam) die bij deze familie, anders bij deze leverancier het meest voorkomt (≥ 3 rollen, ≥ 60%)
+let RLL = { dv:-1, m:null };
+function rolLengteLev(c){
+  if(RLL.dv !== S.ver || !RLL.m){ const m = {}; Object.keys(D.P).forEach(x => { if(!actief(x) || !rolKand(x) || isKokos(x)) return; const e = eigen(x, 'rl'), L = e && nOf(e.v) > 0 ? { v:nOf(e.v) } : lengteNaam(x); if(!L) return; [['fam', famVan(x)], ['lev', levVan(x)]].forEach(([n, k]) => { const t = (m[n + '|' + k] = m[n + '|' + k] || {}); t[L.v] = (t[L.v] || 0) + 1; }); }); RLL = { dv:S.ver, m }; }
+  for(const [n, k, t] of [['fam', famVan(c), 'de familie'], ['lev', levVan(c), 'deze leverancier']]){
+    const x = RLL.m[n + '|' + k]; if(!x) continue;
+    const tot = Object.values(x).reduce((a, b) => a + b, 0), best = Object.entries(x).sort((a, b) => b[1] - a[1])[0];
+    if(tot >= 3 && best[1] / tot >= 0.6) return { v:+best[0], why:'bij ' + t + ' zijn ' + best[1] + ' van ' + tot + ' rollen ' + nf(+best[0]) + ' m lang' };
+  }
+  return null;
+}
 function vsRol(c, k, I){
   const kok = isKokos(c), hd = isRingHD(c), br = breedteNaam(c), dk = dikteNaam(c) || (kok ? num((String(c).match(/-(17|24)$/) || [])[1]) : null);
   if(k === 'rb'){ if(kok && [100, 200].includes(br)) return { v:String(br), why:'kokos rol ' + br + ' cm breed (uit de naam)', r:'rol:kokos' }; return br ? { v:String(br), why:'uit de naam', r:'rol:naam' } : null; }
   if(k === 'rd'){ return dk ? { v:String(dk), why:(dikteNaam(c) ? 'uit de naam' : 'uit de code') + (kok ? ' (kokos 17 of 24 mm)' : ''), r:'rol:naam' } : null; }
-  if(k === 'rl'){ if(kok) return { v:'6', why:'regel Daan: kokos rollen zijn 600 cm lang', r:'rol:kokos' }; const L = lengteNaam(c); return L ? { v:String(L.v), why:L.why, r:'rol:naam' } : null; }
-  if(k === 'rkg'){
-    const e = eenheid(c).e, L = nOf(waarde(c, 'rl', I).v), kv = vsKg(c), kg = gewicht(c).st !== 'niet' ? gewicht(c).kg : kv ? num(kv.v) : null, bron = gewicht(c).st !== 'niet' ? 'jouw gewicht' : kv ? kv.why : '';
-    if(e === 'rol' && kg > 0) return { v:String(Math.round(kg * 10) / 10), why:bron + ' per rol', r:'rol:kg' };
-    if((e === 'm' || e === 'cm') && kg > 0 && L > 0){ const v = kg * L * (e === 'cm' ? 100 : 1); return { v:String(Math.round(v * 10) / 10), why:nf(kg, 3) + ' kg per ' + e + ' (' + bron + ') × ' + nf(L) + ' m', r:'rol:kg' }; }
-    return null;
-  }
+  if(k === 'rl'){ if(kok) return { v:'6', why:'regel Daan: kokos rollen zijn 600 cm lang', r:'rol:kokos' }; const L = lengteNaam(c); if(L) return { v:String(L.v), why:L.why, r:'rol:naam' }; const g = rolLengteLev(c); return g ? { v:String(g.v), why:g.why, r:'rol:lev' } : null; }
   if(k === 'rstand' && hd) return { v:'staand', why:'regel Daan: ringmat op rol heavy duty staat rechtop', r:'rol:hd' };
   if(k === 'rmax'){
     if(kok && br === 200 && dk === 17) return { v:'12', why:'regel Daan: kokos 200 cm 17 mm, 12 rollen per pallet', r:'rol:kokos' };
     if(kok && br === 200 && dk === 24) return { v:'6', why:'regel Daan: kokos 200 cm 24 mm, 6 rollen per pallet', r:'rol:kokos' };
     if(hd) return { v:'6', why:'regel Daan: ringmat op rol heavy duty, 6 rollen rechtop op 100x150', r:'rol:hd' };
-    return null;
+    const p = rolPallet(c, I); return p ? { v:String(p.n), why:p.why, r:'rol:pallet' } : null;
   }
   if(k === 'rvast' && ((kok && br === 200 && (dk === 17 || dk === 24)) || hd)) return { v:'ja', why:'vaste aantallen volgens de regel van Daan', r:'rol:regel' };
   return null;
@@ -1071,7 +1103,9 @@ function calc(c, k, I){
       const l = typen.length ? typen : [3, 4];
       return { v:l.map(n => n + '-ligger ' + met(n)).join(' · '), why:(typen.length ? 'bulk op verschillende liggers: ' + bulk.map(x => x[0] + ' (' + x[1] + ')').join(', ') : 'geen bulklocatie: per liggertype') + kgT, vs:uitVs('maat', 'spp') };
     }
-    case 'kgm': case 'kgcm': { const kg = nOf(w('rkg').v), L = nOf(w('rl').v); if(!(kg > 0 && L > 0)) return { v:'', why:'eerst gewicht en lengte volle rol' }; const v = kg / L / (k === 'kgcm' ? 100 : 1); return { v:nf(v, k === 'kgcm' ? 4 : 3), why:nf(kg) + ' kg / ' + nf(L) + ' m' + (k === 'kgcm' ? ' / 100' : ''), vs:uitVs('rkg', 'rl') }; }
+    case 'rdia': { const D = rolDiameter(c, I); return D ? { v:String(D), why:'koker ' + KOKER + ' cm + ' + nf(nOf(w('rl').v)) + ' m × ' + nf(nOf(w('rd').v)) + ' mm opgerold: √(' + KOKER + '² + 4 · lengte · dikte / π)', vs:uitVs('rl', 'rd') } : { v:'', why:'eerst lengte en dikte' }; }
+    case 'rkg': { const x = rolKg(c, I); return x ? { v:String(x.v), why:x.why, vs:uitVs('rl') } : { v:'', why:'eerst gewicht en lengte volle rol' }; }
+    case 'kgm': case 'kgcm': { const kg = num(calc(c, 'rkg', I).v), L = nOf(w('rl').v); if(!(kg > 0 && L > 0)) return { v:'', why:'eerst gewicht en lengte volle rol' }; const v = kg / L / (k === 'kgcm' ? 100 : 1); return { v:nf(v, k === 'kgcm' ? 4 : 3), why:nf(kg) + ' kg / ' + nf(L) + ' m' + (k === 'kgcm' ? ' / 100' : ''), vs:uitVs('rkg', 'rl') }; }
   }
   return { v:'' };
 }
