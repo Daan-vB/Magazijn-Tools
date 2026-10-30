@@ -8,7 +8,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await P.route(/supabase\.co\/rest\/v1\/containers\?/, r => { if(r.request().method() === 'GET') return r.continue(); onderschept.push(r.request().method()); return r.fulfill({ status:200, contentType:'application/json', body:'[]' }); });
   const url = (h) => (process.env.PD2_URL || 'http://localhost:8811/') + 'containerplanning.html' + h;
   await P.goto(url('#/c/13/verdeling')); await P.waitForTimeout(9000);
-  const tekst = c => P.evaluate(c => { const t = document.body.innerText, i = t.indexOf('\n' + c + '\n'); return i < 0 ? '' : t.slice(i, i + 520); }, c);
+  const tekst = c => P.evaluate(c => { const k = document.getElementById('v-' + c); return k ? k.innerText : ''; }, c);   // de verdeelkaart (niet het invulblok)
   for(const c of ['Snowbag', 'SWB-165-BLA']){ const t = await tekst(c); check(c + ': advies "nog te bepalen — verdeel zelf"', /nog te bepalen, verdeel zelf/.test(t), t.replace(/\n+/g, ' | ').slice(0, 120)); }
   // Per 20 / Per 15: 42x22rub100 gaat deels naar pick: veelvoud van "Per"
   await P.evaluate(() => { const v = document.querySelector('[data-code="42x22rub100"] [data-act="vopen"]'); if(v) v.click(); });   // al akkoord: details openen (advies overnemen raakt een akkoord niet)

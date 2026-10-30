@@ -414,7 +414,7 @@ let TODOS = [];
 let MISSING = [];
 let cur = null;      // geopende container
 let tab = 'pakbon';
-const UI = { open:{}, plak:false, labelDest:{ VST:true, UP:true, PICK:true, GROUND:true },
+const UI = { open:{}, ll:{}, plak:false, labelDest:{ VST:true, UP:true, PICK:true, GROUND:true },
              vn:{ wijzig:{}, los:{}, f:{ lev:'', q:'', prob:false } }, pk:{}, pkOpen:{}, pkAlles:{} };
 
 function indexProducten(rows){
@@ -1911,6 +1911,88 @@ function dataStrip(){
 }
 // stand "bij lossen bepalen": advies nog te bepalen en (nog) geen verdeling; geen fout en telt niet als onaf
 function bijLossen(c, pool){ const v = c.data.verdeling[pool.code]; return !(v && v.porties && v.porties.length) && !advies(c, pool).porties.length; }
+/* ---------- invullijst lossen: producten "bij lossen bepalen" die nog niet na een lossing zijn ingevuld ---------- */
+const lossenIngevuld = code => !!((geh1(code) || {}).lossen);
+function invulCodes(c){ const pl = pools(c); return pl.order.filter(code => bijLossen(c, pl.map[code]) && !lossenIngevuld(code)); }
+// wat de pakbon zegt, bijv. "25 dozen à 20"
+function pakbonLossen(c, code, T){
+  const pool = pools(c).map[code], d = doosVan(c, code);
+  if(d) return doosBinnen(c, code, d, T);
+  return nf(pool ? pool.totaalU : 0) + ' ' + verkoopEenheid(code).mv + (pool && pool.pallets.length ? '' : ' ' + (T === 'en' ? 'loose' : 'los'));
+}
+// velden van de invullijst (NL/EN); rol = Picqer telt per meter, cm of rol
+function lossenVelden(code, T){
+  const e = eenheidVan(code), rol = e !== 'st.', en = T === 'en', ve = verkoopEenheid(code);
+  const mv = rol ? (en ? 'rolls' : 'rollen') : (en ? 'boxes' : 'dozen'), ev = rol ? (en ? 'roll' : 'rol') : (en ? 'box' : 'doos');
+  const st = e === 'st.' ? (en ? 'Pieces' : 'Stuks') : ve.mv;
+  return [['geteld', (en ? 'Counted (' : 'Geteld (') + mv + ')'], ['per', st + ' per ' + ev], ['dpp', mv.charAt(0).toUpperCase() + mv.slice(1) + (en ? ' per pallet' : ' per pallet')],
+    ['maat', en ? 'Pallet size' : 'Palletmaat'], ['hoogte', en ? 'Height incl. pallet (cm)' : 'Hoogte incl. pallet (cm)'], ['gewicht', en ? 'Weight full pallet (kg)' : 'Gewicht volle pallet (kg)']]
+    .concat(rol ? [['stand', en ? 'Standing / lying' : 'Staand / liggend']] : []).concat([['opm', en ? 'Note' : 'Opmerking', true]]);
+}
+function lossenBlok(c){
+  const codes = invulCodes(c); if(!codes.length) return '';
+  return `<div class="card" id="lossen"><h2>Na het lossen invullen <span class="badge b-info">${codes.length}</span></h2>
+    <p class="small muted mt8">Voor producten waarvan de palletopbouw nog niet bekend is. Eén keer invullen na het lossen (staat ook als invullijst in de losdag-PDF). Opslaan zet stuks per pallet (stuks per doos × dozen per pallet), palletmaat, hoogte en gewicht in het productgeheugen (bron lossen, eerst een kopie) en maakt de verdeling; daarna geef je akkoord.</p>
+    <div class="vgrid mt12">${codes.map(code => lossenKaart(c, code)).join('')}</div></div>`;
+}
+function lossenKaart(c, code){
+  const d = doosVan(c, code), u = UI.ll[code] || {};
+  const ph = { geteld:d ? String(d.n) : '', per:d && d.per ? String(d.per) : '', maat:'bijv. 80x120' };
+  const veld = ([k, lbl, breed]) => k === 'stand'
+    ? `<div class="fld"><label>${esc(lbl)}</label><select data-ll="${esc(code)}" data-lk="stand"><option value=""></option>${['staand', 'liggend'].map(x => `<option ${u.stand === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>`
+    : `<div class="fld${breed ? ' breed' : ''}"><label>${esc(lbl)}</label><input data-ll="${esc(code)}" data-lk="${k}" value="${esc(u[k] ?? '')}" placeholder="${esc(ph[k] || '')}"${['geteld', 'per', 'dpp', 'hoogte', 'gewicht'].includes(k) ? ' inputmode="decimal"' : ''} autocomplete="off"></div>`;
+  return `<div class="vcard" data-ll-kaart="${esc(code)}"><div class="vhead"><span class="code" style="font-size:14px">${esc(code)}</span><span class="small">${esc(labelNaam(code))}</span></div>
+    <div class="small mt8">Pakbon: <b>${esc(pakbonLossen(c, code, 'nl'))}</b></div>
+    <div class="fields mt8">${lossenVelden(code, 'nl').map(veld).join('')}</div>
+    <div class="row wrap mt12"><button class="btn acc" data-act="llsave" data-code="${esc(code)}">Opslaan en verdelen</button></div></div>`;
+}
+// eerst een kopie van catalog-ean (zoals Productdata 2.0 bij gelijkzetten); lukt die niet, dan niet opslaan
+async function kopieCatalogEan(oud){
+  const nu = new Date(), p2 = n => String(n).padStart(2, '0'), kopieKey = 'catalog-ean-kopie-' + nu.getFullYear() + '-' + p2(nu.getMonth() + 1) + '-' + p2(nu.getDate());
+  const kopieRij = m => [{ key:kopieKey, mode:m, data:oud, updated_at:nu.toISOString() }];
+  try{ await api('POST', 'catalog?on_conflict=key', kopieRij('wh'), { Prefer:'resolution=merge-duplicates,return=minimal' }); }
+  catch(e){
+    if(!/23514|check|mode/i.test(e.body || '')) throw new Error('kopie van palletlabels mislukt: ' + e.message);
+    try{ await api('POST', 'catalog?on_conflict=key', kopieRij('ean'), { Prefer:'resolution=merge-duplicates,return=minimal' }); }
+    catch(e2){ throw new Error('kopie van palletlabels mislukt: ' + e2.message); }
+  }
+}
+async function lossenOpslaan(c, code){
+  const u = Object.assign({}, UI.ll[code] || {}), kaart = document.querySelector(`[data-ll-kaart="${CSS.escape(code)}"]`);
+  if(kaart) kaart.querySelectorAll('[data-lk]').forEach(el => { u[el.dataset.lk] = String(el.value).trim(); });
+  UI.ll[code] = u;
+  const d = doosVan(c, code), per = num(u.per) || (d && d.per) || null, dpp = num(u.dpp);
+  if(!(per > 0) || !(dpp > 0)){ toast('Vul stuks per doos (of rol) en dozen (of rollen) per pallet in.', 4000); return; }
+  const maat = String(u.maat || '').replace(/\s/g, '').toLowerCase();
+  if(maat && !/^\d{2,3}x\d{2,3}$/.test(maat)){ toast('Palletmaat als lengte x breedte, bijv. 80x120.', 4000); return; }
+  for(const k of ['geteld', 'hoogte', 'gewicht']) if(u[k] && num(u[k]) === null){ toast(k + ': vul een getal in.', 3000); return; }
+  const spp = Math.round(per * dpp * 1000) / 1000;
+  try{
+    const r = await api('GET', 'catalog?key=eq.catalog-ean&select=data'), cat = (r.length ? r[0].data : {}) || {}, oud = JSON.parse(JSON.stringify(cat));
+    const g = geh1(code), naam = (g && g.name) || naamVan(code) || code;
+    const rec = vnZetRegel(cat, code, naam, qtySoort(g && g.qty) === 'aantal' ? undefined : String(spp));   // een ingevuld aantal blijft staan
+    rec.lossen = { bron:'lossen', per, dpp, spp, geteld:num(u.geteld), maat:maat || null, hoogte:num(u.hoogte), gewicht:num(u.gewicht), stand:u.stand || null, opm:u.opm || '', container:c.containernummer || c.pakbon_ref || c.id, op:new Date().toISOString() };
+    [['palletmaat', maat || null], ['hoogte', num(u.hoogte)], ['gewicht', num(u.gewicht)]].forEach(([k, v]) => { if(v && (rec[k] === undefined || rec[k] === null || rec[k] === '')) rec[k] = v; });
+    await kopieCatalogEan(oud);
+    await api('POST', 'catalog?on_conflict=key', [{ key:'catalog-ean', mode:'ean', data:cat, updated_at:new Date().toISOString() }], { Prefer:'resolution=merge-duplicates,return=minimal' });
+    indexCatalog(cat); PLAN = null;
+    // verdeling: pallets à <stuks per pallet>, rest los (een akkoord raakt dit nooit)
+    const pool = pools(c).map[code], v0 = c.data.verdeling[code];
+    if(pool && !(v0 && v0.bevestigd)){
+      let por = advies(c, pool).porties.map(x => Object.assign({}, x));
+      if(!por.length && pool.pallets.length){
+        const per2 = {}; pool.pallets.forEach(x => { per2[x] = (per2[x] || 0) + 1; });
+        por = Object.entries(per2).map(([sz, n]) => ({ soort:'pallet', n, per:+sz, dest:'UP' }));
+        if(pool.losU) por.push({ soort:'los', n:pool.losU, dest:'PICK' });
+      }
+      if(por.length) c.data.verdeling[code] = { porties:por, bevestigd:false, bron:'lossen' };
+    }
+    delete UI.ll[code]; PLAN = null;
+    if(c === cur) save(); else await bewaarContainer(c);
+    rerender();
+    toast(code + ': ' + nf(spp) + ' per pallet in het productgeheugen gezet' + (c.data.verdeling[code] && c.data.verdeling[code].bron === 'lossen' ? ', verdeling klaar voor akkoord.' : '. Verdeel zelf.'), 6000);
+  }catch(e){ toast('Opslaan mislukt: ' + e.message, 6000); }
+}
 function voortgang(c){
   const pl = pools(c), pts = punten(c, pl);
   const R = c.data.regels;
@@ -2843,15 +2925,7 @@ async function startregelsToepassen(c){
       const rec = vnZetRegel(cat, code, naam, nieuw.qty);
       Object.keys(nieuw).forEach(k => { if(k !== 'qty') rec[k] = nieuw[k]; });
     });
-    // eerst een kopie van catalog-ean, zoals Productdata 2.0 bij gelijkzetten; lukt die niet, dan niet opslaan
-    const nu = new Date(), p2 = n => String(n).padStart(2, '0'), kopieKey = 'catalog-ean-kopie-' + nu.getFullYear() + '-' + p2(nu.getMonth() + 1) + '-' + p2(nu.getDate());
-    const kopieRij = m => [{ key:kopieKey, mode:m, data:oud, updated_at:nu.toISOString() }];
-    try{ await api('POST', 'catalog?on_conflict=key', kopieRij('wh'), { Prefer:'resolution=merge-duplicates,return=minimal' }); }
-    catch(e){
-      if(!/23514|check|mode/i.test(e.body || '')) throw new Error('kopie van palletlabels mislukt: ' + e.message);
-      try{ await api('POST', 'catalog?on_conflict=key', kopieRij('ean'), { Prefer:'resolution=merge-duplicates,return=minimal' }); }
-      catch(e2){ throw new Error('kopie van palletlabels mislukt: ' + e2.message); }
-    }
+    await kopieCatalogEan(oud);   // eerst een kopie; lukt die niet, dan niet opslaan
     await api('POST', 'catalog?on_conflict=key', [{ key:'catalog-ean', mode:'ean', data:cat, updated_at:new Date().toISOString() }], { Prefer:'resolution=merge-duplicates,return=minimal' });
     indexCatalog(cat); PLAN = null; rerender();
     toast('Startregels gezet voor ' + codes.length + ' product' + (codes.length > 1 ? 'en' : '') + '.');
@@ -3683,6 +3757,7 @@ function tabVerdeling(c, g){
       <button class="btn ok" data-act="akkalles">Alles akkoord</button>
       <span class="small muted">Advies = eerst backorders (hele pallets), dan hier aanvullen tot de gekozen maanden verkoop, rest naar VST. Losse stuks blijven hier.</span>
     </div></div>
+  ${lossenBlok(c)}
   <div class="vgrid">${pl.order.map(code => verdeelKaart(c, pl.map[code])).join('')}</div>`;
 }
 function verdeelKaart(c, pool){
@@ -3928,8 +4003,8 @@ function werkbonData(c){
 function werkbonHtml(c){
   const T = c.data.werkbon.taal === 'nl' ? 'nl' : 'en';
   const L = T === 'en'
-    ? { t:'Unloading plan', arr:'Arrival', cont:'Container', pal:'pallet', pals:'pallets', a:'of', loose:'loose', here:'Here', vst:'To VST', direct:'Direct out', places:'pallet places', make:'Make space for', notes:'Notes', none:'no plan yet' }
-    : { t:'Losplanning', arr:'Aankomst', cont:'Container', pal:'pallet', pals:'pallets', a:'à', loose:'los', here:'Hier', vst:'Naar VST', direct:'Direct weg', places:'palletplaatsen', make:'Ruimte maken voor', notes:'Notities', none:'nog geen verdeling' };
+    ? { t:'Unloading plan', arr:'Arrival', cont:'Container', pal:'pallet', pals:'pallets', a:'of', loose:'loose', lossen:'decide at unloading — see checklist', here:'Here', vst:'To VST', direct:'Direct out', places:'pallet places', make:'Make space for', notes:'Notes', none:'no plan yet' }
+    : { t:'Losplanning', arr:'Aankomst', cont:'Container', pal:'pallet', pals:'pallets', a:'à', loose:'los', lossen:'bij lossen bepalen — zie invullijst', here:'Hier', vst:'Naar VST', direct:'Direct weg', places:'palletplaatsen', make:'Ruimte maken voor', notes:'Notities', none:'nog geen verdeling' };
   const { prods, tel } = werkbonData(c);
   const hoeveel = (code, per) => {
     const f = factorVan(c, code), e = eenheidVan(code);
@@ -3943,7 +4018,7 @@ function werkbonHtml(c){
       : doosVan(c, code) ? `<b>${doosTekst(doosVan(c, code), x.n, T)}</b>` : `<b>${hoeveel(code, x.n)}</b> ${L.loose}`) + ` → <b>${esc(DEST[x.dest][T])}</b>${x.note ? ' <i>(' + esc(x.note) + ')</i>' : ''}</li>`).join('');
     const p = P[code] || {};
     const extra = p.opmerking ? `<div class="tiny muted">${esc(p.opmerking)}</div>` : '';
-    return `<div class="wl"><b class="code">${esc(code)}</b> <span class="small muted">${esc(labelNaam(code))}</span>${items ? '<ul>' + items + '</ul>' : '<div class="small muted">' + L.none + '</div>'}${extra}</div>`;
+    return `<div class="wl"><b class="code">${esc(code)}</b> <span class="small muted">${esc(labelNaam(code))}</span>${items ? '<ul>' + items + '</ul>' : bijLossen(c, pools(c).map[code]) ? '<div class="muted">' + L.lossen + '</div>' : '<div class="small muted">' + L.none + '</div>'}${extra}</div>`;
   }).join('');
   const d = c.losdatum ? new Date(c.losdatum + 'T12:00:00').toLocaleDateString(T === 'en' ? 'en-GB' : 'nl-NL', { weekday:'long', day:'numeric', month:'long' }) : '';
   return `<div class="werkbon">
@@ -4129,6 +4204,28 @@ async function maakPdf(c){
   tekst(box2.querySelector('.tot').textContent, { bold:true, size:10.5 });
   const mk = box2.querySelector('.tot').nextElementSibling; if(mk && !mk.querySelector('b + div, div')) tekst(mk.textContent, { size:10 });
   if(c.data.werkbon.extra){ y += 2; tekst((T === 'en' ? 'Notes' : 'Notities') + ':', { bold:true, size:10.5, na:1 }); tekst(c.data.werkbon.extra, { size:10 }); }
+  // ---- invullijst lossen (NL/EN): producten die bij het lossen bepaald worden, met schrijfruimte
+  const inv = invulCodes(c);
+  if(inv.length){
+    nieuw(T === 'en' ? 'unloading checklist' : 'invullijst lossen');
+    tekst(T === 'en' ? 'Unloading checklist' : 'Invullijst lossen', { bold:true, size:15, na:1 });
+    tekst(T === 'en' ? 'Fill in after unloading, per product. The packing list says what should be in the container.' : 'Na het lossen invullen, per product. De pakbon zegt wat er in de container hoort te zitten.', { size:9.5, na:3 });
+    const bw = (R - M - 9) / 4;
+    inv.forEach(code => {
+      ruimte(62);
+      tekst(code + '   ' + ((geh1(code) || {}).name || labelNaam(code)), { bold:true, size:11, na:0.6 });
+      tekst((T === 'en' ? 'Packing list: ' : 'Pakbon: ') + pakbonLossen(c, code, T), { size:9.5, na:2 });
+      let col = 0;
+      const vak = (lbl, x, w) => { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(90); doc.text(safe(lbl), x, y + 2.5); doc.setDrawColor(150); doc.rect(x, y + 3.5, w, 9); doc.setTextColor(16, 21, 28); };
+      lossenVelden(code, T).forEach(([k, lbl, breed]) => {
+        if(breed){ if(col){ y += 15; col = 0; } vak(lbl, M, R - M); y += 15; return; }
+        vak(lbl, M + col * (bw + 3), bw); col++;
+        if(col === 4){ col = 0; y += 15; }
+      });
+      if(col) y += 15;
+      y += 2; lijn(); y += 2;
+    });
+  }
   // ---- pagina 3: Stockmove-lijst per pallet
   nieuw('Stockmove');
   tekst('Stockmove — pallets naar VST', { bold:true, size:15, na:1 });
@@ -4449,6 +4546,7 @@ const ACT = {
   pkdicht: el => { UI.pkOpen[el.dataset.code] = false; rerender(); },
   pkalles: el => { const k = el.dataset.code; UI.pkAlles[k] = !UI.pkAlles[k]; UI.pkOpen[k] = true; rerender(); },
   pksave: el => productenOpslaan([el.dataset.code]),
+  llsave: el => lossenOpslaan(cur, el.dataset.code),
   pkaanvul: el => maakLabels(cur, [aanvulLabel(el.dataset.code)]),
   kies: el => { const b = el.closest('[data-kc]'), c = CONT.find(x => x.id === +b.dataset.kc), r = c && c.data.regels.find(x => String(x.id) === b.dataset.kr); if(r) regelKoppel(c, r, el.dataset.code); },
   startregels: () => startregelsToepassen(cur),
@@ -4627,6 +4725,7 @@ app.addEventListener('change', e => {
     v.bevestigd = false;
     save(); if(el.dataset.p !== 'note') rerenderLater(); return;
   }
+  if(el.dataset.ll){ (UI.ll[el.dataset.ll] = UI.ll[el.dataset.ll] || {})[el.dataset.lk] = el.value; return; }
   if(el.dataset.inst){ cur.data.instellingen[el.dataset.inst] = num(el.value); save(); rerenderLater(); return; }
   if(el.dataset.wb === 'taal'){ cur.data.werkbon.taal = el.value; save(); rerender(); return; }
   if(el.hasAttribute('data-aanvullabels')){ UI.aanvulLabels = el.checked; rerender(); return; }
