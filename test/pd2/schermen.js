@@ -54,9 +54,9 @@ const FAM = [['whiteboard', 'SMIT Visual B.V.|whiteboard magnetisch'], ['mars', 
       await schiet(id + '-kaarten', '#pd2-kaarten', m => !desk || (m.inhoud >= 85 && (naam !== '1440' || m.kaartenInBeeld >= 3)));
     }
     // een rol en Weg
-    await P.evaluate(() => { const c = Object.keys(WH.D.P).find(c => /^kokos\b/i.test(WH.D.P[c].naam || '') && PD2R.rolKand(c) && PD2R.actief(c)); PD2R.poZet(c, p => { p.rol = { v:true }; }); WHPD2.openFam(PD2R.famVan(c), PD2R.maatVan(c)); });
-    await schiet('rol', 'details.pd2-rol');
-    await P.evaluate(() => { const c = Object.keys(WH.D.P).find(c => /waterhog/i.test(WH.D.P[c].naam || '') && PD2R.actief(c) && WHPD2.segVan(c) === 'weg'); WHPD2.openFam(PD2R.famVan(c), PD2R.maatVan(c)); WHPD2.UI.seg = 'weg'; WHPD2.verversAlles(); });
+    await P.evaluate(() => { const c = Object.keys(WH.D.P).find(c => /^kokos\b/i.test(WH.D.P[c].naam || '') && PD2R.rolKand(c) && PD2R.actief(c)); PD2R.poZet(c, p => { p.rol = { v:true }; }); WHPD2.openFam(PD2R.famVan(c), PD2R.maatVan(c)); WHPD2.UI.stap = 'hoev'; WHPD2.verversAlles(); });
+    await schiet('rol', '#pd2-kaarten');
+    await P.evaluate(() => { const c = Object.keys(WH.D.P).find(c => /waterhog/i.test(WH.D.P[c].naam || '') && PD2R.actief(c) && WHPD2.segVan(c) === 'weg'); WHPD2.openFam(PD2R.famVan(c), PD2R.maatVan(c)); WHPD2.UI.stap = 'soort'; WHPD2.verversAlles(); });
     await schiet('weg', '#pd2-kaarten');
     await P.evaluate(() => { WHPD2.kaartCodes().slice(0, 2).forEach(c => WHPD2.UI.sel.add(c)); WHPD2.UI.oefenen = true; WHPD2.verversAlles(); });
     await schiet('groepsbalk', '#pd2-kaarten');

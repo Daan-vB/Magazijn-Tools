@@ -254,3 +254,46 @@ body:has(#pd2-actie .pd2-actie) .pd2-oefkaart{bottom:calc(90px + env(safe-area-i
   #pd2-printvak td.vak{width:22mm;height:9mm}
   @page{size:A4;margin:12mm}
 }
+
+/* drie stappen per maat: één vraag per kaart (zoals Per familie) */
+.pd2-stappen{display:flex;flex-wrap:wrap;gap:6px}
+.pd2-stappen button{border:1px solid #c9ced6;background:#f6f7f9;border-radius:8px;padding:6px 14px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;min-height:44px;color:inherit}
+.pd2-stappen button.aan{background:var(--ink);border-color:var(--ink);color:#fff}
+.pd2-stappen button.klaar:not(.aan){border-color:#9bd0b0}
+.pd2-stappen button .n{font-variant-numeric:tabular-nums;opacity:.75;margin-left:4px;font-weight:600}
+.pd2-stapacties{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.pd2-kaart{padding:10px 14px 12px;gap:8px}
+.pd2-kaart.klaar{border-color:#9bd0b0}
+.pd2-naam{all:unset;cursor:pointer;font-weight:800;font-size:15px;overflow-wrap:anywhere}
+.pd2-naam:hover{text-decoration:underline;text-decoration-color:#b8c0ca;text-underline-offset:3px}
+.pd2-naam:focus-visible{outline:3px solid #9db8e3;border-radius:4px}
+.pd2-vraag{display:grid;gap:6px}
+.pd2-q{font-weight:700;font-size:13px;color:var(--ink)}
+.pd2-keuze{display:flex;flex-wrap:wrap;gap:6px}
+.pd2-kz{border:1px solid #c9ced6;background:#fff;border-radius:8px;padding:4px 16px;min-height:44px;min-width:76px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;color:inherit;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15}
+.pd2-kz:hover{border-color:var(--ink)}
+.pd2-kz.vs{border-color:var(--blauw);color:#123a7a;background:#f5f8fe}
+.pd2-kz .vw{font-size:10.5px;font-weight:600}
+.pd2-kz.aan{background:var(--ok);border-color:var(--ok);color:#fff}
+.pd2-vraag > select.pd2-in{max-width:260px}
+.pd2-kaart .pd2-in{font-size:14px;padding:4px 8px;min-height:40px;height:auto;border-radius:8px}
+.pd2-kaart .pd2-mini{min-height:40px;padding:2px 12px;font-size:13px}
+.pd2-kaart .pd2-velden{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 12px}
+.pd2-kaart .pd2-f > label{font-size:12.5px}
+.pd2-gw .pd2-q{margin-right:2px}
+.pd2-gw .kg .pd2-in{width:96px}
+.pd2-in.vsel::placeholder{color:#123a7a;opacity:.85}
+.pd2-aflijst{display:grid}
+.pd2-voet{display:grid;gap:0;margin-top:2px}
+.pd2-meer2{margin-top:8px;font-size:13.5px}
+.pd2-meer2 > summary{cursor:pointer;min-height:40px;display:flex;align-items:center;gap:6px;color:var(--muted);font-weight:600;list-style:none}
+.pd2-meer2 > summary::before{content:'▸';font-size:12px}
+.pd2-meer2[open] > summary::before{content:'▾'}
+.pd2-meer2 > summary::-webkit-details-marker{display:none}
+@media (max-width:600px){
+  .pd2-kaart .pd2-in{min-height:44px;font-size:15px}
+  .pd2-kaart .pd2-mini{min-height:44px}
+  .pd2-stappen{width:100%} .pd2-stappen button{flex:1 1 auto;padding:6px 8px}
+  .pd2-stapacties .knop{flex:1 1 auto}
+  .pd2-kaart .pd2-velden{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+}

@@ -18,10 +18,11 @@ const lsZet = (k, v) => { try{ localStorage.setItem('pd2-' + k, v); }catch(e){} 
 // oefensets (feedback per set, zelfde sleutels als ronde 1)
 const TABS = [['pallet', 'Pallet'], ['deel', 'Deel'], ['pick', 'Pick'], ['mix', 'Mix'], ['weg', 'Weg'], ['rollen', 'Rollen'], ['afgerond', 'Afgerond'], ['weeglijst', 'Weeglijst']];
 const TABT = Object.fromEntries(TABS);
-const SEGS = [['open', 'Open'], ['pallet', 'Pallet'], ['deel', 'Deel'], ['pick', 'Pick'], ['mix', 'Mix'], ['weg', 'Weg']];
+const SEGS = [['open', 'Open'], ['afgerond', 'Afgerond']];
+const STAPPEN = [['soort', '1 Soort'], ['gewicht', '2 Gewicht'], ['hoev', '3 Hoeveelheid']];
 const SCOPES = [['belangrijk', 'Belangrijk'], ['AB', 'A+B'], ['beweegt', 'Alles dat beweegt'], ['binnen', 'Komt binnen'], ['voorraad', 'Alles met voorraad']];
 const UI = { el:null, scope:ls('scope') || 'belangrijk', zoek:'', lev:'', afd:'', hal:'', abc:'', filterOpen:false,
-  fk:null, mk:null, seg:'open', aandacht:null, view:null, wegAlle:null, sel:new Set(), undo:null, n:40, famN:30, lastK:{},
+  fk:null, mk:null, seg:'open', stap:'soort', view:null, wegAlle:null, sel:new Set(), undo:null, n:40, famN:30, lastK:{},
   weegKlaar:new Set(), rolOpen:{}, oefenen:ls('oefenen') === '1', oef:(() => { try{ return JSON.parse(ls('oef') || '') || { set:'pallet', i:0 }; }catch(e){ return { set:'pallet', i:0 }; } })() };
 const now = () => new Date().toISOString();
 const dk = iso => { const s = String(iso || ''); return s.length >= 10 ? s.slice(8, 10) + '-' + s.slice(5, 7) : ''; };
@@ -118,7 +119,6 @@ function wegAlle(){
   WC = { dv:R.S.dataVer, m }; return m;
 }
 const wegAlleCodes = v => Object.entries(wegAlle()).filter(([c, w]) => w === v && !(R.po(c) && (R.po(c).weg || R.po(c).so))).map(([c]) => c);
-const segVan = c => { const st = R.status(c); return st.af ? 'afgerond' : st.so || 'pick'; };
 const sorteer = cs => cs.slice().sort((a, b) => (('ABC'.indexOf(R.abcVan(a)) + 4) % 4) - (('ABC'.indexOf(R.abcVan(b)) + 4) % 4) || R.naamVan(a).localeCompare(R.naamVan(b), 'nl', { numeric:true }) || a.localeCompare(b));
 
 /* ---------- families en maten ---------- */
@@ -168,14 +168,20 @@ function maatgroepenReken(fk){
 function blokCodes(){
   if(UI.view === 'wegalle') return UI.wegAlle ? wegAlleCodes(UI.wegAlle) : [];
   if(!UI.fk) return [];
-  if(UI.aandacht) return famEcht(UI.fk).filter(c => aandachtVan(c).includes(UI.aandacht) || UI.sel.has(c));
   if(plat()) return famEcht(UI.fk);
   return famEcht(UI.fk).filter(c => R.maatVan(c) === UI.mk);
 }
 const openCodes = () => blokCodes().filter(c => !R.status(c).af);
-function kaartCodes(){
-  const cs = openCodes();
-  return opVolgorde(UI.seg === 'open' || UI.view === 'wegalle' ? cs : cs.filter(c => segVan(c) === UI.seg));
+const segVan = c => { const st = R.status(c); return st.af ? 'afgerond' : st.so || 'pick'; };
+const kaartCodes = () => opVolgorde(openCodes());
+const stapN = (cs, s) => cs.filter(c => { const st = R.status(c); return !(st.stap && st.stap[s]); }).length;
+// bij een nieuwe maat: de eerste stap waar nog iets open staat
+function kiesStap(){ const cs = openCodes(), e = STAPPEN.find(([k]) => stapN(cs, k)); UI.stap = UI.view === 'wegalle' ? 'soort' : e ? e[0] : 'soort'; }
+// is de stap klaar voor alle producten van de maat: door naar de volgende stap waar nog iets open staat
+function stapVerder(){
+  const cs = openCodes(); if(!cs.length || UI.view === 'wegalle' || stapN(cs, UI.stap)) return false;
+  const i = STAPPEN.findIndex(x => x[0] === UI.stap), n = STAPPEN.slice(i + 1).concat(STAPPEN.slice(0, i)).find(([k]) => stapN(cs, k));
+  if(!n) return false; UI.stap = n[0]; return true;
 }
 // zonder maatstap: op maat (volgorde van de maten), anders ABC en naam
 function opVolgorde(cs){ if(!plat()) return sorteer(cs); const i = {}; maatgroepen().forEach((m, n) => m.cs.forEach(c => { i[c] = n; })); return cs.slice().sort((a, b) => (i[a] ?? 1e9) - (i[b] ?? 1e9) || a.localeCompare(b)); }
@@ -184,42 +190,36 @@ function kiesMaat(){
   const M = maatgroepen();
   if(UI.mk !== null && M.some(m => m.k === UI.mk)) return;
   const m = M.find(x => x.open) || M[0]; UI.mk = m ? m.k : null;
+  kiesStap();
 }
 
 /* ---------- oefening: opdrachten per set ---------- */
 const VB = { mars:'schoonloopmat mars', spurt:'trapmaantje spurt', kokos:'kokos', fwb:'whiteboard zonder rand', ring:'ringmat op rol', waterhog:'waterhog' };
 const OPDR = {
   pallet:[
-    { id:'p1', t:'Open Whiteboard zonder rand (FWB), vink in een maat de Pallet-kaarten aan en druk onderaan op "Selectie klopt".', toon:{ zoek:VB.fwb, seg:'pallet' }, ev:'selklopt', als:d => d.tab === 'pallet' },
-    { id:'p2', t:'Pas bij een Pallet-product Stuks per pallet aan en kijk hoe Gewicht volle pallet (grijs) meerekent.', ev:'veld', als:d => d.tab === 'pallet' && d.k === 'spp' },
-    { id:'p3', t:'Zet één Pallet-product op Deel bij "Hoe vul je pick aan?".', ev:'soort', als:d => d.van === 'pallet' && d.naar === 'deel' },
+    { id:'p1', t:'Open Whiteboard zonder rand (FWB), vink in stap 1 Soort een paar kaarten aan en druk onderaan op "Selectie klopt".', toon:{ zoek:VB.fwb }, ev:'selklopt', als:d => d.n > 0 },
+    { id:'p2', t:'Pas in stap 3 Hoeveelheid bij een Pallet-product Stuks per pallet aan.', ev:'veld', als:d => d.tab === 'pallet' && d.k === 'spp' },
+    { id:'p3', t:'Zet in stap 1 Soort één Pallet-product op Deel.', ev:'soort', als:d => d.van === 'pallet' && d.naar === 'deel' },
     { id:'p4', t:'Vul een Hoogte in die niet past (bijv. 190 bij een 20-locatie in hal A) en zie de melding eronder.', ev:'veld', als:d => d.k === 'hoogte' && d.warn }
   ],
   deel:[
     { id:'d1', t:'Open Schoonloopmat Mars, maat 120x180: staat Antraciet op Deel?', toon:{ zoek:VB.mars, maat:'120x180' }, ev:'maat', als:d => /mars/i.test(d.naam || '') && /120x180/.test(d.mk || '') },
-    { id:'d2', t:'Vul bij één Deel-product Aanvullen bij en Max op pick in en zie Aanvullen met (grijs) meerekenen.', ev:'veld', als:d => d.tab === 'deel' && (d.k === 'lvl' || d.k === 'maxpick') && d.beide },
-    { id:'d3', t:'Vul bij Trapmaantje Spurt een Inkoopverpakking in (bijv. 15 doos) en zie de melding als Aanvullen met geen veelvoud is.', toon:{ zoek:VB.spurt }, ev:'veld', als:d => d.k === 'verp' },
-    { id:'d4', t:'Kies bij één product Picklocatie: geen pick (alleen bulk, per order verplaatsen).', ev:'pickc', als:d => d.v === 'geenpick' }
+    { id:'d2', t:'Vul in stap 3 Hoeveelheid bij één Deel-product Stuks per pallet, Palletmaat en Hoogte in.', ev:'veld', als:d => d.tab === 'deel' && d.k === 'spp' },
   ],
   pick:[
-    { id:'k1', t:'Controleer een picklocatie: kies "klopt".', ev:'pickc', als:d => d.v === 'klopt' },
-    { id:'k2', t:'Kies bij een product zonder picklocatie "moet pick krijgen" (tik in een familie op "… zonder picklocatie").', ev:'pickc', als:d => d.v === 'moetpick' },
-    { id:'k3', t:'Bevestig of pas Max op pick aan bij een Pick-product. Bekijk Trapmaantje Spurt.', toon:{ zoek:VB.spurt, seg:'pick' }, ev:'veld', als:d => d.tab === 'pick' && d.k === 'maxpick' }
+    { id:'k3', t:'Bevestig of pas in stap 3 Hoeveelheid Max op pick aan bij een Pick-product. Bekijk Trapmaantje Spurt.', toon:{ zoek:VB.spurt }, ev:'veld', als:d => d.tab === 'pick' && d.k === 'maxpick' }
   ],
   mix:[
-    { id:'m1', t:'Geef 3 producten dezelfde mixgroep: vink ze aan en kies onderaan "Zelfde waarde… → Mixgroep".', toon:{ zoek:VB.spurt }, staat:() => mixDrie() },
-    { id:'m2', t:'Maak een nieuwe mixgroep (keuze "nieuw…" bij Mixgroep).', ev:'mgnieuw' },
-    { id:'m3', t:'Tik bij Mix op een mixgroep-regel: leden en bulklocaties.', ev:'mgregel' }
+    { id:'m1', t:'Bevestig of pas in stap 3 Hoeveelheid Max op pick aan bij een Mix-product.', toon:{ zoek:VB.spurt }, ev:'veld', als:d => d.tab === 'mix' && d.k === 'maxpick' }
   ],
   weg:[
-    { id:'w1', t:'Zet een product op Backorder (bijv. Waterhog zonder voorraad).', toon:{ zoek:VB.waterhog, seg:'weg' }, ev:'weg', als:d => d.v === 'backorder' },
+    { id:'w1', t:'Zet een product op Backorder (bijv. Waterhog zonder voorraad).', toon:{ zoek:VB.waterhog }, ev:'weg', als:d => d.v === 'backorder' },
     { id:'w2', t:'Zet een product op Archief.', ev:'weg', als:d => d.v === 'archief' },
-    { id:'w3', t:'Open "Afgerond" onderaan de maat en zet een Weg-product terug.', ev:'wegterug' }
+    { id:'w3', t:'Open het tabblad "Afgerond" van de maat en zet een Weg-product terug.', ev:'wegterug' }
   ],
   rollen:[
     { id:'r1', t:'Zeg bij een Kokos-rol "Is dit een rol? ja".', toon:{ zoek:VB.kokos }, ev:'rol', als:d => d.v === true },
-    { id:'r2', t:'Bevestig bij Rolgegevens breedte, dikte en lengte volle rol en zie diameter en kg per rol (grijs) meerekenen.', staat:() => Object.values(R.S.o.p).some(p => p.rol && p.rol.v && ['rb', 'rd', 'rl'].every(k => p.f && p.f[k])) },
-    { id:'r3', t:'Kies Staand of liggend en zie max rollen per pallet als voorstel.', ev:'veld', als:d => d.k === 'rstand' }
+    { id:'r2', t:'Bevestig in stap 3 Hoeveelheid bij een rol de lengte volle rol en max rollen per pallet.', staat:() => Object.values(R.S.o.p).some(p => p.rol && p.rol.v && ['rl', 'rmax'].every(k => p.f && p.f[k])) }
   ],
   afgerond:[
     { id:'a1', t:'Rond een product af: alle velden groen en het gewicht goedgekeurd (vertrouwd of gewogen).', staat:() => Object.keys(R.S.o.p).some(c => D.P[c] && R.status(c).af) },
@@ -227,13 +227,12 @@ const OPDR = {
     { id:'a3', t:'Rond een product af met gewicht "te wegen": het krijgt ⚖ en staat op de Weeglijst.', staat:() => Object.keys(R.S.o.p).some(c => D.P[c] && R.status(c).af && R.gewicht(c).st === 'tewegen') }
   ],
   weeglijst:[
-    { id:'g1', t:'Vink een paar kaarten aan en kies onderaan "Gewicht… → aanpassen…".', ev:'gewpop' },
-    { id:'g2', t:'Zet een product op "te wegen" (knopje bij Gewicht).', ev:'gewst', als:d => d.st === 'tewegen' },
-    { id:'g3', t:'Open de Weeglijst (onderaan het startscherm).', ev:'tab', als:d => d.tab === 'weeglijst' },
+    { id:'g1', t:'Vink in stap 2 Gewicht een paar kaarten aan en kies onderaan "Aanpassen".', ev:'gewpop' },
+    { id:'g2', t:'Zet in stap 2 Gewicht een product op "te wegen".', ev:'gewst', als:d => d.st === 'tewegen' },
+    { id:'g3', t:'Open de Weeglijst (onder Meer op het startscherm).', ev:'tab', als:d => d.tab === 'weeglijst' },
     { id:'g4', t:'Vul op de Weeglijst bij een product het gewogen kg in.', ev:'gewogen' }
   ]
 };
-function mixDrie(){ const t = {}; Object.values(R.S.o.p).forEach(p => { const m = p.f && p.f.mixgroep; if(m && m.v) t[m.v] = (t[m.v] || 0) + 1; }); return Object.values(t).some(n => n >= 3); }
 function meld(ev, d){
   d = d || {};
   Object.entries(OPDR).forEach(([tab, l]) => l.forEach(o => {
@@ -283,134 +282,76 @@ function liveRegel(cs){
 }
 const snapTxt = () => R.S.uitSnap ? 'gegevens van ' + uur(R.S.uitSnap) + ', bijwerken…' : '';
 
-/* ---------- velden op de kaart (compact: label, vak, één korte regel "voorstel 3 · Klopt"; reden bij ⓘ of hover) ---------- */
+/* ---------- velden op de kaart: per maat drie stappen (1 Soort · 2 Gewicht · 3 Hoeveelheid), per kaart één vraag ---------- */
 const VAST = ['bevestigd', 'aangepast', 'vastgelegd'];
 const klasse = w => VAST.includes(w.st) ? ' ok' : ['voorstel', 'twijfel'].includes(w.st) && !leeg(w.v) ? ' vsel' : '';
 function toonWaarde(k, v){
   const d = R.VELD[k]; if(leeg(v)) return '';
-  if(k === 'pickc') return (R.PICKC.find(x => x[0] === v) || [, v])[1];
   if(d && d.type === 'keus') return (d.opt.find(x => x[0] === v) || [, v])[1];
   return String(v);
 }
 const isVs = w => ['voorstel', 'twijfel'].includes(w.st) && !leeg(w.v);
 const reden = w => [w.why ? String(w.why) : '', w.st === 'twijfel' ? 'twijfel' + (w.alt && w.alt.length ? ': ook ' + w.alt.join(' / ') : '') + (w.sc && w.sc.p < 0.6 ? ', klopte ' + Math.round(w.sc.p * 100) + '% bij jouw invoer' : '') : ''].filter(Boolean).join(' · ');
-// één korte regel onder het vak
-function vsRegel(k, w, toon){
-  if(!isVs(w)) return '';
-  return `<div class="pd2-vr" title="${esc('voorstel ' + (toon || toonWaarde(k, w.v)) + ': ' + reden(w))}"><span class="vw">voorstel${w.st === 'twijfel' ? ' (twijfel)' : ''}</span><b>${esc(toon || toonWaarde(k, w.v))}</b><button data-a="klopt" data-k="${k}">Klopt</button></div>`;
-}
-// keuzelijsten staan standaard op het voorstel (blauwe tekst); pas Klopt of een andere keuze slaat iets op
+// vakken staan op het voorstel (blauw: "voorstel 50", of de voorgekozen keuze); Enter in een leeg vak of een andere keuze slaat iets op
 function ctlHtml(c, k, w){
-  const d = R.VELD[k], v = VAST.includes(w.st) ? w.v : '', vs = isVs(w) ? w.v : '', kies = v || vs, ph = vs ? toonWaarde(k, vs) : '';
+  const d = R.VELD[k], v = VAST.includes(w.st) ? w.v : '', vs = isVs(w) ? w.v : '', kies = v || vs, ph = vs ? 'voorstel ' + toonWaarde(k, vs) : '';
   const cl = 'pd2-in' + klasse(w);
-  if(d.type === 'num' || d.type === 'tekst') return `<input class="pd2-in${VAST.includes(w.st) ? ' ok' : ''}" data-k="${k}" value="${esc(v)}" placeholder="${esc(ph)}" ${d.type === 'num' ? 'inputmode="decimal"' : ''} autocomplete="off" aria-label="${esc(d.t)}">`;
+  if(d.type === 'num' || d.type === 'tekst') return `<input class="${cl}" data-k="${k}" value="${esc(v)}" placeholder="${esc(ph)}" ${d.type === 'num' ? 'inputmode="decimal"' : ''} autocomplete="off" aria-label="${esc(d.t)}"${vs ? ` title="${esc(reden(w))}"` : ''}>`;
   if(d.type === 'maat'){
     const lijst = R.MATEN.concat(/whiteboard|^fwb/i.test(R.naamVan(c) + ' ' + c) ? R.MATEN_WB : []);
     const extra = [v, w.v].filter(x => x && !lijst.includes(x));
-    return `<select class="${cl}" data-k="maat" aria-label="Palletmaat"><option value=""></option>${[...new Set(extra)].concat(lijst).map(m => `<option ${m === kies ? 'selected' : ''}>${esc(m)}</option>`).join('')}<option value="__anders">anders…</option></select>`;
+    return `<select class="${cl}" data-k="maat" aria-label="Palletmaat"${vs ? ` title="${esc(reden(w))}"` : ''}><option value=""></option>${[...new Set(extra)].concat(lijst).map(m => `<option ${m === kies ? 'selected' : ''}>${esc(m)}</option>`).join('')}<option value="__anders">anders…</option></select>`;
   }
   if(d.type === 'keus') return `<select class="${cl}" data-k="${k}" aria-label="${esc(d.t)}"><option value=""></option>${d.opt.map(([a, b]) => `<option value="${a}" ${a === kies ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select>`;
-  if(d.type === 'verp'){
-    const m = String(v || '').match(/^\s*(\d+(?:[.,]\d+)?)?\s*(.*)$/), n = m && m[1] ? m[1] : '', s = m ? m[2].trim() : '';
-    const pm = String(ph).match(/^\s*(\d+(?:[.,]\d+)?)?\s*(.*)$/);
-    return `<div class="pd2-verp"><input class="pd2-in${v ? ' ok' : ''}" data-k="verp" data-d="n" value="${esc(n)}" placeholder="${esc(pm && pm[1] || '')}" inputmode="decimal" autocomplete="off" aria-label="Inkoopverpakking aantal"><select class="pd2-in${v ? ' ok' : vs ? ' vsel' : ''}" data-k="verp" data-d="s" aria-label="Inkoopverpakking soort"><option value=""></option>${R.VERP.map(x => `<option ${x === (s || (pm && pm[2] || '').trim()) ? 'selected' : ''}>${x}</option>`).join('')}</select></div>`;
-  }
-  if(d.type === 'mix'){
-    const al = [...new Set(R.S.o.mg.concat(Object.values(R.S.o.p).map(p => p.f && p.f.mixgroep && p.f.mixgroep.v).filter(Boolean)).concat(kies ? [kies] : []))].sort();
-    return `<select class="${cl}" data-k="mixgroep" aria-label="Mixgroep"><option value=""></option>${al.map(m => `<option ${m === kies ? 'selected' : ''}>${esc(m)}</option>`).join('')}<option value="__nieuw">nieuw…</option></select>`;
-  }
-  if(d.type === 'pick'){
-    const heeft = R.info(c).f.pick.length > 0, opt = heeft ? R.PICKC.filter(x => x[0] !== 'moetpick') : R.PICKC.filter(x => x[0] !== 'klopt');
-    return `<select class="${cl}" data-k="pickc" aria-label="Picklocatie controle"><option value=""></option>${opt.map(([a, b]) => `<option value="${a}" ${a === kies ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select>`;
-  }
   return '';
 }
-const BREED = new Set(['pickc', 'vn', 'verp']);
-// verschil met Daans eigen invoer in productdata (niet overschreven bij het overzetten): kies welke klopt
-function verschilHtml(c, k){
-  const d = R.verschil(c, k); if(!d) return '';
-  const t = x => k === 'soort' ? (R.SOORTT[x] || x) : x;
-  return `<div class="pd2-verschil">verschil: productdata <b>${esc(t(d.pd))}</b> · 2.0 <b>${esc(t(d.twee))}</b> <button class="pd2-mini" data-a="verschil" data-k="${k}" data-v="pd2">neem 2.0</button><button class="pd2-mini" data-a="verschil" data-k="${k}" data-v="pd">neem productdata</button></div>`;
+const KORT = { spp:'Stuks per pallet', hoogte:'Hoogte (cm)', maxpick:'Max op pick', rl:'Lengte volle rol (m)', rmax:'Max rollen per pallet', maat:'Palletmaat' };
+// één veld: label, vak en hooguit één oranje regel (VST, palletlabels of verplaatsingen zeggen iets anders)
+function veldHtml(c, k, I){
+  const d = R.VELD[k], w = R.waarde(c, k, I), nc = R.naControle(c, k, I);
+  return `<div class="pd2-f" data-kc="${k}"><label title="${esc(d.t)}">${esc(KORT[k] || d.kort || d.t)}</label>${ctlHtml(c, k, w)}${nc ? `<div class="pd2-oranje">${esc(nc)}</div>` : ''}</div>`;
 }
-const KORT = { spp:'Per pallet', hoogte:'Hoogte (cm)', maxpick:'Max op pick', lvl:'Aanvullen bij', rl:'Lengte (m)', rkg:'kg per rol', rmax:'Max rollen', rvast:'Vast aantal', rstand:'Staand/liggend', rdia:'Diameter', rb:'Breedte (cm)', rd:'Dikte (mm)' };
-function veldHtml(c, k, I, nodig){
-  const d = R.VELD[k], w = R.waarde(c, k, I);
-  let onder = '', ctl = ctlHtml(c, k, w);
-  if(k === 'pickc'){
-    const f = I.f, e = R.eigen(c, 'pickc');
-    ctl = `<div class="pd2-pick"><div class="locs">${f.pick.length ? f.pick.map(x => `<span class="m">${esc(x.n)} · ${nf(x.v)} · ${x.tijd ? 'tijdelijk' : 'vast'}</span>`).join('') : '<span class="m">geen picklocatie</span>'}</div>${ctl}</div>`;
-    if(e && e.opm) onder += `<div class="u kort" title="${esc(e.opm)}">${esc(e.opm)}</div>`;
-  }
-  if(k === 'hoogte'){ const hw = R.hoogteWaarsch(c, w.v, I); if(hw) onder += `<div class="u kort" title="${esc(hw)}">${esc(hw)}</div>`; }
-  { const nc = R.naControle(c, k, I); if(nc) onder += `<div class="pd2-oranje">${esc(nc)}</div>`; }
-  onder += verschilHtml(c, k);
-  if(w.st === 'uitzoeken') onder += `<div class="rood kort" title="${esc(w.why)}">uitzoeken: ${esc(w.why.split(' (voorstel was')[0])}</div>`;
-  else if(w.st === 'leeg' && nodig) onder += `<div class="rood kort" title="${esc(w.why || '')}">ontbreekt${w.why ? ': ' + esc(w.why.split(':')[0]) : ''}</div>`;
-  return `<div class="pd2-f${BREED.has(k) ? ' breed' : ''}${k === 'vn' ? ' vnveld' : ''}" data-kc="${k}"><label title="${esc(d.t)}">${esc(KORT[k] || d.kort || d.t)}</label>${ctl}${onder}${vsRegel(k, w)}</div>`;
+// één regel feiten: meest gebruikte inkoophoeveelheid · verkoop
+const feitenRegel = (c, I) => `<span><span class="l">Inkoop</span> ${I.ink ? nf(I.ink.meestal) : '–'}</span><span><span class="l">Verkoop</span> ${vkRegel(c)}</span>`;
+
+/* stap 1: soort (bij Weg alleen één keuzemenu) */
+function soortVraag(c, I){
+  const w = R.soortWaarde(c, I), gekozen = VAST.includes(w.st) ? w.v : '', vs = isVs(w) ? w.v : '', so = gekozen || vs;
+  const kn = R.SOORTEN.map(([k]) => `<button class="pd2-kz${gekozen === k ? ' aan' : vs === k ? ' vs' : ''}" data-a="soortkies" data-v="${k}" aria-pressed="${gekozen === k}"${vs === k ? ` title="${esc('voorstel: ' + reden(Object.assign({}, w, { alt:w.alt ? w.alt.map(a => R.SOORTT[a]) : null })))}"` : ''}>${esc(R.SOORTT[k])}${vs === k ? '<span class="vw">voorstel</span>' : ''}</button>`).join('');
+  return `<div class="pd2-vraag"><div class="pd2-q">Hoe vul je pick aan?</div><div class="pd2-keuze" role="group" aria-label="Soort">${kn}</div>${so === 'weg' ? wegMenu(c, I) : ''}</div>`;
 }
-// berekende velden: één grijze regel, geen vakken
-function calcRegel(c, ks, I){
-  const l = ks.filter(k => R.VELD[k] && R.VELD[k].calc); if(!l.length) return '';
-  return `<div class="pd2-calc">${l.map(k => { const d = R.VELD[k], x = R.calc(c, k, I); return `<span data-kc="${k}" title="${esc((x.why || '') + (x.warn ? ' · ' + x.warn : ''))}"><span class="l">${esc(d.kort || d.t)}</span> <b class="cv">${esc(x.v || '–')}</b>${x.uitzoeken ? ' <span class="rood">' + esc(x.warn || 'kan niet') + '</span>' : x.warn ? ' <span class="u">(controleer)</span>' : ''}</span>`; }).join('')}</div>`;
-}
-const isWegSt = so => so === 'weg';
-function veldenVan(c, so, I){
-  if(!so || isWegSt(so)) return [];
-  let ks = I.sam ? [...R.SAMVELD] : (R.KOLOMMEN[so] || []).slice();
-  if(R.waarde(c, 'pickc', I).v === 'geenpick') ks = ks.filter(k => !['lvl', 'maxpick', 'maxcalc', 'aanvmet'].includes(k));
-  return ks;
-}
-function nVoorstellen(c, I){
-  const so = R.soortWaarde(c, I); let n = ['voorstel', 'twijfel'].includes(so.st) ? 1 : 0;
-  if(so.v === 'weg'){ const w = R.wegWaarde(c, I); return n + (w.st === 'voorstel' ? 1 : 0); }
-  if(R.rolVoorstel(c)) n++;
-  const ks = new Set(R.nodigVan(c, so.v, I).concat(R.KOLOMMEN[so.v] || []).concat(R.isRol(c) ? R.ROLNODIG : []));
-  ks.forEach(k => { if(R.VELD[k] && !R.VELD[k].calc && !(I.sam && !R.SAMVELD.has(k))){ const w = R.waarde(c, k, I); if(isVs(w)) n++; } });
-  return n;
+function wegMenu(c, I){
+  const w = R.wegWaarde(c, I), gekozen = VAST.includes(w.st) ? w.v : '', vs = isVs(w) ? w.v : '', kies = gekozen || vs;
+  return `<select class="pd2-in${gekozen ? ' ok' : vs ? ' vsel' : ''}" data-k="wegkeuze" aria-label="Waarom weg"${vs ? ` title="${esc(w.why || '')}"` : ''}><option value=""></option>${R.WEG.map(([k, t]) => `<option value="${k}" ${k === kies ? 'selected' : ''}>${esc(t)}${!gekozen && k === vs ? ' (voorstel)' : ''}</option>`).join('')}</select>`;
 }
 
-/* ---------- productkaart (compact: ± 200 px op desktop) ---------- */
-function gewHtml(c){
-  const g = R.gewicht(c), afw = g.st === 'niet' && !R.isSam(c) ? R.gewAfwijking(c) : '';
+/* stap 2: gewicht (kg per stuk, bij rollen per rol) */
+function gewVraag(c, I){
+  const so = R.status(c).so;
+  if(I.sam || so === 'weg') return `<div class="pd2-vraag"><div class="u">Geen gewicht nodig${so === 'weg' ? ' bij Weg' : ''}.</div></div>`;
+  const g = R.gewicht(c), e = R.isRol(c) ? R.eenheid(c).e : '', eh = e === 'm' ? 'per meter' : e === 'cm' ? 'per cm' : R.isRol(c) ? 'per rol' : 'per stuk';
   const kn = (v, t) => `<button class="pd2-mini${g.st === v ? ' aan' : ''}" data-a="gewst" data-v="${v}" aria-pressed="${g.st === v}">${t}</button>`;
-  const geen = !(g.pq > 0) && !(g.gk > 0);
-  return `<div class="pd2-gw"><label class="l" for="pd2-kg-${esc(c)}">Gewicht</label><span class="kg"><input id="pd2-kg-${esc(c)}" class="pd2-in${g.st === 'gewogen' || g.st === 'vertrouwd' ? ' ok' : ''}" data-a="gewkg" value="${g.gk ? esc(String(g.gk)) : ''}" placeholder="${g.pq ? esc(nf(g.pq, 3)) + ' kg' : 'kg'}" inputmode="decimal" autocomplete="off" aria-label="Gewicht per stuk in kg" title="kg per stuk${g.pq ? ', Picqer ' + esc(nf(g.pq, 3)) + ' kg' : ''}"></span>
-    <span class="knopjes">${kn('gewogen', 'gewogen')}${kn('vertrouwd', 'vertrouwd')}${kn('tewegen', 'te wegen')}</span>${geen ? '<span class="rood">ontbreekt in Picqer</span>' : afw ? `<span class="u kort" title="${esc(afw)}">afwijkend</span>` : ''}</div>`;
+  return `<div class="pd2-vraag"><div class="pd2-gw"><label class="pd2-q" for="pd2-kg-${esc(c)}">Gewicht (kg ${eh})</label><span class="kg"><input id="pd2-kg-${esc(c)}" class="pd2-in${g.st === 'gewogen' || g.st === 'vertrouwd' ? ' ok' : g.pq ? ' vsel' : ''}" data-a="gewkg" value="${g.gk ? esc(String(g.gk)) : ''}" placeholder="${g.pq ? esc(nf(g.pq, 3)) : ''}" inputmode="decimal" autocomplete="off" aria-label="Gewicht in kg ${eh}"${g.pq ? ` title="Picqer ${esc(nf(g.pq, 3))} kg"` : ''}></span>
+    <span class="knopjes">${kn('gewogen', 'gewogen')}${kn('vertrouwd', 'vertrouwd')}${kn('tewegen', 'te wegen')}</span></div></div>`;
 }
-function soortHtml(c, I){
-  const w = R.soortWaarde(c, I), gekozen = VAST.includes(w.st) ? w.v : '', kies = gekozen || (isVs(w) ? w.v : '');
-  let onder = '';
-  if(isVs(w)) onder = `<div class="pd2-vr" title="${esc(reden(Object.assign({}, w, { alt:w.alt ? w.alt.map(a => R.SOORTT[a]) : null })))}"><span>voorstel <b>${esc(R.SOORTT[w.v])}</b>${w.st === 'twijfel' ? ' (twijfel)' : ''}</span><button data-a="klopt" data-k="soort">Klopt</button></div>`;
-  else if(gekozen && I.vsSo && I.vsSo.v && I.vsSo.v !== gekozen && w.st !== 'vastgelegd') onder = `<div class="pd2-vr grijs" title="${esc(I.vsSo.why || '')}"><span>de data wijst op <b>${esc(R.SOORTT[I.vsSo.v])}</b></span><button class="pd2-mini" data-a="zetsoort" data-v="${I.vsSo.v}">Zet op ${esc(R.SOORTT[I.vsSo.v])}</button></div>`;
-  else if(!w.v) onder = '<div class="u">geen voorstel: kies</div>';
-  onder += verschilHtml(c, 'soort');
-  return `<div class="pd2-soort"><label class="l" for="pd2-so-${esc(c)}">Hoe vul je pick aan?</label><select id="pd2-so-${esc(c)}" class="pd2-in${klasse(w)}" data-k="soort"><option value=""></option>${R.SOORTEN.map(([a]) => `<option value="${a}" ${a === kies ? 'selected' : ''}>${esc(R.SOORTT[a])}</option>`).join('')}</select>${onder}</div>`;
+
+/* stap 3: hoeveelheid (Pick en Mix: max op pick; Pallet en Deel: stuks per pallet, palletmaat, hoogte; rol: lengte en max rollen) */
+function hoevVraag(c, I){
+  const so = R.status(c).so;
+  if(so === 'weg') return '<div class="pd2-vraag"><div class="u">Geen hoeveelheid nodig bij Weg.</div></div>';
+  const ks = R.nodigVan(c, so, I);
+  const rol = !I.sam && R.rolVoorstel(c) ? `<div class="pd2-rolvraag"><span>Is dit een rol?</span><button class="pd2-mini" data-a="rol" data-v="1">ja</button><button class="pd2-mini" data-a="rol" data-v="0">nee</button></div>` : '';
+  return `<div class="pd2-vraag">${rol}${ks.length ? `<div class="pd2-velden">${ks.map(k => veldHtml(c, k, I)).join('')}</div>` : '<div class="u">Geen pick: hier valt niets in te vullen.</div>'}</div>`;
 }
-function rolHtml(c, I, so){
-  if(isWegSt(so) || R.isSam(c)) return '';
-  if(R.rolVoorstel(c)) return `<div class="pd2-rolvraag"><span>Is dit een rol?</span><button class="pd2-mini" data-a="rol" data-v="1">ja</button><button class="pd2-mini" data-a="rol" data-v="0">nee</button></div>`;
-  if(!R.isRol(c)) return '';
-  const nodig = new Set(R.nodigVan(c, so, I)), open = R.ROLNODIG.some(k => nodig.has(k) && !R.ingevuld(R.waarde(c, k, I)));
-  const isOpen = UI.rolOpen[c] !== undefined ? UI.rolOpen[c] : open;
-  return `<details class="pd2-rol" data-rol="${esc(c)}" ${isOpen ? 'open' : ''}><summary>Rolgegevens${open ? '' : ' ✓'}</summary><div class="pd2-velden">${R.KOLOMMEN.rollen.filter(k => !R.VELD[k].calc).map(k => veldHtml(c, k, I, nodig.has(k))).join('')}</div>${calcRegel(c, R.KOLOMMEN.rollen, I)}</details>`;
-}
-function wegHtml(c, I){
-  const w = R.wegWaarde(c, I), gekozen = VAST.includes(w.st) ? w.v : '', b = R.backorders(c);
-  return `<div class="pd2-weg"><span class="knopjes">${R.WEG.map(([k, t]) => `<button class="pd2-mini${gekozen === k ? ' aan' : ''}" data-a="wegkies" data-v="${k}" aria-pressed="${gekozen === k}">${esc(t)}</button>`).join('')}</span>
-    ${w.st === 'voorstel' && w.v ? `<div class="pd2-vr" title="${esc(w.why || '')}"><span>voorstel <b>${esc((R.WEG.find(x => x[0] === w.v) || [, w.v])[1])}</b></span><button data-a="klopt" data-k="weg">Klopt</button></div>` : ''}<span class="u">backorders: ${b ? nf(b.n) + ' (' + nf(b.stuks) + ' st)' : 'geen'}</span></div>`;
-}
+const stapVraag = (c, I) => UI.stap === 'gewicht' ? gewVraag(c, I) : UI.stap === 'hoev' ? hoevVraag(c, I) : soortVraag(c, I);
+
+/* ---------- productkaart: vinkje, naam, code, één regel feiten en de vraag van de stap ---------- */
 function kaartHtml(c){
-  const I = R.info(c), st = R.status(c), so = st.so, sel = UI.sel.has(c), nv = nVoorstellen(c, I);
-  const nodig = new Set(R.nodigVan(c, so, I)), ks = veldenVan(c, so, I), invul = ks.filter(k => !R.VELD[k].calc);
-  return `<article class="pd2-kaart${sel ? ' sel' : ''}" data-c="${esc(c)}">
-    <div class="pd2-kk"><input type="checkbox" data-a="sel" ${sel ? 'checked' : ''} aria-label="Selecteer ${esc(c)}"><div class="kn"><b title="${esc(R.naamVan(c))}">${esc(R.naamVan(c))}</b> <span class="u"><span class="m">${esc(c)}</span> ${abcB(c)}${I.sam ? ' · SAM: alleen pick' : ''}</span></div>
-      <div class="ic">${R.rolVoorstel(c) ? rolHtml(c, I, so) : ''}${nv ? `<button class="pd2-mini" data-a="rijklopt" title="Alle voorstellen van dit product kloppen">Alles klopt (${nv})</button>` : ''}<button class="pd2-ic" data-a="info" aria-label="Waarom deze voorstellen" title="Waarom deze voorstellen">ⓘ</button><button class="pd2-ic" data-a="opm" aria-label="Opmerking" title="Opmerking">💬${opmN(c) ? `<sup>${opmN(c)}</sup>` : ''}</button></div></div>
-    <div class="pd2-feiten"><span><span class="l">Voorraad</span> ${vrRegel(I)}</span><span><span class="l">Inkoop</span> ${inkRegel(c, I)}</span><span><span class="l">Verkoop</span> ${vkRegel(c)}</span></div>
-    <div class="pd2-rij2">${soortHtml(c, I)}${I.sam ? '' : gewHtml(c)}</div>
-    ${isWegSt(so) ? wegHtml(c, I) : ''}
-    ${R.rolVoorstel(c) ? '' : rolHtml(c, I, so)}
-    ${invul.length ? `<div class="pd2-velden">${invul.map(k => veldHtml(c, k, I, nodig.has(k))).join('')}</div>` : ''}
-    ${calcRegel(c, ks, I)}
+  const I = R.info(c), st = R.status(c), sel = UI.sel.has(c), klaar = !!(st.stap && st.stap[UI.stap]);
+  return `<article class="pd2-kaart${sel ? ' sel' : ''}${klaar ? ' klaar' : ''}" data-c="${esc(c)}">
+    <div class="pd2-kk"><input type="checkbox" data-a="sel" ${sel ? 'checked' : ''} aria-label="Selecteer ${esc(c)}"><div class="kn"><button class="pd2-naam" data-a="info" title="Waarom deze voorstellen">${esc(R.naamVan(c))}</button> <span class="m">${esc(c)}</span></div>${klaar ? '<span class="v" aria-label="stap klaar">✓</span>' : ''}</div>
+    <div class="pd2-feiten">${feitenRegel(c, I)}</div>
+    ${stapVraag(c, I)}
   </article>`;
 }
 function afRij(c){
@@ -443,7 +384,7 @@ function startHtml(){
     <div class="pd2-zoekrij"><input type="search" id="pd2-zoek" class="pd2-in" placeholder="Zoek familie, code, naam of locatie" value="${esc(UI.zoek)}" aria-label="Zoeken" autocomplete="off"><button class="knop${UI.filterOpen ? ' aan' : ''}" data-a="filter" aria-expanded="${UI.filterOpen}">Filter${fn ? ' (' + fn + ')' : ''}</button></div>
     ${UI.filterOpen ? filtersHtml() : ''}
     <div class="pd2-famlijst" id="pd2-fams">${famRijen()}</div>
-    <nav class="pd2-voet" aria-label="Meer"><button class="pd2-link" data-a="view" data-v="weeg">Weeglijst (${nf(weegCodes().length)})</button><span>·</span><button class="pd2-link" data-a="view" data-v="aann">Aannames (${nf(Object.keys(R.AANNAMES).length)})</button><span>·</span><button class="pd2-link" data-a="view" data-v="rolcheck">Rollen controleren (${nf(R.rolCheck().filter(x => x.g.st === 'niet').length)})</button><span>·</span><button class="pd2-link" data-a="view" data-v="labels">Palletlabels om te verbeteren (${nf(R.labelsVerbeteren().length)})</button><span>·</span><button class="pd2-link" data-a="oefmenu">Oefenmodus ⋯</button></nav>`;
+    <details class="pd2-meer2"><summary>Meer</summary><nav class="pd2-voet" aria-label="Meer"><button class="pd2-link" data-a="view" data-v="weeg">Weeglijst (${nf(weegCodes().length)})</button><button class="pd2-link" data-a="view" data-v="aann">Aannames (${nf(Object.keys(R.AANNAMES).length)})</button><button class="pd2-link" data-a="view" data-v="rolcheck">Rollen controleren (${nf(R.rolCheck().filter(x => x.g.st === 'niet').length)})</button><button class="pd2-link" data-a="view" data-v="labels">Palletlabels om te verbeteren (${nf(R.labelsVerbeteren().length)})</button>${R.WEG.map(([k, t]) => `<button class="pd2-link" data-a="wegalle" data-v="${k}">Weg-voorstellen ${esc(t)} (${nf(wegAlleN()[k] || 0)})</button>`).join('')}<button class="pd2-link" data-a="oefmenu">Oefenmodus ⋯</button></nav></details>`;
 }
 
 /* ---------- scherm 2: familie (desktop: links kop en maten, rechts de kaarten; telefoon: onder elkaar) ---------- */
@@ -455,53 +396,49 @@ function famKop(){
   const v6 = cs.reduce((s, c) => s + R.vk6(c), 0), v28 = cs.reduce((s, c) => s + (R.vk28(c) || 0), 0);
   const inkm = {}; cs.forEach(c => R.inkomend(c).forEach(x => { const k = x.ref + '|' + x.eta; inkm[k] = inkm[k] || { ref:x.ref, eta:x.eta }; }));
   const ink = Object.values(inkm).sort((a, b) => String(a.eta).localeCompare(String(b.eta)));
-  const at = {}; cs.forEach(c => aandachtVan(c).forEach(a => { at[a] = (at[a] || 0) + 1; }));
-  const top = AAND.map(([k]) => k).filter(k => at[k]).sort((a, b) => at[b] - at[a]).slice(0, 3);
-  if(UI.aandacht && !top.includes(UI.aandacht)) top.push(UI.aandacht);
   const lev = String((D.P[cs[0]] || {}).leverancier || UI.fk.split('|')[0]), maten = new Set(cs.map(R.maatVan)).size, kop = famAlle(UI.fk).length - cs.length;
   return `<div class="kn"><h2>${esc(R.famNaam(UI.fk))}</h2><div class="u">${esc(lev)} · ${mv(cs.length, 'product', 'producten')} · ${mv(maten, 'maat', 'maten')}${kop ? ' · ' + mv(kop, 'gekoppeld product', 'gekoppelde producten') + ' (niet invullen)' : ''}</div>
       <div class="u">Verkoop ${nf(v6)}*6 / ${nf(v28)}*28 · ABC A ${abc.A} · B ${abc.B} · C ${abc.C}${ink.length ? ' · inkomend ' + esc(ink.slice(0, 2).map(x => x.ref + (x.eta ? ' (ETA ' + dk(x.eta) + ')' : '')).join(', ')) + (ink.length > 2 ? ' +' + (ink.length - 2) : '') : ''}</div></div>
     <div class="pd2-vg"><span class="balk"><i style="width:${pct}%"></i></span><span>${nf(af)} van ${nf(cs.length)} afgerond</span></div>
-    ${top.length ? `<div class="pd2-aand">${top.map(k => `<button class="pd2-link${UI.aandacht === k ? ' aan' : ''}" data-a="aandacht" data-v="${k}">${esc(aandTekst(k, at[k] || 0))}</button>`).join('')}${UI.aandacht ? '<button class="pd2-link" data-a="aandacht" data-v="">× alles tonen</button>' : ''}</div>` : ''}
     <div class="u" id="pd2-live">${liveRegel(blokCodes())}</div>`;
 }
 function matenHtml(){
   const M = maatgroepen(), p = plat();
   return M.map(m => p
     ? `<button class="pd2-maat${m.open ? '' : ' af'}" data-a="naar" data-c="${esc(m.cs[0])}">${esc(m.t)}<span class="n">${m.open ? nf(m.velden) + ' open' : '✓'}</span></button>`
-    : `<button class="pd2-maat${!UI.aandacht && m.k === UI.mk ? ' aan' : ''}${m.open ? '' : ' af'}" data-a="maat" data-v="${esc(m.k)}" aria-pressed="${!UI.aandacht && m.k === UI.mk}">${esc(m.t)}<span class="n">${m.cs.length > 1 ? mv(m.cs.length, 'kleur', 'kleuren') + ' · ' : ''}${m.open ? nf(m.velden) + ' open' : '✓'}</span></button>`).join('');
+    : `<button class="pd2-maat${m.k === UI.mk ? ' aan' : ''}${m.open ? '' : ' af'}" data-a="maat" data-v="${esc(m.k)}" aria-pressed="${m.k === UI.mk}">${esc(m.t)}<span class="n">${m.cs.length > 1 ? mv(m.cs.length, 'kleur', 'kleuren') + ' · ' : ''}${m.open ? nf(m.velden) + ' open' : '✓'}</span></button>`).join('');
 }
-const volgHtml = () => `${!plat() && !UI.aandacht && maatgroepen().length > 1 ? '<button class="knop pd2-hoofd" data-a="volgmaat">Volgende maat →</button>' : ''}<button class="knop" data-a="volgfam">Volgende familie →</button>`;
-function segHtml(){
-  const cs = openCodes(), n = { open:cs.length }; cs.forEach(c => { const s = segVan(c); n[s] = (n[s] || 0) + 1; });
-  const kaarten = kaartCodes(), alle = kaarten.length && kaarten.every(c => UI.sel.has(c));
-  return `<div class="pd2-segrij"><div class="pd2-seg" role="tablist" aria-label="Soort">${SEGS.filter(([k]) => k === 'open' || n[k] || UI.seg === k).map(([k, t]) => `<button role="tab" data-a="seg" data-v="${k}" class="${UI.seg === k ? 'aan' : ''}" aria-selected="${UI.seg === k}">${esc(t)} <span class="n">${nf(n[k] || 0)}</span></button>`).join('')}</div>
+const volgHtml = () => `${!plat() && maatgroepen().length > 1 ? '<button class="knop pd2-hoofd" data-a="volgmaat">Volgende maat →</button>' : ''}<button class="knop" data-a="volgfam">Volgende familie →</button>`;
+const wegAlleN = () => { const wa = {}, m = wegAlle(); Object.keys(m).forEach(c => { if(!(R.po(c) && (R.po(c).weg || R.po(c).so))) wa[m[c]] = (wa[m[c]] || 0) + 1; }); return wa; };
+// bovenaan: Open · Afgerond; onder Open de drie stappen
+function tabsHtml(){
+  const n = { open:openCodes().length, afgerond:afCodes().length };
+  return `<div class="pd2-seg" role="tablist" aria-label="Open of afgerond">${SEGS.map(([k, t]) => `<button role="tab" data-a="seg" data-v="${k}" class="${UI.seg === k ? 'aan' : ''}" aria-selected="${UI.seg === k}">${esc(t)} <span class="n">${nf(n[k])}</span></button>`).join('')}</div>`;
+}
+function stapBalk(){
+  const cs = openCodes(), kaarten = kaartCodes(), alle = kaarten.length && kaarten.every(c => UI.sel.has(c));
+  return `<div class="pd2-segrij"><div class="pd2-stappen" role="tablist" aria-label="Stap">${STAPPEN.map(([k, t]) => { const o = stapN(cs, k); return `<button role="tab" data-a="stap" data-v="${k}" class="${UI.stap === k ? 'aan' : ''}${o ? '' : ' klaar'}" aria-selected="${UI.stap === k}">${esc(t)} <span class="n">${o ? nf(o) : '✓'}</span></button>`; }).join('')}</div>
     ${kaarten.length ? `<label class="pd2-alle"><input type="checkbox" data-a="selalle" ${alle ? 'checked' : ''}> alles aanvinken</label>` : ''}</div>`;
 }
-function mixRegels(cs){
-  const per = {}; cs.forEach(c => { const v = R.waarde(c, 'mixgroep').v; if(v) (per[v] = per[v] || []).push(c); });
-  const g = Object.entries(per); if(!g.length) return '';
-  return `<div class="pd2-mg">${g.map(([m, l]) => `<button class="pd2-link" data-a="mgregel" data-v="${esc(m)}">Mixgroep ${esc(m)} · ${mv(l.length, 'lid', 'leden')}</button>`).join('')}</div>`;
+// groepsacties van de stap: alleen onderaan
+function stapActies(){
+  if(!openCodes().length) return '';
+  return `<div class="pd2-stapacties">${UI.stap === 'gewicht'
+    ? '<button class="knop pd2-hoofd" data-a="gewklopt">Alle gewichten kloppen</button><button class="knop" data-a="gewpop">Aanpassen</button>'
+    : '<button class="knop pd2-hoofd" data-a="stapklopt">Alle voorstellen kloppen</button>'}</div>`;
 }
-function wegAlleRegel(){
-  const wa = {}; Object.keys(wegAlle()).forEach(c => { if(!(R.po(c) && (R.po(c).weg || R.po(c).so))) wa[wegAlle()[c]] = (wa[wegAlle()[c]] || 0) + 1; });
-  return `<div class="pd2-wegalle"><span class="u">Ook buiten deze familie:</span>${R.WEG.map(([k, t]) => `<button class="pd2-link" data-a="wegalle" data-v="${k}">alle voorstellen ${esc(t)} (${nf(wa[k] || 0)})</button>`).join('')}</div>`;
-}
-const UITLEG = [['Pallet', 'komt per volle pallet binnen en wordt per volle pallet aangevuld.'], ['Deel', 'komt op een pallet of in grotere hoeveelheid binnen dan op pick past; een deel gaat naar pick, de rest naar bulk.'], ['Pick', 'komt in kleine aantallen binnen en past helemaal op de pickplek, geen bulk.'], ['Mix', 'een pallet met meerdere producten erop; aanvullen met een deel van de mixpallet.'], ['Weg', 'uitlopend, alleen backorder of archief: geen velden, alleen de keuze.']];
 function maatBlok(){
-  const M = maatgroepen(), g = M.find(m => m.k === UI.mk), cs = kaartCodes(), af = afCodes(), toon = cs.slice(0, UI.n), p = plat();
-  const titel = UI.view === 'wegalle' ? 'Alle voorstellen ' + ((R.WEG.find(x => x[0] === UI.wegAlle) || [, ''])[1]) : UI.aandacht ? aandTekst(UI.aandacht, blokCodes().length) : p ? 'Alle producten' : g ? g.t : 'zonder maat';
-  const wat = UI.aandacht || UI.view ? 'lijst' : p ? 'familie' : 'maat';
-  const kg = (() => { const v = blokCodes().map(c => R.gewicht(c).pq).filter(x => x > 0).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : null; })();
-  return `<div class="pd2-mkop"><h3>${esc(titel)} <span class="u">${UI.view === 'wegalle' ? mv(blokCodes().length, 'product', 'producten') + ', ook buiten de familie' : p ? 'op maat, ' + mv(blokCodes().length, 'product', 'producten') : mv(blokCodes().length, 'kleur', 'kleuren')}</span></h3>
-      <div class="rij">${openCodes().length ? `<button class="knop" data-a="maatklopt">Alle voorstellen in deze ${wat} kloppen</button>` : ''}</div></div>
-    ${UI.view === 'wegalle' ? '' : `<div class="pd2-segbalk">${segHtml()}<div class="pd2-inklap"><details class="pd2-uitleg"><summary>uitleg per soort</summary><ul>${UITLEG.map(([a, b]) => `<li><b>${a}</b>: ${esc(b)}</li>`).join('')}</ul></details>
-    ${p ? '' : `<details class="pd2-zelfdekg"><summary>Gewicht voor de hele maat</summary><div class="pd2-zk"><input id="pd2-kgmaat" class="pd2-in" inputmode="decimal" placeholder="${kg ? esc(nf(kg, 3)) + ' (Picqer, midden)' : 'kg per stuk'}" autocomplete="off" aria-label="Gewicht per stuk voor de hele maat"><label class="pd2-vink"><input type="checkbox" id="pd2-kgmaat-gew"> gewogen</label><button class="knop" data-a="zelfdekg">Zelfde gewicht voor alle kleuren in deze maat</button></div><div class="u">Alleen producten zonder gecontroleerd gewicht krijgen het.</div></details>`}</div></div>`}
-    ${UI.seg === 'mix' ? mixRegels(blokCodes()) : ''}${UI.seg === 'weg' && !UI.view ? wegAlleRegel() : ''}
-    <div class="pd2-kaarten" id="pd2-kaarten">${toon.map(kaartHtml).join('') || `<div class="pd2-leeg">${cs.length || openCodes().length ? 'Niets open in deze soort.' : 'Alles in deze ' + wat + ' is afgerond.'}</div>`}</div>
+  const M = maatgroepen(), g = M.find(m => m.k === UI.mk), cs = kaartCodes(), af = afCodes(), toon = cs.slice(0, UI.n), p = plat(), wa = UI.view === 'wegalle';
+  const titel = wa ? 'Weg-voorstellen ' + ((R.WEG.find(x => x[0] === UI.wegAlle) || [, ''])[1]) : p ? 'Alle producten' : g ? g.t : 'zonder maat';
+  const wat = wa ? 'lijst' : p ? 'familie' : 'maat', toonAf = !wa && UI.seg === 'afgerond';
+  return `<div class="pd2-mkop"><h3>${esc(titel)} <span class="u">${wa ? mv(blokCodes().length, 'product', 'producten') + ', ook buiten de familie' : p ? 'op maat, ' + mv(blokCodes().length, 'product', 'producten') : mv(blokCodes().length, 'kleur', 'kleuren')}</span></h3></div>
+    ${wa ? '' : `<div class="pd2-segbalk">${tabsHtml()}</div>`}
+    ${toonAf ? `<div class="pd2-aflijst">${af.map(afRij).join('') || '<div class="pd2-leeg">Nog niets afgerond in deze ' + wat + '.</div>'}</div>`
+      : `<div id="pd2-stapbalk">${stapBalk()}</div>
+    <div class="pd2-kaarten" id="pd2-kaarten">${toon.map(kaartHtml).join('') || `<div class="pd2-leeg">${cs.length ? 'Niets open.' : 'Alles in deze ' + wat + ' is afgerond.'}</div>`}</div>
     ${cs.length > toon.length ? `<button class="knop pd2-meer" data-a="meer">Meer tonen (${nf(cs.length - toon.length)})</button>` : ''}
-    ${af.length ? `<details class="pd2-af" ${UI.afOpen ? 'open' : ''}><summary>Afgerond (${nf(af.length)})</summary>${af.map(afRij).join('')}</details>` : ''}
-    ${!p && !UI.aandacht && !UI.view && M.length > 1 ? '<div class="pd2-onder"><button class="knop pd2-hoofd" data-a="volgmaat">Volgende maat →</button></div>' : ''}`;
+    <div id="pd2-stapacties">${stapActies()}</div>`}
+    ${!p && !wa && M.length > 1 ? '<div class="pd2-onder"><button class="knop pd2-hoofd" data-a="volgmaat">Volgende maat →</button></div>' : ''}`;
 }
 function famHtml(){
   kiesMaat();
@@ -607,13 +544,8 @@ function scoresHtml(){
 /* ---------- groepsacties (alleen als er iets is aangevinkt) ---------- */
 function actieHtml(){
   if(!UI.sel.size) return '';
-  const cs = selLijst(), ks = [...new Set(cs.flatMap(c => { const so = R.status(c).so; return (R.NODIG[so] || []).concat(R.isRol(c) ? R.ROLNODIG : []); }))].filter(k => R.VELD[k] && !R.VELD[k].calc && k !== 'pickc');
   return `<div class="pd2-actie" role="toolbar" aria-label="Groepsacties"><b>${nf(UI.sel.size)} aangevinkt</b><button class="knop pd2-x" data-a="selweg" aria-label="Niets meer aanvinken">×</button>
-    <button class="knop pd2-hoofd" data-a="selklopt">Selectie klopt</button>
-    <select class="knop" data-a2="allemaal" aria-label="Zijn allemaal"><option value="">Zijn allemaal…</option>${R.SOORTEN.map(([k]) => `<option value="${k}">${esc(R.SOORTT[k])}</option>`).join('')}</select>
-    <select class="knop" data-a2="gewicht" aria-label="Gewicht"><option value="">Gewicht…</option><option value="klopt">kloppen</option><option value="pop">aanpassen…</option></select>
-    <button class="knop" data-a="isrol">Is rol</button>
-    <select class="knop" data-a2="zelfde" aria-label="Zelfde waarde"><option value="">Zelfde waarde…</option>${ks.map(k => `<option value="${k}">${esc(R.VELD[k].t)}</option>`).join('')}</select>
+    <button class="knop pd2-hoofd" data-a="selklopt">Selectie klopt</button>${UI.stap === 'gewicht' ? '<button class="knop" data-a="gewpop">Aanpassen</button>' : ''}
 </div>`;
 }
 
@@ -665,7 +597,7 @@ const scherm = () => { const p = UI.el && UI.el.querySelector('.pd2'); return p 
 // na een wijziging: kop, tegels en balken opnieuw; de kaarten alleen waar nodig (focus blijft staan)
 function verversKop(){
   const s = scherm();
-  if(s === 'fam'){ zet('pd2-fkop', famKop()); zet('pd2-maten', matenHtml()); zet('pd2-volg', volgHtml()); const sr = document.querySelector('#pd2-maat .pd2-segrij'); if(sr){ const t = document.createElement('div'); t.innerHTML = segHtml(); sr.replaceWith(t.firstElementChild); } }
+  if(s === 'fam'){ zet('pd2-fkop', famKop()); zet('pd2-maten', matenHtml()); zet('pd2-volg', volgHtml()); zet('pd2-stapbalk', stapBalk()); zet('pd2-stapacties', stapActies()); const sb = document.querySelector('#pd2-maat .pd2-segbalk'); if(sb) sb.innerHTML = tabsHtml(); }
   if(s === 'start'){ const k = document.getElementById('pd2-klaar'); if(k){ const t = document.createElement('div'); t.innerHTML = startHtml(); k.innerHTML = t.querySelector('#pd2-klaar').innerHTML; } }
   zet('pd2-actie', actieHtml()); zet('pd2-oefw', oefKaart());
 }
@@ -681,10 +613,10 @@ function verversKaarten(codes){
   focusTerug(f);
 }
 function verversMaat(){ const f = focusVan(); zet('pd2-maat', maatBlok()); focusTerug(f); liveScherm(); }
-function verversAlles(){ staatCheck(); if(['fam', 'wegalle'].includes(scherm())){ verversMaat(); verversKop(); } else teken(); }
+function verversAlles(){ staatCheck(); stapVerder(); if(['fam', 'wegalle'].includes(scherm())){ verversMaat(); verversKop(); } else teken(); }
 // na een maatwissel: begin van de kaarten in beeld (alleen als je eronder zat)
 function naarBoven(){ const b = document.getElementById('pd2-maat'); if(b && b.getBoundingClientRect().top < 0){ b.scrollIntoView({ block:'start' }); if(UI.el) UI.el.scrollTop -= 8; } }
-function nieuweGroep(){ UI.weegKlaar.clear(); UI.n = 40; UI.afOpen = false; }
+function nieuweGroep(){ UI.weegKlaar.clear(); UI.n = 40; }
 
 /* ---------- live voorraad: wat op het scherm staat (en de geopende familie) live laten ophalen ---------- */
 let liveT = null, liveKopT = null;
@@ -726,7 +658,7 @@ function zetVeld(c, k, ruw, opm){
   if(k === 'hoogte' && num(ruw) !== null && String(num(ruw)) !== v) WH.toast('Hoogte naar boven afgerond op 10 cm: ' + v, 2500);
   const I2 = R.info(c), ok = x => ['bevestigd', 'aangepast'].includes(R.waarde(c, x, I2).st);
   const ev = { c, k, v, tab:soortVan(c), beide:ok('lvl') && ok('maxpick'), warn:k === 'hoogte' ? R.hoogteWaarsch(c, v, I2) : '' };
-  if(k === 'pickc') meld('pickc', { c, v, tab:soortVan(c) }); else meld('veld', ev);
+  meld('veld', ev);
   na([c], wasAf);
 }
 function zetSoort(c, v){
@@ -751,7 +683,7 @@ let kopT = null;
 function na(codes, wasAf, soortOok){
   setTimeout(() => {
     staatCheck();
-    const zicht = new Set(kaartCodes()), blok = codes.some(c => R.status(c).af !== !!wasAf || !zicht.has(c)) || soortOok;
+    const zicht = new Set(kaartCodes()), blok = codes.some(c => R.status(c).af !== !!wasAf || !zicht.has(c)) || soortOok || stapVerder();
     if(blok && document.getElementById('pd2-maat')) verversMaat(); else verversKaarten(codes);
     clearTimeout(kopT); kopT = setTimeout(verversKop, blok ? 0 : 250);
   }, 0);
@@ -780,19 +712,23 @@ function ongedaan(){
   meld('undo', {});
   verversAlles();
 }
-// alle voorstellen van een product bevestigen, ook de soort (het gewicht niet: aanname selgew)
-function bevestig(c){
+// voorstel van één stap bevestigen (het gewicht alleen met de Picqer-kg van nu: vertrouwd)
+function bevestigStap(c, stap){
   const I = R.info(c), so = R.soortWaarde(c, I);
   R.poZet(c, p => {
     delete p.heropend;
-    if(so.v && (['voorstel', 'twijfel'].includes(so.st) || !(p.so && p.so.v))) p.so = { v:so.v, st:'bevestigd', voor:so.v, t:now() };   // ook een vastgelegde soort expliciet opslaan
-    const sv = p.so ? p.so.v : so.v;
-    if(R.rolVoorstel(c) && sv !== 'weg') p.rol = { v:true, st:'bevestigd', t:now() };
-    if(sv === 'weg'){ const w = R.wegWaarde(c, I); if(w.v && (w.st === 'voorstel' || !(p.weg && p.weg.v))) p.weg = { v:w.v, st:'bevestigd', voor:w.v, t:now() }; return; }
-    const kols = new Set(R.nodigVan(c, sv, I).concat(R.KOLOMMEN[sv] || []).concat(R.isRol(c) ? R.ROLNODIG : []));
-    kols.forEach(k => { if(R.VELD[k] && R.VELD[k].calc) return; if(I.sam && !R.SAMVELD.has(k)) return; const w = R.waarde(c, k, I); if(['voorstel', 'twijfel'].includes(w.st) && !leeg(w.v)) p.f[k] = { v:w.v, st:'bevestigd', voor:w.v, t:now() }; });
+    if(stap === 'soort'){
+      if(so.v && (['voorstel', 'twijfel'].includes(so.st) || !(p.so && p.so.v))) p.so = { v:so.v, st:'bevestigd', voor:so.v, t:now() };
+      if(so.v === 'weg'){ const w = R.wegWaarde(c, I); if(w.v && (w.st === 'voorstel' || !(p.weg && p.weg.v))) p.weg = { v:w.v, st:'bevestigd', voor:w.v, t:now() }; }
+    } else if(stap === 'gewicht'){
+      const g = R.gewicht(c); if(!R.isSam(c) && so.v !== 'weg' && g.st === 'niet' && g.pq > 0) p.gew = { st:'vertrouwd', kg:g.pq, t:now() };
+    } else if(so.v && so.v !== 'weg'){
+      if(R.rolVoorstel(c)) p.rol = { v:true, st:'bevestigd', t:now() };
+      R.nodigVan(c, so.v, I).forEach(k => { if(R.VELD[k] && R.VELD[k].calc) return; const w = R.waarde(c, k, I); if(['voorstel', 'twijfel'].includes(w.st) && !leeg(w.v)) p.f[k] = { v:w.v, st:'bevestigd', voor:w.v, t:now() }; });
+    }
   });
 }
+const STAPT = { soort:'soort', gewicht:'gewicht', hoev:'hoeveelheid' };
 const selLijst = () => [...UI.sel].filter(c => D.P[c]);
 const meerSoort = cs => { const t = {}; cs.forEach(c => { const s = soortVan(c) || 'pick'; t[s] = (t[s] || 0) + 1; }); return (Object.entries(t).sort((a, b) => b[1] - a[1])[0] || [''])[0]; };
 
@@ -823,7 +759,7 @@ function infoModal(c){
   r.push(`<li><b>Gewicht per stuk</b>: ${g.kg ? nf(g.kg, 3) + ' kg' : 'onbekend'} (${esc(g.st)}${g.pq ? ', Picqer ' + nf(g.pq, 3) + ' kg' : ''})${afw ? ' — ' + esc(afw) : ''}</li>`);
   modal(`<h3>${esc(c)} — waarom deze voorstellen</h3><p class="u">${esc(R.naamVan(c))}</p><ul>${r.join('')}</ul>
     ${st.open.length ? `<p><b>Nog open:</b> ${esc(st.open.map(k => k === 'soort' ? 'soort bevestigen' : k === 'rol' ? 'rol ja/nee' : R.VELD[k] ? R.VELD[k].t : k).join(', '))}</p>` : '<p><b>Compleet.</b></p>'}
-    <p class="u">Voorraad: ${esc(I.f.bron)}${I.f.t ? ' ' + esc(dk(I.f.t)) : ''}. Blauw vak = voorstel, groen = vastgelegd of door jou bevestigd, rood = ontbreekt of kan niet, grijs = berekend.</p>`);
+    <p class="u">Voorraad: ${esc(I.f.bron)}${I.f.t ? ' ' + esc(dk(I.f.t)) : ''}. Blauw = voorstel, groen = vastgelegd of door jou bevestigd, grijs = berekend.</p><p><button class="knop" data-a="opm" data-c="${esc(c)}">💬 Opmerking bij dit product</button></p>`);
 }
 function opmModal(c){
   const tab = c ? (soortVan(c) || 'pick') : (UI.oefenen ? UI.oef.set : 'algemeen');
@@ -848,18 +784,6 @@ function aanModal(id){
     if(UI.view === 'aann') teken();
   });
   document.querySelectorAll('.pd2-modal [data-av]').forEach(b => b.addEventListener('click', ev => { ev.stopPropagation(); document.querySelectorAll('.pd2-modal [data-av]').forEach(x => x.classList.toggle('aan', x === b)); }));
-}
-function kolomModal(k0){
-  const cs = selLijst(), ks = [...new Set(cs.flatMap(c => (R.NODIG[soortVan(c)] || []).concat(R.isRol(c) ? R.ROLNODIG : [])))].filter(k => R.VELD[k] && !R.VELD[k].calc && k !== 'pickc');
-  if(!ks.length){ WH.toast('Deze producten hebben geen invulvelden (kies eerst de soort)', 3000); return; }
-  if(!ks.includes(k0)) k0 = ks[0];
-  modal(`<h3>Zelfde waarde voor ${nf(cs.length)} producten</h3><label>Veld <select id="pd2-kk">${ks.map(k => `<option value="${k}" ${k === k0 ? 'selected' : ''}>${esc(R.VELD[k].t)}</option>`).join('')}</select></label><label>Waarde <input id="pd2-kv" placeholder="getal, tekst, nvt of onb"></label>`, m => {
-    const k = m.querySelector('#pd2-kk').value, ruw = m.querySelector('#pd2-kv').value, v = normVeld(k, ruw);
-    if(v === null){ WH.toast('Typ een getal, nvt of onb', 3000); return false; }
-    if(k === 'mixgroep' && v) R.mgPlus(v);
-    groep(cs, c => { const I = R.info(c), vs = I.vs[k], voor = vs && !leeg(vs.v) ? String(vs.v) : ''; R.poZet(c, p => { if(!v) delete p.f[k]; else p.f[k] = { v, st:voor && gelijk(v, voor) ? 'bevestigd' : 'aangepast', voor, t:now() }; }); }, R.VELD[k].t + ' = ' + (v || 'leeg') + ' voor ' + nf(cs.length));
-    meld('kolom', { k });
-  }, 'Toepassen');
 }
 function gewPopModal(){
   modal(`<h3>Gewicht voor ${nf(UI.sel.size)} producten</h3><label>Gewicht per stuk (kg) <input id="pd2-gp" inputmode="decimal" placeholder="bijv. 1,2"></label><div class="knopjes"><button class="pd2-mini aan" data-gst="gewogen">gewogen</button><button class="pd2-mini" data-gst="vertrouwd">vertrouwd</button></div>`, m => {
@@ -930,8 +854,8 @@ function kopieer(){
 
 /* ---------- naar een familie, maat of soort ---------- */
 function openFam(fk, mk){
-  UI.fk = fk; UI.mk = mk === undefined ? null : mk; UI.aandacht = null; UI.view = null; UI.seg = 'open'; UI.sel.clear(); nieuweGroep();
-  meld('fam', { fk });
+  UI.fk = fk; UI.mk = mk === undefined ? null : mk; UI.view = null; UI.seg = 'open'; UI.sel.clear(); nieuweGroep();
+  meld('fam', { fk }); kiesMaat();
   teken(); if(UI.el) UI.el.scrollTop = 0;
 }
 // oefening "Toon": de familie met de meeste treffers, de maat en de soort openzetten
@@ -940,13 +864,13 @@ function toon(set, id){
   const q = String(o.toon.zoek || '').toLowerCase().split(/\s+/).filter(Boolean), fams = {};
   Object.keys(D.P).filter(c => R.actief(c) && !R.isKoppel(c) && zoekTreft(c, q)).forEach(c => { const f = R.famVan(c); fams[f] = (fams[f] || 0) + 1; });
   const fk = Object.entries(fams).sort((a, b) => b[1] - a[1])[0]; if(!fk) return;
-  UI.fk = fk[0]; UI.aandacht = null; UI.view = null; UI.sel.clear(); nieuweGroep(); UI.mk = null;
+  UI.fk = fk[0]; UI.view = null; UI.sel.clear(); nieuweGroep(); UI.mk = null;
   const M = maatgroepen(), seg = o.toon.seg;
   let m = o.toon.maat ? M.find(x => String(x.k).replace(/\s/g, '').startsWith(o.toon.maat)) : null;
   if(!m && seg) m = M.find(x => x.per[seg]);
   if(m) UI.mk = m.k;
   kiesMaat();
-  UI.seg = seg && openCodes().some(c => segVan(c) === seg) ? seg : 'open';
+  UI.seg = 'open'; kiesStap();
   if(UI.mk !== null) meld('maat', { naam:R.famNaam(UI.fk), mk:UI.mk });
   teken(); if(UI.el) UI.el.scrollTop = 0;
 }
@@ -974,42 +898,33 @@ function klik(ev){
     case 'filter': UI.filterOpen = !UI.filterOpen; teken(); return;
     case 'scope': UI.scope = a.dataset.v; UI.zoek = ''; lsZet('scope', UI.scope); UI.famN = 30; teken(); return;
     case 'fam': openFam(a.dataset.v); return;
-    case 'famweg': UI.fk = null; UI.mk = null; UI.aandacht = null; UI.sel.clear(); teken(); if(UI.el) UI.el.scrollTop = 0; return;
+    case 'famweg': UI.fk = null; UI.mk = null; UI.sel.clear(); teken(); if(UI.el) UI.el.scrollTop = 0; return;
     case 'fammeer': UI.famN += 30; zet('pd2-fams', famRijen()); return;
     case 'view': UI.view = a.dataset.v; UI.sel.clear(); if(UI.view === 'weeg') meld('tab', { tab:'weeglijst' }); teken(); if(UI.el) UI.el.scrollTop = 0; return;
     case 'viewweg': UI.view = null; UI.wegAlle = null; UI.sel.clear(); teken(); if(UI.el) UI.el.scrollTop = 0; return;
-    case 'maat': { const was = UI.aandacht; UI.mk = a.dataset.v; UI.aandacht = null; UI.seg = 'open'; nieuweGroep(); meld('maat', { naam:R.famNaam(UI.fk), mk:UI.mk }); if(was){ teken(); return; } zet('pd2-maten', matenHtml()); verversMaat(); verversKop(); naarBoven(); return; }
+    case 'maat': { UI.mk = a.dataset.v; UI.seg = 'open'; nieuweGroep(); kiesStap(); meld('maat', { naam:R.famNaam(UI.fk), mk:UI.mk }); zet('pd2-maten', matenHtml()); verversMaat(); verversKop(); naarBoven(); return; }
     case 'naar': { const x = a.dataset.c; let k = document.querySelector(`.pd2 article.pd2-kaart[data-c="${CSS.escape(x)}"]`);
-      if(!k){ if(R.status(x).af) UI.afOpen = true; else { UI.seg = 'open'; const i = kaartCodes().indexOf(x); if(i >= UI.n) UI.n = i + 1; } verversMaat(); verversKop(); k = document.querySelector(`.pd2 [data-c="${CSS.escape(x)}"]`); }
+      if(!k){ if(R.status(x).af) UI.seg = 'afgerond'; else { UI.seg = 'open'; const i = kaartCodes().indexOf(x); if(i >= UI.n) UI.n = i + 1; } verversMaat(); verversKop(); k = document.querySelector(`.pd2 [data-c="${CSS.escape(x)}"]`); }
       if(k){ k.scrollIntoView({ block:'start' }); if(UI.el) UI.el.scrollTop -= 8; } return; }
-    case 'volgmaat': { const M = maatgroepen(); if(!M.length) return; const i = M.findIndex(m => m.k === UI.mk), L = M.slice(i + 1).concat(M.slice(0, i + 1)), n = L.find(m => m.open) || L[0]; UI.mk = n.k; UI.seg = 'open'; nieuweGroep(); meld('maat', { naam:R.famNaam(UI.fk), mk:UI.mk }); zet('pd2-maten', matenHtml()); verversMaat(); verversKop(); naarBoven(); return; }
+    case 'volgmaat': { const M = maatgroepen(); if(!M.length) return; const i = M.findIndex(m => m.k === UI.mk), L = M.slice(i + 1).concat(M.slice(0, i + 1)), n = L.find(m => m.open) || L[0]; UI.mk = n.k; UI.seg = 'open'; nieuweGroep(); kiesStap(); meld('maat', { naam:R.famNaam(UI.fk), mk:UI.mk }); zet('pd2-maten', matenHtml()); verversMaat(); verversKop(); naarBoven(); return; }
     case 'volgfam': { const L = families(), i = L.findIndex(f => f.fk === UI.fk), rest = L.slice(i + 1).concat(L.slice(0, Math.max(0, i))), n = rest.find(f => f.af < f.n) || rest[0]; if(!n) return; openFam(n.fk); return; }
     case 'seg': UI.seg = a.dataset.v; nieuweGroep(); meld('tab', { tab:UI.seg }); verversMaat(); return;
-    case 'aandacht': { UI.aandacht = a.dataset.v || null; UI.seg = 'open'; nieuweGroep(); teken(); return; }
+    case 'stap': UI.stap = a.dataset.v; UI.n = 40; verversMaat(); return;
     case 'rcfilter': UI.rcFilter = a.dataset.v; teken(); return;
     case 'rcfam': { const fk = a.dataset.f, cs = R.rolCheck().filter(x => x.fam === fk && rcGoed(x)).map(x => x.c); if(!cs.length) return;
       groep(cs, x => R.poZet(x, p => { p.gew = { st:'vertrouwd', kg:R.gewicht(x).pq, t:now() }; }), 'Gewicht klopt: ' + nf(cs.length) + ' rollen'); meld('gewst', { st:'vertrouwd' }); setTimeout(teken, 0); return; }
-    case 'wegalle': UI.view = 'wegalle'; UI.wegAlle = a.dataset.v; UI.seg = 'weg'; UI.sel.clear(); nieuweGroep(); teken(); if(UI.el) UI.el.scrollTop = 0; return;
+    case 'wegalle': UI.view = 'wegalle'; UI.wegAlle = a.dataset.v; UI.seg = 'open'; UI.stap = 'soort'; UI.sel.clear(); nieuweGroep(); teken(); if(UI.el) UI.el.scrollTop = 0; return;
     case 'meer': UI.n += 40; verversMaat(); return;
     case 'toon': toon(UI.oef.set, a.dataset.id); return;
     case 'fb': R.fbTab(UI.oef.set, { [a.dataset.k]:a.dataset.v }); a.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('aan', b === a)); return;
     case 'aanname': aanModal(a.dataset.id); return;
     case 'aannv': { const id = a.closest('[data-id]').dataset.id, cur = R.S.fb.aann[id] || {}; R.fbAann(id, { v:cur.v === a.dataset.v ? '' : a.dataset.v }); teken(); return; }
-    case 'mgregel': meld('mgregel', {}); { const l = famEcht(UI.fk).filter(x => R.waarde(x, 'mixgroep').v === a.dataset.v); modal(`<h3>Mixgroep ${esc(a.dataset.v)}</h3><ul>${l.map(x => `<li><b>${esc(x)}</b> ${esc(R.naamVan(x))} · bulk ${esc(R.info(x).f.bulk.map(b => b.n + ' (' + nf(b.v) + ')').join(', ') || '–')}</li>`).join('')}</ul>`); } return;
     case 'sel': if(!c) return; if(a.checked) UI.sel.add(c); else UI.sel.delete(c); kaart.classList.toggle('sel', a.checked); zet('pd2-actie', actieHtml()); return;
     case 'selalle': { const cs = kaartCodes().slice(0, UI.n); if(a.checked) cs.forEach(x => UI.sel.add(x)); else cs.forEach(x => UI.sel.delete(x)); verversMaat(); zet('pd2-actie', actieHtml()); return; }
     case 'selweg': UI.sel.clear(); verversMaat(); zet('pd2-actie', actieHtml()); return;
     case 'info': infoModal(c); return;
     case 'opm': opmModal(c); return;
-    case 'klopt': {
-      const k = a.dataset.k;
-      if(k === 'soort') return zetSoort(c, R.soortWaarde(c).v);
-      if(k === 'weg') return zetWeg(c, R.wegWaarde(c).v);
-      return zetVeld(c, k, R.waarde(c, k).v);
-    }
-    case 'zetsoort': return zetSoort(c, a.dataset.v);
-    case 'verschil': { const wasAf = R.status(c).af; Promise.resolve(R.verschilKies(c, a.dataset.k, a.dataset.v)).then(() => na([c], wasAf, true)); return; }
-    case 'wegkies': return zetWeg(c, a.dataset.v);
+    case 'soortkies': return zetSoort(c, a.dataset.v);
     case 'gewst': {
       const v = a.dataset.v, g = R.gewicht(c), inp = kaart.querySelector('[data-a="gewkg"]'), kg = num(inp && inp.value);
       if(v === 'gewogen'){ if(kg > 0) zetGew(c, { st:'gewogen', kg }); else if(g.gk) zetGew(c, { st:'gewogen', kg:g.gk }); else { WH.toast('Typ eerst het gewogen gewicht in kg', 2500); if(inp) inp.focus(); return; } }
@@ -1017,20 +932,13 @@ function klik(ev){
       else zetGew(c, { st:v, kg:v === 'tewegen' ? null : (kg > 0 ? kg : (g.pq > 0 ? g.pq : null)) });   // vertrouwd: de Picqer-kg van nu vastleggen
       meld('gewst', { st:v }); if(UI.view === 'rolcheck') setTimeout(teken, 0); return;
     }
-    case 'rijklopt': groep([c], bevestig, 'Alle voorstellen kloppen: ' + c); meld('selklopt', { tab:soortVan(c), n:1 }); return;
-    case 'rol': { const v = a.dataset.v === '1', wasAf = R.status(c).af; R.poZet(c, p => { p.rol = { v, t:now() }; }); if(v) UI.rolOpen[c] = true; meld('rol', { v }); na([c], wasAf, true); return; }
-    case 'heropen': R.poZet(c, p => { p.heropend = now(); }); meld('heropen', {}); WH.toast(R.naamVan(c) + ' staat weer open', 2500); UI.afOpen = true; verversAlles(); return;
-    case 'wegterug': UI.afOpen = true; groep([c], x => R.poZet(x, p => { delete p.weg; delete p.so; delete p.heropend; }), c + ' teruggezet'); meld('wegterug', {}); return;
-    case 'maatklopt': { const cs = openCodes(); groep(cs, bevestig, 'Alle voorstellen kloppen: ' + mv(cs.length, 'product', 'producten')); meld('selklopt', { tab:meerSoort(cs), n:cs.length }); return; }
-    case 'zelfdekg': {
-      const kg = num((document.getElementById('pd2-kgmaat') || {}).value), gw = (document.getElementById('pd2-kgmaat-gew') || {}).checked;
-      if(!(kg > 0)){ WH.toast('Typ een gewicht in kg', 2500); return; }
-      const cs = blokCodes().filter(x => { const g = R.gewicht(x); return !R.isSam(x) && (g.st === 'niet' || g.st === 'tewegen'); });
-      groep(cs, x => R.poZet(x, p => { p.gew = { st:gw ? 'gewogen' : 'vertrouwd', kg, t:now() }; }), 'Gewicht ' + nf(kg, 3) + ' kg voor ' + mv(cs.length, 'product', 'producten'));
-      return;
-    }
-    case 'selklopt': { const cs = selLijst(); groep(cs, bevestig, 'Selectie klopt: ' + mv(cs.length, 'product', 'producten')); meld('selklopt', { tab:meerSoort(cs), n:cs.length }); UI.sel.clear(); verversAlles(); return; }
-    case 'isrol': { const cs = selLijst(); groep(cs, x => R.poZet(x, p => { p.rol = { v:true, t:now() }; }), 'Is rol: ' + mv(cs.length, 'product', 'producten')); meld('rol', { v:true }); return; }
+    case 'rol': { const v = a.dataset.v === '1', wasAf = R.status(c).af; R.poZet(c, p => { p.rol = { v, t:now() }; }); meld('rol', { v }); na([c], wasAf, true); return; }
+    case 'heropen': R.poZet(c, p => { p.heropend = now(); }); meld('heropen', {}); WH.toast(R.naamVan(c) + ' staat weer open', 2500); UI.seg = 'open'; verversAlles(); return;
+    case 'wegterug': UI.seg = 'open'; groep([c], x => R.poZet(x, p => { delete p.weg; delete p.so; delete p.heropend; }), c + ' teruggezet'); meld('wegterug', {}); return;
+    case 'stapklopt': { const cs = kaartCodes(); groep(cs, x => bevestigStap(x, UI.stap), 'Alle voorstellen kloppen (' + STAPT[UI.stap] + '): ' + mv(cs.length, 'product', 'producten')); meld('selklopt', { tab:meerSoort(cs), n:cs.length }); stapVerder(); verversAlles(); return; }
+    case 'gewklopt': { const cs = kaartCodes().filter(x => { const g = R.gewicht(x); return !R.isSam(x) && R.status(x).so !== 'weg' && g.st === 'niet' && g.pq > 0; }); if(!cs.length){ WH.toast('Geen gewichten om te laten kloppen', 2500); return; } groep(cs, x => bevestigStap(x, 'gewicht'), 'Gewichten kloppen: ' + mv(cs.length, 'product', 'producten')); meld('gewklopt', {}); stapVerder(); verversAlles(); return; }
+    case 'gewpop': if(!UI.sel.size){ WH.toast('Vink eerst de producten aan', 2500); return; } gewPopModal(); return;
+    case 'selklopt': { const cs = selLijst(); groep(cs, x => bevestigStap(x, UI.stap), 'Selectie klopt (' + STAPT[UI.stap] + '): ' + mv(cs.length, 'product', 'producten')); meld('selklopt', { tab:meerSoort(cs), n:cs.length }); UI.sel.clear(); stapVerder(); verversAlles(); return; }
     case 'weegprint': weegPrint(); return;
     case 'overzet': overzetModal(); return;
     case 'meet': { a.disabled = true; const st = document.getElementById('pd2-meetst'); R.meet((i, n) => { if(st) st.textContent = 'meten… ' + nf(i) + ' van ' + nf(n); }).then(m => { R.zetMeting(m); WH.toast('Meting klaar: ' + nf(m.n) + ' waarden getoetst', 3000); if(UI.view === 'scores') teken(); }); return; }
@@ -1040,7 +948,7 @@ function koppel(){
   if(gekoppeld) return; gekoppeld = true;
   document.addEventListener('click', klik);
   document.addEventListener('click', ev => { if(ev.target.closest('#pd2-undo [data-a="ongedaan"]')) ongedaan(); });
-  document.addEventListener('toggle', ev => { const d = ev.target; if(!d.matches) return; if(d.matches('details.pd2-rol')) UI.rolOpen[d.dataset.rol] = d.open; if(d.matches('details.pd2-af')) UI.afOpen = d.open; }, true);
+  document.addEventListener('toggle', ev => { const d = ev.target; if(!d.matches) return; }, true);
   document.addEventListener('focusin', ev => { const k = ev.target.closest && ev.target.closest('.pd2 [data-c]'), x = ev.target.dataset && (ev.target.dataset.k || (ev.target.dataset.a === 'gewkg' ? 'gewicht' : '')); if(k && x) UI.lastK[k.dataset.c] = x; });
   document.addEventListener('input', ev => {
     if(ev.target.id !== 'pd2-zoek') return;
@@ -1055,10 +963,6 @@ function koppel(){
       const v = t.value; t.value = '';
       if(a2 === 'oefset'){ UI.oef = { set:v, i:0 }; oefBewaar(); zet('pd2-oefw', oefKaart()); return; }
       if(!v) return;
-      const cs = selLijst();
-      if(a2 === 'allemaal'){ groep(cs, x => { const nu = R.soortWaarde(x), voor = nu.st === 'vastgelegd' ? nu.v : (R.info(x).vsSo || {}).v || ''; R.poZet(x, p => { p.so = { v, st:voor === v ? 'bevestigd' : 'aangepast', voor, t:now() }; }); }, 'Allemaal ' + R.SOORTT[v] + ': ' + mv(cs.length, 'product', 'producten')); cs.forEach(x => meld('soort', { c:x, van:'', naar:v })); UI.sel.clear(); verversAlles(); return; }
-      if(a2 === 'gewicht'){ if(v === 'klopt'){ groep(cs, x => R.poZet(x, p => { p.gew = { st:'vertrouwd', kg:R.kgPq(x) > 0 ? R.kgPq(x) : null, t:now() }; }), 'Gewichten kloppen: ' + mv(cs.length, 'product', 'producten')); meld('gewklopt', {}); } else gewPopModal(); return; }
-      if(a2 === 'zelfde'){ kolomModal(v); return; }
       return;
     }
     const kaart = t.closest('[data-c]'); if(!kaart) return;
@@ -1073,19 +977,11 @@ function koppel(){
     }
     if(!k) return;
     if(k === 'soort') return zetSoort(c, t.value);
-    if(k === 'pickc'){
-      if(t.value === 'anders'){ modal(`<h3>Picklocatie moet anders — ${esc(c)}</h3><textarea id="pd2-pk" placeholder="Hoe moet het? (bijv. naar AD04B04, vaste plek)"></textarea>`, m => { zetVeld(c, 'pickc', 'anders', m.querySelector('#pd2-pk').value.trim()); }); return; }
-      return zetVeld(c, 'pickc', t.value);
-    }
-    if(k === 'mixgroep' && t.value === '__nieuw'){
-      modal('<h3>Nieuwe mixgroep</h3><input id="pd2-mgn" placeholder="Naam, bijv. Vica · trapmaantjes">', m => { const n = m.querySelector('#pd2-mgn').value.trim(); if(!n) return false; R.mgPlus(n); meld('mgnieuw', {}); zetVeld(c, 'mixgroep', n); });
-      verversKaarten([c]); return;
-    }
+    if(k === 'wegkeuze') return zetWeg(c, t.value);
     if(k === 'maat' && t.value === '__anders'){
       modal('<h3>Andere palletmaat</h3><input id="pd2-maatin" placeholder="bijv. 100x130" inputmode="decimal">', m => { const v = normVeld('maat', m.querySelector('#pd2-maatin').value); if(!v || !/^\d{2,3}x\d{2,3}$/.test(v)){ WH.toast('Typ de maat als breedte x lengte, bijv. 100x130', 3000); return false; } zetVeld(c, 'maat', v); });
       verversKaarten([c]); return;
     }
-    if(k === 'verp'){ const f = t.closest('.pd2-verp'), n = f.querySelector('[data-d="n"]').value.trim(), s = f.querySelector('[data-d="s"]').value; return zetVeld(c, 'verp', (n ? n + ' ' : '') + s); }
     zetVeld(c, k, t.value);
   });
   // Enter in een leeg veld met een voorstel = Klopt; daarna naar het volgende veld van de kaart

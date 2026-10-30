@@ -501,8 +501,10 @@ const KOLOMMEN = {
   mix:['pickc', 'lvl', 'maxpick', 'aanvmet', 'verp', 'mixgroep'],
   rollen:['rb', 'rd', 'rl', 'rdia', 'rkg', 'rstand', 'rmax', 'rvast', 'kgm', 'kgcm']
 };
-const NODIG = { pallet:['pickc', 'lvl', 'spp', 'maat', 'hoogte', 'vn'], deel:['pickc', 'lvl', 'maxpick', 'verp', 'spp', 'maat', 'hoogte', 'vn'], pick:['pickc', 'maxpick'], mix:['pickc', 'lvl', 'maxpick', 'verp', 'mixgroep'], sam:['pickc', 'lvl', 'maxpick'] };
-const ROLNODIG = ['rb', 'rd', 'rl', 'rstand', 'rmax', 'rvast'];   // diameter en kg per rol worden berekend (week 1, Daan 30-10)
+// stap 3 (Hoeveelheid): alleen deze velden bepalen of een product klaar is; picklocatie, aanvullen bij, verpakking, vloernaam enz. blijven opgeslagen maar tellen niet meer mee
+const NODIG = { pallet:['spp', 'maat', 'hoogte'], deel:['spp', 'maat', 'hoogte'], pick:['maxpick'], mix:['maxpick'], sam:['maxpick'] };
+const ROLNODIG = ['rl', 'rmax'];   // bij rol op pallet/deel: lengte volle rol en max rollen per pallet
+const ROLVS = ['rb', 'rd', 'rl', 'rstand', 'rmax', 'rvast'];   // voorstellen voor alle rolvelden (diameter en kg per rol worden daaruit berekend)
 const SAMVELD = new Set(['pickc', 'lvl', 'maxpick']);
 const isNvt = v => String(v ?? '').trim().toLowerCase() === 'nvt';
 const isOnb = v => String(v ?? '').trim().toLowerCase() === 'onb';
@@ -1050,7 +1052,7 @@ function bereken(c){
   I.vs.mixgroep = sam ? null : vsMix(c);
   const sppE = effN(c, 'spp', I), maatE = waarde(c, 'maat', I).v;
   I.vs.hoogte = vsHoogte(c, sppE, maatE);
-  ROLNODIG.forEach(k => { I.vs[k] = vsRol(c, k, I); });
+  ROLVS.forEach(k => { I.vs[k] = vsRol(c, k, I); });
   return I;
 }
 
@@ -1129,7 +1131,7 @@ function nodigVan(c, so, I){
   if(so === 'weg') return [];
   let n = isSam(c) ? NODIG.sam.slice() : (NODIG[so] || []).slice();
   if(waarde(c, 'pickc', I).v === 'geenpick') n = n.filter(k => k !== 'lvl' && k !== 'maxpick');
-  if(isRol(c) && !isSam(c)) n = n.concat(ROLNODIG);
+  if(isRol(c) && !isSam(c) && (so === 'pallet' || so === 'deel')) n = ROLNODIG.slice();
   return n;
 }
 function status(c){
@@ -1144,7 +1146,9 @@ function status(c){
   if(so.v !== 'weg' && rolVoorstel(c)) open.push('rol');
   if(so.v !== 'weg' && !isSam(c) && !gewKlaar(g)) open.push('gewicht');
   const af = !!so.v && !open.length && !(po(c) && po(c).heropend);
-  return { so:so.v, soSt:so.st, open, af, gew:g, tab:af ? 'afgerond' : so.v || 'pick' };
+  // drie stappen: 1 Soort · 2 Gewicht · 3 Hoeveelheid; afgerond = alle drie klaar
+  const stap = { soort:soOk && !open.includes('weg'), gewicht:!open.includes('gewicht'), hoev:!open.some(k => !['soort', 'weg', 'gewicht'].includes(k)) };
+  return { so:so.v, soSt:so.st, open, af, stap, gew:g, tab:af ? 'afgerond' : so.v || 'pick' };
 }
 
 /* ---------- live voorraad per locatie: wachtrij voor wat op het scherm staat (alleen lezen, met rem) ----------
@@ -1400,8 +1404,8 @@ function telling(){
 
 return { S, AANNAMES, KEY_OEFEN, KEY_FB, laad, flush, plan, schrijf, po, poZet, poHerstel, wisAlles, oefDone, fbTab, fbOpm, fbOpmWeg, fbAann, mgPlus,
   koppelVan, isKoppel, koppelTekst, wegLicht, controle, maatRegel, vnRegel, sppUitBronnen, famVan, maatVan, famNaam, isSam, naamVan, abcVan, actief, kgPq, vk6, vk28, inkoop, backorders, inkomend, locInfo, som, anderOpPlek,
-  VELD, SOORTEN, SOORTT, WEG, KOLOMMEN, NODIG, ROLNODIG, SAMVELD, MATEN, MATEN_WB, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
-  rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
+  VELD, SOORTEN, SOORTT, WEG, KOLOMMEN, NODIG, ROLNODIG, ROLVS, SAMVELD, MATEN, MATEN_WB, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
+  eenheid, rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
   naControle, liggerVan, labelsVerbeteren, rolCheck, labelsGoed, verschil, verschilKies, herstel, pdFlush, PDQ,
   vraagLive, liveStatus, meet, meting, zetMeting, scoreVan, pd2Overzetten, overzetPlan, overzetToepassen, overzetTerug, overzetEcht, toetsItems, TOETSVELD, SCORE_VOOR, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };
 })();

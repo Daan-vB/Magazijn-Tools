@@ -52,15 +52,14 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     return { kand:k.length, met:met.length, vol:met.filter(c => { const I = PD2R.info(c); return PD2R.ROLNODIG.filter(x => I.vs[x] && I.vs[x].v).length >= 3; }).length, kokos200:k2 ? ['rl', 'rmax', 'rvast'].map(x => (PD2R.info(k2).vs[x] || {}).v) : null }; });
   check('Rollen: voorstellen voor rolproducten', rol.met > 0, JSON.stringify(rol));
   check('Rollen: kokos 200 cm 24 mm = 6 m, 6 per pallet, vaste aantallen', rol.kokos200 && rol.kokos200.join() === '6,6,ja', JSON.stringify(rol.kokos200));
-  // Weg voor alle producten: in een familie onder Weg de link "alle voorstellen Archief"
-  await ev(() => { const c = Object.keys(WH.D.P).find(c => /waterhog/i.test(WH.D.P[c].naam || '') && PD2R.actief(c) && WHPD2.segVan(c) === 'weg'); WHPD2.openFam(PD2R.famVan(c), PD2R.maatVan(c)); });
-  await P.click('[data-a="seg"][data-v="weg"]'); await P.waitForTimeout(200);
-  await P.click('[data-a="wegalle"][data-v="archief"]'); await P.waitForTimeout(400);
-  const weg = await ev(() => { const t = {}; Object.keys(WH.D.P).forEach(c => { const w = PD2R.wegLicht(c); if(w) t[w.v] = (t[w.v] || 0) + 1; }); return { t, scherm:document.querySelector('.pd2').dataset.scherm, kaarten:document.querySelectorAll('article.pd2-kaart').length, titel:document.querySelector('#pd2-maat h3').textContent, buiten:WHPD2.blokCodes().filter(c => PD2R.famVan(c) !== WHPD2.UI.fk).length }; });
-  check('Weg: "alle voorstellen Archief" toont archief-voorstellen van alle producten', weg.scherm === 'wegalle' && weg.kaarten > 0 && /Archief/.test(weg.titel) && weg.buiten > 0, JSON.stringify(weg));
-  // aandacht per familie: hooguit 3 tekstlinks in de kop
-  const fam = await ev(() => { WHPD2.UI.view = null; WHPD2.openFam(WHPD2.families()[0].fk); return { links:[...document.querySelectorAll('.pd2-aand [data-a="aandacht"]')].map(x => x.textContent.trim()) }; });
-  check('Familie toont hooguit 3 aandachtspunten als tekstlink', fam.links.length > 0 && fam.links.length <= 3, JSON.stringify(fam));
+  // Weg voor alle producten: op het startscherm onder Meer "Weg-voorstellen Archief"
+  await ev(() => { WHPD2.UI.view = null; WHPD2.UI.fk = null; WHPD2.teken(); });
+  await P.click('.pd2-meer2 > summary'); await P.click('.pd2-meer2 [data-a="wegalle"][data-v="archief"]'); await P.waitForTimeout(400);
+  const weg = await ev(() => ({ scherm:document.querySelector('.pd2').dataset.scherm, kaarten:document.querySelectorAll('article.pd2-kaart').length, titel:document.querySelector('#pd2-maat h3').textContent, buiten:WHPD2.blokCodes().filter(c => PD2R.famVan(c) !== WHPD2.UI.fk).length }));
+  check('Weg: Meer → "Weg-voorstellen Archief" toont archief-voorstellen van alle producten', weg.scherm === 'wegalle' && weg.kaarten > 0 && /Archief/.test(weg.titel) && weg.buiten > 0, JSON.stringify(weg));
+  // familiekop: geen aandachtspunten-knoppen meer; tabs alleen Open en Afgerond
+  const fam = await ev(() => { WHPD2.UI.view = null; WHPD2.openFam(WHPD2.families()[0].fk); return { links:document.querySelectorAll('[data-a="aandacht"]').length, tabs:[...document.querySelectorAll('.pd2-segbalk [data-a="seg"]')].map(x => x.dataset.v).join() }; });
+  check('Familie: geen aandachtspunten-knoppen, tabs alleen Open en Afgerond', fam.links === 0 && fam.tabs === 'open,afgerond', JSON.stringify(fam));
   // weeglijst: palletgewicht via reachtruck en printen
   const wc = await ev(() => { const c = Object.keys(WH.D.P).find(c => PD2R.actief(c) && !PD2R.isKoppel(c) && WHPD2.segVan(c) === 'pallet' && PD2R.nOf(PD2R.waarde(c, 'spp').v) > 0); PD2R.poZet(c, p => { p.gew = { st:'tewegen' }; p.so = { v:'pallet', st:'bevestigd', voor:'pallet' }; }); WHPD2.UI.view = 'weeg'; WHPD2.teken(); return [c, PD2R.nOf(PD2R.waarde(c, 'spp').v)]; });
   const inp = P.locator(`.pd2-wrij[data-c="${wc[0]}"] [data-a="palletkg"]`);
@@ -79,7 +78,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await ev(() => document.documentElement.classList.remove('pd2-print')); await P.emulateMedia({ media:'screen' });
   // scores onder ⓘ en uitklapblok
   await ev(() => { WHPD2.UI.view = null; WHPD2.UI.fk = null; WHPD2.teken(); });
-  await P.click('[data-a="oefmenu"]'); await P.click('.pd2-modal [data-a="view"][data-v="scores"]'); await P.waitForTimeout(300);
+  await P.click('.pd2-meer2 > summary'); await P.click('[data-a="oefmenu"]'); await P.click('.pd2-modal [data-a="view"][data-v="scores"]'); await P.waitForTimeout(300);
   const sc = await ev(() => ({ blok:!!document.getElementById('pd2-scores'), tekst:document.getElementById('pd2-scores').textContent.slice(0, 120), rijen:document.querySelectorAll('#pd2-scores .pd2-scorerij').length, tabel:document.querySelectorAll('#pd2-scores table').length }));
   check('"Hoe goed zijn de voorstellen" via Oefenmodus ⋯, als lijst (geen tabel)', sc.blok && /Hoe goed/.test(sc.tekst) && sc.rijen > 5 && sc.tabel === 0, JSON.stringify(sc));
   await ev(() => PD2R.flush()); await P.waitForTimeout(800);

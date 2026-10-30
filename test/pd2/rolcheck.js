@@ -8,7 +8,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   const ev = (f, a) => P.evaluate(f, a);
   const l = await ev(() => { const l = PD2R.rolCheck(); return { n:l.length, afw:l.filter(x => x.afw).length, mist:l.filter(x => x.mist).length, metDia:l.filter(x => x.dia).length, metKg:l.filter(x => x.kgrol).length, dicht:l.filter(x => x.dicht).length }; });
   check('Alle rollen in de lijst, met diameter, kg per rol en kg per m² per mm', l.n > 50 && l.metDia > 0 && l.metKg > 0 && l.dicht > 0, JSON.stringify(l));
-  await P.click('[data-a="view"][data-v="rolcheck"]'); await P.waitForTimeout(400);
+  await P.click('.pd2-meer2 > summary'); await P.click('[data-a="view"][data-v="rolcheck"]'); await P.waitForTimeout(400);
   const s = await ev(() => ({ rijen:document.querySelectorAll('.pd2-rc').length, h:document.querySelector('.pd2 h2').textContent, breed:document.documentElement.scrollWidth <= innerWidth + 1 }));
   check('Scherm "Rollen controleren" toont de rollen, zonder horizontale scroll', s.rijen > 0 && /Rollen controleren/.test(s.h) && s.breed, JSON.stringify(s));
   const c = await ev(() => document.querySelector('.pd2-rc:not(.af)').dataset.c);

@@ -1,5 +1,5 @@
-// Week 1 · A: soort opslaan bij Klopt/Alles klopt, kg vastleggen bij vertrouwd, alle picklocaties volledig, max per ligger uit het
-// liggertype, controle na invoer (oranje), "Hoe vul je pick aan?" + Binnenkomst, palletlabel met andere productcode niet gebruikt.
+// Week 1 · A: soort opslaan bij Selectie klopt, kg vastleggen bij vertrouwd, max per ligger uit het liggertype, controle na invoer (oranje),
+// palletlabel met andere productcode niet gebruikt, rol.
 // Schrijven: wh-pd2-* en productdata (bron pd2) gaan naar een kopie in het geheugen, nooit naar de database.
 const { start, open } = require('./opzet.js');
 const ok = [], fout = [];
@@ -19,23 +19,19 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('Scherm "Palletlabels om te verbeteren" toont het label', await ev(() => /100200WM/.test(document.querySelector('.pd2').textContent)));
   // 1 + 2: Alles klopt slaat ook een vastgelegde soort op; vertrouwd legt de Picqer-kg vast
   const c = await ev(() => { const c = Object.keys(WH.D.P).find(c => PD2R.actief(c) && !PD2R.isKoppel(c) && !PD2R.isSam(c) && PD2R.soortWaarde(c).st === 'vastgelegd' && PD2R.soortWaarde(c).v !== 'weg' && PD2R.kgPq(c) > 0 && !PD2R.po(c)); WHPD2.UI.view = null; WHPD2.openFam(PD2R.famVan(c), PD2R.maatVan(c)); return c; });
-  await P.click(`article.pd2-kaart[data-c="${c}"] [data-a="rijklopt"]`).catch(() => {});
+  await P.check(`article.pd2-kaart[data-c="${c}"] [data-a="sel"]`); await P.click('#pd2-actie [data-a="selklopt"]');
   await P.waitForTimeout(300);
   const so = await ev(c => PD2R.po(c) && PD2R.po(c).so, c);
-  check('Alles klopt slaat de soort echt op (ook als die al vastlag)', so && so.v && so.st === 'bevestigd', JSON.stringify(so));
+  check('Selectie klopt slaat de soort echt op (ook als die al vastlag)', so && so.v && so.st === 'bevestigd', JSON.stringify(so));
+  await ev(() => { WHPD2.UI.sel.clear(); WHPD2.UI.stap = 'gewicht'; WHPD2.verversAlles(); });
   await P.click(`article.pd2-kaart[data-c="${c}"] [data-a="gewst"][data-v="vertrouwd"]`); await P.waitForTimeout(300);
   const g = await ev(c => ({ gew:PD2R.po(c).gew, pq:PD2R.kgPq(c) }), c);
   check('Gewicht vertrouwd: de Picqer-kg wordt vastgelegd', g.gew.st === 'vertrouwd' && g.gew.kg === g.pq, JSON.stringify(g));
   await ev(() => PD2R.pdFlush()); await P.waitForTimeout(600);
   const rij = T.pdWrites.filter(x => x.productcode === c).pop();
   check('…en gaat direct naar productdata (opslag en kgst, bron pd2) met vooraf een kopie', rij && rij.meta.kgst && rij.meta.kgst.bron === 'pd2' && T.writes.some(k => /^wh-pd2-kopie-/.test(k)), JSON.stringify(rij && { kgst:rij.data.kgst, opslag:rij.data.opslag }));
-  // 3 alle picklocaties volledig, 6 label en Binnenkomst
-  const pk = await ev(() => { const c = Object.keys(WH.D.P).find(c => PD2R.actief(c) && !PD2R.isKoppel(c) && PD2R.info(c).f.pick.length >= 2 && ['pallet', 'deel'].includes(PD2R.status(c).so)); WHPD2.openFam(PD2R.famVan(c), PD2R.maatVan(c)); return c; });
-  const pi = await ev(c => { const k = document.querySelector(`article.pd2-kaart[data-c="${c}"]`); const locs = [...k.querySelectorAll('[data-kc="pickc"] .locs .m')]; return { n:PD2R.info(c).f.pick.length, getoond:locs.length, afgekapt:locs.some(x => x.scrollWidth > x.clientWidth + 1), label:k.querySelector('.pd2-soort label').textContent, binnen:!!k.querySelector('[data-kc="binnen"] select') }; }, pk);
-  check('Alle picklocaties onder elkaar, niet afgekapt', pi.getoond === pi.n && pi.n >= 2 && !pi.afgekapt, JSON.stringify(pi));
-  check('"Hoe vul je pick aan?" met Binnenkomst bij Pallet/Deel', pi.label === 'Hoe vul je pick aan?' && pi.binnen);
   // 5 controle na invoer
-  const nc = await ev(() => { const c = Object.keys(WH.D.P).find(c => { try{ const b = WHPD.intern.sppBronnen(c) || {}; return b.vst2 && PD2R.actief(c) && !PD2R.isKoppel(c); }catch(e){ return false; } }); const v = String((+WHPD.intern.sppBronnen(c).vst2.v) + 7); PD2R.S.echt = false; PD2R.poZet(c, p => { p.f.spp = { v, st:'aangepast', voor:'' }; }); PD2R.S.echt = true; const t = PD2R.naControle(c, 'spp'); WHPD2.openFam(PD2R.famVan(c), PD2R.maatVan(c)); const el = document.querySelector(`article.pd2-kaart[data-c="${c}"] [data-kc="spp"] .pd2-oranje`); const w = PD2R.waarde(c, 'spp').v; PD2R.S.echt = false; PD2R.poHerstel(c, null); PD2R.S.echt = true; return { c, t, getoond:!!el, waarde:w, kleur:el ? getComputedStyle(el).color : '' }; });
+  const nc = await ev(() => { const c = Object.keys(WH.D.P).find(c => { try{ const b = WHPD.intern.sppBronnen(c) || {}; return b.vst2 && PD2R.actief(c) && !PD2R.isKoppel(c); }catch(e){ return false; } }); const v = String((+WHPD.intern.sppBronnen(c).vst2.v) + 7); PD2R.S.echt = false; PD2R.poZet(c, p => { p.f.spp = { v, st:'aangepast', voor:'' }; }); PD2R.S.echt = true; const t = PD2R.naControle(c, 'spp'); WHPD2.openFam(PD2R.famVan(c), PD2R.maatVan(c)); WHPD2.UI.stap = 'hoev'; WHPD2.verversAlles(); const el = document.querySelector(`article.pd2-kaart[data-c="${c}"] [data-kc="spp"] .pd2-oranje`); const w = PD2R.waarde(c, 'spp').v; PD2R.S.echt = false; PD2R.poHerstel(c, null); PD2R.S.echt = true; return { c, t, getoond:!!el, waarde:w, kleur:el ? getComputedStyle(el).color : '' }; });
   check('Controle na invoer: VST zegt iets anders → oranje onder het veld, waarde niet gewijzigd', /^VST: /.test(nc.t) && nc.getoond && /rgb\(176, 90, 0\)/.test(nc.kleur), JSON.stringify(nc));
   // rol: diameter op koker 10 cm; lengte die in de familie het meest voorkomt wordt voorstel voor de rest
   const rl = await ev(() => {
