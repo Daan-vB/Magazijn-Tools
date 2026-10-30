@@ -2699,12 +2699,21 @@ async function startregelsToepassen(c){
   const pl = pools(c), codes = pl.order.filter(code => startVoor(code));
   if(!codes.length){ toast('Niets te doen: de startregels staan er al.'); return; }
   try{
-    const r = await api('GET', 'catalog?key=eq.catalog-ean&select=data'), cat = (r.length ? r[0].data : {}) || {};
+    const r = await api('GET', 'catalog?key=eq.catalog-ean&select=data'), cat = (r.length ? r[0].data : {}) || {}, oud = JSON.parse(JSON.stringify(cat));
     codes.forEach(code => {
       const nieuw = startVoor(code), g = geh1(code), naam = (g && g.name) || naamVan(code) || code;
       const rec = vnZetRegel(cat, code, naam, nieuw.qty);
       Object.keys(nieuw).forEach(k => { if(k !== 'qty') rec[k] = nieuw[k]; });
     });
+    // eerst een kopie van catalog-ean, zoals Productdata 2.0 bij gelijkzetten; lukt die niet, dan niet opslaan
+    const nu = new Date(), p2 = n => String(n).padStart(2, '0'), kopieKey = 'catalog-ean-kopie-' + nu.getFullYear() + '-' + p2(nu.getMonth() + 1) + '-' + p2(nu.getDate());
+    const kopieRij = m => [{ key:kopieKey, mode:m, data:oud, updated_at:nu.toISOString() }];
+    try{ await api('POST', 'catalog?on_conflict=key', kopieRij('wh'), { Prefer:'resolution=merge-duplicates,return=minimal' }); }
+    catch(e){
+      if(!/23514|check|mode/i.test(e.body || '')) throw new Error('kopie van palletlabels mislukt: ' + e.message);
+      try{ await api('POST', 'catalog?on_conflict=key', kopieRij('ean'), { Prefer:'resolution=merge-duplicates,return=minimal' }); }
+      catch(e2){ throw new Error('kopie van palletlabels mislukt: ' + e2.message); }
+    }
     await api('POST', 'catalog?on_conflict=key', [{ key:'catalog-ean', mode:'ean', data:cat, updated_at:new Date().toISOString() }], { Prefer:'resolution=merge-duplicates,return=minimal' });
     indexCatalog(cat); PLAN = null; rerender();
     toast('Startregels gezet voor ' + codes.length + ' product' + (codes.length > 1 ? 'en' : '') + '.');
