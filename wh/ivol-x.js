@@ -12,7 +12,7 @@
 window.WHX = (function(){
 'use strict';
 const { $, esc, nf, D, isoDag, vandaag, toast } = WH;
-const S = { pd:null, pdLaden:null, pdFout:null, dag:null, dagLaden:null, tab:'pd', zoek:'', gekozen:null, el:null, naam:'', rest:'' };
+const S = { later:new Set(), aanpas:false, pd:null, pdLaden:null, pdFout:null, dag:null, dagLaden:null, tab:'pd', zoek:'', gekozen:null, el:null, naam:'', rest:'' };
 const ik = () => { try{ return localStorage.getItem('ivol-ik') || 'Daan'; }catch(e){ return 'Daan'; } };
 const VELD = { opslag:'Soort', spp:'Stuks per pallet', pick:'Picklocatie', maxpick:'Max op pick', lvl:'Aanvullen bij', met:'Aanvullen met', geleverd:'Geleverd', mixgroep:'Mixgroep',
   maat:'Palletmaat', hoogte:'Hoogte incl. pallet (cm)', gewicht:'Gewicht volle pallet (kg)', plaatsen:'Plaatsen op ligger', vn:'Vloernaam', spd:'Stuks per doos', maxlig:'Max pallets per ligger', kgst:'Gewicht per stuk (kg)', doos:'Doosmaat', opm:'Opmerking' };
@@ -44,6 +44,7 @@ function stijl(){
   .x-why{font-size:12.5px;color:var(--muted)}
   .x-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;border:1px solid var(--lijn);background:#fff;border-radius:8px;padding:7px 12px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;text-decoration:none;color:inherit}
   .x-btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+  .x-vraag{max-width:720px}.x-q{font-size:15px;overflow-wrap:anywhere}.x-acties{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.x-acties input{flex:1 1 160px;min-width:0;min-height:44px;border:1px solid var(--lijn);border-radius:6px;padding:7px 9px;font:inherit;font-size:15px}.x-vraag .code{font-family:ui-monospace,Consolas,monospace;font-weight:800}
   .x-btn.pri{background:#f08a4b;border-color:#f08a4b}
   .x-btn:disabled{opacity:.5;cursor:default}
   .x-tegels{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
@@ -118,6 +119,93 @@ function twLijst(){
   });
   return uit.sort((a, b) => (ABC[abcVan(a.c)] ?? 3) - (ABC[abcVan(b.c)] ?? 3) || naamVan(a.c).localeCompare(naamVan(b.c)));
 }
+/* ---------- één vraag tegelijk (Daan 30-10): alleen wat Productdata 2.0 ook vraagt ----------
+   Soort, gewicht per stuk en de hoeveelheid van de soort (Pallet/Deel: stuks per pallet, palletmaat, hoogte; Pick/Mix: max op pick).
+   Stuks per doos, picklocatie, aanvullen bij en vloernaam worden niet meer gevraagd; hun waarden blijven staan. */
+const PD2VRAAG = { opslag:'Soort', kgst:'Gewicht per stuk (kg)', spp:'Stuks per pallet', maat:'Palletmaat', hoogte:'Hoogte incl. pallet (cm)', maxpick:'Max op pick', rol:'Is dit een rol?', rl:'Lengte volle rol (m)', rmax:'Max rollen per pallet' };
+const PD2EIGEN = new Set(['rol', 'rl', 'rmax']);   // alleen in de opslag van Productdata 2.0 (niet in productdata)
+const PD2SOORT = { spp:['pallet', 'deel'], maat:['pallet', 'deel'], hoogte:['pallet', 'deel'], maxpick:['pick', 'mix'] };
+const pd2Klaar = () => !!(window.PD2R && PD2R.S && PD2R.S.klaar);
+function soortVan(c){
+  let so = ((S.pd || {})[c] || { data:{} }).data.opslag;
+  try{ if(pd2Klaar()) so = PD2R.status(c).so || so; }catch(e){}
+  return String(so || '').trim().toLowerCase();
+}
+function famVan(c){
+  try{ if(pd2Klaar()) return PD2R.famVan(c); }catch(e){}
+  return ((D.P[c] || {}).leverancier || '') + '|' + naamVan(c).split(' - ')[0].trim().toLowerCase();
+}
+function vraagLijst(){
+  const L = [], VO = Object.keys(PD2VRAAG);
+  twLijst().forEach(x => x.velden.forEach(f => {
+    if(!PD2VRAAG[f.k] || !D.P[x.c]) return;
+    if(PD2SOORT[f.k] && !PD2SOORT[f.k].includes(soortVan(x.c))) return;
+    if(S.later.has(x.c + '|' + f.k)) return;
+    L.push({ c:x.c, k:f.k, v:f.v, uit:f.uit, fam:famVan(x.c), ab:/^[AB]$/.test(abcVan(x.c)) ? 0 : 1 });
+  }));
+  // rol (Productdata 2.0): "Is dit een rol?" en daarna lengte volle rol en max rollen per pallet, als 2.0 die open heeft
+  if(pd2Klaar()) twLijst().forEach(x => {
+    if(!D.P[x.c]) return;
+    try{
+      const st = PD2R.status(x.c), ab = /^[AB]$/.test(abcVan(x.c)) ? 0 : 1, fam = famVan(x.c);
+      if(PD2R.rolVoorstel(x.c)){ if(!S.later.has(x.c + '|rol')) L.push({ c:x.c, k:'rol', v:'ja', uit:'naam of Picqer-eenheid wijst op een rol', fam, ab }); }
+      ['rl', 'rmax'].forEach(k => { if(!st.open.includes(k) || S.later.has(x.c + '|' + k)) return; const w = PD2R.waarde(x.c, k); L.push({ c:x.c, k, v:w.v || '', uit:w.why || '', fam, ab }); });
+    }catch(e){}
+  });
+  // A/B eerst, dan per familie en per vraag: dezelfde vraag komt achter elkaar
+  return L.sort((a, b) => a.ab - b.ab || a.fam.localeCompare(b.fam) || VO.indexOf(a.k) - VO.indexOf(b.k) || naamVan(a.c).localeCompare(naamVan(b.c), 'nl', { numeric:true }));
+}
+// zelfde opslag als Productdata 2.0: productdata met bron pd2, vooraf een kopie van de rijen in wh-pd2-kopie-<dag>
+async function pd2Zet(items){
+  const eigen = items.filter(x => PD2EIGEN.has(x.k)); items = items.filter(x => !PD2EIGEN.has(x.k));
+  if(eigen.length){
+    const nu = new Date().toISOString();
+    eigen.forEach(({ c, k, v }) => PD2R.poZet(c, p => {
+      if(k === 'rol') p.rol = { v:/^(ja|j|1|true)$/i.test(String(v).trim()), st:'bevestigd', t:nu };
+      else { const w = PD2R.waarde(c, k), voor = w && ['voorstel', 'twijfel'].includes(w.st) ? String(w.v) : ''; p.f[k] = { v:String(v), st:voor && voor === String(v) ? 'bevestigd' : 'aangepast', voor, t:nu }; }
+    }));
+    await PD2R.flush();
+  }
+  if(!items.length) return;
+  const codes = [...new Set(items.map(x => x.c))], nu = new Date().toISOString();
+  const lijst = codes.map(c => '"' + String(c).replace(/"/g, '\\"') + '"').join(',');
+  const vers = await WH.api('GET', 'productdata?productcode=in.(' + encodeURIComponent(lijst) + ')&select=productcode,data,meta');
+  const oud = {}; (vers || []).forEach(r => { oud[r.productcode] = r; });
+  const dag = nu.slice(0, 10), key = 'wh-pd2-kopie-' + dag, k0 = await WH.catHaal(key).catch(() => null), kd = (k0 && k0.data && Array.isArray(k0.data.rijen)) ? k0.data : { dag, rijen:[] };
+  codes.forEach(c => kd.rijen.push({ c, t:nu, rij:oud[c] || null, wijz:items.filter(x => x.c === c).map(x => x.k) }));
+  await WH.catZet(key, kd);
+  const rijen = codes.map(c => {
+    const r = oud[c] || { productcode:c, data:{}, meta:{} }, data = Object.assign({}, r.data || {}), meta = Object.assign({}, r.meta || {});
+    items.filter(x => x.c === c).forEach(({ k, v }) => {
+      v = String(v ?? '').trim(); if(!v) return;
+      const was = meta[k] && meta[k].tw ? ' (was schatting Claude' + (String(data[k]) !== v ? ': ' + data[k] : '') + ')' : '';
+      data[k] = v; meta[k] = { op:nu, bron:'pd2', uit:'Te controleren (3.0) door ' + ik() + was };
+      if(window.WHPD && WHPD.regelFout && WHPD.regelFout(c, k, v)) meta[k].rok = 1;
+    });
+    return { productcode:c, data, meta, updated_at:nu };
+  });
+  await WH.upsert('productdata', rijen, 'productcode');
+  rijen.forEach(r => {
+    if(S.pd) S.pd[r.productcode] = { data:r.data, meta:r.meta };
+    if(D.PD) D.PD[r.productcode] = r.data;
+    if(window.WHPD && WHPD.S && WHPD.S.pd) WHPD.S.pd[r.productcode] = { data:r.data, meta:r.meta, t:nu };
+    try{ if(window.PD2R && PD2R.ongeldig) PD2R.ongeldig(r.productcode); }catch(e){}
+  });
+}
+function vraagHtml(){
+  const L = vraagLijst(), q = L[0];
+  if(!q) return `<div class="blok"><b>Niets meer te controleren in Productdata.</b>${S.later.size ? ` <span class="muted">${nf(S.later.size)} op later gezet (komen terug na herladen).</span>` : ''}</div>`;
+  const p = D.P[q.c] || {}, fam = L.filter(x => x.fam === q.fam && x.k === q.k);
+  const feiten = [p.leverancier, abcVan(q.c) ? 'ABC ' + abcVan(q.c) : '', p.voorraad_hm != null ? 'voorraad ' + nf(+p.voorraad_hm || 0) : '', soortVan(q.c) ? 'soort ' + soortVan(q.c) : ''].filter(Boolean).join(' · ');
+  const reden = String(q.uit || '').replace(/\s+/g, ' ').slice(0, 140);
+  return `<div class="small muted x-nog">nog ${nf(L.length)} ${L.length === 1 ? 'vraag' : 'vragen'}</div>
+    <div class="x-kaart x-vraag" data-code="${esc(q.c)}" data-k="${esc(q.k)}">
+      <div><b>${esc(naamVan(q.c))}</b><div class="small muted"><span class="code">${esc(q.c)}</span>${feiten ? ' · ' + esc(feiten) : ''}</div></div>
+      <div class="x-q"><b>${esc(PD2VRAAG[q.k])}</b>: <b class="x-vs">${q.v ? esc(q.v) : 'geen voorstel'}</b>${reden ? ` <span class="x-why">— ${esc(reden)}</span>` : ''}</div>
+      ${S.aanpas ? `<div class="x-acties"><input id="x-vin" value="${esc(q.v)}" aria-label="${esc(PD2VRAAG[q.k])}" autocomplete="off"><button class="x-btn ok" data-x="vopslaan">Opslaan</button></div>` : ''}
+      <div class="x-acties">${q.v ? '<button class="x-btn ok" data-x="vklopt">Klopt</button>' : ''}${S.aanpas ? '' : '<button class="x-btn" data-x="vaanpas">Aanpassen</button>'}<button class="x-btn" data-x="vlater">Later</button>${fam.length > 1 ? `<button class="x-btn" data-x="vfam">geldt voor alle ${nf(fam.length)} in deze familie</button>` : ''}</div>
+    </div>`;
+}
 async function bevestig(c, waarden){
   // waarden = { veld: waarde }; vers lezen, samenvoegen, één rij terugschrijven
   const nu = new Date().toISOString();
@@ -189,7 +277,7 @@ async function parkeer(c, k, reden){
 
 /* ---------- Te controleren ---------- */
 function viewNakijken(){
-  const tw = twLijst(), nTw = tw.reduce((s, x) => s + x.velden.length, 0);
+  const tw = twLijst(), nTw = S.pd ? vraagLijst().length : 0;
   const aan = window.WHAAN ? WHAAN.open() : [];
   const zonder = Object.entries(D.VR || {}).filter(([c, v]) => v.geen > 0).length;
   const tab = S.tab;
@@ -206,15 +294,9 @@ function viewNakijken(){
     if(S.pdFout) body = `<div class="blok let">Productdata laden lukte niet: ${esc(S.pdFout.message || String(S.pdFout))}</div>`;
     else if(!S.pd){ laadPd(); body = '<div class="leeg">Productdata laden…</div>'; }
     else if(!(window.WHPD && WHPD.S && WHPD.S.klaar) && window.WHTAAK && !S.rcPoging){ S.rcPoging = true; WHTAAK.pdLaden().then(() => { S.rcKlaar = true; herteken(); }, () => { S.rcKlaar = true; herteken(); }); body = '<div class="leeg">Regelcontrole laden…</div>'; }
-    else if(!tw.length && window.WHPD && WHPD.S && WHPD.S.klaar) body = '<div class="blok"><b>Niets meer te controleren in Productdata.</b></div>';
+    else if(!nTw && window.WHPD && WHPD.S && WHPD.S.klaar) body = vraagHtml();
     else if(!tw.length) body = S.rcKlaar ? '<div class="blok"><b>Niets meer te controleren in de schattingen van Claude.</b> <span class="muted">De regelcontrole (waarden die tegen een regel ingaan) kon niet laden.</span></div>' : '<div class="leeg">Regelcontrole laden…</div>';
-    else body = `<div class="small muted">${nf(tw.length)} producten · ${nf(nTw)} waarden · belangrijkste eerst. Pas aan waar nodig en tik <b>Klopt</b>; de waarde wordt dan jouw invoer.</div>` +
-      tw.slice(0, 120).map(x => `<div class="x-kaart" data-code="${esc(x.c)}">
-        <div class="x-kop"><div><span class="code">${esc(x.c)}</span>${abcVan(x.c) ? `<span class="x-abc ${esc(abcVan(x.c))}">${esc(abcVan(x.c))}</span>` : ''}<div class="small muted">${esc(naamVan(x.c).slice(0, 90))}</div></div>
-          <button class="x-btn ok" data-x="alles" data-code="${esc(x.c)}">Alles klopt</button></div>
-        ${x.velden.map(f => `<div class="x-rij"><b>${esc(VELD[f.k] || f.k)}</b><input data-open="1" data-k="${esc(f.k)}" value="${esc(f.v)}" aria-label="${esc(VELD[f.k] || f.k)}"><span class="x-why">${VHULP[f.k] ? `<span class="x-hulp">${esc(VHULP[f.k])}</span>` : ''}${esc(f.uit.replace(/^Schatting Claude: /, '').replace(/^Voorstel app \((laag|mid)\): /, 'onzeker voorstel: '))}</span><button class="x-btn" data-x="een" data-code="${esc(x.c)}" data-k="${esc(f.k)}">Klopt</button><div class="x-ex"><button class="x-btn" data-x="later" data-code="${esc(x.c)}" data-k="${esc(f.k)}">Later (bij levering)</button><button class="x-btn" data-x="overbodig" data-code="${esc(x.c)}" data-k="${esc(f.k)}">Overbodig nu</button></div></div>`).join('')}
-        ${overigeVelden(x).map(f => `<div class="x-rij vast"><b>${esc(VELD[f.k] || f.k)}</b><input data-k="${esc(f.k)}" value="${esc(f.v)}" aria-label="${esc(VELD[f.k] || f.k)}"><span class="x-why">${VHULP[f.k] ? `<span class="x-hulp">${esc(VHULP[f.k])}</span>` : ''}staat al vast${f.uit ? ' · ' + esc(f.uit.slice(0, 60)) : ''}</span><button class="x-btn" data-x="een" data-code="${esc(x.c)}" data-k="${esc(f.k)}">Opslaan</button></div>`).join('')}
-      </div>`).join('') + (tw.length > 120 ? `<div class="small muted">Nog ${nf(tw.length - 120)} producten; die komen hier als je deze afrondt.</div>` : '');
+    else { if(window.PD2R && PD2R.laad && !pd2Klaar() && !S.pd2Poging){ S.pd2Poging = true; PD2R.laad().then(herteken, herteken); } body = vraagHtml(); }
   } else if(tab === 'aan'){
     const groepen = [...new Set(WHAAN.LIJST.map(a => a.groep))];
     const nOk = WHAAN.LIJST.length - aan.length;
@@ -350,7 +432,7 @@ function viewDag(){
   const K = cijfers(), vd = vandaag(), dg = (S.dag || {})[vd] || {}, af = dg.af || {}, tn = tijdNu();
   const R = ritme(); const volgende = R.find(r => !af[r.id] && r.tijd && r.tijd >= tn) || null;
   const nAf = R.filter(r => af[r.id]).length;
-  const tw = S.pd ? twLijst().length : null;
+  const tw = S.pd ? new Set(vraagLijst().map(q => q.c)).size : null;
   if(!S.pd) laadPd();
   return `<div class="pagina"><h1>Dagstart · ${esc(new Date().toLocaleDateString('nl-NL', { weekday:'long', day:'numeric', month:'long' }))}</h1>
     <p class="lede">Zes cijfers, het ritme van de dag en het ochtendoverleg. Groen = op schema, oranje = let op, rood = nu iets doen. Grenzen en tijden staan onder Te controleren (aannames).</p>
@@ -391,7 +473,7 @@ function viewStand(){
   // locatie-aandachtspunten: telling uit wh/locaties.js (zonder besliste uitzonderingen en verwerkte besluiten)
   let locA = null; try{ const T = window.WHLOC ? WHLOC.telling() : null; if(T && T.geladen) locA = T.werk; else if(window.WHL && WHL.locStats){ const a = WHL.locStats().aand || {}; locA = Object.values(a).reduce((s, x) => s + (Array.isArray(x) ? x.length : 0), 0); } }catch(e){}
   const contN = (D.CONT || []).filter(c => c.status !== 'afgerond' && c.losdatum && c.losdatum >= vd && c.losdatum <= isoDag(Date.now() + 14 * 864e5));
-  const tw = S.pd ? twLijst().length : null;
+  const tw = S.pd ? new Set(vraagLijst().map(q => q.c)).size : null;
   const daanOpen = Object.values(D.TODO || {}).filter(t => t && t.titel && !t.klaar && (t.wie || []).includes('Daan') && t.datum <= vd).length;
   const p = (nr, titel, meting, kl, uitleg, href) => `<div class="x-punt ${kl}"><span class="nr">${nr}</span><b>${esc(titel)}</b><span class="m">${meting}</span><span class="small muted">${uitleg}</span>${href ? `<a class="small" href="${href}">bekijken →</a>` : ''}</div>`;
   const geenBron = 'nog geen bron';
@@ -526,6 +608,19 @@ function bind(){
     const x = b.dataset.x;
     try{
       if(x === 'tab'){ S.tab = b.dataset.v; herteken(); }
+      else if(['vklopt', 'vopslaan', 'vfam'].includes(x)){
+        const kaart = b.closest('.x-vraag'), c = kaart.dataset.code, k = kaart.dataset.k, inp = $('x-vin');
+        const L = vraagLijst(), q = L.find(y => y.c === c && y.k === k); if(!q) return;
+        const v = x === 'vopslaan' || (x === 'vfam' && inp) ? (inp ? inp.value.trim() : q.v) : q.v;
+        if(!v){ toast('Vul een waarde in'); return; }
+        const items = x === 'vfam' ? L.filter(y => y.fam === q.fam && y.k === k).map(y => ({ c:y.c, k, v })) : [{ c, k, v }];
+        kaart.querySelectorAll('button').forEach(z => { z.disabled = true; });
+        try{ await pd2Zet(items); S.aanpas = false; toast(items.length > 1 ? (PD2VRAAG[k] + ' ' + v + ' voor ' + items.length + ' producten') : c + ': ' + PD2VRAAG[k] + ' ' + v); }
+        catch(err){ toast('Opslaan mislukt: ' + (err.message || err)); }
+        herteken(); const i2 = $('x-vin'); if(i2) i2.focus();
+      }
+      else if(x === 'vaanpas'){ S.aanpas = true; herteken(); const i2 = $('x-vin'); if(i2){ i2.focus(); i2.select(); } }
+      else if(x === 'vlater'){ const kaart = b.closest('.x-vraag'); S.later.add(kaart.dataset.code + '|' + kaart.dataset.k); S.aanpas = false; herteken(); }
       else if(x === 'een' || x === 'alles'){
         const kaart = b.closest('.x-kaart'), c = b.dataset.code, w = {};
         kaart.querySelectorAll('input[data-k]').forEach(i => { if(x === 'alles' ? i.dataset.open : i.dataset.k === b.dataset.k) w[i.dataset.k] = i.value; });
@@ -600,12 +695,12 @@ async function banner(el){
     await (async () => { while(!window.IVOL) await new Promise(r => setTimeout(r, 50)); await IVOL.geladen(); })();
     await Promise.all([window.WHAAN ? WHAAN.laad() : null, laadPd()]);
     await zaaiTaken();   // eenmalig: de taken uit de masteropdracht 17-10
-    bannerTel = { n:twLijst().length, a:window.WHAAN ? WHAAN.open().length : 0 };
+    bannerTel = { n:new Set(vraagLijst().map(q => q.c)).size, a:window.WHAAN ? WHAAN.open().length : 0 };
     stijl();
     bannerEl = el; maakBanner();
     zetBanner(el);
     if(!obs && window.MutationObserver){ obs = new MutationObserver(() => zetBanner(el)); obs.observe(el, { childList:true }); }
   }catch(e){ console.error(e); }
 }
-return { render, herteken, twLijst, laadPd, cijfers, banner, S };
+return { render, herteken, twLijst, vraagLijst, laadPd, cijfers, banner, S };
 })();
