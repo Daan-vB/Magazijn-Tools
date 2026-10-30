@@ -14,7 +14,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await P.evaluate(() => document.querySelectorAll('[data-act="advneem"]').forEach(b => { if(b.dataset.code === '42x22rub100') b.click(); }));
   await P.waitForTimeout(600);
   const n = await P.evaluate(() => { const k = [...document.querySelectorAll('[data-code="42x22rub100"]')][0]; return k ? [...k.querySelectorAll('input[data-p="n"]')].map(i => i.value) : []; });
-  check('42x22rub100 (Per 15): advies neemt hele dozen over (veelvoud van 15)', n.length > 0 && n.every(v => +v % 15 === 0), n.join());
+  check('42x22rub100 (Per 15): advies neemt hele dozen over (4 + 30 dozen = 60 + 450 st.)', n.join() === '4,30', n.join());
   // geen decimalen in welke verdeling dan ook: alle advies overnemen in alle containers
   const ids = await P.evaluate(async () => (await (await fetch(location.origin.includes('localhost') ? 'https://jarbgetbwkjtxwtcfwmq.supabase.co/rest/v1/containers?select=id&status=neq.afgerond' : '', { headers:{ apikey:'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA' } })).json()).map(x => x.id));
   let dec = [], totaal = 0;
