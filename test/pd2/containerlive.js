@@ -17,10 +17,8 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await P.addInitScript(() => { try{ localStorage.setItem('ivol-koppelcode', 'testcode'); }catch(e){} });
   await P.goto((process.env.PD2_URL || 'http://localhost:8811/') + 'containerplanning.html#/c/13');
   await P.waitForSelector('select[data-k="soort"], tr input[data-k="productcode"]', { timeout:120000 });
-  const i = await P.evaluate(() => [...document.querySelectorAll('input[data-k="productcode"]')].findIndex(x => !x.value));
-  check('Container 13 heeft een regel zonder product', i >= 0);
+  const i = 0;   // eerste regel van container 13 (schrijven is geblokkeerd, dus de regel verandert alleen in het geheugen)
   const inp = P.locator('input[data-k="productcode"]').nth(i);
-  const voor = await P.evaluate(() => document.querySelectorAll('#dl-codes option').length);
   await inp.fill('zz-live-test'); await inp.press('Tab'); await P.waitForTimeout(1500);
   check('Niet in de import: live opgezocht via idindex en producten, met de koppelcode', vragen.some(v => v.a === 'idindex') && vragen.some(v => v.a === 'producten') && vragen.every(v => v.code === 'testcode' || v.m === 'OPTIONS'), JSON.stringify(vragen.map(v => v.a)));
   const rij = await P.evaluate(i => document.querySelectorAll('input[data-k="productcode"]')[i].value, i);
