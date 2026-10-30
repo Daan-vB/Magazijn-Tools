@@ -158,6 +158,11 @@
 .pd2-wrij{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;justify-content:space-between;padding:6px 0 6px 12px;border-left:3px solid #e3e8ee}
 .pd2-wrij .kn{flex:1 1 240px} .pd2-wrij .in{display:flex;gap:6px;flex-wrap:wrap}
 .pd2-wrij .in .pd2-in{width:130px}
+.pd2-rcf{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.pd2-rcfam h4{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:14px 0 4px}
+.pd2-rc{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;justify-content:space-between;padding:6px 0 6px 12px;border-left:3px solid #e3e8ee}
+.pd2-rc.afw{border-left-color:#b05a00} .pd2-rc.af{border-left-color:#2e7d32;opacity:.75}
+.pd2-rc .kn{flex:1 1 280px;min-width:0} .pd2-rc .knopjes{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .pd2-aannlijst{display:grid;gap:0}
 .pd2-aannrij{display:grid;gap:4px;padding:8px 0;border-top:1px solid #eef1f4;font-size:14px}
 .pd2-aannrij p{margin:0}

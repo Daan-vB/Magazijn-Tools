@@ -107,6 +107,11 @@ de naam krijgen in hun soort-tab een chip "rol?" met knop "is rol / geen rol".
   kg per meter en per cm. Max op pick en aanvullen staan in de soort-tab.
 - Max rollen per pallet als voorstel uit staand/liggend, diameter en palletmaat (staand: rollen naast elkaar binnen de
   pallet + 7 cm overstek per kant, alleen als breedte + pallet onder de maximale hoogte blijft; liggend: rijen × lagen).
+- **Rollen controleren** (onderaan het startscherm, Daan 30-10): alle rollen in één lijst per leverancier en familie, met
+  breedte, dikte, lengte, diameter, kg per rol, Picqer-kg en kg per m² per mm dikte. Per rol: *klopt* (gewicht vertrouwd, de
+  Picqer-kg vastgelegd) of *moet gewogen* (te wegen, komt op de Weeglijst). Afwijkend (bovenaan, oranje) = kg per m² per mm
+  wijkt > 20% af van de familie (≥ 3 rollen) of ligt buiten 0,3–2,5; Onvolledig = zonder breedte, dikte of gewicht niet te
+  toetsen. Per familie "Getoetst zonder afwijking klopt" in één keer (10 s ongedaan te maken).
 
 **Afgerond** — alleen lezen, met "heropenen".
 

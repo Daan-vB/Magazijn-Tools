@@ -443,7 +443,7 @@ function startHtml(){
     <div class="pd2-zoekrij"><input type="search" id="pd2-zoek" class="pd2-in" placeholder="Zoek familie, code, naam of locatie" value="${esc(UI.zoek)}" aria-label="Zoeken" autocomplete="off"><button class="knop${UI.filterOpen ? ' aan' : ''}" data-a="filter" aria-expanded="${UI.filterOpen}">Filter${fn ? ' (' + fn + ')' : ''}</button></div>
     ${UI.filterOpen ? filtersHtml() : ''}
     <div class="pd2-famlijst" id="pd2-fams">${famRijen()}</div>
-    <nav class="pd2-voet" aria-label="Meer"><button class="pd2-link" data-a="view" data-v="weeg">Weeglijst (${nf(weegCodes().length)})</button><span>·</span><button class="pd2-link" data-a="view" data-v="aann">Aannames (${nf(Object.keys(R.AANNAMES).length)})</button><span>·</span><button class="pd2-link" data-a="view" data-v="labels">Palletlabels om te verbeteren (${nf(R.labelsVerbeteren().length)})</button><span>·</span><button class="pd2-link" data-a="oefmenu">Oefenmodus ⋯</button></nav>`;
+    <nav class="pd2-voet" aria-label="Meer"><button class="pd2-link" data-a="view" data-v="weeg">Weeglijst (${nf(weegCodes().length)})</button><span>·</span><button class="pd2-link" data-a="view" data-v="aann">Aannames (${nf(Object.keys(R.AANNAMES).length)})</button><span>·</span><button class="pd2-link" data-a="view" data-v="rolcheck">Rollen controleren (${nf(R.rolCheck().filter(x => x.g.st === 'niet').length)})</button><span>·</span><button class="pd2-link" data-a="view" data-v="labels">Palletlabels om te verbeteren (${nf(R.labelsVerbeteren().length)})</button><span>·</span><button class="pd2-link" data-a="oefmenu">Oefenmodus ⋯</button></nav>`;
 }
 
 /* ---------- scherm 2: familie (desktop: links kop en maten, rechts de kaarten; telefoon: onder elkaar) ---------- */
@@ -550,6 +550,30 @@ function weegPrint(){
   setTimeout(() => { try{ window.print(); }catch(e){} setTimeout(klaar, 1500); }, 50);
 }
 
+/* ---------- rollen controleren: alle rollen met berekende gegevens, per rol gewicht klopt of moet gewogen ---------- */
+const RCF = [['open', 'Nog te checken'], ['afw', 'Afwijkend'], ['mist', 'Onvolledig'], ['alle', 'Alle']];
+const rcGoed = x => x.g.st === 'niet' && x.dicht && !x.afw && x.g.pq > 0;
+const rcOpen = x => x.g.st === 'niet';
+function rcRij(x){
+  const st = x.g.st, kn = (v, t) => `<button class="pd2-mini${st === v ? ' aan' : ''}" data-a="gewst" data-v="${v}" aria-pressed="${st === v}">${t}</button>`;
+  const maat = [x.B ? nf(x.B) + ' cm breed' : 'breedte ?', x.d ? nf(x.d, 1) + ' mm' : 'dikte ?', x.L ? nf(x.L, 1) + ' m' : 'lengte ?'].join(' · ');
+  const kg = x.kgm ? nf(x.kgm, x.kgm < 10 ? 2 : 1) + ' kg/m' : '', rol = [x.dia ? 'Ø ' + x.dia + ' cm' : '', x.kgrol ? nf(+x.kgrol, 1) + ' kg per rol' : ''].filter(Boolean).join(' · ');
+  return `<div class="pd2-rc${x.afw ? ' afw' : ''}${rcOpen(x) ? '' : ' af'}" data-c="${esc(x.c)}"><div class="kn"><b>${esc(R.naamVan(x.c))}</b><div class="u"><span class="m">${esc(x.c)}</span> · ${esc(maat)}${rol ? ' · ' + esc(rol) : ''}</div>
+    <div class="u">${x.g.pq > 0 ? 'Picqer ' + esc(kgTxt(x.g.pq)) + ' per ' + esc(x.e === 'm' ? 'meter' : x.e === 'cm' ? 'cm' : 'rol') : ''}${kg ? ' · ' + esc(kg) : ''}${x.dicht ? ' · ' + esc(nf(x.dicht, 2)) + ' kg per m² per mm' : ''}${x.afw ? ` · <span class="pd2-oranje">${esc(x.afw)}</span>` : x.mist ? ` · <i>${esc(x.mist)}</i>` : ''}</div></div>
+    <div class="knopjes">${kn('vertrouwd', 'klopt')}${kn('tewegen', 'moet gewogen')}${st === 'gewogen' ? `<span class="v">gewogen ${esc(kgTxt(x.g.kg))}</span>` : ''}</div></div>`;
+}
+function rolCheckHtml(){
+  const l = R.rolCheck(), f = UI.rcFilter || 'open', tel = { open:l.filter(rcOpen).length, afw:l.filter(x => x.afw && rcOpen(x)).length, mist:l.filter(x => x.mist && rcOpen(x)).length, alle:l.length };
+  const zicht = l.filter(x => f === 'alle' || rcOpen(x) && (f === 'open' || x[f])), per = {};
+  zicht.forEach(x => { ((per[x.lev || 'zonder leverancier'] = per[x.lev || 'zonder leverancier'] || {})[x.fam] = per[x.lev || 'zonder leverancier'][x.fam] || []).push(x); });
+  return `<button class="pd2-link pd2-terug" data-a="viewweg">← Alle families</button>
+    <section class="pd2-blok pd2-rcl"><h2>Rollen controleren (${nf(l.length)})</h2>
+    <p class="u">Alle rollen met breedte, dikte, lengte, diameter (koker 10 cm) en kg per rol. Per rol: klopt het gewicht (Picqer-kg vastgelegd) of moet hij gewogen worden (komt op de Weeglijst). Afwijkend = kg per m² per mm wijkt > 20% af van de familie (of is ongewoon); Onvolledig = zonder breedte, dikte of gewicht niet te toetsen.</p>
+    <div class="pd2-rcf" role="tablist">${RCF.map(([k, t]) => `<button class="pd2-mini${f === k ? ' aan' : ''}" data-a="rcfilter" data-v="${k}" role="tab" aria-selected="${f === k}">${esc(t)} (${nf(tel[k])})</button>`).join('')}</div>
+    ${!zicht.length ? '<div class="pd2-leeg">Niets meer te checken.</div>' : Object.keys(per).sort().map(lv => `<h3>${esc(lv)}</h3>${Object.keys(per[lv]).sort().map(fk => { const xs = per[lv][fk].sort((a, b) => !!b.afw - !!a.afw || !!b.mist - !!a.mist || R.naamVan(a.c).localeCompare(R.naamVan(b.c))), rest = xs.filter(rcGoed).length;
+      return `<div class="pd2-rcfam"><h4>${esc(R.famNaam(fk))} <span class="u">${mv(xs.length, 'rol', 'rollen')}${xs[0].famDicht ? ' · familie ' + nf(xs[0].famDicht, 2) + ' kg per m² per mm' : ''}</span>${rest ? ` <button class="pd2-mini" data-a="rcfam" data-f="${esc(fk)}">${rest === xs.length ? 'Alle' : 'Getoetst zonder afwijking'} klopt (${nf(rest)})</button>` : ''}</h4>${xs.map(rcRij).join('')}</div>`; }).join('')}`).join('')}</section>`;
+}
+
 /* ---------- aannames (één lijst) en scores ---------- */
 // palletlabels waarvan de naam een andere productcode is: niet gebruikt als voorstel, hier om te verbeteren (in Palletlabels)
 function labelsHtml(){
@@ -618,6 +642,7 @@ function schermHtml(){
   if(UI.view === 'weeg') return ['weeg', weegHtml()];
   if(UI.view === 'aann') return ['aann', aannHtml()];
   if(UI.view === 'labels') return ['labels', labelsHtml()];
+  if(UI.view === 'rolcheck') return ['rolcheck', rolCheckHtml()];
   if(UI.view === 'scores') return ['scores', scoresHtml()];
   if(UI.view === 'wegalle') return ['wegalle', wegAlleHtml()];
   if(UI.fk && famEcht(UI.fk).length) return ['fam', famHtml()];
@@ -961,6 +986,9 @@ function klik(ev){
     case 'volgfam': { const L = families(), i = L.findIndex(f => f.fk === UI.fk), rest = L.slice(i + 1).concat(L.slice(0, Math.max(0, i))), n = rest.find(f => f.af < f.n) || rest[0]; if(!n) return; openFam(n.fk); return; }
     case 'seg': UI.seg = a.dataset.v; nieuweGroep(); meld('tab', { tab:UI.seg }); verversMaat(); return;
     case 'aandacht': { UI.aandacht = a.dataset.v || null; UI.seg = 'open'; nieuweGroep(); teken(); return; }
+    case 'rcfilter': UI.rcFilter = a.dataset.v; teken(); return;
+    case 'rcfam': { const fk = a.dataset.f, cs = R.rolCheck().filter(x => x.fam === fk && rcGoed(x)).map(x => x.c); if(!cs.length) return;
+      groep(cs, x => R.poZet(x, p => { p.gew = { st:'vertrouwd', kg:R.gewicht(x).pq, t:now() }; }), 'Gewicht klopt: ' + nf(cs.length) + ' rollen'); meld('gewst', { st:'vertrouwd' }); setTimeout(teken, 0); return; }
     case 'wegalle': UI.view = 'wegalle'; UI.wegAlle = a.dataset.v; UI.seg = 'weg'; UI.sel.clear(); nieuweGroep(); teken(); if(UI.el) UI.el.scrollTop = 0; return;
     case 'meer': UI.n += 40; verversMaat(); return;
     case 'toon': toon(UI.oef.set, a.dataset.id); return;
@@ -987,7 +1015,7 @@ function klik(ev){
       if(v === 'gewogen'){ if(kg > 0) zetGew(c, { st:'gewogen', kg }); else if(g.gk) zetGew(c, { st:'gewogen', kg:g.gk }); else { WH.toast('Typ eerst het gewogen gewicht in kg', 2500); if(inp) inp.focus(); return; } }
       else if(g.st === v) zetGew(c, null);
       else zetGew(c, { st:v, kg:v === 'tewegen' ? null : (kg > 0 ? kg : (g.pq > 0 ? g.pq : null)) });   // vertrouwd: de Picqer-kg van nu vastleggen
-      meld('gewst', { st:v }); return;
+      meld('gewst', { st:v }); if(UI.view === 'rolcheck') setTimeout(teken, 0); return;
     }
     case 'rijklopt': groep([c], bevestig, 'Alle voorstellen kloppen: ' + c); meld('selklopt', { tab:soortVan(c), n:1 }); return;
     case 'rol': { const v = a.dataset.v === '1', wasAf = R.status(c).af; R.poZet(c, p => { p.rol = { v, t:now() }; }); if(v) UI.rolOpen[c] = true; meld('rol', { v }); na([c], wasAf, true); return; }

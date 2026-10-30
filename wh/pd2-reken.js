@@ -69,6 +69,7 @@ const AANNAMES = {
   labelfout: 'Een palletlabel waarvan de hele naam (zonder spaties/streepjes) een andere productcode is, telt niet voor stuks per pallet of vloernaam en staat op "Palletlabels om te verbeteren".',
   oefentel: 'Wat je invult terwijl het oefenkaartje aan staat, krijgt een oefen-merk: het geldt voor dat product, maar telt niet mee voor kleurgenoten, leren, de telling in "Kopieer alles voor Claude" en het overzetten. Alleen invoer met oefenen uit telt.',
   oefen:    'Oefenen staat standaard uit (Oefenmodus ⋯ → Oefenen); dan één kaartje rechtsonder met de opdrachten per soort en na de laatste de vier vragen. Je bewerkt de oefenkopie ook als oefenen uit staat.',
+  rolcheck: 'Rollen controleren: per rol kg per m² per mm dikte (kg per meter ÷ breedte in m ÷ dikte in mm). Wijkt dat > 20% af van de mediaan van de familie (≥ 3 rollen), of ligt het buiten 0,3–2,5, dan staat de rol bovenaan als afwijkend. Zonder breedte, dikte of gewicht is hij niet te toetsen (Onvolledig); "rest klopt" per familie geldt alleen voor getoetste rollen zonder afwijking. Klopt = gewicht vertrouwd (de Picqer-kg vastgelegd), Moet gewogen = te wegen (komt op de Weeglijst).',
   rolcalc:  'Rol (Daan 30-10): elke rol zit op een koker van 10 cm. Diameter = √(10² + 4 · lengte · dikte / π), kg per rol = kg per meter × lengte (eenheid rol: het Picqer-gewicht per rol). Beide berekend, niet in te vullen. Lengte volle rol uit de naam (rol van 10 m, of m² ÷ breedte), Picqer (rol 1000 cm) of de pakbon (1 rol = 10 m); anders de lengte die in de familie (of bij de leverancier) het meest voorkomt, zodra ≥ 3 rollen bekend zijn. Max rollen per pallet volgt uit staand/liggend, diameter en palletmaat.',
   rolregel: 'Rolregels ronde 2: kokos rol = 600 cm lang (6 m); kokos 200 cm 17 mm = 12 rollen per pallet, 24 mm = 6 (vaste aantallen); voor 100 cm kokos geen aantal bekend. Ringmat op rol heavy duty: staand, 6 per pallet, palletmaat 100x150. Gewicht volle rol = gewicht per meter of cm × lengte.'
 };
@@ -522,7 +523,7 @@ const rolBesl = c => { const p = po(c); return !!(p && p.rol && typeof p.rol.v =
 function breedteNaam(c){ const n = naamVan(c); const m = n.match(/breedte\s*(\d+(?:[.,]\d+)?)\s*(mm|cm|m)?\b/i) || n.match(/(\d{2,3})\s*cm\s*(?:breed|br\b)/i) || n.match(/\b(\d{2,3})\s*cm\b/i); if(!m) return null; let v = num(m[1]); const u = (m[2] || 'cm').toLowerCase(); return u === 'm' ? v * 100 : u === 'mm' ? v / 10 : v; }
 function dikteNaam(c){ const m = naamVan(c).match(/dikte\s*(\d+(?:[.,]\d+)?)\s*mm/i) || naamVan(c).match(/(\d+(?:[.,]\d+)?)\s*mm\b/i); return m ? num(m[1]) : null; }
 function lengteNaam(c){
-  const n = naamVan(c).toLowerCase(), m = n.match(/(?:rol van|lengte)\s*(\d+(?:[.,]\d+)?)\s*m\b/) || n.match(/x\s*(\d+(?:[.,]\d+)?)\s*m\b/) || n.match(/\b(\d+(?:[.,]\d+)?)\s*m\s*(?:rol|lang)\b/);
+  const n = naamVan(c).toLowerCase(), m = n.match(/(?:rol van|lengte|volle rol|rol)\s*(\d+(?:[.,]\d+)?)\s*(?:m|meter)\b/) || n.match(/x\s*(\d+(?:[.,]\d+)?)\s*m\b/) || n.match(/\b(\d+(?:[.,]\d+)?)\s*m\s*(?:rol|lang)\b/);
   if(m) return { v:num(m[1]), why:'uit de naam' };
   const m2 = n.match(/rol van\s*(\d+(?:[.,]\d+)?)\s*m2\b/), br = breedteNaam(c);
   if(m2 && br > 0) return { v:Math.round(num(m2[1]) / (br / 100) * 10) / 10, why:'uit de naam: ' + nf(num(m2[1])) + ' m² / ' + nf(br) + ' cm breed' };
@@ -1363,6 +1364,28 @@ async function overzetEcht(keuzes){
   return { key, n:t.n, rijen:upd.length, verschil:kies.length };
 }
 
+/* ---------- rollen controleren: alle rollen met de berekende gegevens en een gewichtscheck ---------- */
+// kg per m² per mm dikte = kg per meter ÷ (breedte in m × dikte in mm); binnen een familie hoort dat gelijk te zijn (zelfde materiaal)
+function rolCheck(){
+  const l = Object.keys(D.P).filter(c => actief(c) && isRol(c)).map(c => {
+    const I = info(c), e = eenheid(c).e, g = gewicht(c), kg = g.kg > 0 ? g.kg : null;
+    const B = nOf(waarde(c, 'rb', I).v), d = nOf(waarde(c, 'rd', I).v), L = nOf(waarde(c, 'rl', I).v);
+    const kgm = !kg ? null : e === 'm' ? kg : e === 'cm' ? kg * 100 : L > 0 ? kg / L : null;
+    const dicht = kgm && B > 0 && d > 0 ? kgm / (B / 100 * d) : null;
+    return { c, fam:famVan(c), lev:levVan(c), e, g, B, d, L, kgm, dicht, dia:calc(c, 'rdia', I).v, kgrol:calc(c, 'rkg', I).v };
+  });
+  const per = {}; l.forEach(x => { if(x.dicht) (per[x.fam] = per[x.fam] || []).push(x.dicht); });
+  const med = a => { const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+  l.forEach(x => {
+    const f = per[x.fam] || [], m = f.length >= 3 ? med(f) : null; x.famDicht = m;
+    x.mist = !x.kgm ? (x.g.pq > 0 ? 'breedte, dikte of lengte ontbreekt: niet te toetsen' : 'geen gewicht in Picqer') : !x.dicht ? 'breedte of dikte ontbreekt: niet te toetsen' : '';
+    x.afw = !x.dicht ? ''
+      : m && Math.abs(x.dicht / m - 1) > 0.2 ? nf(x.dicht, 2) + ' kg per m² per mm, de familie ' + nf(m, 2) + ' (' + (x.dicht > m ? '+' : '−') + Math.round(Math.abs(x.dicht / m - 1) * 100) + '%)'
+      : x.dicht < 0.3 || x.dicht > 2.5 ? nf(x.dicht, 2) + ' kg per m² per mm is ongewoon (rubber ± 1,0–1,6)' : '';
+  });
+  return l;
+}
+
 /* ---------- tellen: hoe vaak een voorstel bevestigd of aangepast is ---------- */
 function telling(){
   const t = {};
@@ -1379,6 +1402,6 @@ return { S, AANNAMES, KEY_OEFEN, KEY_FB, laad, flush, plan, schrijf, po, poZet, 
   koppelVan, isKoppel, koppelTekst, wegLicht, controle, maatRegel, vnRegel, sppUitBronnen, famVan, maatVan, famNaam, isSam, naamVan, abcVan, actief, kgPq, vk6, vk28, inkoop, backorders, inkomend, locInfo, som, anderOpPlek,
   VELD, SOORTEN, SOORTT, WEG, KOLOMMEN, NODIG, ROLNODIG, SAMVELD, MATEN, MATEN_WB, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
   rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
-  naControle, liggerVan, labelsVerbeteren, labelsGoed, verschil, verschilKies, herstel, pdFlush, PDQ,
+  naControle, liggerVan, labelsVerbeteren, rolCheck, labelsGoed, verschil, verschilKies, herstel, pdFlush, PDQ,
   vraagLive, liveStatus, meet, meting, zetMeting, scoreVan, pd2Overzetten, overzetPlan, overzetToepassen, overzetTerug, overzetEcht, toetsItems, TOETSVELD, SCORE_VOOR, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };
 })();
