@@ -1452,7 +1452,7 @@ function pools(c){
 // alles wat op de pakbon staat, per sleutel (Picqer-code, anders pakboncode), in Picqer-eenheden
 function pakbonEenheden(c){
   const out = {};
-  (c.data.regels || []).forEach(r => { const code = r.productcode || r.pakbon_code, k = norm(code); if(!k) return; (out[k] = out[k] || { code, u:0 }).u += (num(r.totaal) || 0) * (num(r.factor) || 1); });
+  (c.data.regels || []).forEach(r => { if(r.geenVoorraad) return; const code = r.productcode || r.pakbon_code, k = norm(code); if(!k) return; (out[k] = out[k] || { code, u:0 }).u += (num(r.totaal) || 0) * (num(r.factor) || 1); });
   return out;
 }
 const nogOpen = (c, k) => { const pb = pakbonEenheden(c)[k]; return pb ? Math.max(0, pb.u - (num((c.data.geleverd || {})[k]) || 0)) : 0; };
@@ -1598,6 +1598,7 @@ function punten(c, pl){
   if((pb.andere_containers || []).length) add('pbc', 'info', 'Op dezelfde pakbon staan ook container ' + pb.andere_containers.join(', ') + '. Die worden apart ingepland.', null, null, 'pbc');
   R.forEach((r, i) => {
     const lab = (r.pakbon_code || ('regel ' + (i + 1)));
+    if(r.geenVoorraad) return;
     if(!r.productcode) add('code-' + r.id, 'fout', lab + ': nog geen Picqer-productcode gekoppeld.', null, 'pakbon', 'code', lab);
     else if(!r.bevestigd) add('bev-' + r.id, 'let', lab + ' → ' + r.productcode + ': voorstel, nog bevestigen.', r.productcode, 'pakbon', 'bev', lab + ' → ' + r.productcode);
     const t = num(r.totaal), pe = num(r.per), a = num(r.aantal);
@@ -2714,6 +2715,7 @@ function regelRij(c, r, i){
   const rc = !r.productcode ? 'err' : somFout ? 'err' : !r.bevestigd ? 'warn' : '';
   const eh = r.productcode ? eenheidVan(r.productcode) : 'st.';
   const inp = (k, v) => `<input class="num" data-regel="${i}" data-k="${k}" value="${v ?? ''}" inputmode="decimal">`;
+  if(r.geenVoorraad) return `<tr style="opacity:.6"><td class="small muted">${r.sl || i + 1}</td><td colspan="9"><b>${esc(r.pakbon_code || '')}</b> <span class="muted">${esc(r.omschrijving || '')} · geen voorraad (verpakking, gaat direct naar Karin en Kata)</span></td><td><button class="btn ghost sm" data-act="geenvoorraad" data-i="${i}" title="Toch meetellen">terug</button> <button class="btn ghost sm" data-act="regeldel" data-i="${i}" title="Regel verwijderen">✕</button></td></tr>`;
   return `<tr class="${rc}">
     <td class="small muted">${r.sl || i + 1}</td>
     <td><input class="code" data-regel="${i}" data-k="pakbon_code" value="${esc(r.pakbon_code || '')}" style="min-width:130px;padding:4px 6px"><div class="desc">${esc(r.omschrijving || '')}${r.context ? ' <span style="opacity:.7">· ' + esc(r.context).slice(0, 90) + '</span>' : ''}</div></td>
@@ -2724,7 +2726,7 @@ function regelRij(c, r, i){
       <div class="tiny mt8" style="margin-top:3px"><span class="badge ${cls}">${lbl}</span> ${r.productcode ? '<span class="muted">' + esc(naamVan(r.productcode)).slice(0, 60) + '</span>' : ''}</div></td>
     <td class="n">${inp('factor', f)}${f !== 1 ? `<div class="tiny muted">1 = ${nf(f)} ${eh}</div>` : ''}</td>
     <td class="n"><b>${nf((t || 0) * f)}</b> <span class="tiny muted">${eh}</span></td>
-    <td><button class="btn ghost sm" data-act="regeldel" data-i="${i}" title="Regel verwijderen">✕</button></td></tr>`;
+    <td>${r.productcode ? '' : `<button class="btn ghost sm" data-act="geenvoorraad" data-i="${i}" title="Verpakking of iets dat niet in het magazijn komt">geen voorraad</button> `}<button class="btn ghost sm" data-act="regeldel" data-i="${i}" title="Regel verwijderen">✕</button></td></tr>`;
 }
 /* ---------- Picqer-ontvangst (inruimlijst PDF of Excel) → welke container is binnen ---------- */
 function leesOntvangstTekst(text, L){
@@ -4195,6 +4197,7 @@ const ACT = {
   pksave: el => productenOpslaan([el.dataset.code]),
   pkaanvul: el => maakLabels(cur, [aanvulLabel(el.dataset.code)]),
   kies: el => { const b = el.closest('[data-kc]'), c = CONT.find(x => x.id === +b.dataset.kc), r = c && c.data.regels.find(x => String(x.id) === b.dataset.kr); if(r) regelKoppel(c, r, el.dataset.code); },
+  geenvoorraad: el => { const r = cur.data.regels[+el.dataset.i]; if(r){ r.geenVoorraad = !r.geenVoorraad; PLAN = null; save(); rerender(); } },
   regelweg2: el => { const b = el.closest('[data-kc]'), c = CONT.find(x => x.id === +b.dataset.kc), r = c && c.data.regels.find(x => String(x.id) === b.dataset.kr); if(r) regelWeg(c, r); },
   pkallesop: () => productenOpslaan([...new Set([...document.querySelectorAll('[data-pk]')].map(e => e.dataset.pk))]),
   // uitvoer
