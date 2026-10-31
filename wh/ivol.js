@@ -307,7 +307,7 @@ async function rekenFundament(){
     lopers.forEach(p => {
       const f = p.final, pi = f.pick ? WHL.locInfo(f.pick) : null, mist = [];
       const geenPick = !f.pick || f.type === 'bulk' || f.type === 'los' || (f.nieuwePick && p.status !== 'bevestigd');
-      if(geenPick && p.pdPick === 'nee' && !p.picks.length) cnt.bewust++;          // Productdata: bewust alleen bulk
+      if(geenPick && p.alleenBulk && !p.picks.length) cnt.bewust++;          // Productdata: bewust alleen bulk of soort Bulk
       else if(geenPick){ mist.push('pick'); if(p.pdPick === 'ja') cnt.pickPd++; }
       else {
         if(pi && pi.bestaat && pi.tijd) mist.push('tijd');

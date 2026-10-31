@@ -100,10 +100,12 @@ function maakProfiel(code, bezet){
   const pr = {
     code, naam:p.naam || '', lev:p.leverancier || '', abc, st:num(p.voorraad_hm) || 0, vrij:num(p.vrij_hm), vst:num(p.voorraad_vst) || 0,
     vk, spp, locs, picks, bulks, conts, vstPallets:(D.VSTLOC[code] || []), pq:{ lvl:leeg(pq[0]) ? null : pq[0], tot:leeg(pq[1]) ? null : pq[1] }, virt:pq[2] === 1,
-    bo, redenen:[], sppNvt:sppNvt(code), pdPick:pdv(code, 'pick'), pdLvl:num(pdv(code, 'lvl')), pdMax:num(pdv(code, 'maxpick'))
+    bo, redenen:[], sppNvt:sppNvt(code), pdPick:pdv(code, 'pick'), pdBulk:/^bulk/i.test(pdv(code, 'opslag') || ''), pdLvl:num(pdv(code, 'lvl')), pdMax:num(pdv(code, 'maxpick'))
   };
+  pr.alleenBulk = pr.pdPick === 'nee' || pr.pdBulk;   // soort Bulk (Daan 31-10): geen picklocatie, nooit aanvullen naar pick
   const pi = picks.length ? locInfo(picks[0]) : null;
   pr.pickSoort = pi ? pickSoort(pi, spp) : null;
+  if(pr.pdBulk && picks.length) pr.redenen.push({ lvl:'let', t:'Productdata zegt soort Bulk (geen picklocatie), maar er is picklocatie ' + picks.join(', ') + ': klopt de soort?' });
   if(pi && pi.bestaat && pi.tijd) pr.redenen.push({ lvl:'let', t:'picklocatie ' + picks[0] + ' staat op tijdelijk (ontkoppelt bij 0)' });
   if(picks.length > 1) pr.redenen.push({ lvl:'info', t:picks.length + ' picklocaties' });
   if(conts.length) pr.redenen.push({ lvl:'let', t:'staat (ook) op retourkar ' + conts.join(', ') });
@@ -117,7 +119,7 @@ function maakProfiel(code, bezet){
   if(triS) pr.redenen.push({ lvl:'info', t:'triage: ' + (window.WHT ? WHT.SLANG[triS] : triS) });
   if((triS === 'r' || triS === 'x') && picks.length) pr.redenen.push({ lvl:'let', t:'triage zegt "' + (window.WHT ? WHT.SL[triS] : triS) + '", maar er is een picklocatie: klopt dat?' });
   if(!picks.length){
-    if(pr.pdPick === 'nee') pr.redenen.push({ lvl:'info', t:'Productdata: bewust alleen bulk' });
+    if(pr.alleenBulk) pr.redenen.push({ lvl:'info', t:pr.pdBulk ? 'Productdata: soort Bulk (per order verplaatsen naar geen specifieke locatie)' : 'Productdata: bewust alleen bulk' });
     else if(loper && bulks.length){
       const vrij = vrijeVloerOnder(bulks, bezet);
       if(vrij){ v.pick = vrij.loc; v.nieuwePick = true; bezet.add(vrij.loc); pr.redenen.push({ lvl:'info', t:'voorstel picklocatie ' + vrij.loc + (vrij.direct ? ' (vloer onder de bulk)' : ' (vloer in dezelfde sectie)') }); }
@@ -130,7 +132,7 @@ function maakProfiel(code, bezet){
     else if(conts.length) v.type = 'retour';        // alleen op een retourkar
     else {
       v.type = 'los';                               // voorraad op "geen specifieke locatie" (wel pickbaar)
-      if(loper) pr.redenen.push({ lvl:'let', t:'loopt, maar staat op geen specifieke locatie: geef een vaste picklocatie' });
+      if(loper && !pr.alleenBulk) pr.redenen.push({ lvl:'let', t:'loopt, maar staat op geen specifieke locatie: geef een vaste picklocatie' });
     }
   }else{
     const soort = pickSoort(locInfo(v.pick), spp);
@@ -171,7 +173,7 @@ function maakProfiel(code, bezet){
     if(e.pick !== undefined) f.nieuwePick = !!e.pick && !locs.includes(e.pick);
   }
   // Productdata: aanvullen bij en max op pick zijn door Daan per product vastgelegd en gaan boven het rekenvoorstel en de oude aanvulbase
-  if(f.pick && pr.pdPick !== 'nee' && pr.pdLvl !== null && pr.pdMax !== null && pr.pdMax > 0 && f.type !== 'bulk'){
+  if(f.pick && !pr.alleenBulk && pr.pdLvl !== null && pr.pdMax !== null && pr.pdMax > 0 && f.type !== 'bulk'){
     f.lvl = pr.pdLvl; f.tot = pr.pdMax; f.uitPd = true;
     pr.redenen.push({ lvl:'info', t:'aanvullen uit Productdata: bij ' + pr.pdLvl + ', tot ' + pr.pdMax });
   }

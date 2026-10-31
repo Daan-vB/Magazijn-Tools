@@ -518,7 +518,7 @@ function abLopers(){
   }).map(p => {
     const f = p.final, mist = [];
     const pi = f.pick ? WHL.locInfo(f.pick) : null;
-    if(!f.pick || f.type === 'bulk' || f.type === 'los') mist.push('pick');
+    if(!f.pick || f.type === 'bulk' || f.type === 'los'){ if(!(p.alleenBulk && !p.picks.length)) mist.push('pick'); }   // soort Bulk: bewust geen picklocatie
     else {
       if(pi && pi.bestaat && pi.tijd) mist.push('tijd');
       if(p.pq.lvl === null || p.pq.tot === null) mist.push('niveau');
