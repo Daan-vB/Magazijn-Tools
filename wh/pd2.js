@@ -16,7 +16,7 @@ const R = window.PD2R;
 const ls = k => { try{ return localStorage.getItem('pd2-' + k); }catch(e){ return null; } };
 const lsZet = (k, v) => { try{ localStorage.setItem('pd2-' + k, v); }catch(e){} };
 // oefensets (feedback per set, zelfde sleutels als ronde 1)
-const TABS = [['pallet', 'Pallet'], ['deel', 'Deel'], ['pick', 'Pick'], ['mix', 'Mix'], ['weg', 'Weg'], ['rollen', 'Rollen'], ['afgerond', 'Afgerond'], ['weeglijst', 'Weeglijst']];
+const TABS = [['pallet', 'Pallet'], ['deel', 'Deel'], ['bulk', 'Bulk'], ['pick', 'Pick'], ['mix', 'Mix'], ['weg', 'Weg'], ['rollen', 'Rollen'], ['afgerond', 'Afgerond'], ['weeglijst', 'Weeglijst']];
 const TABT = Object.fromEntries(TABS);
 const SEGS = [['open', 'Open'], ['afgerond', 'Afgerond']];
 const STAPPEN = [['soort', '1 Soort'], ['gewicht', '2 Gewicht'], ['hoev', '3 Hoeveelheid']];
@@ -91,8 +91,8 @@ function aandachtReken(c){
   else if(st.gew.st === 'niet' && !R.isSam(c) && R.gewAfwijking(c)) uit.push('gewicht');
   if(I.f.geen > 0) uit.push('geenloc');
   const stock = R.som(I.f.pick) + R.som(I.f.bulk) + I.f.geen;
-  if(!I.f.pick.length && stock > 0 && !R.ingevuld(R.waarde(c, 'pickc', I))) uit.push(/^[AB]$/.test(R.abcVan(c)) ? 'loper' : 'zonderpick');
-  const sp = R.waarde(c, 'spp', I), spN = R.nOf(sp.v), palSoort = ['pallet', 'deel'].includes(st.so);
+  if(!I.f.pick.length && stock > 0 && st.so !== 'bulk' && !R.ingevuld(R.waarde(c, 'pickc', I))) uit.push(/^[AB]$/.test(R.abcVan(c)) ? 'loper' : 'zonderpick');
+  const sp = R.waarde(c, 'spp', I), spN = R.nOf(sp.v), palSoort = ['pallet', 'deel', 'bulk'].includes(st.so);
   if(palSoort && (sp.st === 'twijfel' || (I.ink && spN > 0 && I.ink.max < spN))) uit.push('tegen');
   if(palSoort && R.hoogteWaarsch(c, R.waarde(c, 'hoogte', I).v, I)) uit.push('hoogte');
   if(palSoort){ const gw = num(R.calc(c, 'gewpal', I).v), pl = num(R.calc(c, 'plaatsen', I).v); if(gw > 2000 || (gw > 0 && pl > 0 && Math.floor(2000 / gw) < Math.max(1, Math.floor(3 / pl)))) uit.push('ligger'); }
@@ -194,7 +194,7 @@ function kiesMaat(){
 }
 
 /* ---------- oefening: opdrachten per set ---------- */
-const VB = { mars:'schoonloopmat mars', spurt:'trapmaantje spurt', kokos:'kokos', fwb:'whiteboard zonder rand', ring:'ringmat op rol', waterhog:'waterhog' };
+const VB = { mars:'schoonloopmat mars', spurt:'trapmaantje spurt', kokos:'kokos', fwb:'whiteboard zonder rand', ring:'ringmat op rol', waterhog:'waterhog', sprint:'sprinttrack' };
 const OPDR = {
   pallet:[
     { id:'p1', t:'Open Whiteboard zonder rand (FWB), vink in stap 1 Soort een paar kaarten aan en druk onderaan op "Selectie klopt".', toon:{ zoek:VB.fwb }, ev:'selklopt', als:d => d.n > 0 },
@@ -205,6 +205,9 @@ const OPDR = {
   deel:[
     { id:'d1', t:'Open Schoonloopmat Mars, maat 120x180: staat Antraciet op Deel?', toon:{ zoek:VB.mars, maat:'120x180' }, ev:'maat', als:d => /mars/i.test(d.naam || '') && /120x180/.test(d.mk || '') },
     { id:'d2', t:'Vul in stap 3 Hoeveelheid bij één Deel-product Stuks per pallet, Palletmaat en Hoogte in.', ev:'veld', als:d => d.tab === 'deel' && d.k === 'spp' },
+  ],
+  bulk:[
+    { id:'b1', t:'Zet in stap 1 Soort een product zonder picklocatie op Bulk (bijv. Sprinttrack kunstgras): in stap 3 komen alleen de palletvragen, geen max op pick.', toon:{ zoek:VB.sprint }, ev:'soort', als:d => d.naar === 'bulk' }
   ],
   pick:[
     { id:'k3', t:'Bevestig of pas in stap 3 Hoeveelheid Max op pick aan bij een Pick-product. Bekijk Trapmaantje Spurt.', toon:{ zoek:VB.spurt }, ev:'veld', als:d => d.tab === 'pick' && d.k === 'maxpick' }
@@ -335,7 +338,7 @@ function gewVraag(c, I){
     <span class="knopjes">${kn('gewogen', 'gewogen')}${kn('vertrouwd', 'vertrouwd')}${kn('tewegen', 'te wegen')}</span></div></div>`;
 }
 
-/* stap 3: hoeveelheid (Pick en Mix: max op pick; Pallet en Deel: stuks per pallet, palletmaat, hoogte; rol: lengte en max rollen) */
+/* stap 3: hoeveelheid (Pick en Mix: max op pick; Pallet, Deel en Bulk: stuks per pallet, palletmaat, hoogte; rol: lengte en max rollen) */
 function hoevVraag(c, I){
   const so = R.status(c).so;
   if(so === 'weg') return '<div class="pd2-vraag"><div class="u">Geen hoeveelheid nodig bij Weg.</div></div>';
@@ -461,7 +464,7 @@ function weegGroepen(){
   cs.forEach(c => { const l = loc(c) || '', hal = /^[A-Z]{2}/i.test(l) ? 'Hal ' + l[0].toUpperCase() : 'Zonder locatie', gang = /^[A-Z]{2}/i.test(l) ? l.slice(0, 2).toUpperCase() : '–'; (((per[hal] = per[hal] || {})[gang] = per[hal][gang] || {})[l || '–'] = per[hal][gang][l || '–'] || []).push(c); });
   return per;
 }
-function weegWijze(c){ const st = R.status(c), spp = R.nOf(R.waarde(c, 'spp').v); return ['pallet', 'deel'].includes(st.so) && spp > 0 ? { reach:true, spp } : { reach:false }; }
+function weegWijze(c){ const st = R.status(c), spp = R.nOf(R.waarde(c, 'spp').v); return ['pallet', 'deel', 'bulk'].includes(st.so) && spp > 0 ? { reach:true, spp } : { reach:false }; }
 function weegHtml(){
   const per = weegGroepen(), hallen = Object.keys(per).sort();
   return `<button class="pd2-link pd2-terug" data-a="viewweg">← Alle families</button>

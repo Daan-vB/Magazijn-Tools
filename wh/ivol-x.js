@@ -120,15 +120,15 @@ function twLijst(){
   return uit.sort((a, b) => (ABC[abcVan(a.c)] ?? 3) - (ABC[abcVan(b.c)] ?? 3) || naamVan(a.c).localeCompare(naamVan(b.c)));
 }
 /* ---------- één vraag tegelijk (Daan 30-10): alleen wat Productdata 2.0 ook vraagt ----------
-   Soort, gewicht per stuk en de hoeveelheid van de soort (Pallet/Deel: stuks per pallet, palletmaat, hoogte; Pick/Mix: max op pick).
+   Soort, gewicht per stuk en de hoeveelheid van de soort (Pallet/Deel/Bulk: stuks per pallet, palletmaat, hoogte; Pick/Mix: max op pick).
    Stuks per doos, picklocatie, aanvullen bij en vloernaam worden niet meer gevraagd; hun waarden blijven staan. */
 const PD2VRAAG = { soort:'Soort', opslag:'Soort', kgst:'Gewicht per stuk (kg)', spp:'Stuks per pallet', maat:'Palletmaat', hoogte:'Hoogte incl. pallet (cm)', maxpick:'Max op pick', rol:'Is dit een rol?', rl:'Lengte volle rol (m)', rmax:'Max rollen per pallet' };
 const PD2EIGEN = new Set(['soort', 'rol', 'rl', 'rmax']);
 const PALLETVRAAG = new Set(['spp', 'maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig', 'rmax']);   // vaste regel: alleen met bewijs voor pallets
-const SOORTT = { pallet:'Pallet', deel:'Deel', pick:'Pick', mix:'Mix', weg:'Weg' }, WEGT = { uitlopend:'Uitlopend', backorder:'Backorder', archief:'Archief' };
+const SOORTT = { pallet:'Pallet', deel:'Deel', bulk:'Bulk', pick:'Pick', mix:'Mix', weg:'Weg' }, WEGT = { uitlopend:'Uitlopend', backorder:'Backorder', archief:'Archief' };
 const soortTekst = v => { const [a, b] = String(v || '').split(':'); return (SOORTT[a] || a) + (b ? ' → ' + (WEGT[b] || b) : ''); };
 const zonderPallet = c => { try{ return pd2Klaar() && !PD2R.info(c).bewijs; }catch(e){ return false; } };   // alleen in de opslag van Productdata 2.0 (niet in productdata)
-const PD2SOORT = { spp:['pallet', 'deel'], maat:['pallet', 'deel'], hoogte:['pallet', 'deel'], maxpick:['pick', 'mix'] };
+const PD2SOORT = { spp:['pallet', 'deel', 'bulk'], maat:['pallet', 'deel', 'bulk'], hoogte:['pallet', 'deel', 'bulk'], maxpick:['pick', 'mix'] };
 const pd2Klaar = () => !!(window.PD2R && PD2R.S && PD2R.S.klaar);
 function soortVan(c){
   let so = ((S.pd || {})[c] || { data:{} }).data.opslag;
@@ -142,7 +142,7 @@ function famVan(c){
 // CLAUDE.md eerst: elke regel wordt toegepast vóór een vraag aan Daan. stat (optioneel) telt per regel wat verviel.
 const REGELT = { nietin2:'niet in Productdata 2.0 (picklocatie, aanvullen bij, vloernaam, mixgroep, plaatsen, …)', doos:'stuks per doos, doosmaat, inkoopverpakking: nooit vragen (§3)',
   sam:'SAM Europe: alleen picklocatie, bulklocaties, aanvulniveau (§6)', uitlopend:'Uitlopend: geen vragen (§3)', backorder:'Weg → Backorder: voorlopig wegfilteren (§3)', weg:'Weg: alleen het Weg-menu (§3)',
-  pallet:'palletvragen alleen bij bewijs van pallets (§3)', soortnietbij:'hoort niet bij de soort (Pick: alleen max op pick)', rol:'rollen alleen als Daan ze als rol koos (§5)',
+  pallet:'palletvragen alleen bij bewijs van pallets (§3)', soortnietbij:'hoort niet bij de soort (Pick: alleen max op pick; Bulk: geen max op pick)', rol:'rollen alleen als Daan ze als rol koos (§5)',
   soorteerst:'soort eerst: gewicht en hoeveelheid pas na een bevestigde soort (§2)', later:'op later gezet' };
 const DOOSK = new Set(['spd', 'doos', 'verp']);
 function vraagLijst(stat){
@@ -242,8 +242,8 @@ function famLijst(q, fam){
     <div class="x-acties"><button class="x-btn ok" data-x="famklopt">Klopt voor selectie (${nf(n)})</button>${S.famAanpas ? '' : `<button class="x-btn" data-x="famaanpas">Aanpassen voor selectie</button>`}</div>
   </div>`;
 }
-const soortOpties = huidig => `<option value="">${esc(huidig ? soortTekst(huidig) : '–')} ▾</option>` + ['pallet', 'deel', 'pick', 'mix'].map(k => `<option value="${k}">${SOORTT[k]}</option>`).join('') + Object.keys(WEGT).map(k => `<option value="weg:${k}">Weg → ${WEGT[k]}</option>`).join('');
-// soortvraag: Pallet · Deel · Pick · Mix · Weg met het voorstel; bij Weg alleen het Weg-menu
+const soortOpties = huidig => `<option value="">${esc(huidig ? soortTekst(huidig) : '–')} ▾</option>` + ['pallet', 'deel', 'bulk', 'pick', 'mix'].map(k => `<option value="${k}">${SOORTT[k]}</option>`).join('') + Object.keys(WEGT).map(k => `<option value="weg:${k}">Weg → ${WEGT[k]}</option>`).join('');
+// soortvraag: Pallet · Deel · Bulk · Pick · Mix · Weg met het voorstel; bij Weg alleen het Weg-menu
 function soortKnoppen(q){
   const [vs, vw] = String(q.v || '').split(':');
   return `<div class="x-acties x-soorten">${Object.keys(SOORTT).map(k => `<button class="x-btn${vs === k ? ' vs' : ''}" data-x="vsoort" data-v="${k}">${SOORTT[k]}${vs === k ? ' (voorstel)' : ''}</button>`).join('')}</div>

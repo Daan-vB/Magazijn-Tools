@@ -40,11 +40,11 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
   let rijen = await kaarten();
   const voor = await ev(cs => cs.map(c => PD2R.po(c) ? JSON.stringify(PD2R.po(c)) : null), rijen);
   const kq = await ev(c => { const k = document.querySelector(`article.pd2-kaart[data-c="${c}"]`); return { vragen:k.querySelectorAll('.pd2-vraag').length, knoppen:[...k.querySelectorAll('[data-a="soortkies"]')].map(b => b.dataset.v).join(), voorstel:k.querySelectorAll('.pd2-kz.vs').length, pick:!!k.querySelector('[data-kc="pickc"]'), klopt:!!k.querySelector('[data-a="klopt"], [data-a="rijklopt"]'), rood:!!k.querySelector('.rood'), feiten:k.querySelector('.pd2-feiten').innerText.replace(/\s+/g, ' ') }; }, rijen[0]);
-  check('Kaart in stap Soort: één vraag met Pallet/Deel/Pick/Mix/Weg en één voorstel; geen picklocatie, Klopt-knop of rode tekst', kq.vragen === 1 && kq.knoppen === 'pallet,deel,pick,mix,weg' && kq.voorstel === 1 && !kq.pick && !kq.klopt && !kq.rood && /inkoop/i.test(kq.feiten) && /\*6 \/ .*\*28/.test(kq.feiten), JSON.stringify(kq));
+  check('Kaart in stap Soort: één vraag met Pallet/Deel/Bulk/Pick/Mix/Weg en één voorstel; geen picklocatie, Klopt-knop of rode tekst', kq.vragen === 1 && kq.knoppen === 'pallet,deel,bulk,pick,mix,weg' && kq.voorstel === 1 && !kq.pick && !kq.klopt && !kq.rood && /inkoop/i.test(kq.feiten) && /\*6 \/ .*\*28/.test(kq.feiten), JSON.stringify(kq));
   check('Groepsbalk alleen zichtbaar als er iets is aangevinkt', !(await P.isVisible('#pd2-actie .pd2-actie')));
   check('Onderaan de stap: "Alle voorstellen kloppen"', await P.isVisible('#pd2-stapacties [data-a="stapklopt"]'));
   await P.check('.pd2-alle input[data-a="selalle"]'); await wacht();
-  check('Na aanvinken: groepsbalk met Selectie is (5 soorten) en Selectie klopt', await P.isVisible('#pd2-actie [data-a="selklopt"]') && await ev(() => document.querySelectorAll('#pd2-actie [data-a="selsoort"]').length === 5));
+  check('Na aanvinken: groepsbalk met Selectie is (6 soorten) en Selectie klopt', await P.isVisible('#pd2-actie [data-a="selklopt"]') && await ev(() => document.querySelectorAll('#pd2-actie [data-a="selsoort"]').length === 6));
   await P.click('#pd2-actie [data-a="selklopt"]'); await wacht(300);
   check('Opdracht p1 (Selectie klopt) vinkt zichzelf af', await done('pallet', 'p1'));
   const naKlopt = await Promise.all(rijen.map(st));

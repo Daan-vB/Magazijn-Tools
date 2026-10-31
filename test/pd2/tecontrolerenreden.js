@@ -16,7 +16,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('Met palletbewijs: reden begint met het eigen bewijs (bulk/VST/palletlabel/verplaatsing/inkoop), daarna "soort zoals …"', metBron.length > 0 && metBron.every(q => q.bewijs && /^(bulk|VST|palletlabel|inkoop|verplaats|\d)/i.test(q.uit) && /· soort zoals (kleurgenoten|de familie) \d+ van \d+/.test(q.uit)), metBron.filter(q => !/^(bulk|VST|palletlabel|inkoop|verplaats|\d)/i.test(q.uit)).slice(0, 3).map(q => q.c + ': ' + q.uit).join(' | ') || metBron.length + ' vragen');
   check('Eén korte regel (≤ 100 tekens) bij bewijs + kleurgenoten/familie', metBron.every(q => q.uit.length <= 100), metBron.filter(q => q.uit.length > 100).map(q => q.c).join());
   const [a, b] = r.st;
-  check('ST105-GREY: eerst eigen bewijs, daarna "zoals de familie"', /^bulk \d+ op \S+/.test(a.why) && /soort zoals de familie/.test(a.why) && a.why.indexOf('bulk') < a.why.indexOf('familie'), a.why);
+  check('ST105-GREY: eerst eigen bewijs, daarna "zoals de familie" (of, zonder picklocatie, Bulk uit de eigen data)', /^bulk \d+ op \S+/.test(a.why) && (a.v === 'bulk' ? /geen picklocatie/.test(a.why) : /soort zoals de familie/.test(a.why) && a.why.indexOf('bulk') < a.why.indexOf('familie')), a.why);
   check('ST110-GREY blijft Pick met de palletregel', b.v === 'pick' && !b.bewijs && /^regel: geen bewijs/.test(b.why), b.v + ' — ' + b.why);
   const VERWACHT = +(process.env.AANTAL || 0);
   if(VERWACHT) check('Aantal vragen gelijk aan vóór de wijziging (' + VERWACHT + ')', r.n === VERWACHT, r.n);

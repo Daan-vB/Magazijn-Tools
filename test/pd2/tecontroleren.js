@@ -27,7 +27,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     }
     // soort eerst: de eerste kaart is een familiekaart met per product de voorgestelde soort en vinkjes
     const k1 = await ev(() => { const L = WHX.vraagLijst(), q = L[0], k = document.querySelector('.x-vraag'); return { soort:q.k === 'soort', fam:!!k.dataset.famkaart, rijen:k.querySelectorAll('.x-famrij').length, n:L.filter(y => y.fam === q.fam && y.k === 'soort').length, sel:[...k.querySelectorAll('[data-x="vsoort"]')].map(b => b.dataset.v).join() }; });
-    check(W + ' px: eerste kaart = familiekaart (soort) met vinkjes, Selectie klopt en Selectie is: Pallet · Deel · Pick · Mix · Weg', k1.soort && k1.fam && k1.rijen === k1.n && k1.sel === 'pallet,deel,pick,mix,weg', JSON.stringify(k1));
+    check(W + ' px: eerste kaart = familiekaart (soort) met vinkjes, Selectie klopt en Selectie is: Pallet · Deel · Bulk · Pick · Mix · Weg', k1.soort && k1.fam && k1.rijen === k1.n && k1.sel === 'pallet,deel,bulk,pick,mix,weg', JSON.stringify(k1));
     const n0 = await ev(() => WHX.vraagLijst().length);
     await P.click('.x-vraag [data-x="famklopt"]'); await P.waitForTimeout(2000);
     const n1 = await ev(() => WHX.vraagLijst().length);

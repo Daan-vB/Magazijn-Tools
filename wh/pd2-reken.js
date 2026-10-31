@@ -24,11 +24,12 @@ const AANNAMES = {
   geenpick: 'Bij picklocatie "geen pick" (alleen bulk, per order verplaatsen) zijn Aanvullen bij en Max op pick niet nodig.',
   uitl:     'Uitlopend wordt voorgesteld als er nog voorraad is en geen inkoop in 12 maanden, ook als het nog verkoopt (verkoop is geen voorwaarde). Komt het binnen (open pakbon/container), dan niet.',
   backord:  'Backorder wordt voorgesteld bij geen voorraad en wel inkoop, backorders of verkoop in de laatste 12 maanden.',
+  bulk:     'Bulk (Daan 31-10): pallet staat alleen op bulk, geen picklocatie. Alleen als het besteld wordt: 1 stuk naar geen specifieke locatie verplaatsen en de backorder verwerken. Nooit aanvuladvies naar pick, geen max op pick; wel gewicht en de palletvragen. Voorgesteld als er bulkvoorraad is en geen picklocatie (bijv. alle Sprinttrack kunstgras).',
   mix:      'Mix wordt voorgesteld als alle bulkplekken van het product ook voorraad van andere producten hebben (gedeelde plek of mixpallet), er geen pallet-aantal bekend is en er geen volle pallet wordt ingekocht. Gedeelde plek mét pallet-aantal, of eigen én gedeelde plekken = twijfel Deel/Mix. Let op: een 20-locatie kan meerdere pallets van verschillende producten hebben.',
   pallet85: 'Pallet: meest voorkomende inkoop ≥ 85% van stuks per pallet én de verplaatsingen laten zien dat de hele bulkvoorraad in één keer naar pick gaat. Alleen per volle pallet verplaatst = twijfel Pallet/Deel; alleen een volle pallet ingekocht maar in delen verplaatst = Deel.',
   score:    'Een voorstel waarvan de regel bij jouw eigen invoer minder dan 60% klopte (minstens 5 keer getoetst), staat als twijfel: in het blauwe vak staat "twijfel" en hoe vaak hij klopte.',
   leer:     'Leren van jouw invoer: een waarde telt als patroon als minstens 2 producten (kleurgenoot: 1) in die groep hem hebben en hij ≥ 60% van die groep is. Groepen: kleurgenoten, familie, leverancier + maat, leverancier.',
-  reach:    'Weeglijst: hoe wegen volgt uit de soort. Pallet of Deel met stuks per pallet = volle pallet met de reachtruck (palletgewicht − 15 kg, gedeeld door stuks per pallet); de rest los op de weegschaal.',
+  reach:    'Weeglijst: hoe wegen volgt uit de soort. Pallet, Deel of Bulk met stuks per pallet = volle pallet met de reachtruck (palletgewicht − 15 kg, gedeeld door stuks per pallet); de rest los op de weegschaal.',
   liggerkg: 'Palletgewicht boven ligger-limiet: een pallet van meer dan 2.000 kg, of zo zwaar dat door het gewicht minder pallets op een ligger passen dan door de plaatsen (3 plaatsen per ligger).',
   wegalle:  'Weg-voorstel voor alle producten: dezelfde regels als in tab 5. Heeft Daan in de familie al een soort gekozen, dan telt "geen voorraad" als tijdelijk op en komt er geen Weg-voorstel.',
   snap:     'Snel openen: 2.0 bewaart na het laden een kopie op dit apparaat (IndexedDB, max 7 dagen oud) en tekent daar eerst mee ("gegevens van hh:mm, bijwerken…"); daarna ververst het op de achtergrond. Typ je net, dan wacht het verversen tot je klaar bent.',
@@ -66,7 +67,7 @@ const AANNAMES = {
   overzet1: 'Week 1: overgezet is alles wat je in 2.0 bevestigde of aanpaste (niet met het oefenkaartje aan). Gewicht vertrouwd = de Picqer-kg van dat moment. Daarna schrijft 2.0 direct naar productdata (bron pd2), met per schrijfactie een kopie van de rij in wh-pd2-kopie-<datum>.',
   ligger:   'Max per ligger: liggertype uit de bulklocatie (letters per gang+sectie+niveau in wh-locaties: A–B = 2-ligger, A–C = 3, A–D = 4). Plaatsen 1 → 2/3/4 per ligger, 2 → 1/1/2, 3 → 1. Zonder bulklocatie: "3-ligger x · 4-ligger y". Daarnaast 2.000 kg per ligger.',
   nacontrole: 'Controle na invoer (oranje onder het veld): VST-pallets (≥ 2 gelijk), verplaatsingen naar VST of naar pick, of palletlabels zeggen een ander stuks per pallet dan wat je invulde; bij Deel ook de grootste aanvulling naar pick tegenover max op pick. Nooit automatisch gewijzigd.',
-  binnenkomst: 'Binnenkomst (Pallet en Deel): pallet van leverancier of los, zelf pallets bouwen. Voorstel uit inkoop tegenover stuks per pallet (≥ 85% = pallet van leverancier). Bij zelf bouwen komt stuks per pallet alleen uit palletlabels, VST/bulk-pallets en verplaatsingen; bij pallet van leverancier mag inkoop meestal als laatste bron.',
+  binnenkomst: 'Binnenkomst (Pallet, Deel en Bulk): pallet van leverancier of los, zelf pallets bouwen. Voorstel uit inkoop tegenover stuks per pallet (≥ 85% = pallet van leverancier). Bij zelf bouwen komt stuks per pallet alleen uit palletlabels, VST/bulk-pallets en verplaatsingen; bij pallet van leverancier mag inkoop meestal als laatste bron.',
   labelfout: 'Een palletlabel waarvan de hele naam (zonder spaties/streepjes) een andere productcode is, telt niet voor stuks per pallet of vloernaam en staat op "Palletlabels om te verbeteren".',
   oefentel: 'Wat je invult terwijl het oefenkaartje aan staat, krijgt een oefen-merk: het geldt voor dat product, maar telt niet mee voor kleurgenoten, leren, de telling in "Kopieer alles voor Claude" en het overzetten. Alleen invoer met oefenen uit telt.',
   oefen:    'Oefenen staat standaard uit (Oefenmodus ⋯ → Oefenen); dan één kaartje rechtsonder met de opdrachten per soort en na de laatste de vier vragen. Je bewerkt de oefenkopie ook als oefenen uit staat.',
@@ -492,19 +493,20 @@ const VELD = {
   kgm:{ t:'kg per meter', calc:1 },
   kgcm:{ t:'kg per cm', calc:1 }
 };
-const SOORTEN = [['pallet', '1 Pallet'], ['deel', '2 Deel'], ['pick', '3 Pick'], ['mix', '4 Mix'], ['weg', '5 Weg']];
-const SOORTT = { pallet:'Pallet', deel:'Deel', pick:'Pick', mix:'Mix', weg:'Weg' };
+const SOORTEN = [['pallet', '1 Pallet'], ['deel', '2 Deel'], ['bulk', '3 Bulk'], ['pick', '4 Pick'], ['mix', '5 Mix'], ['weg', '6 Weg']];
+const SOORTT = { pallet:'Pallet', deel:'Deel', bulk:'Bulk', pick:'Pick', mix:'Mix', weg:'Weg' };
 const WEG = [['uitlopend', 'Uitlopend'], ['backorder', 'Backorder'], ['archief', 'Archief']];
 const KOLOMMEN = {
   pallet:['pickc', 'lvl', 'binnen', 'spp', 'maat', 'hoogte', 'vn', 'maxcalc', 'gewpal', 'plaatsen', 'maxlig'],
   deel:['pickc', 'lvl', 'maxpick', 'aanvmet', 'verp', 'binnen', 'spp', 'maat', 'hoogte', 'vn', 'gewpal', 'plaatsen', 'maxlig'],
+  bulk:['binnen', 'spp', 'maat', 'hoogte', 'vn', 'gewpal', 'plaatsen', 'maxlig'],   // geen picklocatie, aanvullen of max op pick
   pick:['pickc', 'maxpick'],
   mix:['pickc', 'lvl', 'maxpick', 'aanvmet', 'verp', 'mixgroep'],
   rollen:['rb', 'rd', 'rl', 'rdia', 'rkg', 'rstand', 'rmax', 'rvast', 'kgm', 'kgcm']
 };
 // stap 3 (Hoeveelheid): alleen deze velden bepalen of een product klaar is; picklocatie, aanvullen bij, verpakking, vloernaam enz. blijven opgeslagen maar tellen niet meer mee
-const NODIG = { pallet:['spp', 'maat', 'hoogte'], deel:['spp', 'maat', 'hoogte'], pick:['maxpick'], mix:['maxpick'], sam:['maxpick'] };
-const ROLNODIG = ['rl', 'rmax'];   // bij rol op pallet/deel: lengte volle rol en max rollen per pallet
+const NODIG = { pallet:['spp', 'maat', 'hoogte'], deel:['spp', 'maat', 'hoogte'], bulk:['spp', 'maat', 'hoogte'], pick:['maxpick'], mix:['maxpick'], sam:['maxpick'] };
+const ROLNODIG = ['rl', 'rmax'];   // bij rol op pallet/deel/bulk: lengte volle rol en max rollen per pallet
 const ROLVS = ['rb', 'rd', 'rl', 'rstand', 'rmax', 'rvast'];   // voorstellen voor alle rolvelden (diameter en kg per rol worden daaruit berekend)
 const SAMVELD = new Set(['pickc', 'lvl', 'maxpick']);
 const isNvt = v => String(v ?? '').trim().toLowerCase() === 'nvt';
@@ -621,7 +623,7 @@ function soortWaarde(c, I){
   const p = po(c);
   if(p && p.so && p.so.v) return { v:p.so.v, st:p.so.st || 'aangepast', voor:p.so.voor };
   if(X().pdWaarde(c, 'uitlopend')) return { v:'weg', st:'vastgelegd', why:'staat in productdata op uitlopend' };
-  const o = vastPd(c, 'opslag'); const on = o && X().soortVan ? X().soortVan(c) : '';
+  const o = vastPd(c, 'opslag'); const on = o && X().soortVan ? X().soortVan(c) || (soortNormKort(o) === 'bulk' ? 'bulk' : '') : '';   // Bulk kent de oude productdata-pagina niet
   if(on && SOORTT[on]) return { v:on, st:'vastgelegd', why:'vastgelegd in productdata (' + SOORTT[on] + ')' };
   const vs = (I || info(c)).vsSo, sc = vs ? scoreVan(vs.r) : null;
   return vs ? { v:vs.v, st:vs.tw || (sc && sc.p < 0.6) ? 'twijfel' : 'voorstel', why:vs.why, alt:vs.alt, sc, r:vs.r } : { v:'', st:'leeg' };
@@ -1037,6 +1039,9 @@ function vsSoortKern(c, f, ink){
   const plekT = gedeeld.length ? gedeeld.slice(0, 2).map(x => x.n + ' met ' + anderOpPlek(c, x.n).length + ' ander' + (anderOpPlek(c, x.n).length > 1 ? 'e' : '') + ' product' + (anderOpPlek(c, x.n).length > 1 ? 'en' : '')).join(', ') : '';
   // pallet: inkoop ≥ 85% van een volle pallet én per volle pallet verplaatst
   const vol = ink && sppV ? ink.meestal >= 0.85 * sppV : false, perPallet = !!(ms && ms.soort === 'pallet');
+  // bulk: pallet staat alleen op bulk, geen picklocatie (eigen data gaat voor kleurgenoten en familie)
+  const pc = eigen(c, 'pickc');
+  if(bulkN > 0 && !f.pick.length && !isSam(c) && !(pc && pc.v === 'moetpick')) return { r:'soort:bulk', so:t('bulk', 'bulk ' + nf(bulkN) + ' op ' + bulkMet.slice(0, 2).map(x => x.n).join(', ') + ', geen picklocatie: per order 1 stuk naar geen specifieke locatie, nooit aanvullen naar pick', { alt:['bulk', 'deel'], aan:'bulk' }) };
   if(!(vol && perPallet) && ls) return { r:ls.r, so:t(ls.v, lsKort(ls)) };
   if(vol && perPallet) return { r:'soort:4', so:t('pallet', inkT + ' (≥ 85% van ' + nf(sppV) + ' per pallet) en ' + ms.t, { aan:'pallet85' }) };
   // per volle pallet verplaatst, maar de inkoop is minder dan een pallet (of onbekend): twijfel
@@ -1075,8 +1080,8 @@ function bereken(c){
   if(sam && I.vsSo && I.vsSo.v === 'mix') I.vsSo = { v:som(f.bulk) > 0 ? 'deel' : 'pick', why:'SAM Europe: ' + I.vsSo.why };
   const so = soortWaarde(c, I).v;
   I.vs.pickc = vsPickc(c, f);
-  I.vs.lvl = vsLvl(c); if(I.vs.lvl && I.vs.lvl.aan) I.aan.add(I.vs.lvl.aan);
-  I.vs.maxpick = vsMax(c, so, ink);
+  I.vs.lvl = so === 'bulk' ? null : vsLvl(c); if(I.vs.lvl && I.vs.lvl.aan) I.aan.add(I.vs.lvl.aan);
+  I.vs.maxpick = so === 'bulk' ? null : vsMax(c, so, ink);   // Bulk: geen max op pick
   I.vs.binnen = vsBinnen(c, ink);
   I.vs.spp = vsSpp(c, I);
   I.vs.maat = vsMaat(c);
@@ -1164,9 +1169,9 @@ function nodigVan(c, so, I){
   if(so === 'weg') return [];
   let n = isSam(c) ? NODIG.sam.slice() : (NODIG[so] || []).slice();
   if(waarde(c, 'pickc', I).v === 'geenpick') n = n.filter(k => k !== 'lvl' && k !== 'maxpick');
-  if(isRol(c) && !isSam(c) && (so === 'pallet' || so === 'deel')) n = ROLNODIG.slice();
-  // vaste regel: zonder bewijs voor pallets geen palletvragen (per pallet, palletmaat, hoogte, max rollen per pallet); alleen max op pick
-  if((so === 'pallet' || so === 'deel') && !(I || info(c)).bewijs) n = isRol(c) ? ['rl'] : ['maxpick'];
+  if(isRol(c) && !isSam(c) && ['pallet', 'deel', 'bulk'].includes(so)) n = ROLNODIG.slice();
+  // vaste regel: zonder bewijs voor pallets geen palletvragen (per pallet, palletmaat, hoogte, max rollen per pallet); alleen max op pick (Bulk: geen max op pick)
+  if(['pallet', 'deel', 'bulk'].includes(so) && !(I || info(c)).bewijs) n = isRol(c) ? ['rl'] : so === 'bulk' ? [] : ['maxpick'];
   return n;
 }
 function status(c){

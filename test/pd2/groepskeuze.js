@@ -11,7 +11,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('Mars 40x60: minstens 4 open kaarten in stap Soort', alle.length >= 4 && await ev(() => WHPD2.UI.stap) === 'soort', alle.length + '');   // echte data: wat Daan al afrondde staat onder Afgerond
   const vink = async cs => { for(const c of cs) await P.locator(`article.pd2-kaart[data-c="${c}"] [data-a="sel"]`).check(); await w(100); };
   await vink(alle.slice(0, 4));
-  check('Balk: n aangevinkt · Selectie is: Pallet Deel Pick Mix Weg · Selectie klopt · ×', await ev(() => { const b = document.querySelector('#pd2-actie .pd2-actie'); return /4 aangevinkt/.test(b.innerText) && [...b.querySelectorAll('[data-a="selsoort"]')].map(x => x.dataset.v).join() === 'pallet,deel,pick,mix,weg' && !!b.querySelector('[data-a="selklopt"]') && !!b.querySelector('[data-a="selweg"]'); }));
+  check('Balk: n aangevinkt · Selectie is: Pallet Deel Bulk Pick Mix Weg · Selectie klopt · ×', await ev(() => { const b = document.querySelector('#pd2-actie .pd2-actie'); return /4 aangevinkt/.test(b.innerText) && [...b.querySelectorAll('[data-a="selsoort"]')].map(x => x.dataset.v).join() === 'pallet,deel,bulk,pick,mix,weg' && !!b.querySelector('[data-a="selklopt"]') && !!b.querySelector('[data-a="selweg"]'); }));
   await P.click('#pd2-actie [data-a="selsoort"][data-v="pick"]'); await w(400);
   const so = await ev(cs => cs.map(c => PD2R.status(c).so + '/' + PD2R.status(c).soSt), alle.slice(0, 4));
   check('Alle 4 staan op Pick (opgeslagen), vinkjes weg', so.every(x => /^pick\/(bevestigd|aangepast)$/.test(x)) && await ev(() => WHPD2.UI.sel.size === 0), so.join());
