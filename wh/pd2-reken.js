@@ -551,7 +551,7 @@ function gewicht(c){
 }
 // gewicht per stuk: wat Daan bij kleurgenoten of dezelfde leverancier en maat woog of goedkeurde, anders Picqer
 function vsKg(c){
-  const l = leerOf(c, 'kgst', [['fammaat', 1], ['levmaat', 2]]); if(l) return l;
+  const l = leerOf(c, 'kgst', [['fammaat', 1], ['fam', 2]]); if(l) return l;
   const pq = kgPq(c); return pq ? { v:String(pq), r:'kg:picqer', why:'Picqer-gewicht' } : null;
 }
 const gewKlaar = g => ['gewogen', 'vertrouwd', 'tewegen'].includes(g.st);
@@ -770,7 +770,7 @@ function vsSpp(c, I){
   }
   const br = sppUitBronnen(c, true);
   if(!br.length && bk === 'pallet' && I && I.ink) return { v:String(I.ink.meestal), why:'pallet van de leverancier: inkoop meestal ' + nf(I.ink.meestal) + ' per order', r:'spp:inkoop' };
-  if(!br.length){ const l = leerOf(c, 'spp', [['levmaat', 2]]); return l ? Object.assign(l, { why:l.why + ' (zelfde leverancier en maat)' }) : { mis:'geen palletlabel, verplaatsingen, pallets, pakbon of kleurgenoot: uitzoeken (inkoop zegt niets over stuks per pallet)' }; }
+  if(!br.length){ const l = leerOf(c, 'spp', [['fammaat', 1]]); return l ? l : { mis:'geen palletlabel, verplaatsingen, pallets, pakbon of kleurgenoot: uitzoeken (inkoop zegt niets over stuks per pallet)' }; }
   const top = br[0], ander = br.filter(x => x !== top && x.v !== top.v);
   const uit = { v:String(top.v), why:top.why, r:top.id, bron:br.map(x => x.why) };
   if(top.alt || ander.length){ uit.tw = true; uit.alt = [...new Set((top.alt || [top.v]).concat(ander.map(x => x.v)).map(String))]; if(ander.length) uit.why += ' · andere bron: ' + ander.map(x => x.why).join(' · '); }
@@ -828,7 +828,7 @@ function vsMaat(c){
   if(isSam(c)) return null;
   const pb = X().pbRegels(c).find(r => r.palletmaat || r.maat); if(pb){ const v = opLijst(c, pb.palletmaat || pb.maat); if(v) return { v, why:'pakbon: palletmaat ' + (pb.palletmaat || pb.maat), r:'maat:pakbon' }; }
   const g = vanGenoot(c, 'maat'); if(g){ const v = opLijst(c, g.v); if(v) return Object.assign(g, { v, r:'maat:genoot' }); }
-  { const l = leerOf(c, 'maat', [['levmaat', 2], ['fam', 3]]); if(l){ const v = opLijst(c, l.v); if(v) return Object.assign(l, { v }); } }
+  { const l = leerOf(c, 'maat', [['fammaat', 1], ['fam', 3]]); if(l){ const v = opLijst(c, l.v); if(v) return Object.assign(l, { v }); } }
   const R = maatRegel(c); return { v:R.maat, why:R.why, r:R.r };
 }
 function vsHoogte(c, spp, maat){
@@ -836,7 +836,7 @@ function vsHoogte(c, spp, maat){
   const g = vanGenoot(c, 'hoogte'); if(g) return Object.assign(g, { v:String(rond10(num(g.v))), r:'hoogte:genoot' });
   const pm = palDims(maat), pbr = X().pbRegels(c).find(r => r.soort === 'pallet' && num(r.cbm) && num(r.aantal));
   if(pbr){ const h = num(pbr.cbm) / num(pbr.aantal) / (pm[0] * pm[1] / 1e4) * 100; if(h > 20 && h < 260) return { v:String(rond10(h)), why:'pakbon: ' + nf(num(pbr.cbm) / num(pbr.aantal), 2) + ' m³ per pallet op ' + pm.join('x') + ', naar boven op 10 cm', r:'hoogte:pakbon' }; }
-  { const l = leerOf(c, 'hoogte', [['levmaat', 2], ['fam', 3]]); if(l) return Object.assign(l, { v:String(rond10(num(l.v))) }); }
+  { const l = leerOf(c, 'hoogte', [['fammaat', 1], ['fam', 3]]); if(l) return Object.assign(l, { v:String(rond10(num(l.v))) }); }
   const R = maatRegel(c);
   if(R.r === 'maat:regel') return { v:String(R.h), why:R.why + ' (hoogte incl. pallet)', r:'hoogte:regel' };
   const L = lagenHoogte(c, spp, maat);
@@ -856,7 +856,7 @@ function vsLvl(c){
   const pq = D.PQ[c], a = D.AANVUL[c];
   if(pq && num(pq[0]) > 1) return { v:String(num(pq[0])), why:'huidige stand in Picqer: aanvullen bij ' + nf(num(pq[0])), r:'lvl:picqer' };
   if(a && a.ok && num(a.lvl) > 1) return { v:String(num(a.lvl)), why:'huidige stand in de aanvulbase: ' + nf(num(a.lvl)), r:'lvl:aanvulbase' };
-  return leerOf(c, 'lvl', [['levmaat', 2], ['lev', 3]]);
+  return leerOf(c, 'lvl', [['fammaat', 1], ['fam', 3]]);
 }
 // doosveelvoud: Daan zet max op pick vaak op hele dozen (bijv. 15): naar boven op een veelvoud van de inkoopverpakking
 function doosVan(c){ const sp = vastPd(c, 'spd'); if(sp && num(sp) > 1) return num(sp); const r = X().pbRegels(c).find(r => r.soort !== 'pallet' && num(r.per) > 1); return r ? num(r.per) * (num(r.factor) || 1) : null; }
@@ -881,7 +881,7 @@ function vsMax(c, so, ink){
   }
   const R = X().regelVan(c); if(R && so !== 'pick'){ try{ const d = R.doel(c); if(d && d.max !== null && d.max !== undefined) return { v:String(d.max), why:'aanvulregel: ' + R.t + (d.uitleg ? ' (' + d.uitleg + ')' : ''), r:'max:regel' }; }catch(e){} }
   { const g = vanGenoot(c, 'maxpick'); if(g) return Object.assign(g, { r:'max:genoot' }); }
-  { const l = leerOf(c, 'maxpick', [['fammaat', 1], ['levmaat', 2]]); if(l) return l; }
+  { const l = leerOf(c, 'maxpick', [['fammaat', 1], ['fam', 3]]); if(l) return l; }
   const cap = capPick(c); if(cap !== null) return { v:String(cap), why:'huidige stand in Picqer: vul aan tot ' + nf(cap), r:'max:picqer' };
   const a = D.AANVUL[c]; if(a && a.ok && num(a.max ?? a.tot) > 1) return { v:String(num(a.max ?? a.tot)), why:'huidige stand in de aanvulbase: max ' + nf(num(a.max ?? a.tot)), r:'max:aanvulbase' };
   if(so === 'pick' && ink) return opDoos(c, { v:String(ink.meestal), why:'meest gebruikte inkoop per order: ' + nf(ink.meestal) + (ink.meestalN > 1 ? ' (' + ink.meestalN + '×)' : ''), r:'max:inkoop' });
@@ -952,7 +952,7 @@ function rolPallet(c, I){
 let RLL = { dv:-1, m:null };
 function rolLengteLev(c){
   if(RLL.dv !== S.ver || !RLL.m){ const m = {}; Object.keys(D.P).forEach(x => { if(!actief(x) || !rolKand(x) || isKokos(x)) return; const e = eigen(x, 'rl'), L = e && nOf(e.v) > 0 ? { v:nOf(e.v) } : lengteNaam(x); if(!L) return; [['fam', famVan(x)], ['lev', levVan(x)]].forEach(([n, k]) => { const t = (m[n + '|' + k] = m[n + '|' + k] || {}); t[L.v] = (t[L.v] || 0) + 1; }); }); RLL = { dv:S.ver, m }; }
-  for(const [n, k, t] of [['fam', famVan(c), 'de familie'], ['lev', levVan(c), 'deze leverancier']]){
+  for(const [n, k, t] of [['fam', famVan(c), 'de familie']]){   // CLAUDE.md §3: nooit de meerderheid bij de leverancier
     const x = RLL.m[n + '|' + k]; if(!x) continue;
     const tot = Object.values(x).reduce((a, b) => a + b, 0), best = Object.entries(x).sort((a, b) => b[1] - a[1])[0];
     if(tot >= 3 && best[1] / tot >= 0.6) return { v:+best[0], why:'bij ' + t + ' zijn ' + best[1] + ' van ' + tot + ' rollen ' + nf(+best[0]) + ' m lang' };
@@ -980,7 +980,7 @@ function wegDeel(c, f, ink){
   const naam = naamVan(c), pp = D.P[c] || {}, bo = backorders(c), v6 = vk6(c), v28 = vk28(c) || 0;
   const stock = Math.max(som(f.pick) + som(f.bulk) + f.vst + f.geen, (num(pp.voorraad_hm) || 0) + (num(pp.voorraad_vst) || 0));
   const t = (v, why, extra) => Object.assign({ v, why }, extra || {});
-  const ls = isSam(c) ? null : leerOf(c, 'opslag', [['fammaat', 1], ['fam', 2], ['levmaat', 2], ['lev', 4]]);
+  const ls = isSam(c) ? null : leerOf(c, 'opslag', [['fammaat', 1], ['fam', 2]]);
   const binnen = P().index().binnen.has(c);
   // nu geen voorraad, maar Daan koos in de familie al een soort: tijdelijk op, niet weg
   if(stock <= 0 && ls) return { ls, stock, r:ls.r, so:t(ls.v, ls.why + ' · nu geen voorraad' + (binnen ? ', komt binnen' : '')) };

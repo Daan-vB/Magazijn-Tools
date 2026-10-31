@@ -22,6 +22,7 @@ ook de versie vóór 2.0 of `main` op 8812 (`git worktree add ../main-wt <commit
 | `tecontroleren.js` | Te controleren (3.0) → Productdata: één vraag tegelijk, alleen vragen die Productdata 2.0 stelt (soort, gewicht, hoeveelheid per soort, rol), A/B eerst; Kokos 100 cm zwart: één vraag, Klopt → volgende, teller loopt af; 390/1440 px |
 | `tecontrolerenfam.js` | Te controleren: "geldt voor alle n in deze familie" opent een lijst met vinkjes (RPEPDM0400 hoogte: 4 producten), 1 uitvinken → 3 afgehandeld en 1 blijft open, Aanpassen voor selectie zet één waarde; 390 px |
 | `palletregel.js` | Vaste regel: palletvragen alleen met bewijs voor pallets (RPEPDM0400–1000: soort-voorstel Pick, geen hoogte; VST-product houdt palletvragen); Te controleren: soort eerst, na Pick geen palletvragen |
+| `bronnen.js` | Volgorde van bronnen: geen voorstel uit de leverancier (LC-9R-B, SV615V-White-Cushion, SL006-500), palletbewijs vóór kleurgenoten (FWB100200-GREY, 549-0-120-010); Soorten laadt binnen 15 s |
 | `regressie.js` | laadt elke oude pagina op main en op deze tak en vergelijkt tekst en DOM-structuur; in 3.0 apart het menu (er mag precies één regel bij) |
 | `live.js` | Picqer nagebootst: live voorraad per rij (20 per vraag, 3 s ertussen) en bij 429 terugval op de export met datum en pauze |
 | `meting.js` | ronde 2: per veld hoe vaak het voorstel klopt bij Daans eigen invoer (doet alsof elke waarde er niet is); schrijft alleen aantallen |

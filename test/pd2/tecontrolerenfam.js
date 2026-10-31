@@ -11,12 +11,12 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   // een familie met minstens 3 open soorten
   const fam = await ev(() => { const L = WHX.vraagLijst(), per = {}; L.filter(q => q.k === 'soort').forEach(q => (per[q.fam] = per[q.fam] || []).push(q.c)); const f = Object.entries(per).find(([, cs]) => cs.length >= 3); if(!f) return null; L.filter(q => !(q.fam === f[0] && q.k === 'soort')).forEach(q => WHX.S.later.add(q.c + '|' + q.k)); WHX.herteken(); return f[1]; });
   check('Familiekaart met de producten van de familie, vinkjes standaard aan', !!fam && await ev(n => document.querySelectorAll('.x-famsoort .x-famrij input:checked').length === n, fam.length), JSON.stringify(fam));
-  const n0 = await ev(() => WHX.vraagLijst().length), uit = fam[1];
+  const n0 = await ev(() => WHX.vraagLijst().filter(q => q.k === 'soort').length), uit = fam[1];   // soortvragen: na de soort komen gewicht en hoeveelheid erbij
   await P.click(`.x-famrij input[data-code="${uit}"]`); await P.waitForTimeout(200);
   check('Uitvinken: Selectie klopt telt mee', new RegExp('\\(' + (fam.length - 1) + '\\)').test(await ev(() => document.querySelector('[data-x="famklopt"]').textContent)));
   await P.click('.x-famsoort [data-x="vsoort"][data-v="pick"]'); await P.waitForTimeout(2000);
-  const na = await ev(([cs, u]) => ({ n:WHX.vraagLijst().length, so:cs.map(c => c + ':' + PD2R.status(c).so + '/' + PD2R.status(c).soSt), open:WHX.vraagLijst().some(q => q.c === u && q.k === 'soort') }), [fam, uit]);
-  check('Selectie is: Pick zet Pick voor de aangevinkte (in 2.0), teller loopt af met het aantal', na.so.filter(x => !x.startsWith(uit + ':')).every(x => /:pick\/(bevestigd|aangepast)$/.test(x)) && na.n === n0 - (fam.length - 1), na.so.join() + ' · ' + n0 + ' → ' + na.n);
+  const na = await ev(([cs, u]) => ({ n:WHX.vraagLijst().filter(q => q.k === 'soort').length, so:cs.map(c => c + ':' + PD2R.status(c).so + '/' + PD2R.status(c).soSt), open:WHX.vraagLijst().some(q => q.c === u && q.k === 'soort') }), [fam, uit]);
+  check('Selectie is: Pick zet Pick voor de aangevinkte (in 2.0), soortvragen lopen af met het aantal', na.so.filter(x => !x.startsWith(uit + ':')).every(x => /:pick\/(bevestigd|aangepast)$/.test(x)) && na.n === n0 - (fam.length - 1), na.so.join() + ' · ' + n0 + ' → ' + na.n);
   check('Niet aangevinkt product blijft open als eigen vraag', na.open);
   check('390 px zonder horizontale scroll', await ev(() => document.documentElement.scrollWidth <= innerWidth + 1));
   await ev(() => PD2R.flush()); await P.waitForTimeout(800);
