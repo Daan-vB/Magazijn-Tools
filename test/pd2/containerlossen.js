@@ -15,8 +15,9 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('A: SEKU6023732 toont 14/14 akkoord · 9 bij lossen bepalen', /14\/14 akkoord · 9 bij lossen bepalen/i.test(sum), sum);
   check('A: geen knop "Advies invullen"', !(await P.evaluate(() => !!document.querySelector('[data-act="advalles"]'))));
   // B1: invullijst in de losdag-PDF (jsPDF nagebootst: we lezen de teksten)
+  await P.click('#lossen [data-act="lltoggle"]'); await P.waitForTimeout(300);
   const lossen9 = await P.evaluate(() => [...document.querySelectorAll('[data-ll-kaart]')].map(x => x.dataset.llKaart));
-  check('B2: blok "Na het lossen invullen" met 9 producten', lossen9.length === 9 && /Na het lossen invullen/.test(await P.evaluate(() => document.body.innerText)), lossen9.join());
+  check('B2: blok "Na het lossen (9)" met 9 producten', lossen9.length === 9 && /Na het lossen \(9\)/.test(await P.evaluate(() => document.body.innerText)), lossen9.join());
   await P.evaluate(() => { location.hash = '#/c/13/uitvoer'; }); await P.waitForSelector('#wbprev', { timeout:60000 });
   const wb = await P.evaluate(() => document.getElementById('wbprev').innerText);
   check('B4: werkbon zegt bij die producten "bij lossen bepalen — zie invullijst" (NL of EN)', /decide at unloading — see checklist|bij lossen bepalen — zie invullijst/.test(wb) && !/no plan yet|nog geen verdeling/.test(wb));
@@ -30,7 +31,9 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('B1: pakbon "25 dozen à 20" (of EN) bij Snowbag', pdf.slice(i0, i1).some(t => /25 (dozen à|boxes of) 20/.test(t)));
   // B2: Snowbag invullen: 5 dozen per pallet
   onder.length = 0;
-  await P.evaluate(() => { location.hash = '#/c/13/verdeling'; }); await P.waitForSelector('[data-ll-kaart="Snowbag"]', { timeout:60000 });
+  await P.evaluate(() => { location.hash = '#/c/13/verdeling'; }); await P.waitForSelector('#lossen', { timeout:60000 });
+  if(!(await P.evaluate(() => !!document.querySelector('[data-ll-kaart]')))) await P.click('#lossen [data-act="lltoggle"]');
+  await P.selectOption('[data-llkeuze="Snowbag"]', 'nu'); await P.waitForTimeout(300);
   await P.fill('[data-ll-kaart="Snowbag"] [data-lk="dpp"]', '5'); await P.fill('[data-ll-kaart="Snowbag"] [data-lk="maat"]', '80x120');
   await P.click('[data-ll-kaart="Snowbag"] [data-act="llsave"]'); await P.waitForTimeout(3500);
   const cat = onder.filter(x => /catalog/.test(x.u)).map(x => JSON.parse(x.b)[0]);

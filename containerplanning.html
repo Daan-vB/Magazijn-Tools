@@ -146,6 +146,9 @@
   .vcard{background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(15,23,32,.08);padding:14px;border-left:4px solid #d3d9e0}
   .vcard.okk{border-left-color:var(--ok)} .vcard.bad{border-left-color:var(--bad)} .vcard.warn{border-left-color:#e0a100}
   .vhead{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  .llkop{display:flex;width:100%;align-items:center;gap:8px;background:none;border:0;padding:0;font:inherit;cursor:pointer;text-align:left;color:inherit}
+  .llrij{display:flex;gap:6px 10px;align-items:center;flex-wrap:wrap;padding:10px 14px} .llrij .grow{min-width:0;overflow-wrap:anywhere}
+  .llrij select{width:auto;max-width:100%}
   .kvs{display:grid;gap:4px;font-size:12.5px;color:#39434f}
   .kv{display:grid;grid-template-columns:120px 1fr;gap:8px} .kv>span{color:var(--muted);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;padding-top:1px}
   .kv b{color:var(--ink)}
@@ -414,7 +417,7 @@ let TODOS = [];
 let MISSING = [];
 let cur = null;      // geopende container
 let tab = 'pakbon';
-const UI = { open:{}, ll:{}, plak:false, labelDest:{ VST:true, UP:true, PICK:true, GROUND:true },
+const UI = { open:{}, ll:{}, llKeuze:{}, llOpen:undefined, plak:false, labelDest:{ VST:true, UP:true, PICK:true, GROUND:true },
              vn:{ wijzig:{}, los:{}, f:{ lev:'', q:'', prob:false } }, pk:{}, pkOpen:{}, pkAlles:{} };
 
 function indexProducten(rows){
@@ -1566,9 +1569,13 @@ function pools(c){
     p.spp = sppVan(code);
     p.regel = R;
     const auto = !R.hand && !R.losdest;
-    const spp = p.spp || (auto ? R.bulk : null);
+    // "per pallet" ingevuld: volle pallets gaan altijd volgens per pallet, "Alles los naar" geldt alleen voor wat los blijft
+    // (een eerder opgeslagen verdeling met alleen los blijft zoals hij is: een akkoord blijft akkoord)
+    const vOud = (c.data.verdeling || {})[code], alleenLos = !!(vOud && vOud.porties && vOud.porties.length && !vOud.porties.some(x => x.soort === 'pallet'));
+    const perPallet = !R.hand && R.losdest && !alleenLos;
+    const spp = p.spp || (auto || perPallet ? R.bulk : null);
     const losRegels = p.regels.filter(r => r.soort !== 'pallet');
-    if(spp && auto && losRegels.length && p.losU >= spp){
+    if(spp && (auto || perPallet) && losRegels.length && p.losU >= spp){
       const n = Math.floor(p.losU / spp);
       for(let i = 0; i < n; i++) p.pallets.push(spp);
       p.losU -= n * spp; p.gebouwd = n;
@@ -1913,7 +1920,34 @@ function dataStrip(){
 function bijLossen(c, pool){ const v = c.data.verdeling[pool.code]; return !(v && v.porties && v.porties.length) && !advies(c, pool).porties.length; }
 /* ---------- invullijst lossen: producten "bij lossen bepalen" die nog niet na een lossing zijn ingevuld ---------- */
 const lossenIngevuld = code => !!((geh1(code) || {}).lossen);
-function invulCodes(c){ const pl = pools(c); return pl.order.filter(code => bijLossen(c, pl.map[code]) && !lossenIngevuld(code)); }
+// "Alles naar …": de hele pakbon naar één plek; het product blijft op de invullijst tot de palletgegevens één keer zijn ingevuld
+const allesNaar = (c, code) => { const v = c.data.verdeling[code]; return !!(v && v.bron === 'allesnaar' && v.porties && v.porties.length); };
+function invulCodes(c){ const pl = pools(c); return pl.order.filter(code => (bijLossen(c, pl.map[code]) || allesNaar(c, code)) && !lossenIngevuld(code)); }
+function allesNaarPorties(pool, dest){
+  const por = Object.entries(pool.maten).sort((a, b) => b[0] - a[0]).map(([s, n]) => ({ soort:'pallet', n, per:+s, dest }));
+  if(pool.losU > 0) por.push({ soort:'los', n:pool.losU, dest });
+  return por;
+}
+// "25 dozen → Bulk (up)" of "7 st. los → Picklocatie" (los alleen bij Per = 1)
+function allesTekst(c, code, porties){
+  const d = doosVan(c, code);
+  return porties.filter(x => portieU(x) > 0).map(x => (x.soort === 'pallet' ? plural(x.n, 'pallet', 'pallets') + ' à ' + eenhTekst(c, code, x.per) : d ? doosTekst(d, x.n) : nf(Math.round(x.n)) + ' ' + verkoopEenheid(code).mv + ' los') + ' → ' + (DEST[x.dest] ? DEST[x.dest].nl : x.dest)).join(' · ');
+}
+// keuze "Wat nu?": lossen (standaard) · naar:<DEST> · nu; terugdraaien kan zolang er geen akkoord is
+function lossenKeuze(c, code, w){
+  const v = c.data.verdeling[code], pool = pools(c).map[code];
+  if(!pool || (v && v.bevestigd)) return;
+  const terug = () => { if(!allesNaar(c, code)) return false; if(v.vorige) c.data.verdeling[code] = v.vorige; else delete c.data.verdeling[code]; return true; };
+  let opslaan = false;
+  if(w.startsWith('naar:') && DEST[w.slice(5)]){
+    const vorige = allesNaar(c, code) ? v.vorige : v;
+    c.data.verdeling[code] = Object.assign({ porties:allesNaarPorties(pool, w.slice(5)), bevestigd:false, bron:'allesnaar' }, vorige ? { vorige } : {});
+    delete UI.llKeuze[code]; opslaan = true;
+  } else if(w === 'nu'){ opslaan = terug(); UI.llKeuze[code] = 'nu'; UI.llOpen = true; }
+  else { opslaan = terug(); delete UI.llKeuze[code]; }
+  if(opslaan) save(); else PLAN = null;
+  rerender();
+}
 // wat de pakbon zegt, bijv. "25 dozen à 20"
 function pakbonLossen(c, code, T){
   const pool = pools(c).map[code], d = doosVan(c, code);
@@ -1931,20 +1965,27 @@ function lossenVelden(code, T){
 }
 function lossenBlok(c){
   const codes = invulCodes(c); if(!codes.length) return '';
-  return `<div class="card" id="lossen"><h2>Na het lossen invullen <span class="badge b-info">${codes.length}</span></h2>
-    <p class="small muted mt8">Voor producten waarvan de palletopbouw nog niet bekend is. Eén keer invullen na het lossen (staat ook als invullijst in de losdag-PDF). Opslaan zet stuks per pallet (stuks per doos × dozen per pallet), palletmaat, hoogte en gewicht in het productgeheugen (bron lossen, eerst een kopie) en maakt de verdeling; daarna geef je akkoord.</p>
-    <div class="vgrid mt12">${codes.map(code => lossenKaart(c, code)).join('')}</div></div>`;
+  const open = UI.llOpen !== undefined ? UI.llOpen : codes.some(code => UI.llKeuze[code] === 'nu');
+  return `<div class="card" id="lossen"><button class="llkop" data-act="lltoggle" aria-expanded="${open}"><h2>Na het lossen (${codes.length})</h2><span class="grow"></span><span class="small muted">${open ? 'inklappen' : 'openen'}</span></button>
+    ${open ? `<p class="small muted mt8">Producten waarvan de palletopbouw nog niet bekend is. Kies per product wat nu: bij lossen bepalen (staat op de invullijst in de losdag-PDF), alles naar één plek, of nu de palletgegevens invullen.</p>
+    <div class="vgrid mt12">${codes.map(code => lossenKaart(c, code)).join('')}</div>` : ''}</div>`;
 }
 function lossenKaart(c, code){
-  const d = doosVan(c, code), u = UI.ll[code] || {};
+  const d = doosVan(c, code), u = UI.ll[code] || {}, v = c.data.verdeling[code], naar = allesNaar(c, code), akk = naar && v.bevestigd;
+  const nu = UI.llKeuze[code] === 'nu', keuze = naar ? 'naar:' + v.porties[0].dest : nu ? 'nu' : 'lossen';
   const ph = { geteld:d ? String(d.n) : '', per:d && d.per ? String(d.per) : '', maat:'bijv. 80x120' };
   const veld = ([k, lbl, breed]) => k === 'stand'
     ? `<div class="fld"><label>${esc(lbl)}</label><select data-ll="${esc(code)}" data-lk="stand"><option value=""></option>${['staand', 'liggend'].map(x => `<option ${u.stand === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>`
     : `<div class="fld${breed ? ' breed' : ''}"><label>${esc(lbl)}</label><input data-ll="${esc(code)}" data-lk="${k}" value="${esc(u[k] ?? '')}" placeholder="${esc(ph[k] || '')}"${['geteld', 'per', 'dpp', 'hoogte', 'gewicht'].includes(k) ? ' inputmode="decimal"' : ''} autocomplete="off"></div>`;
-  return `<div class="vcard" data-ll-kaart="${esc(code)}"><div class="vhead"><span class="code" style="font-size:14px">${esc(code)}</span><span class="small">${esc(labelNaam(code))}</span></div>
-    <div class="small mt8">Pakbon: <b>${esc(pakbonLossen(c, code, 'nl'))}</b></div>
-    <div class="fields mt8">${lossenVelden(code, 'nl').map(veld).join('')}</div>
-    <div class="row wrap mt12"><button class="btn acc" data-act="llsave" data-code="${esc(code)}">Opslaan en verdelen</button></div></div>`;
+  const opties = `<option value="lossen" ${keuze === 'lossen' ? 'selected' : ''}>Bij lossen bepalen</option><optgroup label="Alles naar …">${['PICK', 'UP', 'GROUND', 'VST', 'BO', 'KLANT'].map(k => `<option value="naar:${k}" ${keuze === 'naar:' + k ? 'selected' : ''}>Alles naar ${esc(DEST[k].nl)}</option>`).join('')}</optgroup><option value="nu" ${keuze === 'nu' ? 'selected' : ''}>Nu invullen</option>`;
+  const stand = naar ? `<b>${esc(allesTekst(c, code, v.porties))}</b>${akk ? ' <span class="badge b-ok">akkoord</span>' : ''}` : nu ? '' : '<span class="badge b-info">bij lossen bepalen</span>';
+  return `<div class="vcard llrij" data-ll-kaart="${esc(code)}" data-ll-stand="${nu ? 'nu' : naar ? 'naar' : 'lossen'}" data-code="${esc(code)}">
+    <span class="code" style="font-size:14px">${esc(code)}</span><span class="small grow">${esc(labelNaam(code))} · pakbon ${esc(pakbonLossen(c, code, 'nl'))}${stand ? ' · ' + stand : ''}</span>
+    <select data-llkeuze="${esc(code)}" aria-label="Wat nu?" ${akk ? 'disabled' : ''}>${opties}</select>
+    ${naar && !akk ? `<button class="btn ok sm" data-act="vakk" ${restVan(pools(c).map[code], v.porties).ok ? '' : 'disabled'}>✓ Akkoord</button>` : ''}
+    ${akk && !nu ? '<button class="btn sm" data-act="llnu">Palletgegevens invullen</button>' : ''}
+    ${nu ? `<div style="flex-basis:100%"><div class="fields mt8">${lossenVelden(code, 'nl').map(veld).join('')}</div>
+    <div class="row wrap mt12"><button class="btn acc" data-act="llsave" data-code="${esc(code)}">Opslaan${naar ? '' : ' en verdelen'}</button></div></div>` : ''}</div>`;
 }
 // eerst een kopie van catalog-ean (zoals Productdata 2.0 bij gelijkzetten); lukt die niet, dan niet opslaan
 async function kopieCatalogEan(oud){
@@ -1978,7 +2019,7 @@ async function lossenOpslaan(c, code){
     indexCatalog(cat); PLAN = null;
     // verdeling: pallets à <stuks per pallet>, rest los (een akkoord raakt dit nooit)
     const pool = pools(c).map[code], v0 = c.data.verdeling[code];
-    if(pool && !(v0 && v0.bevestigd)){
+    if(pool && !(v0 && (v0.bevestigd || (v0.porties && v0.porties.length)))){   // een bestaande verdeling (bijv. "Alles naar …") blijft staan
       let por = advies(c, pool).porties.map(x => Object.assign({}, x));
       if(!por.length && pool.pallets.length){
         const per2 = {}; pool.pallets.forEach(x => { per2[x] = (per2[x] || 0) + 1; });
@@ -1987,7 +2028,7 @@ async function lossenOpslaan(c, code){
       }
       if(por.length) c.data.verdeling[code] = { porties:por, bevestigd:false, bron:'lossen' };
     }
-    delete UI.ll[code]; PLAN = null;
+    delete UI.ll[code]; delete UI.llKeuze[code]; PLAN = null;
     if(c === cur) save(); else await bewaarContainer(c);
     rerender();
     toast(code + ': ' + nf(spp) + ' per pallet in het productgeheugen gezet' + (c.data.verdeling[code] && c.data.verdeling[code].bron === 'lossen' ? ', verdeling klaar voor akkoord.' : '. Verdeel zelf.'), 6000);
@@ -3820,7 +3861,7 @@ function verdeelKaart(c, pool){
         <span class="grow"></span>
         ${heeft ? (v.bevestigd ? `<span class="badge b-ok">akkoord</span> <button class="btn ghost sm" data-act="vakk">wijzigen</button>` : `<button class="btn ok sm" data-act="vakk" ${rest.ok ? '' : 'disabled'}>✓ Akkoord</button>`) : ''}
       </div>
-      ${heeft ? restTxt() : bijLossen(c, pool) ? '<div class="rest muted small"><span class="badge b-info">bij lossen bepalen</span> — vul na het lossen in (blok bovenaan) of verdeel zelf.</div>' : '<div class="rest muted small">Nog geen verdeling — neem het advies over of voeg zelf regels toe.</div>'}
+      ${heeft ? restTxt() : bijLossen(c, pool) ? '<div class="rest muted small"><span class="badge b-info">bij lossen bepalen</span> — kies bij "Na het lossen" (blok bovenaan) of verdeel zelf.</div>' : '<div class="rest muted small">Nog geen verdeling — neem het advies over of voeg zelf regels toe.</div>'}
       ${v.opmerking ? `<div class="small muted mt8">${esc(v.opmerking)}</div>` : ''}
     </div></div>`;
 }
@@ -4547,6 +4588,8 @@ const ACT = {
   pkalles: el => { const k = el.dataset.code; UI.pkAlles[k] = !UI.pkAlles[k]; UI.pkOpen[k] = true; rerender(); },
   pksave: el => productenOpslaan([el.dataset.code]),
   llsave: el => lossenOpslaan(cur, el.dataset.code),
+  lltoggle: () => { const k = document.querySelector('#lossen .llkop'); UI.llOpen = !(k && k.getAttribute('aria-expanded') === 'true'); rerender(); },
+  llnu: el => { UI.llKeuze[el.closest('[data-code]').dataset.code] = 'nu'; UI.llOpen = true; rerender(); },
   pkaanvul: el => maakLabels(cur, [aanvulLabel(el.dataset.code)]),
   kies: el => { const b = el.closest('[data-kc]'), c = CONT.find(x => x.id === +b.dataset.kc), r = c && c.data.regels.find(x => String(x.id) === b.dataset.kr); if(r) regelKoppel(c, r, el.dataset.code); },
   startregels: () => startregelsToepassen(cur),
@@ -4725,6 +4768,7 @@ app.addEventListener('change', e => {
     v.bevestigd = false;
     save(); if(el.dataset.p !== 'note') rerenderLater(); return;
   }
+  if(el.dataset.llkeuze){ lossenKeuze(cur, el.dataset.llkeuze, el.value); return; }
   if(el.dataset.ll){ (UI.ll[el.dataset.ll] = UI.ll[el.dataset.ll] || {})[el.dataset.lk] = el.value; return; }
   if(el.dataset.inst){ cur.data.instellingen[el.dataset.inst] = num(el.value); save(); rerenderLater(); return; }
   if(el.dataset.wb === 'taal'){ cur.data.werkbon.taal = el.value; save(); rerender(); return; }
