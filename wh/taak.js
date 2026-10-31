@@ -36,6 +36,7 @@ function pdLaden(){
       if(!window.WHPDF) await laadJs('wh/pdfamilie.js').catch(e => console.error(e));
       if(!window.WHPD) throw new Error('Productdata niet beschikbaar');
       await WHPD.laad();
+      if(window.PD2R && PD2R.laad && !(PD2R.S && PD2R.S.klaar)) await PD2R.laad().catch(e => console.error(e));   // Productdata 2.0 is de telling
       WHPD.S.idx = null;   // index opnieuw op de volledig geladen gegevens
       if(WHPD.S.fout) throw WHPD.S.fout;
       PD.fout = null; PD.cache = null;
@@ -55,7 +56,7 @@ function data04(){
   if(PD.cache && Date.now() - PD.cache.op < 15e3) return PD.cache.d;
   const P = WHPD.poort();
   const open = [];
-  P.bel.forEach(c => { const v = [1, 2, 3].flatMap(l => WHPD.open(c, l)); if(v.length) open.push({ c, v }); });
+  P.bel.forEach(c => { const v = WHPD.openStappen(c); if(v.length) open.push({ c, v }); });
   const d = { P, open };
   PD.cache = { op:Date.now(), d };
   return d;
@@ -71,8 +72,8 @@ function nodig04(id){
   if(PD.fout) return `<div class="melding">Productdata laden lukte niet: ${esc(PD.fout.message || String(PD.fout))}</div>`;
   const d = data04(); if(!d){ pdLaden(); return '<div class="leeg">Productdata laden…</div>'; }
   const it = d.P.items, nGroen = it.filter(x => x.ok).length;
-  const link = (x, i) => i === 1 ? '#/productdata' : i === 2 ? '#/productdata/dubbel' : x.laag ? '#/productdata/open/' + x.laag : '#/productdata/poort';
-  const knopT = (x, i) => i === 1 ? 'Overzetten' : i === 2 ? 'Kiezen' : x.laag ? 'Invullen' : x.steek ? 'Steekproef' : 'Bekijken';
+  const link = (x, i) => i === 1 ? '#/productdata' : i === 2 ? '#/productdata/dubbel' : x.a ? x.a : x.laag ? '#/productdata/open/' + x.laag : '#/productdata/poort';
+  const knopT = (x, i) => i === 1 ? 'Overzetten' : i === 2 ? 'Kiezen' : x.laag || x.pd2 ? 'Invullen' : x.steek ? 'Steekproef' : 'Bekijken';
   const regels = it.map((x, i) => x.ok ? '' : `<li><span class="nt"><b>${esc(x.t)}</b><span class="muted klein">${esc(x.u || '')}</span></span>${x.steek && !x.kan ? '<span class="knop" aria-disabled="true" style="opacity:.55;cursor:not-allowed">Kan als laag 1–3 klaar zijn</span>' : knop(id, link(x, i), knopT(x, i))}</li>`).join('');
   const later = BP.inst('poortLaterMee') !== false;
   return `<p class="kern"><b>${nf(nGroen)}</b> van ${nf(it.length)} groen in Poort 0.4 · ${nf(d.P.bel.length)} belangrijke producten · <b>${nf(d.open.length)}</b> producten open</p>

@@ -311,6 +311,38 @@ function nodig(code, k, w){
   }
   return false;
 }
+/* Telling (Daan 31-10): Poort 0.4, Te doen en de lagen tellen alleen wat Productdata 2.0 vraagt: Soort, Gewicht en Hoeveelheid.
+   Gewicht per stuk (kgst) en max pallets per ligger (maxlig) blijven veld op de oude kaart maar tellen niet mee. Soort Bulk en Weg
+   (Uitlopend/Backorder/Archief) tellen nooit open op max op pick, aanvullen bij, aanvullen met en picklocatie. Is Productdata 2.0 (PD2R)
+   geladen, dan komt elk getal uit PD2R.status (wat Daan daar bevestigde telt als compleet); anders uit dezelfde regels hier. */
+const TELT_NIET = new Set(['kgst', 'maxlig']);
+const pd2Klaar = () => !!(window.PD2R && PD2R.S && PD2R.S.klaar);
+function telSoort(c){
+  if(pd2Klaar()){ try{ const so = PD2R.status(c).so; if(so) return so; }catch(e){} }
+  return pdWaarde(c, 'uitlopend') ? 'weg' : soortVan(c);
+}
+function telt(code, k, w){
+  if(TELT_NIET.has(k)) return false;
+  if(['maxpick', 'lvl', 'met', 'pick'].includes(k)){ const so = telSoort(code); if(so === 'bulk' || so === 'weg') return false; }
+  return nodig(code, k, w);
+}
+// open velden van één product, per laag (oude telling) of in totaal (stappen van Productdata 2.0)
+function openStappen(c){
+  if(pd2Klaar()){ try{ const st = PD2R.status(c); return st.kop ? [] : st.open.slice(); }catch(e){} }
+  return [1, 2, 3].flatMap(n => open(c, n));
+}
+// voortgang per stap van Productdata 2.0 (soort · gewicht · hoeveelheid): vol = producten waar die stap klaar is, velden = open velden
+const PD2STAPPEN = [['soort', 'Soort'], ['gewicht', 'Gewicht'], ['hoev', 'Hoeveelheid']];
+function voortgangPd2(codes, s){
+  let vol = 0, velden = 0;
+  codes.forEach(c => {
+    let st; try{ st = PD2R.status(c); }catch(e){ st = null; }
+    if(!st || st.kop || (st.stap && st.stap[s])){ vol++; return; }
+    velden += st.open.filter(k => s === 'soort' ? k === 'soort' || k === 'weg' : s === 'gewicht' ? k === 'gewicht' : !['soort', 'weg', 'gewicht'].includes(k)).length || 1;
+  });
+  return { vol, tot:codes.length, velden, gevuld:0 };
+}
+
 /* Regelcontrole (Daan 17-10): een vastgelegde waarde die tegen een bevestigde regel ingaat telt als open (zoals een schatting van Claude),
    met een korte reden. Alleen tonen en tellen: er wordt niets weggeschreven. Daan past het aan of zet het op Klopt (meta.rok = 1, dan telt het als compleet).
    p-dooscm  per cm of per meter: stuks per doos × gewicht per eenheid boven het maximum per doos (30 kg). Gewicht onbekend = niet controleren.
@@ -403,7 +435,7 @@ function wachtOpLevering(code){
 function open(code, laag){
   if(wachtOpLevering(code)) return [];
   const w = waardeFn(code);
-  return inLaag(laag).filter(k => nodig(code, k, w) && staat(code, k).s !== 'ok');
+  return inLaag(laag).filter(k => telt(code, k, w) && staat(code, k).s !== 'ok');
 }
 
 /* ---------- voorstellen ---------- */
@@ -958,7 +990,7 @@ function prodStatus(c){
   if(wachtOpLevering(c)) return 'ok';
   const w = waardeFn(c);
   let dub = false, open = false;
-  [1, 2, 3].forEach(n => inLaag(n).forEach(k => { if(!nodig(c, k, w)) return; const st = staat(c, k); if(st.s === 'ok') return; if(st.conflict) dub = true; else open = true; }));
+  [1, 2, 3].forEach(n => inLaag(n).forEach(k => { if(!telt(c, k, w)) return; const st = staat(c, k); if(st.s === 'ok') return; if(st.conflict) dub = true; else open = true; }));
   return dub ? 'dub' : open ? '' : 'ok';
 }
 
@@ -1201,7 +1233,7 @@ function voortgang(codes, laag){
   let vol = 0, velden = 0, gevuld = 0;
   codes.forEach(c => {
     if(wachtOpLevering(c)){ vol++; return; }   // geen voorraad: telt als compleet, de velden tellen niet mee
-    const w = waardeFn(c), ks = inLaag(laag).filter(k => nodig(c, k, w));
+    const w = waardeFn(c), ks = inLaag(laag).filter(k => telt(c, k, w));
     const o = ks.filter(k => staat(c, k).s !== 'ok').length;
     velden += ks.length; gevuld += ks.length - o; if(!o) vol++;
   });
@@ -1291,7 +1323,7 @@ function veldRij(code, k, f, o = {}){
   const d = VELDEN[k], ng = o.zonderBereik ? 0 : genotenActief(code).length;
   const bereik = ng ? (GROEP.has(k) ? `<span class="pd-bereik groep">Alle kleuren (${ng + 1})</span>` : `<span class="pd-bereik prod">Alleen dit product</span>`) : '';
   const lab = `<div class="pd-lab"><label for="pd-${idVan(code)}-${k}">${esc(d.t)}</label>${bereik}</div>`;
-  if(k !== 'kgst' && k !== 'opslag' && !nodig(code, k, f)) return `<div class="pd-rij nvt">${lab}<div class="pd-ctl"><div class="pd-vast">Niet van toepassing</div></div><div class="pd-st">${chip('N.v.t.', 'c-nvt')}<span class="br">${esc(nvtReden(code, k))}</span></div></div>`;
+  if(k !== 'kgst' && k !== 'opslag' && !o.bewerkbaar && !nodig(code, k, f)) return `<div class="pd-rij nvt">${lab}<div class="pd-ctl"><div class="pd-vast">Niet van toepassing</div></div><div class="pd-st">${chip('N.v.t.', 'c-nvt')}<span class="br">${esc(nvtReden(code, k))}</span></div></div>`;
   const i = f.info(k);
   let ch, br = '';
   switch(i.s){
@@ -1369,7 +1401,7 @@ function genotenTabel(code){
 function kaartPlan(code, alle, ks, opt){
   const f = kaartFn(code, opt), eigen = {}, wijz = {}, over = [];
   (ks || VOLG).forEach(k => {
-    if(k !== 'kgst' && k !== 'opslag' && !nodig(code, k, f)) return;
+    if(k !== 'kgst' && k !== 'opslag' && !(ks && ks.includes(k)) && !nodig(code, k, f)) return;   // een veld dat de aanroeper zelf noemt (Dubbel in palletlabels) is altijd bewerkbaar
     const i = f.info(k);
     if(i.s === 'fout') throw new Error(code + ' · ' + i.fout);
     if(i.s === 'wis'){ (wijz[code] = wijz[code] || {})[k] = ''; return; }
@@ -1473,7 +1505,8 @@ function poort(){
   const bel = lijst('belangrijk', false);
   const mig = telOud(), migOpen = Object.values(mig.t).reduce((a, b) => a + b, 0);
   const dub = dubbel().filter(x => (x.sppConflict && staat(x.code, 'spp').s === 'open') || (x.vnConflict && staat(x.code, 'vn').s === 'open')).length;
-  const lagen = [1, 2, 3].map(n => voortgang(bel, n));
+  const pd2 = pd2Klaar();
+  const lagen = pd2 ? PD2STAPPEN.map(([s]) => voortgangPd2(bel, s)) : [1, 2, 3].map(n => voortgang(bel, n));
   // steekproef pas te trekken als laag 1 t/m 3 op 100% staan (Daan 17-10); een steekproef van vóór deze regel (zonder v:2, getrokken terwijl er nog velden open stonden) vervalt
   const kan = lagen.every(v => v.tot > 0 && v.vol === v.tot);
   const sp0 = steek(), sp = sp0 && sp0.v === 2 ? sp0 : null, spVervallen = sp0 && !sp ? sp0 : null;
@@ -1484,6 +1517,7 @@ function poort(){
     { t:'Bekende gegevens overgezet, vóór en na gelijk', ok:!migOpen, u:migOpen ? nf(migOpen) + ' waarden nog over te zetten' : '', a:migOpen ? '#/productdata' : '' },
     { t:'Dubbel in palletlabels: niets meer te kiezen', ok:!dub, u:dub ? nf(dub) + ' producten te kiezen' : '', a:dub ? '#/productdata/dubbel' : '' }
   ].concat(lagen.map((v, i) => ({ t:'Belangrijke producten · ' + (i + 1) + '. ' + LAGEN[i].t + ' 100%', ok:v.tot > 0 && v.vol === v.tot, u:nf(v.vol) + ' van ' + nf(v.tot) + ' compleet · ' + nf(v.velden - v.gevuld) + ' velden open', laag:i + 1 })));
+  if(pd2) items.forEach((x, i) => { if(i >= 3 && i < 6){ x.t = 'Belangrijke producten · ' + (i - 2) + '. ' + PD2STAPPEN[i - 3][1] + ' 100% (Productdata 2.0)'; x.a = '#/pd2'; x.laag = 0; x.pd2 = true; } });
   // laatste vinkje van 0.4: Warehouse, Junior, Palletlabels en Containers lezen en schrijven productdata (achter een schakelaar). Groen zodra de code er is en de zelftest slaagt, los van de schakelaar.
   const zt = appsZelftest();
   items.push({ t:'Andere apps lezen/schrijven productdata', ok:zt.ok, u:zt.ok ? 'code aanwezig, zelftest geslaagd (lezen met terugval, schrijven naar beide plekken) · schakelaar staat nu ' + (zt.aan ? 'aan' : 'uit') : 'zelftest mislukt: ' + zt.tekst });
@@ -1491,7 +1525,7 @@ function poort(){
   items.push({ t:'Steekproef op de vloer: ' + STEEK_N + ' producten, 0 fouten', ok:spCodes.length === STEEK_N && spGeteld === STEEK_N && !spFout,
     u:!sp ? (spVervallen ? 'de steekproef van ' + new Date(spVervallen.op).toLocaleString('nl-NL', { day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit' }) + ' is vervallen (getrokken terwijl er nog velden open stonden) · ' : '') + (kan ? 'nog niet getrokken' : 'kan als laag 1–3 klaar zijn') : spFout ? nf(spFout) + ' fout: verbeter en trek een nieuwe steekproef' : nf(spGeteld) + ' van ' + STEEK_N + ' gecontroleerd', a:'#/productdata/poort', steek:true, kan });
   const groen = items.every(x => x.ok);
-  const pct = lagen.reduce((s, v) => s + v.gevuld, 0) / Math.max(1, lagen.reduce((s, v) => s + v.velden, 0));
+  const pct = pd2 ? lagen.reduce((s, v) => s + v.vol, 0) / Math.max(1, lagen.reduce((s, v) => s + v.tot, 0)) : lagen.reduce((s, v) => s + v.gevuld, 0) / Math.max(1, lagen.reduce((s, v) => s + v.velden, 0));
   const wacht = bel.filter(wachtOpLevering).length, park = bel.filter(heeftPark).length, sam = bel.filter(isSam).length;
   return { bel, items, groen, dataKlaar, code:groen ? poortCode(bel.length) : null, pct:Math.floor(pct * 100), sp, spVervallen, kan, wacht, park, sam, zt };
 }
@@ -1712,7 +1746,7 @@ function viewDubbel(){
     const regels = x.regels.map(g => `<div class="small"><span class="mono">${esc(g.name || '')}</span> · ${esc(String(g.qty ?? '') || 'leeg')} per pallet${g.used ? ' · laatst gebruikt ' + esc(new Date(g.used).toLocaleDateString('nl-NL')) : ''}</div>`).join('');
     return `<div class="card"><div class="pd-titel"><a class="code" href="#/productdata/p/${encodeURIComponent(code)}">${esc(code)}</a>${abcBadge(code)}<span class="small">${esc((D.P[code] || {}).naam || '')}</span></div>
       <div class="mt8" style="background:var(--soft);border-radius:6px;padding:8px 10px"><div class="tiny muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.04em">Regels in palletlabels</div>${regels}</div>
-      <div class="pd-sec mt8" style="margin-bottom:0">${ks.map(k => veldRij(code, k, f, { zonderBereik:true })).join('')}</div>
+      <div class="pd-sec mt8" style="margin-bottom:0">${ks.map(k => veldRij(code, k, f, { zonderBereik:true, bewerkbaar:true })).join('')}</div>
       <div class="pd-acties"><button class="btn acc" data-pd="save" data-code="${esc(code)}" data-ks="${ks.join(',')}">Klopt, opslaan</button><a class="btn ghost" href="#/productdata/p/${encodeURIComponent(code)}">hele kaart</a></div></div>`;
   };
   app.innerHTML = `<a class="small" href="#/productdata">← Productdata</a>
@@ -2275,7 +2309,7 @@ function feedStatus(c, f){
   f = f || kaartFn(c, { schat:true });
   let mist = 0, auto = 0, schat = 0, dub = 0, tot = 0;
   FEED_VELDEN.forEach(k => {
-    if(VELDEN[k].laag > 3 || !nodig(c, k, f)) return;
+    if(VELDEN[k].laag > 3 || !telt(c, k, f)) return;
     tot++;
     const st = staat(c, k), m = S.pd[c] && S.pd[c].meta && S.pd[c].meta[k];
     if(st.s === 'ok'){ if(m && m.bron === 'auto') auto++; return; }
@@ -2293,7 +2327,7 @@ function afdelingen(sc){
       const f = kaartFn(c, { schat:true }), st = feedStatus(c, f);
       if(st.s === 'klaar') klaar++; else if(st.s === 'auto') auto++;
       FEED_VELDEN.forEach(k => {
-        if(VELDEN[k].laag > 3 || !nodig(c, k, f)) return;
+        if(VELDEN[k].laag > 3 || !telt(c, k, f)) return;
         velden++;
         if(staat(c, k).s === 'ok'){ gevuld++; return; }
         const s = f.info(k).s;
@@ -2334,7 +2368,7 @@ function bronRegel(c){
 }
 function feedKaart(c){
   const p = D.P[c] || {}, f = kaartFn(c, { schat:true }), st = feedStatus(c, f), l = locaties(c), eh = eenheid(c);
-  const chips = FEED_VELDEN.filter(k => VELDEN[k].laag <= 3 && nodig(c, k, f)).map(k => {
+  const chips = FEED_VELDEN.filter(k => VELDEN[k].laag <= 3 && telt(c, k, f)).map(k => {
     const i = f.info(k), m = S.pd[c] && S.pd[c].meta && S.pd[c].meta[k], v = i.v ? toonWaarde(c, k, i.v) : '';
     const cls = i.s === 'ok' ? (m && m.bron === 'auto' ? 'f-auto' : 'f-ok') : i.s === 'voorstel' ? 'f-voor' : i.s === 'schatting' ? 'f-schat' : i.s === 'dubbel' ? 'f-dub' : i.s === 'nieuw' ? 'f-voor' : 'f-mist';
     const t = i.s === 'dubbel' ? 'kies' : i.s === 'schatting' ? '~' + v : v || '?';
@@ -3640,5 +3674,5 @@ function notities(){
   return Object.entries(g).map(([tekst, items]) => ({ tekst, items, codes:[...new Set(items.map(i => i.code))] })).sort((a, b) => b.codes.length - a.codes.length);
 }
 const intern = { maatgroepVan, verworpen, ribbelMaat, isSam, heeftPark, parkMeta, wachtOpLevering, zelfGebouwd, mvPatroon, mvSoort, kokosDoos, levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, famCorWaarde, schoneNaam, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
-return { view, viewOpen, openData, herlaad, laad, zetLaterMee, notities, regelLijst, regelFout, verworpen, ribbelMaat, wachtOpLevering, isSam, heeftPark, appsZelftest, zetVers, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
+return { view, viewOpen, openData, openStappen, telt, pd2Klaar, herlaad, laad, zetLaterMee, notities, regelLijst, regelFout, verworpen, ribbelMaat, wachtOpLevering, isSam, heeftPark, appsZelftest, zetVers, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();
