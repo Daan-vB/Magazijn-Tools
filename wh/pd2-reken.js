@@ -1009,11 +1009,24 @@ function palletBewijs(c, f, ink){
   if(ink && sppV > 0 && ink.max >= sppV) return 'inkoop van een volle pallet (' + nf(ink.max) + ' ≥ ' + nf(sppV) + ')';
   return '';
 }
+// reden van de soort: altijd eerst het eigen palletbewijs ("bulk 26 op BB10D20", "VST 4", "palletlabel" …), daarna pas de bron
+function bewijsKort(f, bw){
+  if(/^bulkvoorraad/.test(bw)){ const m = f.bulk.filter(x => x.v > 0); return 'bulk ' + nf(som(f.bulk)) + (m.length ? ' op ' + m.slice(0, 2).map(x => x.n).join(', ') + (m.length > 2 ? ' …' : '') : ''); }
+  return bw.replace(/^VST-voorraad/, 'VST');
+}
+const lsKort = ls => 'soort zoals ' + (/fammaat$/.test(ls.r) ? 'kleurgenoten' : 'de familie') + ' ' + ls.n + ' van ' + ls.tot;
 function vsSoort(c, f, ink){
+  const s = vsSoortKern(c, f, ink), bw = s.so && !s.weg && s.r !== 'soort:geenpallet' ? palletBewijs(c, f, ink) : '';
+  if(!bw) return s;
+  const bk = bewijsKort(f, bw), why = String(s.so.why || '');
+  if(!why.includes(bk) && !(/^bulk/.test(bk) && /^bulk/.test(why))) s.so = Object.assign({}, s.so, { why:bk + ' · ' + why });
+  return s;
+}
+function vsSoortKern(c, f, ink){
   const naam = naamVan(c), t = (v, why, extra) => Object.assign({ v, why }, extra || {});
   const wd = wegDeel(c, f, ink); if(wd.so && wd.weg) return wd;   // Weg (ook Weg → Backorder) gaat voor
   if(!palletBewijs(c, f, ink)) return { r:'soort:geenpallet', so:t('pick', 'regel: geen bewijs dat het per pallet komt of ligt (geen bulk- of VST-voorraad, palletlabel, pallet-verplaatsing of inkoop van een volle pallet): Pick, geen palletvragen', { aan:'palletregel' }) };
-  if(wd.so) return wd;
+  if(wd.so) return wd.ls && wd.r === wd.ls.r ? Object.assign({}, wd, { so:t(wd.ls.v, lsKort(wd.ls) + ' · nu geen voorraad' + (/komt binnen$/.test(wd.so.why) ? ', komt binnen' : '')) }) : wd;
   const ls = wd.ls, stock = wd.stock;
   const bulkN = som(f.bulk), pickN = som(f.pick), cap = capPick(c);
   let ms = null; try{ ms = X().mvSoort(c); }catch(e){}
@@ -1024,7 +1037,7 @@ function vsSoort(c, f, ink){
   const plekT = gedeeld.length ? gedeeld.slice(0, 2).map(x => x.n + ' met ' + anderOpPlek(c, x.n).length + ' ander' + (anderOpPlek(c, x.n).length > 1 ? 'e' : '') + ' product' + (anderOpPlek(c, x.n).length > 1 ? 'en' : '')).join(', ') : '';
   // pallet: inkoop ≥ 85% van een volle pallet én per volle pallet verplaatst
   const vol = ink && sppV ? ink.meestal >= 0.85 * sppV : false, perPallet = !!(ms && ms.soort === 'pallet');
-  if(!(vol && perPallet) && ls) return { r:ls.r, so:t(ls.v, ls.why) };
+  if(!(vol && perPallet) && ls) return { r:ls.r, so:t(ls.v, lsKort(ls)) };
   if(vol && perPallet) return { r:'soort:4', so:t('pallet', inkT + ' (≥ 85% van ' + nf(sppV) + ' per pallet) en ' + ms.t, { aan:'pallet85' }) };
   // per volle pallet verplaatst, maar de inkoop is minder dan een pallet (of onbekend): twijfel
   if(perPallet) return { r:'soort:5', so:t('pallet', ms.t + ', maar inkoop ' + (ink && sppV ? 'meestal ' + nf(ink.meestal) + ' (< 85% van ' + nf(sppV) + ' per pallet)' : 'per pallet onbekend'), { tw:true, alt:['pallet', 'deel'], aan:'pallet85' }) };
