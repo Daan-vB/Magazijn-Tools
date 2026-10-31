@@ -65,6 +65,7 @@ Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet
 - Eerst git pull --rebase origin main. Eén run, geen vragen; wat onduidelijk is: kies de regel hierboven en meld het.
 - Alleen de genoemde bestanden; oude pagina's blijven werken (regressietest).
 - Tests lezen de echte database, maar elke schrijfpoging wordt onderschept (0 geblokkeerd).
+- Push altijd naar main, nooit alleen naar een zijtak.
 - Rapport kort, in het Nederlands, zonder vaktaal.
 
 ## 10. Woorden (vaste namen, nooit andere gebruiken)
