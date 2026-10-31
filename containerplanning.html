@@ -1688,6 +1688,15 @@ function adviesKern(c, pool, eerder){
   // geen gecontroleerde data = geen automatisch advies: pallet onbekend (onb), of geen verkoophistorie zonder bekende pallet en zonder vaste regel
   if(qtySoort((geh1(code) || {}).qty) === 'onb') return teBepalen('stuks per pallet onbekend — nog te bepalen, verdeel zelf');
   if(!f.rate && !pallets.length && !sppVan(code) && !(R.losdest || R.pickmax || R.restdest || R.bulk || R.maxpal)) return teBepalen('geen verkoophistorie en geen bekende pallet — nog te bepalen, verdeel zelf');
+  // soort Bulk (productdata): pallet alleen op bulk, nooit naar pick; zonder bekende stuks per pallet blijft het bij lossen bepalen
+  if(window.PDBRON && PDBRON.leesLos(code, 'opslag') === 'bulk'){
+    if(!sppVan(code)) return teBepalen('soort Bulk, stuks per pallet onbekend — nog te bepalen, verdeel zelf');
+    if(Math.abs(pool.losU - Math.round(pool.losU)) > 1e-9) return teBepalen('aantal is geen heel getal — nog te bepalen, verdeel zelf');
+    const per = {}; pallets.forEach(x => { per[x] = (per[x] || 0) + 1; });
+    Object.entries(per).forEach(([sz, n]) => porties.push({ soort:'pallet', n, per:+sz, dest:'UP' }));
+    if(pool.losU > 0) porties.push({ soort:'los', n:Math.round(pool.losU), dest:'UP' });
+    return { porties, uitleg:'soort Bulk: pallets alleen naar Bulk (up), nooit naar pick', feiten:f, eerder, proj:0, verbruik:0, uitVst:0, mnd:maandenTot(c) };
+  }
   // alleen hele eenheden (st., rollen, hele meters/cm) en losse goederen alleen in hele dozen ("Per" van de pakbonregel)
   if(Math.abs(pool.losU - Math.round(pool.losU)) > 1e-9) return teBepalen('aantal is geen heel getal — nog te bepalen, verdeel zelf');
   const dozen = pool.regels.filter(r => r.soort !== 'pallet').map(r => (num(r.per) || 0) * (num(r.factor) || 1));
@@ -1970,6 +1979,12 @@ function lossenBlok(c){
     ${open ? `<p class="small muted mt8">Producten waarvan de palletopbouw nog niet bekend is. Kies per product wat nu: bij lossen bepalen (staat op de invullijst in de losdag-PDF), alles naar één plek, of nu de palletgegevens invullen.</p>
     <div class="vgrid mt12">${codes.map(code => lossenKaart(c, code)).join('')}</div>` : ''}</div>`;
 }
+// de keuzelijst "Wat nu?": zelfde keuze in het blok "Na het lossen" en op de productkaart (Verdeling)
+function lossenSelect(c, code){
+  const v = c.data.verdeling[code], naar = allesNaar(c, code), akk = naar && v.bevestigd, nu = UI.llKeuze[code] === 'nu', keuze = naar ? 'naar:' + v.porties[0].dest : nu ? 'nu' : 'lossen';
+  const opties = `<option value="lossen" ${keuze === 'lossen' ? 'selected' : ''}>Bij lossen bepalen</option><optgroup label="Alles naar …">${['PICK', 'UP', 'GROUND', 'VST', 'BO', 'KLANT'].map(k => `<option value="naar:${k}" ${keuze === 'naar:' + k ? 'selected' : ''}>Alles naar ${esc(DEST[k].nl)}</option>`).join('')}</optgroup><option value="nu" ${keuze === 'nu' ? 'selected' : ''}>Nu invullen</option>`;
+  return `<select data-llkeuze="${esc(code)}" aria-label="Wat nu?" ${akk ? 'disabled' : ''}>${opties}</select>`;
+}
 function lossenKaart(c, code){
   const d = doosVan(c, code), u = UI.ll[code] || {}, v = c.data.verdeling[code], naar = allesNaar(c, code), akk = naar && v.bevestigd;
   const nu = UI.llKeuze[code] === 'nu', keuze = naar ? 'naar:' + v.porties[0].dest : nu ? 'nu' : 'lossen';
@@ -1977,11 +1992,10 @@ function lossenKaart(c, code){
   const veld = ([k, lbl, breed]) => k === 'stand'
     ? `<div class="fld"><label>${esc(lbl)}</label><select data-ll="${esc(code)}" data-lk="stand"><option value=""></option>${['staand', 'liggend'].map(x => `<option ${u.stand === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>`
     : `<div class="fld${breed ? ' breed' : ''}"><label>${esc(lbl)}</label><input data-ll="${esc(code)}" data-lk="${k}" value="${esc(u[k] ?? '')}" placeholder="${esc(ph[k] || '')}"${['geteld', 'per', 'dpp', 'hoogte', 'gewicht'].includes(k) ? ' inputmode="decimal"' : ''} autocomplete="off"></div>`;
-  const opties = `<option value="lossen" ${keuze === 'lossen' ? 'selected' : ''}>Bij lossen bepalen</option><optgroup label="Alles naar …">${['PICK', 'UP', 'GROUND', 'VST', 'BO', 'KLANT'].map(k => `<option value="naar:${k}" ${keuze === 'naar:' + k ? 'selected' : ''}>Alles naar ${esc(DEST[k].nl)}</option>`).join('')}</optgroup><option value="nu" ${keuze === 'nu' ? 'selected' : ''}>Nu invullen</option>`;
   const stand = naar ? `<b>${esc(allesTekst(c, code, v.porties))}</b>${akk ? ' <span class="badge b-ok">akkoord</span>' : ''}` : nu ? '' : '<span class="badge b-info">bij lossen bepalen</span>';
   return `<div class="vcard llrij" data-ll-kaart="${esc(code)}" data-ll-stand="${nu ? 'nu' : naar ? 'naar' : 'lossen'}" data-code="${esc(code)}">
     <span class="code" style="font-size:14px">${esc(code)}</span><span class="small grow">${esc(labelNaam(code))} · pakbon ${esc(pakbonLossen(c, code, 'nl'))}${stand ? ' · ' + stand : ''}</span>
-    <select data-llkeuze="${esc(code)}" aria-label="Wat nu?" ${akk ? 'disabled' : ''}>${opties}</select>
+    ${lossenSelect(c, code)}
     ${naar && !akk ? `<button class="btn ok sm" data-act="vakk" ${restVan(pools(c).map[code], v.porties).ok ? '' : 'disabled'}>✓ Akkoord</button>` : ''}
     ${akk && !nu ? '<button class="btn sm" data-act="llnu">Palletgegevens invullen</button>' : ''}
     ${nu ? `<div style="flex-basis:100%"><div class="fields mt8">${lossenVelden(code, 'nl').map(veld).join('')}</div>
@@ -3861,7 +3875,8 @@ function verdeelKaart(c, pool){
         <span class="grow"></span>
         ${heeft ? (v.bevestigd ? `<span class="badge b-ok">akkoord</span> <button class="btn ghost sm" data-act="vakk">wijzigen</button>` : `<button class="btn ok sm" data-act="vakk" ${rest.ok ? '' : 'disabled'}>✓ Akkoord</button>`) : ''}
       </div>
-      ${heeft ? restTxt() : bijLossen(c, pool) ? '<div class="rest muted small"><span class="badge b-info">bij lossen bepalen</span> — kies bij "Na het lossen" (blok bovenaan) of verdeel zelf.</div>' : '<div class="rest muted small">Nog geen verdeling — neem het advies over of voeg zelf regels toe.</div>'}
+      ${allesNaar(c, code) && !v.bevestigd ? `<div class="row wrap mt8">${lossenSelect(c, code)}</div>` : ''}
+      ${heeft ? restTxt() : bijLossen(c, pool) ? `<div class="rest muted small"><span class="badge b-info">bij lossen bepalen</span> ${lossenSelect(c, code)}</div>` : '<div class="rest muted small">Nog geen verdeling — neem het advies over of voeg zelf regels toe.</div>'}
       ${v.opmerking ? `<div class="small muted mt8">${esc(v.opmerking)}</div>` : ''}
     </div></div>`;
 }

@@ -1,0 +1,35 @@
+Te controleren volgens CLAUDE.md — 2026-10-31T04:32:11.222Z
+
+Vervallen per regel:
+  doos: 25
+  nietin2: 457
+  soortnietbij: 40
+  soorteerst: 35
+  uitlopend: 93
+  pallet: 21
+  backorder: 20
+  rol: 83
+
+Over: 157 vragen nu zichtbaar (soort 155, maxpick 2), plus 35 die wachten tot de soort is bevestigd.
+
+20 voorbeelden (elk uit een andere familie):
+  RP01500 · soort = pick — soort nog niet door Daan bevestigd; voorstel uit de data: regel: geen bewijs dat het per pallet komt of ligt (geen bulk- of VST-voorraad, palletlabel, pallet-verplaatsing of inkoop van een volle pallet): Pick, geen palletvragen
+  1410110 · soort = pick — soort nog niet door Daan bevestigd; voorstel uit de data: regel: geen bewijs dat het per pallet komt of ligt (geen bulk- of VST-voorraad, palletlabel, pallet-verplaatsing of inkoop van een volle pallet): Pick, geen palletvragen
+  COINMAT-120-BLACK · soort = mix — soort nog niet door Daan bevestigd; voorstel uit de data: bulk staat op een gedeelde plek: DB05B10 met 1 ander product · inkoop meestal 48 per order, geen pallet-aantal bekend
+  HL-S1009-Grey · soort = deel — soort nog niet door Daan bevestigd; voorstel uit de data: bulk 50 op BC03B10 · soort zoals kleurgenoten 1 van 1
+  588-1-601-002 · soort = pick — soort nog niet door Daan bevestigd; voorstel uit de data: regel: geen bewijs dat het per pallet komt of ligt (geen bulk- of VST-voorraad, palletlabel, pallet-verplaatsing of inkoop van een volle pallet): Pick, geen palletvragen
+  FWB100200-GREY · soort = pallet — soort nog niet door Daan bevestigd; voorstel uit de data: palletlabel · soort zoals kleurgenoten 1 van 1 · nu geen voorraad
+  FWB120180-GREY · soort = pallet — soort nog niet door Daan bevestigd; voorstel uit de data: palletlabel · soort zoals kleurgenoten 1 van 1
+  FWB100200-BLUE · soort = bulk — soort nog niet door Daan bevestigd; voorstel uit de data: bulk 37 op BC19A10, geen picklocatie: per order 1 stuk naar geen specifieke locatie, nooit aanvullen naar pick
+  7-144221 · soort = pick — soort nog niet door Daan bevestigd; voorstel uit de data: regel: geen bewijs dat het per pallet komt of ligt (geen bulk- of VST-voorraad, palletlabel, pallet-verplaatsing of inkoop van een volle pallet): Pick, geen palletvragen
+  LM-FA03-grey · soort = pallet — soort nog niet door Daan bevestigd; voorstel uit de data: bulk 19 op CB09D20, CB10D10 · soort zoals kleurgenoten 1 van 1
+  OB100-SBR50-003 · soort = pallet — soort nog niet door Daan bevestigd; voorstel uit de data: bulk 100 op CE18A10 · soort zoals kleurgenoten 2 van 2
+  GRANU505020R · soort = pallet — soort nog niet door Daan bevestigd; voorstel uit de data: bulk 244 op CE08D20 · soort zoals kleurgenoten 8 van 8
+  RT-50100-SBREPDM · soort = bulk — soort nog niet door Daan bevestigd; voorstel uit de data: bulk 90 op CE04A20, geen picklocatie: per order 1 stuk naar geen specifieke locatie, nooit aanvullen naar pick
+  MFL505025-GREY · soort = pallet — soort nog niet door Daan bevestigd; voorstel uit de data: palletlabel · inkoop meestal 180 per order (≥ 85% van 180 per pallet) en verplaatsingen: 3× de hele bulkvoorraad naar pick (180, 57)
+  OBNH75-SBR45-003 · soort = pick — twijfel tussen : palletlabel · geen bulk, inkoop meestal 120 per order
+  DT160-747 · soort = pick — soort nog niet door Daan bevestigd; voorstel uit de data: regel: geen bewijs dat het per pallet komt of ligt (geen bulk- of VST-voorraad, palletlabel, pallet-verplaatsing of inkoop van een volle pallet): Pick, geen palletvragen
+  DT140-1820-1 · soort = bulk — soort nog niet door Daan bevestigd; voorstel uit de data: bulk 14 op DC07B10, geen picklocatie: per order 1 stuk naar geen specifieke locatie, nooit aanvullen naar pick
+  31286 · soort = pick — soort nog niet door Daan bevestigd; voorstel uit de data: regel: geen bewijs dat het per pallet komt of ligt (geen bulk- of VST-voorraad, palletlabel, pallet-verplaatsing of inkoop van een volle pallet): Pick, geen palletvragen
+  KB-4kg-blk · soort = deel — soort nog niet door Daan bevestigd; voorstel uit de data: bulk 24 op BY01D15 · soort zoals de familie 2 van 2
+  SR-50-GR · soort = deel — soort nog niet door Daan bevestigd; voorstel uit de data: bulk 96 op AD19A10, AD03B10 · soort zoals de familie 2 van 2

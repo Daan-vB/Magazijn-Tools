@@ -261,6 +261,7 @@ function pdWijz(c, p, keys){
     } else if(key === 'so' || key === 'weg'){
       const so = p.so;
       if(echtOk(so) && so.v !== 'weg') w.opslag = so.v;
+      if(echtOk(so) && so.v === 'bulk') w.pick = 'nee';   // Bulk = geen picklocatie; bij een latere andere soort blijft pick = nee staan tot Daan het zelf aanpast
       else if(echtOk(so) && so.v === 'weg' && echtOk(p.weg) && p.weg.v === 'uitlopend') w.uitlopend = (p.weg.t || new Date().toISOString()).slice(0, 10);
       else if(!echtOk(so) && pdBron('opslag') === 'pd2') w.opslag = '';
     } else if(key === 'gew'){
@@ -1358,6 +1359,7 @@ function overzetPlan(rows){
     };
     if(ok(p.so)){
       if(p.so.v !== 'weg') zet('opslag', p.so.v);
+      if(p.so.v === 'bulk') zet('pick', 'nee');
       else if(ok(p.weg) && p.weg.v === 'uitlopend') zet('uitlopend', (p.weg.t || new Date().toISOString()).slice(0, 10));
     }
     Object.entries(p.f || {}).forEach(([k, x]) => {

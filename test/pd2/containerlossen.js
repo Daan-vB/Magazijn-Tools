@@ -33,7 +33,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   onder.length = 0;
   await P.evaluate(() => { location.hash = '#/c/13/verdeling'; }); await P.waitForSelector('#lossen', { timeout:60000 });
   if(!(await P.evaluate(() => !!document.querySelector('[data-ll-kaart]')))) await P.click('#lossen [data-act="lltoggle"]');
-  await P.selectOption('[data-llkeuze="Snowbag"]', 'nu'); await P.waitForTimeout(300);
+  await P.selectOption('#lossen [data-llkeuze="Snowbag"]', 'nu'); await P.waitForTimeout(300);
   await P.fill('[data-ll-kaart="Snowbag"] [data-lk="dpp"]', '5'); await P.fill('[data-ll-kaart="Snowbag"] [data-lk="maat"]', '80x120');
   await P.click('[data-ll-kaart="Snowbag"] [data-act="llsave"]'); await P.waitForTimeout(3500);
   const cat = onder.filter(x => /catalog/.test(x.u)).map(x => JSON.parse(x.b)[0]);

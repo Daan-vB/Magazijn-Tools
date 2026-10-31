@@ -24,13 +24,13 @@ const KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
   check('A: teller "akkoord · 9 bij lossen bepalen"', /\d+\/\d+ akkoord · 9 bij lossen bepalen/i.test(sum), sum);
   check('A: geen onderschepte schrijfactie door alleen kijken', onder.length === 0, onder.length);
   // Alles naar → Bulk (up) bij Snowbag
-  await P.selectOption('[data-llkeuze="Snowbag"]', 'naar:UP'); await P.waitForTimeout(1500);
+  await P.selectOption('#lossen [data-llkeuze="Snowbag"]', 'naar:UP'); await P.waitForTimeout(1500);
   const sb = await P.evaluate(() => document.querySelector('[data-ll-kaart="Snowbag"]').innerText.replace(/\s+/g, ' '));
   check('A1: "Alles naar → Bulk (up)" bij Snowbag geeft "25 dozen → Bulk (up)" met Akkoord-knop', /25 dozen → Bulk \(up\)/.test(sb) && await P.evaluate(() => !!document.querySelector('[data-ll-kaart="Snowbag"] [data-act="vakk"]:not([disabled])')), sb);
   sum = await som();
   check('A: teller daarna "· 8 bij lossen bepalen"', /akkoord · 8 bij lossen bepalen/i.test(sum), sum);
   // MM-BLK-10x120: Per = 1 → los
-  await P.selectOption('[data-llkeuze="MM-BLK-10x120"]', 'naar:PICK'); await P.waitForTimeout(1500);
+  await P.selectOption('#lossen [data-llkeuze="MM-BLK-10x120"]', 'naar:PICK'); await P.waitForTimeout(1500);
   const mm = await P.evaluate(() => document.querySelector('[data-ll-kaart="MM-BLK-10x120"]').innerText.replace(/\s+/g, ' '));
   check('A1: "Alles naar → Picklocatie" bij MM-BLK-10x120 geeft "7 st. los → Picklocatie"', /7 st\. los → Picklocatie/.test(mm), mm);
   const laatste = () => { const c = onder.filter(x => /containers/.test(x.u) && x.m === 'PATCH').map(x => JSON.parse(x.b)).pop(); return c && c.data && c.data.verdeling; };
@@ -38,7 +38,7 @@ const KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
   let ver = laatste();
   check('A1: opgeslagen (onderschept): Snowbag 500 los → UP, bron allesnaar, geen akkoord', ver && ver.Snowbag && ver.Snowbag.bron === 'allesnaar' && !ver.Snowbag.bevestigd && JSON.stringify(ver.Snowbag.porties) === JSON.stringify([{ soort:'los', n:500, dest:'UP' }]), JSON.stringify(ver && ver.Snowbag));
   // terugdraaien MM-BLK
-  await P.selectOption('[data-llkeuze="MM-BLK-10x120"]', 'lossen'); await P.waitForTimeout(1800);
+  await P.selectOption('#lossen [data-llkeuze="MM-BLK-10x120"]', 'lossen'); await P.waitForTimeout(1800);
   ver = laatste();
   check('A1: terugdraaien zonder akkoord: MM-BLK-10x120 weer "bij lossen bepalen", oude verdeling terug', await P.evaluate(() => document.querySelector('[data-ll-kaart="MM-BLK-10x120"]').dataset.llStand) === 'lossen' && JSON.stringify(ver['MM-BLK-10x120']) === JSON.stringify(v0['MM-BLK-10x120']), JSON.stringify(ver['MM-BLK-10x120']));
   // Uitvoer opent, Snowbag staat nog op de invullijst in de losdag-PDF
@@ -52,7 +52,7 @@ const KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
   // Nu invullen: blok open, velden zichtbaar, Opslaan werkt en de Alles-naar-verdeling blijft staan bij akkoord
   await P.evaluate(() => { location.hash = '#/c/13/verdeling'; }); await P.waitForSelector('#lossen', { timeout:60000 }); await P.waitForTimeout(500);
   if(!(await P.evaluate(() => !!document.querySelector('[data-ll-kaart]')))) await P.click('#lossen [data-act="lltoggle"]');
-  await P.selectOption('[data-llkeuze="SWB-165-BLA"]', 'nu'); await P.waitForTimeout(500);
+  await P.selectOption('#lossen [data-llkeuze="SWB-165-BLA"]', 'nu'); await P.waitForTimeout(500);
   check('A1: "Nu invullen" opent de velden (blok open)', await P.evaluate(() => document.querySelectorAll('[data-ll-kaart="SWB-165-BLA"] [data-lk]').length >= 7 && !!document.querySelector('[data-ll-kaart="SWB-165-BLA"] [data-act="llsave"]')));
   await P.click('#lossen [data-act="lltoggle"]'); await P.waitForTimeout(300);
   check('A2: blok klapt in op tikken', await P.evaluate(() => !document.querySelector('[data-ll-kaart]')));
