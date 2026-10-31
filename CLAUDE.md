@@ -65,3 +65,13 @@ Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet
 - Alleen de genoemde bestanden; oude pagina's blijven werken (regressietest).
 - Tests lezen de echte database, maar elke schrijfpoging wordt onderschept (0 geblokkeerd).
 - Rapport kort, in het Nederlands, zonder vaktaal.
+
+## 10. Woorden (vaste namen, nooit andere gebruiken)
+- Productgeheugen = Supabase catalog-rij catalog-ean (palletlabels, vloernaam, stuks per pallet, palletregels). Productdata = Supabase-tabel productdata (Daans waarheid per product).
+- Soort = Pallet · Deel · Pick · Mix · Weg (Uitlopend / Backorder / Archief). Palletbewijs = bulk- of VST-voorraad, palletlabel, pallet-verplaatsing naar pick of inkoop van een volle pallet.
+- Gewicht-status = gewogen · vertrouwd · te wegen. Max op pick = aanvullen bij + aanvullen met.
+- Bulk = 10/20/30-plek boven pick (tijdelijk). Pick = vaste picklocatie (nooit tijdelijk). VST = externe opslag Van Spreuwel. Geen specifieke locatie = voorraad zonder plek.
+- Familie → maat → kleurgenoten (zelfde familie en maat). A/B/C = verkoopklasse.
+- Containers: Pakbon → Verdeling → Uitvoer (losdag-PDF, labels). "Bij lossen bepalen" = nog geen gecontroleerde data, staat op de invullijst lossen. "Na het lossen" = één keer invullen door Daan.
+- Productdata 2.0 = per maat 3 stappen: 1 Soort · 2 Gewicht · 3 Hoeveelheid. Te controleren = alleen vragen die regels en data niet beantwoorden, soort eerst, per familie.
+- Sporen: 1 Containers · 2 Productdata 2.0 / Te controleren · 3 Warehouse 3.0 (fundering + pilaren 1 Aanvullen · 2 Voorraad op plek · 3 Inkomend · 4 VST · 5 Orders).
