@@ -14,7 +14,7 @@ Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet
 ## 2. Vragen en schermen
 - Vraag alleen wat de data niet kan beantwoorden. Leid eerst af uit Picqer, palletlabels (± 1000 producten), VST, verplaatsingen, pakbonnen en inkoop.
 - Eén vraag tegelijk, rustig scherm: geen tabellen met horizontaal scrollen, weinig kleur en knoppen, schermvullend, 390 en 1440 px.
-- Groepsacties: vinkje per product; "Selectie is: Pallet · Deel · Pick · Mix · Weg"; een familieknop laat altijd zien welke producten eronder vallen en laat uitvinken.
+- Groepsacties: vinkje per product; "Selectie is: Pallet · Deel · Bulk · Pick · Mix · Weg"; een familieknop laat altijd zien welke producten eronder vallen en laat uitvinken.
 - Soort eerst. Pas na een door Daan bevestigde soort komen gewicht en hoeveelheid.
 - Tijden altijd 24-uurs.
 - Nooit decimalen in aantallen (stuks, dozen, rollen, pallets).
@@ -22,10 +22,11 @@ Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet
 ## 3. Soort en welke vragen erbij horen
 - Pallet = komt per volle pallet binnen en wordt per volle pallet aangevuld.
 - Deel = komt op een pallet of in grotere hoeveelheid dan op pick past; deel naar pick, rest naar bulk; aanvullen met een deel van de bulkvoorraad.
+- Bulk = pallet staat alleen op bulk, geen picklocatie. Alleen als het besteld wordt: 1 stuk naar geen specifieke locatie verplaatsen en de backorder verwerken, zodat het op de picklijst komt. Nooit aanvuladvies naar pick. Vragen: gewicht en de palletvragen (per pallet, palletmaat, hoogte, gewicht volle pallet); geen max op pick. Voorbeeld: alle Sprinttrack kunstgras.
 - Pick = kleine hoeveelheden, geen bulk. Enige vraag: max op pick.
 - Mix = pallet met meerdere producten, met een deel naar pick.
 - Weg = keuzemenu Uitlopend (geen data meer nodig) / Backorder (alleen voor backorders ingekocht; voorlopig wegfilteren) / Archief.
-- Pallet en Deel: stuks per pallet, palletmaat, hoogte incl. pallet, gewicht volle pallet. Stuks per doos, doosmaat en inkoopverpakking niet vragen (later).
+- Pallet, Deel en Bulk: stuks per pallet, palletmaat, hoogte incl. pallet, gewicht volle pallet. Stuks per doos, doosmaat en inkoopverpakking niet vragen (later).
 - VASTE REGEL palletvragen: palletvragen (per pallet, palletmaat, hoogte, gewicht volle pallet, plaatsen, max per ligger) alleen voor producten waarvan de data bewijst dat ze per pallet komen of liggen: bulk- of VST-voorraad, palletlabels, pallet-verplaatsingen naar pick, of inkoop van minstens één volle pallet. Producten met voorraad 0 of minimaal, alleen voor backorders ingekocht, of per enkele stuks of rollen binnen: voorstel Pick (of Weg → Backorder) en nooit palletvragen.
 - Per familie invullen, maar waarden per product uit de eigen data van dat product (inkoop, gewicht, verkoop), nooit één getal voor alles.
 - Volgorde van bronnen voor een voorstel: 1) eigen data van het product (palletbewijs-regel gaat altijd voor), 2) kleurgenoten of dezelfde familie en maat, 3) dezelfde familie. Nooit "meerderheid bij de leverancier": één leverancier levert heel verschillende producten (lockers zijn geen whiteboards).
@@ -68,7 +69,7 @@ Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet
 
 ## 10. Woorden (vaste namen, nooit andere gebruiken)
 - Productgeheugen = Supabase catalog-rij catalog-ean (palletlabels, vloernaam, stuks per pallet, palletregels). Productdata = Supabase-tabel productdata (Daans waarheid per product).
-- Soort = Pallet · Deel · Pick · Mix · Weg (Uitlopend / Backorder / Archief). Palletbewijs = bulk- of VST-voorraad, palletlabel, pallet-verplaatsing naar pick of inkoop van een volle pallet.
+- Soort = Pallet · Deel · Bulk · Pick · Mix · Weg (Uitlopend / Backorder / Archief). Palletbewijs = bulk- of VST-voorraad, palletlabel, pallet-verplaatsing naar pick of inkoop van een volle pallet.
 - Gewicht-status = gewogen · vertrouwd · te wegen. Max op pick = aanvullen bij + aanvullen met.
 - Bulk = 10/20/30-plek boven pick (tijdelijk). Pick = vaste picklocatie (nooit tijdelijk). VST = externe opslag Van Spreuwel. Geen specifieke locatie = voorraad zonder plek.
 - Familie → maat → kleurgenoten (zelfde familie en maat). A/B/C = verkoopklasse.
