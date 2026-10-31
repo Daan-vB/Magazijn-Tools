@@ -24,10 +24,13 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     check('FTP-106106010 opent Productdata 2.0, product zichtbaar, geen horizontale scroll (' + vp.width + ')', r.zicht && !r.hs && r.naam, JSON.stringify(r).slice(0, 220));
   }
   await P.setViewportSize({ width:1440, height:900 });
-  const gw = await ev(() => { const b = [...document.querySelectorAll('.pd2-stappen button')].find(b => /Gewicht/.test(b.textContent)); if(b) b.click(); return !!b; });
+  const open = await ev(() => WHPD.poort().bel.find(c => { const st = PD2R.status(c); return !st.kop && st.so && st.so !== 'weg' && st.stap && st.stap.soort && !st.stap.gewicht; }));
+  await P.goto(B + 'ivol.html#/pd2/p/' + open); await P.reload();
+  await P.waitForFunction(c => document.querySelector('.pd2[data-scherm="fam"] [data-c="' + c + '"]'), open, { timeout:120000 });
+  const gt = await ev(() => { const b = [...document.querySelectorAll('.pd2-stappen button')].find(b => /Gewicht/.test(b.textContent)); if(b) b.click(); return document.querySelector('.pd2').innerText; });
   await P.waitForTimeout(500);
-  const gt = await ev(() => document.querySelector('.pd2').innerText);
-  check('stap 2 Gewicht: gewogen · vertrouwd · te wegen', gw && /gewogen/i.test(gt) && /vertrouwd/i.test(gt) && /te wegen/i.test(gt));
+  const gt2 = await ev(() => document.querySelector('.pd2').innerText);
+  check('stap 2 Gewicht (' + open + '): gewogen · vertrouwd · te wegen', /gewogen/i.test(gt2) && /vertrouwd/i.test(gt2) && /te wegen/i.test(gt2));
   const set = await ev(() => Object.keys(WH.D.P).filter(c => /^1711-.*-set$/i.test(c)).map(c => { const st = PD2R.status(c); return { c, bewijs:!!PD2R.info(c).bewijs, pal:(st.open || []).filter(k => ['spp', 'maat', 'hoogte'].includes(k)) }; }));
   check('1711-*-set: nooit een palletvraag zonder bewijs', set.length > 0 && set.every(x => x.bewijs || !x.pal.length), JSON.stringify(set.slice(0, 4)));
   await P.goto(B + 'ivol.html#/vloernamen/?q=FTP-106106010');
@@ -43,7 +46,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     check('oude kaart: regel + twee knoppen, geen horizontale scroll (' + vp.width + ')', o.n === 2 && /Oude pagina/.test(o.tekst) && !o.hs, JSON.stringify(o.h));
   }
   await P.setViewportSize({ width:1440, height:900 });
-  await P.goto(B + 'warehouse.html#/productdata/dubbel');
+  await P.goto(B + 'warehouse.html#/productdata/dubbel'); await P.reload();
   await P.waitForFunction(() => document.querySelector('[data-pd="save"][data-ks]'), null, { timeout:300000 });
   for(const code of ['FTP-106106010', 'chrglck24-kp-Schweiz']){
     const r = await ev(c => { const k = document.querySelector('[data-pd="save"][data-code="' + c + '"]'); if(!k) return null; const kaart = k.closest('.card'); return { inv:kaart.querySelectorAll('input[data-pdk],button[data-pdk]').length, nvt:!!kaart.querySelector('.pd-rij.nvt') }; }, code);
