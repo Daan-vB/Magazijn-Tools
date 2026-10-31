@@ -61,6 +61,19 @@ function data04(){
   PD.cache = { op:Date.now(), d };
   return d;
 }
+const pdLink = c => '#/pd2/p/' + encodeURIComponent(c);
+const vnLink = c => '#/vloernamen/?q=' + encodeURIComponent(c);
+// eerste product met een dubbele waarde in palletlabels: aantal per pallet in Productdata 2.0, alleen de vloernaam in Vloernamen
+function dubbelLink(){
+  try{
+    const open = (x, k) => WHPD.staat(x.code, k).s === 'open', d = WHPD.dubbel();
+    const a = d.find(x => x.sppConflict && open(x, 'spp'));
+    if(a) return pdLink(a.code);
+    const v = d.find(x => x.vnConflict && open(x, 'vn'));
+    if(v) return vnLink(v.code);
+  }catch(e){}
+  return '#/pd2/open';
+}
 BP.registreer('0.4', () => {
   const d = data04(); if(!d) return null;
   const it = d.P.items, ok = i => !!(it[i] && it[i].ok);
@@ -72,7 +85,8 @@ function nodig04(id){
   if(PD.fout) return `<div class="melding">Productdata laden lukte niet: ${esc(PD.fout.message || String(PD.fout))}</div>`;
   const d = data04(); if(!d){ pdLaden(); return '<div class="leeg">Productdata laden…</div>'; }
   const it = d.P.items, nGroen = it.filter(x => x.ok).length;
-  const link = (x, i) => i === 1 ? '#/productdata' : i === 2 ? '#/productdata/dubbel' : x.a ? x.a : x.laag ? '#/productdata/open/' + x.laag : '#/productdata/poort';
+  // alles gaat naar Productdata 2.0 (31-10); alleen de steekproef woont nog op de oude poortpagina, de vloernaam in Vloernamen
+  const link = (x, i) => i === 2 ? dubbelLink() : x.steek ? '#/productdata/poort' : '#/pd2/open';
   const knopT = (x, i) => i === 1 ? 'Overzetten' : i === 2 ? 'Kiezen' : x.laag || x.pd2 ? 'Invullen' : x.steek ? 'Steekproef' : 'Bekijken';
   const regels = it.map((x, i) => x.ok ? '' : `<li><span class="nt"><b>${esc(x.t)}</b><span class="muted klein">${esc(x.u || '')}</span></span>${x.steek && !x.kan ? '<span class="knop" aria-disabled="true" style="opacity:.55;cursor:not-allowed">Kan als laag 1–3 klaar zijn</span>' : knop(id, link(x, i), knopT(x, i))}</li>`).join('');
   const later = BP.inst('poortLaterMee') !== false;

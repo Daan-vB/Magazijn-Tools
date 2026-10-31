@@ -385,14 +385,14 @@ function viewNakijken(){
       (S.pdFout ? `<div class="blok let">Geparkeerde velden laden lukte niet: ${esc(S.pdFout.message || String(S.pdFout))}</div>` : !S.pd ? '<div class="leeg">Geparkeerde velden laden…</div>' :
         pg.length ? pg.map(g => { const codes = [...new Set(g.items.map(i => i.c))]; return `<section class="blok"><h2>${esc(g.tekst || 'Geparkeerd')}</h2>
           <p class="small muted">${nf(codes.length)} producten · ${nf(g.items.length)} velden geparkeerd</p>
-          <div class="small">${codes.slice(0, 60).map(c => `<a href="#/zoek/${encodeURIComponent(c)}">${esc(c)}</a> <span class="muted">${esc(g.items.filter(i => i.c === c).map(i => VELD[i.k] || i.k).join(', '))}</span>`).join(' · ')}${codes.length > 60 ? ' · +' + nf(codes.length - 60) : ''}</div></section>`; }).join('')
+          <div class="small">${codes.slice(0, 60).map(c => `<a href="#/pd2/p/${encodeURIComponent(c)}">${esc(c)}</a> <span class="muted">${esc(g.items.filter(i => i.c === c).map(i => VELD[i.k] || i.k).join(', '))}</span>`).join(' · ')}${codes.length > 60 ? ' · +' + nf(codes.length - 60) : ''}</div></section>`; }).join('')
         : '<div class="small muted">Geen geparkeerde velden in Productdata.</div>');
   } else {
     const bo = D.BO || [];
     body = `<section class="blok"><h2>Twijfel die uit de gegevens komt</h2><div class="tabel"><table><tbody>
       <tr><td><b>Voorraad op "geen specifieke locatie"</b><br><span class="muted">Picqer telt dit als pick, maar niemand vindt het. Tellen en op de juiste plek zetten.</span></td><td><b>${nf(zonder)}</b> producten</td><td><a class="knop" href="#/aanvullive">Live advies →</a></td></tr>
       <tr><td><b>Locatie-aandachtspunten</b><br><span class="muted">Pick op tijdelijk, vloer maar bulk, hoog maar pick, BA-dubbelingen, losse namen.</span></td><td></td><td><a class="knop" href="#/locaties">Locaties →</a></td></tr>
-      <tr><td><b>Dubbel in palletlabels</b><br><span class="muted">Twee aantallen per pallet voor één product.</span></td><td></td><td><a class="knop" href="#/productdata">Productdata →</a></td></tr>
+      <tr><td><b>Dubbel in palletlabels</b><br><span class="muted">Twee aantallen per pallet voor één product.</span></td><td></td><td><a class="knop" href="#/pd2/open">Productdata 2.0 →</a></td></tr>
       <tr><td><b>Backorders (export)</b><br><span class="muted">Regels in de laatst ingelezen backorder-export.</span></td><td><b>${nf(bo.length)}</b></td><td><a class="knop" href="#/backorders">Backorders →</a></td></tr>
     </tbody></table></div></section>`;
   }

@@ -1014,10 +1014,30 @@ function koppel(){
 }
 
 /* ---------- ingang vanuit ivol.js ---------- */
-function render(el){
+/* Route vanuit Te doen, taken en Poort 0.4 (31-10): #/pd2/p/<code> opent de familie en maat van dat product met het product in beeld,
+   #/pd2/open de eerste familie met een open stap. De oude Productdata-pagina's zijn geen route meer. */
+function openProduct(code){
+  const x = R.S.klaar ? Object.keys(D.P).find(c => c.toLowerCase() === String(code).toLowerCase()) : null;
+  if(!x || !R.actief(x)) return false;
+  const fk = R.famVan(x); if(!fk || !famEcht(fk).includes(x)) return false;
+  UI.fk = fk; UI.mk = R.maatVan(x); UI.view = null; UI.wegAlle = null; UI.sel.clear(); nieuweGroep();
+  const st = R.status(x); UI.seg = st.af ? 'afgerond' : 'open';
+  const e = STAPPEN.find(([k]) => !(st.stap && st.stap[k])); UI.stap = e ? e[0] : 'soort';
+  if(!st.af){ const i = kaartCodes().indexOf(x); if(i >= UI.n) UI.n = i + 1; }
+  meld('fam', { fk });
+  return true;
+}
+function routeRest(rest){
+  if(!R.S.klaar) return;
+  const m = String(rest || '').match(/^p\/(.+)$/);
+  if(m){ if(openProduct(decodeURIComponent(m[1]))){ teken(); const k = UI.el && UI.el.querySelector(`[data-c="${CSS.escape(decodeURIComponent(m[1]))}"]`); if(k && k.scrollIntoView) k.scrollIntoView({ block:'start' }); } return; }
+  if(rest === 'open'){ const f = families().find(f => f.af < f.n); if(f) openFam(f.fk); }
+}
+function render(el, rest){
   stijl(); R.S.oefenen = UI.oefenen;
   UI.el = el; koppel();
-  if(!R.S.klaar && !R.S.fout) R.laad().then(() => { if(UI.el === el) teken(); });
+  if(!R.S.klaar && !R.S.fout) R.laad().then(() => { if(UI.el === el){ if(rest) routeRest(rest); else teken(); } });
+  if(rest && R.S.klaar){ routeRest(rest); return; }
   teken();
 }
 // nieuwe gegevens binnen (na de momentopname, of na verversen): opnieuw tekenen, maar niet midden in het typen

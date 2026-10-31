@@ -3159,7 +3159,9 @@ function viewEen(){
 function viewProduct(code){
   code = D.PLOW[String(code || '').toLowerCase()] || code;
   if(!D.P[code]){ app.innerHTML = `<a class="small" href="#/productdata">← Productdata</a><div class="card empty mt8">Product ${esc(code)} staat niet in de Picqer-import.</div>`; return; }
-  app.innerHTML = `<a class="small" href="javascript:history.back()">← terug</a><div class="mt8">${productKaart(code, false)}</div>`;
+  const oud = `<div class="card mt8" style="border-left:4px solid var(--warn)" data-oudekaart="1"><p class="small">Oude pagina. Soort, gewicht en hoeveelheid vul je in Productdata 2.0; de vloernaam in Vloernamen.</p>
+    <div class="row wrap mt8"><a class="btn acc" target="_top" href="ivol.html#/pd2/p/${encodeURIComponent(code)}">Productdata 2.0</a><a class="btn" target="_top" href="containerplanning.html#/vloernamen?q=${encodeURIComponent(code)}">Vloernamen</a></div></div>`;
+  app.innerHTML = `<a class="small" href="javascript:history.back()">← terug</a>${oud}<div class="mt8">${productKaart(code, false)}</div>`;
 }
 
 /* ---------- scherm: nog open per laag (Daan 17-10) ----------
@@ -3674,5 +3676,5 @@ function notities(){
   return Object.entries(g).map(([tekst, items]) => ({ tekst, items, codes:[...new Set(items.map(i => i.code))] })).sort((a, b) => b.codes.length - a.codes.length);
 }
 const intern = { maatgroepVan, verworpen, ribbelMaat, isSam, heeftPark, parkMeta, wachtOpLevering, zelfGebouwd, mvPatroon, mvSoort, kokosDoos, levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, famCorWaarde, schoneNaam, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
-return { view, viewOpen, openData, openStappen, telt, pd2Klaar, herlaad, laad, zetLaterMee, notities, regelLijst, regelFout, verworpen, ribbelMaat, wachtOpLevering, isSam, heeftPark, appsZelftest, zetVers, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
+return { view, viewOpen, openData, dubbel, openStappen, telt, pd2Klaar, herlaad, laad, zetLaterMee, notities, regelLijst, regelFout, verworpen, ribbelMaat, wachtOpLevering, isSam, heeftPark, appsZelftest, zetVers, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();
