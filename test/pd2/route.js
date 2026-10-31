@@ -47,10 +47,11 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   }
   await P.setViewportSize({ width:1440, height:900 });
   await P.goto(B + 'warehouse.html#/productdata/dubbel'); await P.reload();
-  await P.waitForFunction(() => document.querySelector('[data-pd="save"][data-ks]'), null, { timeout:300000 });
+  await P.waitForFunction(() => document.querySelector('.card h2') && /Dubbel in palletlabels/.test(document.body.innerText) && /te kiezen|Geen dubbele/.test(document.body.innerText), null, { timeout:300000 });
   for(const code of ['FTP-106106010', 'chrglck24-kp-Schweiz']){
-    const r = await ev(c => { const k = document.querySelector('[data-pd="save"][data-code="' + c + '"]'); if(!k) return null; const kaart = k.closest('.card'); return { inv:kaart.querySelectorAll('input[data-pdk],button[data-pdk]').length, nvt:!!kaart.querySelector('.pd-rij.nvt') }; }, code);
-    check(code + ': bewerkbare vloernaam', r && r.inv > 0 && !r.nvt);
+    const r = await ev(c => { const k = document.querySelector('[data-pd="save"][data-code="' + c + '"]'); if(!k) return { gekozen:[...document.querySelectorAll('details .mono')].some(e => e.textContent === c) }; const kaart = k.closest('.card'); return { inv:kaart.querySelectorAll('input[data-pdk],button[data-pdk]').length, nvt:!!kaart.querySelector('.pd-rij.nvt') }; }, code);
+    if(r.gekozen){ check(code + ': staat al in "al gekozen" (door Daan na de vorige versie), niet meer open', true); continue; }
+    check(code + ': bewerkbare vloernaam', r.inv > 0 && !r.nvt);
     await ev(c => { const kaart = document.querySelector('[data-pd="save"][data-code="' + c + '"]').closest('.card'); const b = kaart.querySelector('button.pd-pill[data-pdk]'); if(b) b.click(); }, code);
     await P.waitForTimeout(400);
     await ev(c => document.querySelector('[data-pd="save"][data-code="' + c + '"]').click(), code);
