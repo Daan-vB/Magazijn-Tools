@@ -71,7 +71,7 @@ const KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
   const e4 = await Q.evaluate(() => { const k = document.getElementById('v-E4005-10KG'); return k ? k.querySelector('.adv').innerText.replace(/\s+/g, ' ') : ''; });
   check('A3: E4005-10KG met per pallet 100 en "Alles los naar Picklocatie": volle pallets à 100, alleen de rest (50) naar pick', /2× 100 →/.test(e4) && /50 los → Picklocatie/.test(e4) && !/250 los/.test(e4), e4);
   const e4b = await Q.evaluate(() => { const k = document.getElementById('v-E4005-10KG'); return k ? k.innerText.replace(/\s+/g, ' ') : ''; });
-  check('A3: Binnen: 2 pallets à 100 + 50 los', /2 pallets à 100 \+ 50 los/.test(e4b), e4b.slice(0, 160));
+  check('A3: Binnen = pakbon (250 los), Wegzetten: 2 pallets à 100 + 50 los', /Binnen: 250 los/.test(e4b) && /Wegzetten: 2 pallets à 100 \+ 50 los/.test(e4b), e4b.slice(0, 160));
   await T2.b.close();
   const anders = (laatste() ? Object.keys(v0).filter(k => !['Snowbag'].includes(k) && JSON.stringify(laatste()[k]) !== JSON.stringify(v0[k])) : ['geen opslag']);
   check('Andere verdelingen en akkoorden ongewijzigd', anders.length === 0, anders.join());

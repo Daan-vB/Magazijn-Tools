@@ -54,6 +54,7 @@ Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet
 - Containers komen binnen in dozen; het team bouwt zelf pallets. "Los" alleen bij een pakbonregel met Per = 1; anders dozen ("5 dozen à 100").
 - Nooit losse stuks uit een doos naar pick; pick krijgt hele dozen of niets.
 - Een krat (bijv. E4005-10KG, krat van 100) telt als 1 pallet.
+- Pakbon = hoe het binnenkomt (info). Verdeling = hoe wij wegzetten: opslagpallet uit het productgeheugen, per regel aan te passen; akkoord telt alleen het totaal.
 - Geen gecontroleerde data = geen automatisch advies: "bij lossen bepalen" en op de invullijst lossen; Daan voert het daarna één keer in, dan is het product voor elke volgende container bekend.
 - Pakbonregel zonder Picqer-product (verpakking zoals WASHER PUMP BOX) = "geen voorraad", gaat naar Karin en Kate, geen fout.
 - Onbekend of nieuw = info, nooit een fout. Geen meldingen die Daan niets laten doen.

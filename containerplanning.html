@@ -1546,6 +1546,8 @@ async function regelWeg(c, r){
    Voorraad per product in deze container (pallets en los)
    ===================================================================== */
 function factorVan(c, code){ const r = c.data.regels.find(x => x.productcode === code); return r ? (num(r.factor) || 1) : 1; }
+// een krat (bijv. E4005-10KG, krat van 100) blijft 1 pallet
+const isKrat = p => /^E4005/i.test(p.code) || p.regels.some(r => /\bkrat/i.test((r.omschrijving || '') + ' ' + (r.context || '') + ' ' + (r.pakbon_code || '')));
 function pools(c){
   const map = {}, order = [];
   c.data.regels.forEach(r => {
@@ -1568,6 +1570,8 @@ function pools(c){
     const R = regelVan(code);
     p.spp = sppVan(code);
     p.regel = R;
+    // binnenkomst volgens de pakbon (alleen info); de verdeling rekent met de opslagpallets hieronder
+    p.binnenPallets = p.pallets.slice(); p.binnenLosU = p.losU;
     const auto = !R.hand && !R.losdest;
     // "per pallet" ingevuld: volle pallets gaan altijd volgens per pallet, "Alles los naar" geldt alleen voor wat los blijft
     // (een eerder opgeslagen verdeling met alleen los blijft zoals hij is: een akkoord blijft akkoord)
@@ -1575,7 +1579,20 @@ function pools(c){
     const perPallet = !R.hand && R.losdest && !alleenLos;
     const spp = p.spp || (auto || perPallet ? R.bulk : null);
     const losRegels = p.regels.filter(r => r.soort !== 'pallet');
-    if(spp && (auto || perPallet) && losRegels.length && p.losU >= spp){
+    // opslagpallet (productgeheugen) en geen hand-regel: alle binnenkomende eenheden (ook die op leverancierspallets) worden pallets à opslagpallet, de rest blijft los.
+    // Uitzondering: een krat blijft 1 pallet; bij dozen alleen hele dozen per pallet
+    let opslag = 0;
+    if(p.spp && !R.hand && !isKrat(p) && Math.abs(p.totaalU - Math.round(p.totaalU)) < 1e-9){
+      const dz = losRegels.map(r => (num(r.per) || 0) * (num(r.factor) || 1));
+      const gcd = (a, b) => b ? gcd(b, a % b) : a;
+      const doosU = dz.length && dz.every(x => x > 1 && Math.abs(x - Math.round(x)) < 1e-9) ? Math.round(dz.reduce((a, x) => gcd(a, Math.round(x)), 0)) : 1;
+      opslag = doosU > 1 ? Math.floor(p.spp / doosU) * doosU : p.spp;
+    }
+    if(opslag > 0){
+      const tot = Math.round(p.totaalU), n = Math.floor(tot / opslag);
+      p.pallets = []; for(let i = 0; i < n; i++) p.pallets.push(opslag);
+      p.losU = tot - n * opslag; p.opslag = opslag; p.gebouwd = n;
+    } else if(spp && (auto || perPallet) && losRegels.length && p.losU >= spp){
       const n = Math.floor(p.losU / spp);
       for(let i = 0; i < n; i++) p.pallets.push(spp);
       p.losU -= n * spp; p.gebouwd = n;
@@ -1601,6 +1618,7 @@ function pools(c){
     p.pallets.sort((a, b) => b - a);
     p.maten = {};
     p.pallets.forEach(s => p.maten[s] = (p.maten[s] || 0) + 1);
+    p.binnenMaten = {}; p.binnenPallets.forEach(s => p.binnenMaten[s] = (p.binnenMaten[s] || 0) + 1);
   });
   const vol = order.filter(code => map[code].geleverd && map[code].totaalU <= 0.0001);
   return { map, order:order.filter(code => !vol.includes(code)), klaar:vol };
@@ -1613,14 +1631,11 @@ function pakbonEenheden(c){
 }
 const nogOpen = (c, k) => { const pb = pakbonEenheden(c)[k]; return pb ? Math.max(0, pb.u - (num((c.data.geleverd || {})[k]) || 0)) : 0; };
 function portieU(x){ return x.soort === 'pallet' ? (num(x.n) || 0) * (num(x.per) || 0) : (num(x.n) || 0); }
+// akkoord telt alleen eenheden: som van alle regels = totaal binnen
 function restVan(pool, porties){
-  const r = { maten:Object.assign({}, pool.maten), los:pool.losU, U:pool.totaalU };
-  (porties || []).forEach(x => {
-    r.U -= portieU(x);
-    if(x.soort === 'pallet') r.maten[x.per] = (r.maten[x.per] || 0) - (num(x.n) || 0);
-    else r.los -= num(x.n) || 0;
-  });
-  r.ok = Math.abs(r.U) < 0.001 && Object.values(r.maten).every(v => v === 0) && Math.abs(r.los) < 0.001;
+  const r = { U:pool.totaalU };
+  (porties || []).forEach(x => { r.U -= portieU(x); });
+  r.ok = Math.abs(r.U) < 0.001;
   return r;
 }
 /* ---------- Planning over alle open containers (vooruitkijken) ----------
@@ -1811,7 +1826,7 @@ function punten(c, pl){
     const spp = sppVan(code);
     pool.regels.filter(r => r.soort === 'pallet').forEach(r => {
       const u = (num(r.per) || 0) * (num(r.factor) || 1);
-      if(spp && u && u !== spp) add('spp-' + code + '-' + u, 'info', code + ': ' + nf(u) + ' per pallet op de pakbon, productgeheugen zegt ' + nf(spp) + '. Labels volgen de pakbon.', code, 'pakbon', 'spp', code + ' (pakbon ' + nf(u) + ', geheugen ' + nf(spp) + ')');
+      if(spp && u && u !== spp) add('spp-' + code + '-' + u, 'info', code + ': ' + nf(u) + ' per pallet op de pakbon, productgeheugen zegt ' + nf(spp) + '. Labels volgen de verdeling.', code, 'pakbon', 'spp', code + ' (pakbon ' + nf(u) + ', geheugen ' + nf(spp) + ')');
     });
     // Picqer-gewicht controleren tegen pakbon
     const netto = pool.regels.reduce((a, r) => a + (num(r.netto) || 0), 0);
@@ -2676,7 +2691,7 @@ function kopKaart(c){
 const GROEP = {
   code:'Nog geen productcode gekoppeld', bev:'Koppeling nog bevestigen', som:'Regel telt niet op', fac:'Omrekenfactor controleren',
   eh:'Eenheid controleren: telt Picqer per meter of cm? Dan moet de factor anders', gw:'Gewicht aanpassen in Picqer (belangrijk voor orderpickers)',
-  pk:'Productgegevens aanvullen (bij het product op de pakbon-stap)', pd:'Palletdata ontbreekt', vd:'Verdeling telt niet op', spp:'Andere hoeveelheid per pallet dan in het productgeheugen (labels volgen de pakbon)',
+  pk:'Productgegevens aanvullen (bij het product op de pakbon-stap)', pd:'Palletdata ontbreekt', vd:'Verdeling telt niet op', spp:'Andere hoeveelheid per pallet dan in het productgeheugen (labels volgen de verdeling)',
   nieuw:'Geen verkoophistorie (nieuw?) — verdeling zelf beoordelen', vn:'Vloernaam ontbreekt (voor het palletlabel)', pal:'Palletopbouw nog te bepalen'
 };
 function groepeer(pts){
@@ -2805,8 +2820,7 @@ function pkVoorstel(c, pool){
   const vn = vnVoorstel(naam); if(vn) V.vn = { v:vn, bron:'uit Picqer-naam' };
   const palRegel = pool.regels.find(r => r.soort === 'pallet' && num(r.per));
   const losRegel = pool.regels.find(r => r.soort !== 'pallet' && num(r.bruto_per));
-  if(palRegel) V.spp = { v:afr(num(palRegel.per) * (num(palRegel.factor) || 1), 3), bron:'pakbon: per pallet' };
-  else V.spp = uitFam(x => { const g = geh1(x); return g && qtySoort(g.qty) === 'aantal' ? num(g.qty) : null; });
+  V.spp = uitFam(x => { const g = geh1(x); return g && qtySoort(g.qty) === 'aantal' ? num(g.qty) : null; });
   const spp = num(d.spp) || sppVan(code) || (V.spp && num(V.spp.v)) || null;
   V.maat = uitFam(x => P[x] && P[x].palletmaat);
   if(!V.maat){
@@ -2830,7 +2844,7 @@ function pkVoorstel(c, pool){
   return V;
 }
 const PK_VELD = {
-  vn:['Vloernaam (op het label)', 'text'], spp:['Stuks per pallet', 'text'], maat:['Palletmaat (cm)', 'maat'], hoogte:['Hoogte incl. pallet (cm)', 'num'],
+  vn:['Vloernaam (op het label)', 'text'], spp:['Wij zetten weg per pallet van (st.)', 'text'], maat:['Palletmaat (cm)', 'maat'], hoogte:['Hoogte incl. pallet (cm)', 'num'],
   gewicht:['Gewicht volle pallet (kg)', 'num'], plaatsen:['Plaatsen in stelling', 'num'], max:['Max per ligger', 'num'], opm:['Opmerking (opbouw, stapelen)', 'text']
 };
 const PK_NODIG = { vn:'vloernaam', spp:'stuks per pallet', maat:'palletmaat', hoogte:'hoogte', gewicht:'gewicht', plaatsen:'plaatsen' };
@@ -2864,7 +2878,7 @@ function pkVeld(code, k, info, V, d){
     const v = String(val || '');
     inp = `<select ${at}${cls}><option value="">— kies —</option>${MATEN.map(m => `<option ${m === v ? 'selected' : ''}>${m}</option>`).join('')}${v && !MATEN.includes(v) ? `<option selected>${esc(v)}</option>` : ''}<option value="anders">anders…</option></select>`;
   } else inp = `<input ${at}${cls} value="${esc(val)}" ${type === 'num' ? 'inputmode="decimal"' : 'autocapitalize="off" autocomplete="off"'}>`;
-  const hint = k === 'spp' ? 'in ' + info.ve.mv + ' · nvt = geen pallet · onb = onbekend' + (qtySoort(info.g && info.g.qty) === 'geen' ? ' · stond op 0 (oud: label zonder aantal): vul het echte aantal in en zet zo nodig het vinkje aanvulpallet' : '') : '';
+  const hint = k === 'spp' ? 'opslagpallet voor bulk/VST, niet hoe het binnenkomt · in ' + info.ve.mv + ' · nvt = geen pallet · onb = onbekend' + (qtySoort(info.g && info.g.qty) === 'geen' ? ' · stond op 0 (oud: label zonder aantal): vul het echte aantal in en zet zo nodig het vinkje aanvulpallet' : '') : '';
   return `<div class="fld${k === 'opm' || k === 'vn' ? ' breed' : ''}"><label>${lbl}</label>${inp}${isVoor ? `<div class="sugg">voorstel: ${esc(vs.bron)}</div>` : hint ? `<div class="sugg">${hint}</div>` : ''}${k === 'spp' && hint && isVoor ? `<div class="sugg">${hint}</div>` : ''}</div>`;
 }
 function pbRegelTekst(r, mv){
@@ -2887,7 +2901,7 @@ function productKaart(c, pool){
   const vnNu = (g && g.name) || '', sppNu = pkHuidig(info, 'spp');
   const kort = [isAanvul(code) ? 'aanvulpallet' : '', ve.tekst, sppNu ? (qtySoort(sppNu) === 'aantal' ? nf(num(sppNu)) + ' ' + ve.mv + ' per pallet' : 'stuks per pallet: ' + sppNu) : '', p.palletmaat || '', !leeg(p.hoogte_cm) ? nf(num(p.hoogte_cm)) + ' cm' : '', !leeg(p.gewicht_kg) ? nf(num(p.gewicht_kg)) + ' kg' : '', vnNu ? 'label: ' + vnNu : ''].filter(Boolean);
   if(!open) return `<div class="vcard ${compleet ? 'okk' : 'warn'}"><div class="row between wrap"><div class="grow">${kop}
-      <div class="small mt8">Binnen: <b>${nf(pool.totaalU)} ${ve.mv}</b>${pool.pallets.length || doosVan(c, code) ? ' · ' + binnenTekst(c, pool) : ''}</div>
+      <div class="small mt8">Binnen: <b>${nf(pool.totaalU)} ${ve.mv}</b> · ${binnenTekst(c, pool)}</div>
       <div class="small muted mt8">${kort.map(esc).join(' · ')}</div></div>
       <button class="btn ghost sm" data-act="pkopen" data-code="${esc(code)}">wijzigen</button></div></div>`;
   const V = pkVoorstel(c, pool);
@@ -2899,7 +2913,7 @@ function productKaart(c, pool){
   const weet = `<div class="kvs">
     ${rij('Op de pakbon', pool.regels.map(r => (pool.cOf && pool.cOf.get(r) ? '<b>' + esc(cKort(pool.cOf.get(r))) + '</b>: ' : '') + esc(r.pakbon_code || r.omschrijving || '') + ' — ' + pbRegelTekst(r, ve.mv) + (r.bevestigd ? '' : ' <span class="badge b-warn">koppeling nog bevestigen</span>') + (r.vs && !r.bevestigd ? '<div class="sugg">voorstel: ' + esc(r.vs.toel) + (r.vs.zeker ? '' : ' — <b>waarschijnlijk</b>, controleer') + '</div>' : '')).join('<br>'))}
     ${rij('Picqer telt', esc(ve.tekst) + (ve.bron ? ' <span class="muted">(' + esc(ve.bron) + ')</span>' : ''))}
-    ${rij('Binnen', '<b>' + nf(pool.totaalU) + ' ' + ve.mv + '</b>' + (pool.pallets.length || doosVan(c, code) ? ' · ' + binnenTekst(c, pool) : pool.losU ? ' los' : ''))}
+    ${rij('Binnen', '<b>' + nf(pool.totaalU) + ' ' + ve.mv + '</b> · ' + binnenTekst(c, pool))}
     ${rij('Picqer', [p.ean ? 'EAN ' + esc(p.ean) : '', !leeg(p.gewicht_product_g) ? nf(num(p.gewicht_product_g) / 1000, 2) + ' kg per ' + (ve.set ? 'set' : ve.e === 'st.' ? 'stuk' : ve.e) : '<span class="muted">geen gewicht</span>', afm].filter(Boolean).join(' · '))}
     ${rij('Voorraad', 'hier <b>' + nf(f.hm) + '</b> · VST <b>' + nf(f.vst) + '</b> · verkoop <b>' + (f.rate === null ? 'onbekend' : nf(f.rate) + '/mnd') + '</b> · backorders <b>' + nf(f.bo) + '</b>')}
     ${vnNu || sppNu || isAanvul(code) ? rij('Productgeheugen', [vnNu ? 'label: ' + esc(vnNu) : '', sppNu ? 'per pallet: ' + esc(sppNu) : '', isAanvul(code) ? '<b>aanvulpallet</b>' : ''].filter(Boolean).join(' · ')) : ''}
@@ -3622,10 +3636,11 @@ function poolsLeverancier(lk){
     const pl = pools(c);
     pl.order.forEach(code => {
       const p = pl.map[code];
-      const m = map[code] = map[code] || (order.push(code), { code, regels:[], pallets:[], losU:0, totaalU:0, maten:{}, gebouwd:0, spp:p.spp, cOf:new Map(), conts:[] });
+      const m = map[code] = map[code] || (order.push(code), { code, regels:[], pallets:[], losU:0, totaalU:0, maten:{}, binnenMaten:{}, binnenLosU:0, gebouwd:0, opslag:p.opslag, spp:p.spp, cOf:new Map(), conts:[] });
       p.regels.forEach(r => { m.regels.push(r); m.cOf.set(r, c); });
-      m.pallets.push(...p.pallets); m.losU += p.losU; m.totaalU += p.totaalU; m.gebouwd += p.gebouwd || 0; m.conts.push(c);
+      m.pallets.push(...p.pallets); m.losU += p.losU; m.totaalU += p.totaalU; m.gebouwd += p.gebouwd || 0; m.binnenLosU += p.binnenLosU || 0; m.conts.push(c);
       Object.entries(p.maten).forEach(([k, n]) => m.maten[k] = (m.maten[k] || 0) + n);
+      Object.entries(p.binnenMaten || {}).forEach(([k, n]) => m.binnenMaten[k] = (m.binnenMaten[k] || 0) + n);
     });
     c.data.regels.forEach(r => { if(!r.productcode) niet.push({ c, r }); });
   });
@@ -3760,7 +3775,8 @@ function doosVan(c, code){
   if(!los.length || los.some(r => !((num(r.per) || 0) > 1 && (num(r.aantal) || 0) > 0))) return null;
   const n = los.reduce((a, r) => a + (num(r.aantal) || 0), 0), pers = [...new Set(los.map(r => Math.round((num(r.per) || 0) * (num(r.factor) || 1) * 1e6) / 1e6))];
   const vast = pers.length === 1 && Math.abs(pers[0] - Math.round(pers[0])) < 1e-9;
-  return { n, per:vast ? Math.round(pers[0]) : null, gem:pool.losU / n, losU:pool.losU };
+  const binnenLos = pool.binnenLosU != null ? pool.binnenLosU : pool.losU;   // dozen zoals op de pakbon, niet wat na het omrekenen naar opslagpallets los blijft
+  return { n, per:vast ? Math.round(pers[0]) : null, gem:binnenLos / n, losU:binnenLos };
 }
 const doosAantal = (d, u) => Math.round(u / (d.per || d.gem));
 const doosWoord = (n, T) => T === 'en' ? (n === 1 ? 'box' : 'boxes') : (n === 1 ? 'doos' : 'dozen');
@@ -3776,10 +3792,21 @@ function eenhTekst(c, code, per){
   if(f !== 1 && perRol(eh)){ const rol = per / f; return nf(per) + ' ' + eh + ' (' + nf(rol, 1) + ' ' + (rol === 1 ? 'rol' : 'rollen') + ')'; }
   return nf(per) + (eh === 'st.' ? '' : ' ' + eenhWoord(per, eh));
 }
+// pakbon = hoe het binnenkomt (alleen info): pallets à n zoals op de pakbon, dozen of los
 function binnenTekst(c, pool){
+  const delen = Object.entries(pool.binnenMaten || pool.maten).sort((a, b) => b[0] - a[0]).map(([s, n]) => plural(n, 'pallet', 'pallets') + ' à ' + eenhTekst(c, pool.code, +s));
+  let los = pool.binnenLosU != null ? pool.binnenLosU : pool.losU;
+  const onb = pool.regels.filter(r => r.soort === 'pallet' && !(num(r.per) > 0) && num(r.aantal) > 0);
+  onb.forEach(r => { const u = (num(r.totaal) || 0) * (num(r.factor) || 1); los -= u; });
+  if(onb.length) delen.push(plural(onb.reduce((a, r) => a + num(r.aantal), 0), 'pallet', 'pallets') + ', aantal per pallet onbekend');
+  if(los > 0.001){ const d = doosVan(c, pool.code); delen.push(d && Math.abs(d.losU - los) < 0.001 ? doosBinnen(c, pool.code, d) : eenhTekst(c, pool.code, los) + ' los'); }
+  return delen.join(' + ');
+}
+// verdeling = hoe wij wegzetten: opslagpallets uit het productgeheugen
+function wegzetTekst(c, pool){
   const delen = Object.entries(pool.maten).sort((a, b) => b[0] - a[0]).map(([s, n]) => plural(n, 'pallet', 'pallets') + ' à ' + eenhTekst(c, pool.code, +s));
-  if(pool.losU){ const d = doosVan(c, pool.code); delen.push(d ? doosBinnen(c, pool.code, d) : eenhTekst(c, pool.code, pool.losU) + ' los'); }
-  return delen.join(' + ') + (pool.gebouwd ? ' <span class="tiny muted">(pallets zelf opgebouwd à ' + nf(pool.spp) + ' volgens productgeheugen)</span>' : '');
+  if(pool.losU > 0.001){ const d = doosVan(c, pool.code); delen.push(d ? doosTekst(d, pool.losU) : eenhTekst(c, pool.code, pool.losU) + ' los'); }
+  return delen.join(' + ') + (pool.gebouwd && pool.spp ? ' <span class="tiny muted">(productgeheugen)</span>' : '');
 }
 function portiesTekst(c, code, porties, taal){
   return (porties || []).filter(x => portieU(x) > 0).sort((a, b) => DEST_ORDER.indexOf(a.dest) - DEST_ORDER.indexOf(b.dest)).map(x =>
@@ -3829,19 +3856,13 @@ function verdeelKaart(c, pool){
   const na = adv.proj + hierU + boU;
   const boOpen = f.boRegels.map(b => Math.max(0, (num(b.aantal) || 0) - (num(b.beschikbaar) || 0))).filter(x => x > 0);
   const boTop = boOpen.length ? plural(boOpen.length, 'order', 'orders') + (boOpen.length > 1 ? ', grootste ' + boOpen.slice(0, 3).map(x => nf(x)).join(', ') : '') : '';
-  const maatSel = x => {
-    const sizes = Object.keys(pool.maten).map(Number).sort((a, b) => b - a);
-    if(!sizes.includes(num(x.per))) sizes.push(num(x.per));
-    return `<select data-p="per">${sizes.map(s => `<option value="${s}" ${s === num(x.per) ? 'selected' : ''}>à ${eenhTekst(c, code, s)}</option>`).join('')}</select>`;
-  };
+  const maatSel = x => `<span class="small">à</span><input class="num" data-p="per" value="${esc(x.per)}" inputmode="numeric" style="width:74px"><span class="small">${esc(eh === 'st.' ? 'st.' : eh)}</span>`;
   const dz = doosVan(c, code);
   const destSel = x => `<select data-p="dest" class="d-${x.dest}" style="font-weight:700">${Object.entries(DEST).map(([k, d]) => `<option value="${k}" ${k === x.dest ? 'selected' : ''}>${d.nl}</option>`).join('')}</select>`;
   const restTxt = () => {
     if(rest.ok) return '<div class="rest ok">✓ Alles verdeeld</div>';
-    const d = [];
-    Object.entries(rest.maten).forEach(([s, n]) => { if(n > 0) d.push(n + '× pallet à ' + eenhTekst(c, code, +s) + ' nog niet verdeeld'); if(n < 0) d.push((-n) + '× pallet à ' + eenhTekst(c, code, +s) + ' te veel'); });
-    if(rest.los > 0.001) d.push(losPortie(c, code, rest.los) + ' nog niet verdeeld');
-    if(rest.los < -0.001) d.push(losPortie(c, code, -rest.los) + ' te veel');
+    const u = Math.round(Math.abs(rest.U)), w = dz ? doosTekst(dz, u) : eh === 'st.' ? nf(u) + ' st.' : eenhTekst(c, code, u);
+    const d = [rest.U > 0 ? 'nog ' + w + ' niet verdeeld' : w + ' te veel'];
     return '<div class="rest bad">' + d.join(' · ') + '</div>';
   };
   if(heeft && v.bevestigd && rest.ok && !UI.open['v-' + code]){
@@ -3853,6 +3874,7 @@ function verdeelKaart(c, pool){
   return `<div class="vcard ${cls}" id="v-${esc(code)}">
     <div class="vhead"><span class="code" style="font-size:14px">${esc(code)}</span><span class="small">${esc(naamVan(code))}</span>${f.abc ? `<span class="badge b-grey">ABC ${esc(f.abc)}</span>` : ''}${v.bron === 'afspraak' ? '<span class="badge b-info" title="Ingevuld uit eerdere afspraak">afspraak</span>' : ''}</div>
     <div class="small mt8"><b>Binnen:</b> ${binnenTekst(c, pool)} = <b>${nf(pool.totaalU)} ${verkoopEenheid(code).mv}</b> <span class="muted">(${esc(verkoopEenheid(code).tekst)})</span></div>
+    ${pool.gebouwd ? `<div class="small"><b>Wegzetten:</b> ${wegzetTekst(c, pool)}</div>` : ''}
     <div class="facts">
       <span>Voorraad hier <b>${nf(f.hm)}</b>${f.vrij !== f.hm ? ` <span class="muted">(vrij ${nf(f.vrij)})</span>` : ''}</span>
       <span>VST <b>${nf(f.vst)}</b></span>
@@ -3870,7 +3892,7 @@ function verdeelKaart(c, pool){
         <input class="note" data-p="note" value="${esc(x.note || '')}" placeholder="notitie (bijv. klant, locatie AD/AE)">
         <button class="btn ghost sm" data-act="pdel" title="Verwijderen">✕</button></div>`).join('')}
       <div class="row wrap mt8">
-        ${pool.pallets.length ? `<button class="btn sm" data-act="padd" data-soort="pallet">+ pallets</button>` : ''}
+        <button class="btn sm" data-act="padd" data-soort="pallet">+ pallets</button>
         <button class="btn sm" data-act="padd" data-soort="los">+ los</button>
         <span class="grow"></span>
         ${heeft ? (v.bevestigd ? `<span class="badge b-ok">akkoord</span> <button class="btn ghost sm" data-act="vakk">wijzigen</button>` : `<button class="btn ok sm" data-act="vakk" ${rest.ok ? '' : 'disabled'}>✓ Akkoord</button>`) : ''}
@@ -4584,9 +4606,9 @@ const ACT = {
     const v = cur.data.verdeling[code] = cur.data.verdeling[code] || { porties:[] };
     const rest = restVan(pool, v.porties);
     if(el.dataset.soort === 'pallet'){
-      const s = Object.keys(rest.maten).map(Number).sort((a, b) => b - a).find(k => rest.maten[k] > 0) || pool.pallets[0];
-      v.porties.push({ soort:'pallet', n:Math.max(1, rest.maten[s] || 0), per:s, dest:'UP' });
-    } else v.porties.push({ soort:'los', n:Math.max(0, Math.round(rest.los)) || 0, dest:'PICK' });
+      const s = sppVan(code) || pool.pallets[0] || Math.max(1, Math.round(rest.U));
+      v.porties.push({ soort:'pallet', n:Math.max(1, Math.floor(Math.max(0, rest.U) / s + 1e-9)), per:s, dest:'UP' });
+    } else v.porties.push({ soort:'los', n:Math.max(0, Math.round(rest.U)) || 0, dest:'PICK' });
     v.bevestigd = false; save(); rerender();
   },
   pdel: el => { const code = el.closest('[data-code]').dataset.code, i = +el.closest('.portie').dataset.i; const v = cur.data.verdeling[code]; v.porties.splice(i, 1); v.bevestigd = false; save(); rerender(); },
@@ -4777,7 +4799,7 @@ app.addEventListener('change', e => {
   if(portie && el.dataset.p){
     const code = portie.closest('[data-code]').dataset.code, i = +portie.dataset.i, v = cur.data.verdeling[code], x = v.porties[i];
     if(el.dataset.p === 'n'){ const dz = x.soort !== 'pallet' && doosVan(cur, code), w = num(el.value) || 0; x.n = dz ? (dz.per ? w * dz.per : (w === dz.n ? dz.losU : Math.round(w * dz.gem))) : w; }   // bij dozen typ je dozen, opgeslagen blijven stuks
-    else if(el.dataset.p === 'per') x.per = num(el.value);
+    else if(el.dataset.p === 'per') x.per = Math.max(1, Math.round(num(el.value) || 0));
     else if(el.dataset.p === 'dest') x.dest = el.value;
     else if(el.dataset.p === 'note') x.note = el.value;
     v.bevestigd = false;
