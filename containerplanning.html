@@ -473,7 +473,7 @@ async function load(){
     indexVerkoop(vk);
     indexBackorders(BL.rows && !BL.fout && Date.now() - BL.t < 3e5 ? BL.rows : bo);
     ALIAS = al; CONT = co; TODOS = td;
-    CONT.forEach(ensureData);
+    CONT.forEach(ensureData); wisCache();
     GELADEN = Date.now();
     await opslagCheck();
     setSync('verbonden', 'ok');
@@ -629,14 +629,14 @@ async function bewaarNu(c){
   if(c.updated_at && Array.isArray(r) && !r.length){
     const vers = await api('GET', 'containers?id=eq.' + c.id + '&select=*');
     if(vers && vers[0]){ Object.keys(c).forEach(k => delete c[k]); Object.assign(c, ensureData(vers[0])); }
-    PLAN = null;
+    PLAN = wisCache();
     const e = new Error('deze container is intussen op een ander apparaat gewijzigd — de nieuwste versie is geladen, doe je laatste wijziging opnieuw');
     e.conflict = true; toast('Let op: ' + e.message + '.', 8000); if(cur === c) rerender();
     throw e;
   }
   c.updated_at = (Array.isArray(r) && r[0] && r[0].updated_at) || velden.updated_at;
 }
-function save(){ PLAN = null; if(!cur) return; dirty = true; setSaved('Opslaan…'); clearTimeout(saveT); saveT = setTimeout(doSave, 700); }
+function save(){ PLAN = wisCache(); if(!cur) return; dirty = true; setSaved('Opslaan…'); clearTimeout(saveT); saveT = setTimeout(doSave, 700); }
 async function doSave(){
   if(!cur || !dirty) return;
   dirty = false;
@@ -1476,7 +1476,7 @@ async function liveAanvullen(){
     for(const [code, cs] of per){ if(await liveZoek(code)) cs.forEach(c => klaar.add(c)); }
     if(klaar.size){   // alleen regels zonder product, als voorstel (niets wordt hier opgeslagen)
       klaar.forEach(c => { c.data.regels.forEach(r => { if(r.productcode || r.geenVoorraad) return; const k = koppel(r, c.leverancier); if(k.productcode) Object.assign(r, k); }); ontdubbel(c.data.regels, c.leverancier); });
-      PLAN = null; rerender();
+      PLAN = wisCache(); rerender();
     }
   }finally{ liveBezig = false; }
 }
@@ -1506,7 +1506,7 @@ function liveBackorders(vers){
       const rows = lijst.map(b => ({ id:b.id, bestelling:'order ' + b.o, productcode:PLOW[omgekeerd[b.p]] || omgekeerd[b.p] || '', aantal:b.a, beschikbaar:b.v, magazijn:'Hoofdmagazijn', geimporteerd_op:nu })).filter(x => x.productcode);
       BL.rows = rows; BL.t = Date.now(); BL.fout = '';
       try{ localStorage.setItem('cp-bo-live', JSON.stringify({ t:nu, n:rows.length })); }catch(e){}
-      indexBackorders(rows); PLAN = null;
+      indexBackorders(rows); PLAN = wisCache();
       return true;
     }catch(e){ BL.fout = e.message || 'geen antwoord'; return false; }
   })();
@@ -1530,14 +1530,14 @@ async function regelKoppel(c, r, v){
   if(!canon){ toast(onbekendCode(v), 7000); return; }
   r.productcode = canon; r.match = 'handmatig'; r.bevestigd = true; delete r.vs;
   const fv = factorVoorstel(canon, r); r.factor = fv.factor; r.factor_bron = fv.bron;
-  PLAN = null;
+  PLAN = wisCache();
   if(c === cur) save(); else { try{ await bewaarContainer(c); }catch(e){ toast('Opslaan mislukt: ' + e.message, 5000); } }
   rerender();
 }
 async function regelWeg(c, r){
   if(!confirm('Regel "' + (r.pakbon_code || r.omschrijving || '') + '" van deze pakbon verwijderen?\n\nDe regel telt dan niet meer mee in deze container.')) return;
   c.data.regels.splice(c.data.regels.indexOf(r), 1);
-  PLAN = null;
+  PLAN = wisCache();
   if(c === cur) save(); else { try{ await bewaarContainer(c); }catch(e){ toast('Opslaan mislukt: ' + e.message, 5000); } }
   rerender();
 }
@@ -1548,7 +1548,19 @@ async function regelWeg(c, r){
 function factorVan(c, code){ const r = c.data.regels.find(x => x.productcode === code); return r ? (num(r.factor) || 1) : 1; }
 // een krat (bijv. E4005-10KG, krat van 100) blijft 1 pallet
 const isKrat = p => /^E4005/i.test(p.code) || p.regels.some(r => /\bkrat/i.test((r.omschrijving || '') + ' ' + (r.context || '') + ' ' + (r.pakbon_code || '')));
+/* ---------- rekencache: pools(c) en voortgang(c) per container één keer per render; vervalt bij elke wijziging, save, rerender en klik/invoer ---------- */
+let RC = { pools:new Map(), vg:new Map() };
+const TEL = { pools:0, doosVan:0, voortgang:0, punten:0, planning:0, bouw:0 };   // aantal aanroepen (meting)
+function wisCache(){ RC = { pools:new Map(), vg:new Map() }; return null; }
+['click', 'input', 'change', 'keydown'].forEach(t => document.addEventListener(t, wisCache, true));
 function pools(c){
+  TEL.pools++;
+  let r = RC.pools.get(c);
+  if(!r){ r = poolsBouw(c); RC.pools.set(c, r); }
+  return r;
+}
+function poolsBouw(c){
+  TEL.bouw++;
   const map = {}, order = [];
   c.data.regels.forEach(r => {
     if(!r.productcode) return;
@@ -1558,7 +1570,8 @@ function pools(c){
     p.regels.push(r);
     const tot = num(r.totaal) || 0, per = num(r.per) || 0, n = num(r.aantal) || 0;
     p.totaalU += tot * f;
-    if(r.soort === 'pallet' && per > 0){
+    // onredelijk aantal pallets op één pakbonregel (bijv. 730042 × 17 door een leesfout): niet uitpakken, blijft los (anders 1,4 miljoen pallets en een app die vastloopt)
+    if(r.soort === 'pallet' && per > 0 && n <= 2000){
       const vol = Math.min(n, Math.floor(tot / per));
       for(let i = 0; i < vol; i++) p.pallets.push(per * f);
       const rest = tot - vol * per;
@@ -1647,7 +1660,7 @@ let GELADEN = 0;
 document.addEventListener('visibilitychange', async () => {
   if(document.hidden || Date.now() - GELADEN < 60000 || dirty || (UI.bulk && UI.bulk.bezig) || Object.keys(UI.pk || {}).length || UI.etaBezig) return;
   const a = document.activeElement; if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;
-  if(await load()){ PLAN = null; rerender(); liveAanvullen(); }
+  if(await load()){ PLAN = wisCache(); rerender(); liveAanvullen(); }
 });
 const volgKey = x => (x.losdatum || '9999') + ' ' + (x.lostijd || '99') + ' ' + String(x.id).padStart(8, '0');
 function maandenTot(c){
@@ -1656,30 +1669,39 @@ function maandenTot(c){
   return Math.max(0, (d - nu) / (30.44 * 864e5));
 }
 const leegEerder = () => ({ hier:0, bo:0, vst:0, vstUit:0, refs:[] });
-function planning(){
-  if(PLAN) return PLAN;
-  const plan = { per:{}, volg:[] };
-  const acc = {};
-  CONT.filter(o => o.status !== 'afgerond').sort((a, b) => volgKey(a).localeCompare(volgKey(b))).forEach(o => {
-    ensureData(o);
-    const pl = pools(o);
-    plan.volg.push(o.id); plan.per[o.id] = {};
-    pl.order.forEach(code => {
-      const a = acc[code] = acc[code] || leegEerder();
-      const eerder = { hier:a.hier, bo:a.bo, vst:a.vst, vstUit:a.vstUit, refs:a.refs.slice() };
-      const adv = adviesKern(o, pl.map[code], eerder);
-      const v = o.data.verdeling[code];
-      const vast = !!(v && v.porties && v.porties.length);
-      const porties = vast ? v.porties : adv.porties;
-      let h = 0, b = 0, vs = 0;
-      porties.forEach(x => { const u = portieU(x); if(DEST[x.dest] && DEST[x.dest].hier) h += u; else if(x.dest === 'BO') b += u; else if(x.dest === 'VST') vs += u; });
-      a.hier += h; a.bo += b; a.vst += vs; a.vstUit += adv.uitVst || 0;
-      if(h || b || vs) a.refs.push(o.pakbon_ref || o.containernummer || ('#' + o.id));
-      plan.per[o.id][code] = { eerder, adv, porties, vast, h, b, vs };
-    });
+function planningStart(){
+  return { plan:{ per:{}, volg:[] }, acc:{}, lijst:CONT.filter(o => o.status !== 'afgerond').sort((a, b) => volgKey(a).localeCompare(volgKey(b))), i:0 };
+}
+// één container verwerken; true als alles klaar is (het startscherm doet dit per container in een eigen taak)
+function planningStap(st){
+  const o = st.lijst[st.i++];
+  if(!o) return true;
+  const { plan, acc } = st;
+  ensureData(o);
+  const pl = pools(o);
+  plan.volg.push(o.id); plan.per[o.id] = {};
+  pl.order.forEach(code => {
+    const a = acc[code] = acc[code] || leegEerder();
+    const eerder = { hier:a.hier, bo:a.bo, vst:a.vst, vstUit:a.vstUit, refs:a.refs.slice() };
+    const adv = adviesKern(o, pl.map[code], eerder);
+    const v = o.data.verdeling[code];
+    const vast = !!(v && v.porties && v.porties.length);
+    const porties = vast ? v.porties : adv.porties;
+    let h = 0, b = 0, vs = 0;
+    porties.forEach(x => { const u = portieU(x); if(DEST[x.dest] && DEST[x.dest].hier) h += u; else if(x.dest === 'BO') b += u; else if(x.dest === 'VST') vs += u; });
+    a.hier += h; a.bo += b; a.vst += vs; a.vstUit += adv.uitVst || 0;
+    if(h || b || vs) a.refs.push(o.pakbon_ref || o.containernummer || ('#' + o.id));
+    plan.per[o.id][code] = { eerder, adv, porties, vast, h, b, vs };
   });
-  PLAN = plan;
-  return plan;
+  return st.i >= st.lijst.length;
+}
+function planning(){
+  TEL.planning++;
+  if(PLAN) return PLAN;
+  const st = planningStart();
+  while(!planningStap(st));
+  PLAN = st.plan;
+  return PLAN;
 }
 function eerderGepland(c, code){
   const p = planning().per[c.id];
@@ -1785,6 +1807,7 @@ function portiesGelijk(a, b){
    Open punten
    ===================================================================== */
 function punten(c, pl){
+  TEL.punten++;
   const L = [];
   const add = (key, lvl, tekst, code, t, type, kort) => L.push({ key, lvl, tekst, code, tab:t, type:type || key, kort:kort || tekst });
   const R = c.data.regels;
@@ -1857,7 +1880,7 @@ const LVL = { fout:['b-bad', 'fout'], let:['b-warn', 'let op'], info:['b-info', 
    Router
    ===================================================================== */
 async function route(){
-  PLAN = null;
+  PLAN = wisCache();
   const h = location.hash || '#/';
   let m;
   if(!h.startsWith('#/producten')) SUP = null;
@@ -1878,7 +1901,7 @@ async function route(){
   return viewHome();
 }
 window.addEventListener('hashchange', route);
-window.CP_TEST = { pdfTekst, leesPakbonTekst, losMoment };
+window.CP_TEST = { pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 function rerender(){
   const y = window.scrollY;
@@ -1969,7 +1992,7 @@ function lossenKeuze(c, code, w){
     delete UI.llKeuze[code]; opslaan = true;
   } else if(w === 'nu'){ opslaan = terug(); UI.llKeuze[code] = 'nu'; UI.llOpen = true; }
   else { opslaan = terug(); delete UI.llKeuze[code]; }
-  if(opslaan) save(); else PLAN = null;
+  if(opslaan) save(); else PLAN = wisCache();
   rerender();
 }
 // wat de pakbon zegt, bijv. "25 dozen à 20"
@@ -2045,7 +2068,7 @@ async function lossenOpslaan(c, code){
     [['palletmaat', maat || null], ['hoogte', num(u.hoogte)], ['gewicht', num(u.gewicht)]].forEach(([k, v]) => { if(v && (rec[k] === undefined || rec[k] === null || rec[k] === '')) rec[k] = v; });
     await kopieCatalogEan(oud);
     await api('POST', 'catalog?on_conflict=key', [{ key:'catalog-ean', mode:'ean', data:cat, updated_at:new Date().toISOString() }], { Prefer:'resolution=merge-duplicates,return=minimal' });
-    indexCatalog(cat); PLAN = null;
+    indexCatalog(cat); PLAN = wisCache();
     // verdeling: pallets à <stuks per pallet>, rest los (een akkoord raakt dit nooit)
     const pool = pools(c).map[code], v0 = c.data.verdeling[code];
     if(pool && !(v0 && (v0.bevestigd || (v0.porties && v0.porties.length)))){   // een bestaande verdeling (bijv. "Alles naar …") blijft staan
@@ -2057,13 +2080,19 @@ async function lossenOpslaan(c, code){
       }
       if(por.length) c.data.verdeling[code] = { porties:por, bevestigd:false, bron:'lossen' };
     }
-    delete UI.ll[code]; delete UI.llKeuze[code]; PLAN = null;
+    delete UI.ll[code]; delete UI.llKeuze[code]; PLAN = wisCache();
     if(c === cur) save(); else await bewaarContainer(c);
     rerender();
     toast(code + ': ' + nf(spp) + ' per pallet in het productgeheugen gezet' + (c.data.verdeling[code] && c.data.verdeling[code].bron === 'lossen' ? ', verdeling klaar voor akkoord.' : '. Verdeel zelf.'), 6000);
   }catch(e){ toast('Opslaan mislukt: ' + e.message, 6000); }
 }
 function voortgang(c){
+  TEL.voortgang++;
+  let r = RC.vg.get(c);
+  if(!r){ r = voortgangBouw(c); RC.vg.set(c, r); }
+  return r;
+}
+function voortgangBouw(c){
   const pl = pools(c), pts = punten(c, pl);
   const R = c.data.regels;
   const pakbonOk = R.length && R.every(r => r.productcode && r.bevestigd);
@@ -2080,16 +2109,11 @@ function voortgang(c){
   const lossen = pl.order.filter(code => bijLossen(c, pl.map[code])).length, nAk = n - lossen;
   return { pl, pts, pakbonOk, n, akk, nAk, lossen, pdMis, open, pallets, hier, vst, direct, R };
 }
-function containerKaart(c){
+// startscherm: eerst de kaart (datum, leverancier, ref), de zware delen (voortgang) komen er daarna in; zonder uitstel (test, detail) direct
+function kaartDelen(c){
   const g = voortgang(c);
-  const d = c.losdatum ? new Date(c.losdatum + 'T12:00:00') : null;
   const st = (ok, txt) => `<span class="badge ${ok === true ? 'b-ok' : ok === false ? 'b-warn' : 'b-grey'}">${txt}</span>`;
-  return `<a class="ccard" href="#/c/${c.id}">
-    <div class="date ${d ? '' : 'none'} ${isVerwacht(c) ? 'eta' : ''}">${d && isVerwacht(c) ? '<div class="m">ETA</div>' : ''}${d ? `<div class="d">${d.getDate()}</div><div class="m">${d.toLocaleDateString('nl-NL', { month:'short' })}</div><div class="w">${d.toLocaleDateString('nl-NL', { weekday:'short' })}${c.lostijd ? ' ' + esc(c.lostijd) : ''}</div>` : '<div class="m">geen<br>datum</div>'}</div>
-    <div class="grow">
-      <h3>${esc(c.leverancier || 'Leverancier?')}</h3>
-      <div class="small muted">${esc(c.pakbon_ref || '')}${c.pakbon_ref && c.containernummer ? ' · ' : ''}${esc(c.containernummer || '')}${c.transporteur ? ' · ' + esc(c.transporteur) : ''}</div>
-      <div class="small mt8">${g.R.length ? (g.R.some(r => !r.productcode) ? plural(g.R.length, 'pakbonregel', 'pakbonregels') + ' · <b style="color:var(--warn)">' + g.R.filter(r => !r.productcode).length + ' nog koppelen</b>' : plural(g.n, 'product', 'producten') + ' · ' + plural(g.pallets, 'pallet', 'pallets')) + (g.hier + g.vst + g.direct ? ` <span class="muted">(hier ${g.hier} · VST ${g.vst} · direct ${g.direct})</span>` : '') : '<span class="muted">nog geen pakbon</span>'}</div>
+  return `<div class="small mt8">${g.R.length ? (g.R.some(r => !r.productcode) ? plural(g.R.length, 'pakbonregel', 'pakbonregels') + ' · <b style="color:var(--warn)">' + g.R.filter(r => !r.productcode).length + ' nog koppelen</b>' : plural(g.n, 'product', 'producten') + ' · ' + plural(g.pallets, 'pallet', 'pallets')) + (g.hier + g.vst + g.direct ? ` <span class="muted">(hier ${g.hier} · VST ${g.vst} · direct ${g.direct})</span>` : '') : '<span class="muted">nog geen pakbon</span>'}</div>
       <div class="steps">
         ${st(g.R.length ? g.pakbonOk : null, 'Pakbon')}
         ${st(g.n ? g.akk >= g.nAk : null, 'Verdeling ' + (g.n ? g.akk + '/' + g.nAk + (g.lossen ? ' · ' + g.lossen + ' bij lossen' : '') : ''))}
@@ -2097,8 +2121,41 @@ function containerKaart(c){
         ${g.open ? `<span class="badge b-bad">${g.open} open</span>` : ''}
         ${isVerwacht(c) ? '<span class="badge b-warn">ETA verwacht</span>' : ''}
         ${c.status !== 'concept' ? `<span class="badge b-info">${STATUS[c.status] || c.status}</span>` : ''}
-      </div>
+      </div>`;
+}
+function containerKaart(c, uitstel){
+  const d = c.losdatum ? new Date(c.losdatum + 'T12:00:00') : null;
+  return `<a class="ccard" href="#/c/${c.id}">
+    <div class="date ${d ? '' : 'none'} ${isVerwacht(c) ? 'eta' : ''}">${d && isVerwacht(c) ? '<div class="m">ETA</div>' : ''}${d ? `<div class="d">${d.getDate()}</div><div class="m">${d.toLocaleDateString('nl-NL', { month:'short' })}</div><div class="w">${d.toLocaleDateString('nl-NL', { weekday:'short' })}${c.lostijd ? ' ' + esc(c.lostijd) : ''}</div>` : '<div class="m">geen<br>datum</div>'}</div>
+    <div class="grow">
+      <h3>${esc(c.leverancier || 'Leverancier?')}</h3>
+      <div class="small muted">${esc(c.pakbon_ref || '')}${c.pakbon_ref && c.containernummer ? ' · ' : ''}${esc(c.containernummer || '')}${c.transporteur ? ' · ' + esc(c.transporteur) : ''}</div>
+      <div class="kdelen" data-kid="${c.id}">${uitstel ? '<div class="small muted mt8 kwacht">berekenen…</div>' : kaartDelen(c)}</div>
     </div></a>`;
+}
+let HOMEGEN = 0;
+// zware delen van het startscherm na het tekenen, per container een eigen taak (setTimeout 0), zodat de pagina nooit lang blokkeert
+function homeRekenen(containers, open){
+  const gen = ++HOMEGEN;
+  const nog = containers.slice();
+  let st = null;
+  const stap = () => {
+    if(gen !== HOMEGEN) return;
+    const c = nog.shift();
+    if(c){
+      const el = document.querySelector('.kdelen[data-kid="' + c.id + '"]');
+      if(el){ try{ el.innerHTML = kaartDelen(c); }catch(e){ el.innerHTML = ''; } }
+      return setTimeout(stap, 0);
+    }
+    if(!PLAN){
+      if(!st){ st = planningStart(); }
+      if(!planningStap(st)) return setTimeout(stap, 0);
+      PLAN = st.plan;
+    }
+    const box = document.getElementById('wijzerbox');
+    if(box){ try{ box.outerHTML = wijzer(open); }catch(e){ box.outerHTML = ''; } }
+  };
+  setTimeout(stap, 0);
 }
 function viewHome(){
   const byDate = (a, b) => (a.losdatum || '9999').localeCompare(b.losdatum || '9999') || (a.lostijd || '99').localeCompare(b.lostijd || '99') || a.id - b.id;
@@ -2121,7 +2178,7 @@ function viewHome(){
       <p class="small muted mt8">Tot dan leest de app pakbonnen gewoon in, maar bewaart hij het bestand nog niet.</p>
     </div>` : '';
   const voorbij = open.filter(isVoorbij);
-  const cockpit = wijzer(open);
+  const cockpit = '<div id="wijzerbox"></div>';
   const voorbijKaart = voorbij.length ? `<div class="card etabox">
       <h3>Datum voorbij (${voorbij.length}) — al gelost?</h3>
       <p class="small muted mt8">Tip: lees de Picqer-ontvangst in (knop <b>Ontvangsten inlezen</b>), dan zoekt de app zelf de container en de datum erbij. Of vul de echte losdatum in en klik <b>Gelost</b>. De app rondt hem af (telt dan niet meer dubbel mee in de planning) en leert van de echte doorlooptijd. Nog niet binnen? Open de container en zet een nieuwe datum.</p>
@@ -2161,8 +2218,9 @@ function viewHome(){
     </div>
     ${ontvangstKaart()}
     ${bulk && bulk.bezig ? '' : voorbijKaart + etaKaart}
-    ${open.length ? `<div class="cgrid">${open.map(containerKaart).join('')}</div>` : '<div class="card empty">Nog geen containers. Klik op <b>+ Nieuwe container</b>.</div>'}
-    ${done.length ? `<h2 class="mt12" style="margin-top:22px">Afgerond</h2><div class="cgrid">${done.map(containerKaart).join('')}</div>` : ''}`;
+    ${open.length ? `<div class="cgrid">${open.map(c => containerKaart(c, true)).join('')}</div>` : '<div class="card empty">Nog geen containers. Klik op <b>+ Nieuwe container</b>.</div>'}
+    ${done.length ? `<h2 class="mt12" style="margin-top:22px">Afgerond</h2><div class="cgrid">${done.map(c => containerKaart(c, true)).join('')}</div>` : ''}`;
+  homeRekenen(open.concat(done), open);
 }
 
 /* =====================================================================
@@ -2996,7 +3054,7 @@ async function startregelsToepassen(c){
     });
     await kopieCatalogEan(oud);   // eerst een kopie; lukt die niet, dan niet opslaan
     await api('POST', 'catalog?on_conflict=key', [{ key:'catalog-ean', mode:'ean', data:cat, updated_at:new Date().toISOString() }], { Prefer:'resolution=merge-duplicates,return=minimal' });
-    indexCatalog(cat); PLAN = null; rerender();
+    indexCatalog(cat); PLAN = wisCache(); rerender();
     toast('Startregels gezet voor ' + codes.length + ' product' + (codes.length > 1 ? 'en' : '') + '.');
   }catch(e){ toast('Startregels opslaan mislukt: ' + e.message, 6000); }
 }
@@ -3085,7 +3143,7 @@ async function productenOpslaan(codes, bron){
       indexCatalog(cat);
     }catch(e){ fout.push('productgeheugen opslaan mislukt: ' + e.message); }
   }
-  PLAN = null; save();
+  PLAN = wisCache(); save();
   for(const cc of geraakt){ if(cc !== cur){ try{ await bewaarContainer(cc); }catch(e){ fout.push(cStr(cc) + ': ' + e.message); } } }
   rerender();
   if(fout.length) toast((ok.length ? ok.length + ' opgeslagen. ' : '') + 'Niet gelukt — ' + fout.join(' · '), 8000);
@@ -3638,7 +3696,7 @@ function poolsLeverancier(lk){
       const p = pl.map[code];
       const m = map[code] = map[code] || (order.push(code), { code, regels:[], pallets:[], losU:0, totaalU:0, maten:{}, binnenMaten:{}, binnenLosU:0, gebouwd:0, opslag:p.opslag, spp:p.spp, cOf:new Map(), conts:[] });
       p.regels.forEach(r => { m.regels.push(r); m.cOf.set(r, c); });
-      m.pallets.push(...p.pallets); m.losU += p.losU; m.totaalU += p.totaalU; m.gebouwd += p.gebouwd || 0; m.binnenLosU += p.binnenLosU || 0; m.conts.push(c);
+      for(let i = 0; i < p.pallets.length; i++) m.pallets.push(p.pallets[i]); m.losU += p.losU; m.totaalU += p.totaalU; m.gebouwd += p.gebouwd || 0; m.binnenLosU += p.binnenLosU || 0; m.conts.push(c);
       Object.entries(p.maten).forEach(([k, n]) => m.maten[k] = (m.maten[k] || 0) + n);
       Object.entries(p.binnenMaten || {}).forEach(([k, n]) => m.binnenMaten[k] = (m.binnenMaten[k] || 0) + n);
     });
@@ -3770,6 +3828,7 @@ function viewVooruit(){
 /* ---------- Tab 2: verdeling ---------- */
 // losse pakken met Per > 1 komen in dozen binnen ("los" is alleen Per = 1); alleen hoe het getoond en geteld wordt, de opgeslagen aantallen blijven stuks
 function doosVan(c, code){
+  TEL.doosVan++;
   const pool = c && pools(c).map[code]; if(!pool) return null;
   const los = pool.regels.filter(r => r.soort !== 'pallet');
   if(!los.length || los.some(r => !((num(r.per) || 0) > 1 && (num(r.aantal) || 0) > 0))) return null;
@@ -4630,7 +4689,7 @@ const ACT = {
   pkaanvul: el => maakLabels(cur, [aanvulLabel(el.dataset.code)]),
   kies: el => { const b = el.closest('[data-kc]'), c = CONT.find(x => x.id === +b.dataset.kc), r = c && c.data.regels.find(x => String(x.id) === b.dataset.kr); if(r) regelKoppel(c, r, el.dataset.code); },
   startregels: () => startregelsToepassen(cur),
-  geenvoorraad: el => { const r = cur.data.regels[+el.dataset.i]; if(r){ r.geenVoorraad = !r.geenVoorraad; PLAN = null; save(); rerender(); } },
+  geenvoorraad: el => { const r = cur.data.regels[+el.dataset.i]; if(r){ r.geenVoorraad = !r.geenVoorraad; PLAN = wisCache(); save(); rerender(); } },
   regelweg2: el => { const b = el.closest('[data-kc]'), c = CONT.find(x => x.id === +b.dataset.kc), r = c && c.data.regels.find(x => String(x.id) === b.dataset.kr); if(r) regelWeg(c, r); },
   pkallesop: () => productenOpslaan([...new Set([...document.querySelectorAll('[data-pk]')].map(e => e.dataset.pk))]),
   // uitvoer
@@ -4829,7 +4888,7 @@ app.addEventListener('keydown', e => {
   if(!(await load())) return;
   route();
   // pakbonregels zonder Picqer-product opnieuw proberen (bijv. met de ingebouwde voorstellen), eenmalig bij het openen
-  try{ const n = await herkoppelOpen(); if(n){ PLAN = null; rerender(); toast(n + ' pakbonregel' + (n > 1 ? 's' : '') + ' gekoppeld als voorstel — bevestig bij Producten.', 6000); } }catch(e){}
+  try{ const n = await herkoppelOpen(); if(n){ PLAN = wisCache(); rerender(); toast(n + ' pakbonregel' + (n > 1 ? 's' : '') + ' gekoppeld als voorstel — bevestig bij Producten.', 6000); } }catch(e){}
   liveAanvullen();
 })();
 })();
