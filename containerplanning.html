@@ -1588,11 +1588,11 @@ function pools(c){
       const doosU = dz.length && dz.every(x => x > 1 && Math.abs(x - Math.round(x)) < 1e-9) ? Math.round(dz.reduce((a, x) => gcd(a, Math.round(x)), 0)) : 1;
       opslag = doosU > 1 ? Math.floor(p.spp / doosU) * doosU : p.spp;
     }
-    if(opslag > 0){
+    if(opslag >= 1 && Math.round(p.totaalU) / opslag <= 2000){
       const tot = Math.round(p.totaalU), n = Math.floor(tot / opslag);
       p.pallets = []; for(let i = 0; i < n; i++) p.pallets.push(opslag);
       p.losU = tot - n * opslag; p.opslag = opslag; p.gebouwd = n;
-    } else if(spp && (auto || perPallet) && losRegels.length && p.losU >= spp){
+    } else if(spp >= 1 && (auto || perPallet) && losRegels.length && p.losU >= spp && p.losU / spp <= 2000){
       const n = Math.floor(p.losU / spp);
       for(let i = 0; i < n; i++) p.pallets.push(spp);
       p.losU -= n * spp; p.gebouwd = n;
