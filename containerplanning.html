@@ -1806,6 +1806,23 @@ function portiesGelijk(a, b){
 /* =====================================================================
    Open punten
    ===================================================================== */
+/* ---------- controle bij het inlezen: aantal dat verdacht groot of uit de omschrijving gelezen lijkt (nooit stil overnemen, alleen een gele melding) ---------- */
+const RX_TOTAALREGEL = /total|insurance|freight|extra cost|subtotal|sub total/i;
+function aantalNakijken(regels){
+  const uit = new Map();
+  const echt = (regels || []).filter(r => !RX_TOTAALREGEL.test(String(r.pakbon_code || '') + ' ' + String(r.productcode || '')));
+  echt.forEach(r => {
+    const a = num(r.aantal) || 0, t = num(r.totaal) || 0, redenen = [];
+    const los = (String(r.omschrijving || '').match(/(?<![\w.,-])\d{5,}(?![\w.,-])/g) || []).map(Number);
+    if(a > 0 && los.includes(a)) redenen.push('het aantal ' + nf(a) + ' staat ook in de omschrijving');
+    if(a > 5000) redenen.push(nf(a) + ' dozen/pallets is erg veel');
+    const andere = echt.filter(x => x !== r).map(x => Math.abs(num(x.totaal) || 0));
+    const gem = andere.length >= 3 ? andere.reduce((x, y) => x + y, 0) / andere.length : 0;
+    if(gem > 0 && Math.abs(t) > 20 * gem) redenen.push('totaal ' + nf(Math.round(t)) + ' is meer dan 20× het gemiddelde van de andere regels');
+    if(redenen.length) uit.set(r, redenen.join('; '));
+  });
+  return uit;
+}
 function punten(c, pl){
   TEL.punten++;
   const L = [];
@@ -1813,6 +1830,7 @@ function punten(c, pl){
   const R = c.data.regels;
   if(!c.losdatum) add('losdatum', 'let', 'Losdatum ontbreekt.', null, null);
   if(!R.length) add('geenregels', 'info', 'Nog geen pakbon ingelezen.', null, 'pakbon');
+  aantalNakijken(R).forEach((reden, r) => add('aantal-' + (r.id || R.indexOf(r)), 'info', (r.productcode || r.pakbon_code || 'regel') + ': aantal nakijken — ' + reden + '. Controleer de pakbonregel (' + nf(num(r.aantal) || 0) + ' × ' + nf(num(r.per) || 0) + ' = ' + nf(num(r.totaal) || 0) + ').', r.productcode || null, 'pakbon', 'aantal'));
   const pb = c.data.pakbon || {};
   if(R.length && (pb.totaal_stuks != null || pb.totaal_eenheden != null)){
     const s = R.reduce((a, r) => a + (num(r.totaal) || 0), 0), e = R.reduce((a, r) => a + (num(r.aantal) || 0), 0);
@@ -1901,7 +1919,7 @@ async function route(){
   return viewHome();
 }
 window.addEventListener('hashchange', route);
-window.CP_TEST = { pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
+window.CP_TEST = { aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 function rerender(){
   const y = window.scrollY;
@@ -2750,6 +2768,7 @@ const GROEP = {
   code:'Nog geen productcode gekoppeld', bev:'Koppeling nog bevestigen', som:'Regel telt niet op', fac:'Omrekenfactor controleren',
   eh:'Eenheid controleren: telt Picqer per meter of cm? Dan moet de factor anders', gw:'Gewicht aanpassen in Picqer (belangrijk voor orderpickers)',
   pk:'Productgegevens aanvullen (bij het product op de pakbon-stap)', pd:'Palletdata ontbreekt', vd:'Verdeling telt niet op', spp:'Andere hoeveelheid per pallet dan in het productgeheugen (labels volgen de verdeling)',
+  aantal:'Aantal nakijken (verdacht groot of uit de omschrijving gelezen)',
   nieuw:'Geen verkoophistorie (nieuw?) — verdeling zelf beoordelen', vn:'Vloernaam ontbreekt (voor het palletlabel)', pal:'Palletopbouw nog te bepalen'
 };
 function groepeer(pts){
