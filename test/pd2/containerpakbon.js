@@ -38,7 +38,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('container 32: 7295163 heeft 17×30=510 en 35×30=1050', JSON.stringify(r.r7295163) === JSON.stringify(['17x30=510', '35x30=1050']), r.r7295163);
   check('geen regel > 5000 dozen in welke container ook', r.groot.length === 0, r.groot);
   const st = r.st;
-  check('container 32: 21 productregels, 1090 colli, geen EXTRA COST/INSURANCE/Total, 28300501 20 dozen à 25 gekoppeld, rollen los', st.c32[0] === 21 && st.c32[1] === 1090 && !st.c32[2] && st.c32[3] === '[[20,25,496,"28300501","los"]]' && st.c32[4], JSON.stringify(st.c32));
+  check('container 32: 21 productregels, 1090 colli, geen EXTRA COST/INSURANCE/Total, 28300501 20 dozen à 25 gekoppeld, rollen los', st.c32[0] === 21 && st.c32[1] === 1090 && !st.c32[2] && st.c32[3] === '[[20,25,496,"700625","los"]]' && st.c32[4], JSON.stringify(st.c32));
   check('container 29: 16 regels, 1090', st.c29[0] === 16 && st.c29[1] === 1090, st.c29);
   check('container 30: 20 regels, 4228 stuks', st.c30[0] === 20 && st.c30[1] === 4228, st.c30);
   check('nieuwe container D (NL-305): 1913, concept, geen losdatum (Nog geen ETA)', st.d && st.d[1] === 1913 && !st.d[2] && st.d[3] === 'concept', st.d);

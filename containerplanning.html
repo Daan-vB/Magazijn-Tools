@@ -421,7 +421,7 @@ const UI = { open:{}, ll:{}, llKeuze:{}, llOpen:undefined, plak:false, labelDest
              vn:{ wijzig:{}, los:{}, f:{ lev:'', q:'', prob:false } }, pk:{}, pkOpen:{}, pkAlles:{} };
 
 function indexProducten(rows){
-  P = {}; PLOW = {}; BYLEV = {}; STAM = null;
+  P = {}; PLOW = {}; BYLEV = {}; STAM = null; EANIDX = null;
   rows.forEach(r => {
     P[r.productcode] = r; PLOW[r.productcode.toLowerCase()] = r.productcode;
     if(r.leverancier) (BYLEV[r.leverancier] = BYLEV[r.leverancier] || []).push(r.productcode);
@@ -1347,15 +1347,79 @@ function voorstelVoor(r, lev, ruw){
   if(!v) lijst.forEach(x => { if(x.k.length >= 6 && txt.includes(x.k) && (!v || x.k.length > v.k.length)) v = x; });
   return v || null;
 }
+/* ---------- zeker koppelen: EAN en open inkoop ---------- */
+let EANIDX = null;
+function eanIndex(){
+  if(EANIDX) return EANIDX;
+  EANIDX = {};
+  Object.keys(P).forEach(code => { const e = String((P[code] || {}).ean || '').replace(/\D/g, ''); if(e.length >= 8) (EANIDX[e] = EANIDX[e] || []).push(code); });
+  return EANIDX;
+}
+// elk getal van 8-14 cijfers in pakbon_code of omschrijving tegen de barcode van Picqer; alleen als er precies één product bij past
+function koppelEan(r){
+  const nrs = [...new Set((String(r.pakbon_code || '') + ' ' + String(r.omschrijving || '')).match(/(?<!\d)\d{8,14}(?!\d)/g) || [])];
+  const idx = eanIndex(), codes = new Set();
+  let ean = '';
+  nrs.forEach(n => (idx[n] || []).forEach(c => { codes.add(c); ean = n; }));
+  return codes.size === 1 ? { code:[...codes][0], ean } : null;
+}
+const poNrs = c => [...new Set((String((c && c.pakbon_ref) || '') + ' ' + ((c && c.data && c.data.regels) || []).map(r => (r.omschrijving || '') + ' ' + (r.context || '')).join(' ') + ' ' + String((c && c.data && c.data.pakbon_ruw) || '')).match(/PO\d{4}-\d+/gi) || [])].map(x => x.toUpperCase());
+// open inkoop (lijst van het tussenstation picqer-inkoop): [id, datum, status, leverancier-id, regels [[code, besteld, ontvangen]], (referentie)]
+// zeker = het PO-nummer van de pakbon komt overeen met de inkooporder, het aantal klopt binnen 10% en er past maar één product; anders alleen een voorstel (oranje)
+function koppelInkoopMet(c, orders){
+  const nieuw = [], po = poNrs(c), vast = new Set(c.data.regels.filter(r => r.productcode && r.bevestigd).map(r => r.productcode));
+  const open = (orders || []).filter(o => !/^(completed|cancelled|received|afgerond|geannuleerd)$/i.test(o[2] || '') && Array.isArray(o[4]));
+  const metPO = open.filter(o => o[5] && po.includes(String(o[5]).toUpperCase())), bron = metPO.length ? metPO : open;   // staat het PO-nummer van de pakbon in de lijst, dan alleen die orders
+  c.data.regels.forEach(r => {
+    if((r.productcode && r.bevestigd) || r.geenVoorraad || r.koppel_leeg) return;
+    const f = num(r.factor) || 1, t = (num(r.totaal) || 0) * f; if(t <= 0) return;
+    const kand = [];
+    bron.forEach(o => (o[4] || []).forEach(([code, bes, ont]) => {
+      const nog = (bes || 0) - (ont || 0), pc = PLOW[String(code).toLowerCase()] || code;
+      if(nog > 0 && Math.abs(nog - t) <= 0.1 * t && !vast.has(pc)) kand.push({ pc, nog, ref:o[5] || null, id:o[0], poOk:!!(o[5] && po.includes(String(o[5]).toUpperCase())) });
+    }));
+    const codes = [...new Set(kand.map(k => k.pc))];
+    if(!codes.length) return;
+    const best = kand.sort((a, b) => Math.abs(a.nog - t) - Math.abs(b.nog - t))[0];
+    const zeker = codes.length === 1 && best.poOk;
+    const reden = 'open inkoop ' + (best.ref || '#' + best.id) + ': ' + nf(best.nog) + ' te ontvangen' + (codes.length > 1 ? ' (meer kandidaten: ' + codes.join(', ') + ')' : '') + (best.poOk ? '' : ' — PO-nummer niet bevestigd');
+    Object.assign(r, { productcode:best.pc, match:zeker ? 'inkoop' : 'voorstel', bevestigd:zeker, reden, factor:r.factor || 1 });
+    if(zeker) vast.add(best.pc);
+    nieuw.push(r);
+  });
+  return nieuw;
+}
+let INKOOPC = null;
+async function lvInkoop(){
+  if(INKOOPC && Date.now() - INKOOPC.t < 3e5) return INKOOPC.o;
+  const sinds = new Date(Date.now() - 150 * 864e5).toISOString().slice(0, 10);
+  const r = await fetch(lvUrl().replace(/\/picqer(\/?)$/, '/picqer-inkoop$1') + '?stap=lijst&sinds=' + sinds, { headers:{ apikey:KEY, 'x-ivol-code':lvCode() }, cache:'no-store' });
+  if(!r.ok) throw new Error('inkoop ' + r.status);
+  const j = await r.json(); INKOOPC = { t:Date.now(), o:j.orders || [] };
+  return INKOOPC.o;
+}
+// alias leren voor een zekere koppeling die niet letterlijk gelijk is aan de pakboncode (28300501 → 700625, 70198-Brushed → 70198Brushed)
+async function leerZeker(r, lev){
+  const key = norm(r.pakbon_code);
+  if(!lev || !r.productcode || key.length < 3 || r.productcode === r.pakbon_code || !r.bevestigd) return false;
+  if(ALIAS.some(a => a.leverancier === lev && a.pakbon_code === key && a.productcode === r.productcode)) return false;
+  const row = { leverancier:lev, pakbon_code:key, pakbon_tekst:(r.pakbon_code + ' ' + (r.omschrijving || '')).slice(0, 200), productcode:r.productcode, factor:num(r.factor) || 1, bevestigd_op:new Date().toISOString() };
+  try{
+    const saved = await upsert('pakbon_alias', [row], 'leverancier,pakbon_code');
+    ALIAS = ALIAS.filter(a => !(a.leverancier === row.leverancier && a.pakbon_code === key)).concat(saved.length ? saved : [row]);
+    return true;
+  }catch(e){ return false; }
+}
 function koppel(r, lev){
   const tok = norm(eersteCode(r.pakbon_code || r.omschrijving));
   const key = norm(r.pakbon_code);
   const txt = [r.pakbon_code, r.omschrijving, r.context].map(x => norm(x || '')).join('|');   // los genormaliseerd: een code mag niet over de grens van twee velden heen 'gevonden' worden (SF276H + SF276H… = sf276hs)
   const pool = (lev && BYLEV[lev] && BYLEV[lev].length) ? BYLEV[lev] : Object.keys(P);
   const als = ALIAS.filter(a => !lev || a.leverancier === lev);
+  const REDEN = { alias:'geleerde koppeling', exact:'productcode gelijk', ean:'EAN gelijk', inkoop:'open inkoop' };
   const uit = (code, match, factor, fbron) => {
     const fv = factor !== undefined ? { factor:factor, bron:fbron || 'geleerd' } : factorVoorstel(code, r);
-    return { productcode:code, match, factor:fv.factor, factor_bron:fv.bron, bevestigd:match === 'alias' || match === 'exact' };
+    return { productcode:code, match, factor:fv.factor, factor_bron:fv.bron, bevestigd:match === 'alias' || match === 'exact' || match === 'ean', reden:REDEN[match] || '' };
   };
   // 1. eerder bevestigd (geleerd)
   let a = als.find(x => x.pakbon_code === key) || als.find(x => x.pakbon_code === tok);
@@ -1364,6 +1428,9 @@ function koppel(r, lev){
   let ex = (key.length >= 4 && (pool.find(c => norm(c) === key) || Object.keys(P).find(c => norm(c) === key))) || pool.find(c => norm(c) === tok) || pool.find(c => P[c] && P[c].leverancier_code && norm(P[c].leverancier_code) === tok);
   if(!ex && tok.length >= 4) ex = Object.keys(P).find(c => norm(c) === tok);
   if(ex) return uit(ex, 'exact');
+  // 2a. EAN in de pakbon (code of omschrijving) gelijk aan de barcode van een Picqer-product
+  const ez = koppelEan(r);
+  if(ez && P[ez.code]) return Object.assign(uit(ez.code, 'ean'), { reden:'EAN ' + ez.ean + ' gelijk' });
   // 2b. ingebouwd voorstel (Claude), nooit bevestigd
   const vs = voorstelVoor(r, lev);
   if(vs){ const k = uit(PLOW[vs.code.toLowerCase()], 'voorstel', vs.factor, 'voorstel'); k.vs = { toel:vs.toel, zeker:vs.zeker }; return k; }
@@ -1951,7 +2018,7 @@ async function route(){
   return viewHome();
 }
 window.addEventListener('hashchange', route);
-window.CP_TEST = { leesPakbonTekst2:(t) => leesPakbonTekst(t), isGeenProduct, aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
+window.CP_TEST = { alias:() => ALIAS, koppel, koppelInkoopMet, herkoppelRegels, leerZeker, leesPakbonTekst2:(t) => leesPakbonTekst(t), isGeenProduct, aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 function rerender(){
   const y = window.scrollY;
@@ -2638,6 +2705,30 @@ async function impKoppelingen(file){
   }catch(e){ st('Import mislukt: ' + e.message, 'err'); }
 }
 // na een nieuwe Picqer-import: nog niet gekoppelde pakbonregels in open containers opnieuw proberen
+// één container: zekere koppelingen (alias, code, EAN) vastleggen; geeft de regels die zijn gekoppeld of bevestigd
+function herkoppelRegels(c){
+  const nieuw = [];
+  c.data.regels.forEach(r => {                                    // voorstellen die nog niet bevestigd zijn opnieuw bekijken (eerdere fout: SF276H op SF276hS)
+    if(!(r.productcode && r.match === 'voorstel') || ALIAS.some(a => a.pakbon_code === norm(r.pakbon_code) && a.leverancier === c.leverancier)) return;
+    const k = koppel(r, c.leverancier);
+    if(k.productcode !== r.productcode){ Object.assign(r, k); nieuw.push(r); }
+    else if(k.bevestigd && !r.bevestigd){ Object.assign(r, { match:k.match, bevestigd:true, reden:k.reden }); nieuw.push(r); }   // zelfde product, nu zeker (code of EAN gelijk)
+  });
+  c.data.regels.forEach(r => {                                    // nog niet bevestigd, maar alias, code of EAN zegt hetzelfde product (of: de gekozen code bestaat niet in Picqer en een zekere koppeling wel) → bevestigen
+    if(!r.productcode || r.bevestigd || r.koppel_leeg || r.match === 'voorstel' || nieuw.includes(r)) return;
+    const k = koppel(r, c.leverancier);
+    if(!k.bevestigd) return;
+    if(k.productcode === r.productcode){ Object.assign(r, { match:k.match, bevestigd:true, reden:k.reden }); nieuw.push(r); }
+    else if(!P[r.productcode]){ Object.assign(r, k); nieuw.push(r); }
+  });
+  if(ontdubbel(c.data.regels, c.leverancier)) nieuw.push(null);
+  c.data.regels.forEach(r => {
+    if(r.productcode || r.koppel_leeg) return;                  // koppel_leeg: bewust leeg gelaten (Picqer-code onbekend), niet opnieuw voorstellen
+    const k = koppel(r, c.leverancier);
+    if(k.productcode){ Object.assign(r, k); nieuw.push(r); }
+  });
+  return nieuw;
+}
 async function herkoppelOpen(){
   let n = 0;
   for(const c of CONT){
@@ -2645,18 +2736,13 @@ async function herkoppelOpen(){
     const prof = PAKBON_LEV.concat([WALLACE]).find(pf => pf.zoek.test(c.leverancier || ''));
     let wijz = false;
     if(prof){ const ln = levNaam(prof); if(ln !== c.leverancier){ c.leverancier = ln; wijz = true; } }
-    c.data.regels.forEach(r => {                                    // voorstellen die nog niet bevestigd zijn opnieuw bekijken (eerdere fout: SF276H op SF276hS)
-      if(!(r.productcode && r.match === 'voorstel') || ALIAS.some(a => a.pakbon_code === norm(r.pakbon_code) && a.leverancier === c.leverancier)) return;
-      const k = koppel(r, c.leverancier);
-      if(k.productcode !== r.productcode){ Object.assign(r, k); n++; wijz = true; }
-    });
-    if(ontdubbel(c.data.regels, c.leverancier)){ n++; wijz = true; }
-    c.data.regels.forEach(r => {
-      if(r.productcode || r.koppel_leeg) return;                  // koppel_leeg: bewust leeg gelaten (Picqer-code onbekend), niet opnieuw voorstellen
-      const k = koppel(r, c.leverancier);
-      if(k.productcode){ Object.assign(r, k); n++; wijz = true; }
-    });
-    if(wijz){ try{ await bewaarContainer(c); }catch(e){} }
+    const nieuw = herkoppelRegels(c);
+    if(c.data.regels.some(r => !(r.productcode && r.bevestigd) && !r.geenVoorraad && !r.koppel_leeg) && lvCode()){   // open inkoop (live) voor wat nog over is
+      try{ koppelInkoopMet(c, await lvInkoop()).forEach(r => nieuw.push(r)); }catch(e){}
+    }
+    if(nieuw.length){ n += nieuw.length; wijz = true; }
+    if(wijz){ try{ await bewaarContainer(c); }catch(e){ continue; } }
+    for(const r of nieuw) if(r) await leerZeker(r, c.leverancier);
   }
   return n;
 }
@@ -2842,7 +2928,7 @@ function puntenKaart(c, pts){
 }
 
 /* ---------- Tab 1: pakbon ---------- */
-const MATCH = { alias:['b-ok', 'geleerd'], exact:['b-ok', 'exact'], handmatig:['b-ok', 'gekozen'], voorstel:['b-warn', 'voorstel'], onbekend:['b-bad', 'onbekend'] };
+const MATCH = { alias:['b-ok', 'geleerd'], exact:['b-ok', 'exact'], ean:['b-ok', 'EAN'], inkoop:['b-ok', 'inkoop'], handmatig:['b-ok', 'gekozen'], voorstel:['b-warn', 'voorstel'], onbekend:['b-bad', 'onbekend'] };
 function tabPakbon(c, g){
   const R = c.data.regels, pb = c.data.pakbon || {};
   const somOk = pb.totaal_stuks == null || R.reduce((a, r) => a + (num(r.totaal) || 0), 0) === pb.totaal_stuks;
@@ -3215,7 +3301,7 @@ function regelRij(c, r, i){
     <td><select data-regel="${i}" data-k="soort" style="width:auto;padding:4px 6px;font-size:12.5px"><option value="pallet" ${r.soort === 'pallet' ? 'selected' : ''}>pallets</option><option value="los" ${r.soort !== 'pallet' ? 'selected' : ''}>losse pakken</option></select></td>
     <td class="n hide-m">${nf(num(r.bruto_per), 1)}</td>
     <td style="min-width:190px"><div class="row"><input class="code" list="dl-codes" data-regel="${i}" data-k="productcode" value="${esc(r.productcode || '')}" placeholder="kies productcode" style="padding:4px 6px">${r.productcode && !r.bevestigd ? `<button class="btn ok sm" data-act="bev" data-i="${i}" title="Klopt">✓</button>` : ''}</div>
-      <div class="tiny mt8" style="margin-top:3px"><span class="badge ${cls}">${lbl}</span> ${r.productcode ? '<span class="muted">' + esc(naamVan(r.productcode)).slice(0, 60) + '</span>' : ''}</div></td>
+      <div class="tiny mt8" style="margin-top:3px"><span class="badge ${cls}" title="${esc(r.reden || '')}">${lbl}</span> ${r.productcode ? '<span class="muted">' + esc(naamVan(r.productcode)).slice(0, 60) + '</span>' : ''}${r.reden && r.match !== 'handmatig' && r.match !== 'exact' ? ' <span class="muted">· ' + esc(r.reden).slice(0, 90) + '</span>' : ''}</div></td>
     <td class="n">${inp('factor', f)}${f !== 1 ? `<div class="tiny muted">1 = ${nf(f)} ${eh}</div>` : ''}</td>
     <td class="n"><b>${nf((t || 0) * f)}</b> <span class="tiny muted">${eh}</span></td>
     <td>${r.productcode ? '' : `<button class="btn ghost sm" data-act="geenvoorraad" data-i="${i}" title="Verpakking of iets dat niet in het magazijn komt">geen voorraad</button> `}<button class="btn ghost sm" data-act="regeldel" data-i="${i}" title="Regel verwijderen">✕</button></td></tr>`;
