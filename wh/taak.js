@@ -61,6 +61,7 @@ function data04(){
   PD.cache = { op:Date.now(), d };
   return d;
 }
+const PD2STAP = ['soort', 'gewicht', 'hoev'];
 const pdLink = c => '#/pd2/p/' + encodeURIComponent(c);
 const vnLink = c => '#/vloernamen/?q=' + encodeURIComponent(c);
 // eerste product met een dubbele waarde in palletlabels: aantal per pallet in Productdata 2.0, alleen de vloernaam in Vloernamen
@@ -84,9 +85,12 @@ BP.registreer('0.4', () => {
 function nodig04(id){
   if(PD.fout) return `<div class="melding">Productdata laden lukte niet: ${esc(PD.fout.message || String(PD.fout))}</div>`;
   const d = data04(); if(!d){ pdLaden(); return '<div class="leeg">Productdata laden…</div>'; }
-  const it = d.P.items, nGroen = it.filter(x => x.ok).length;
+  const it = d.P.items;
+  // Soort · Gewicht · Hoeveelheid: dezelfde telling als het doel in Productdata 2.0 (PD2R.telStap)
+  if(window.PD2R && PD2R.S && PD2R.S.klaar && PD2R.telStap) it.forEach((x, i) => { if(x.pd2 && i >= 3 && i < 6){ const v = PD2R.telStap(d.P.bel, PD2STAP[i - 3]); x.u = nf(v.vol) + ' van ' + nf(v.tot) + ' compleet · ' + nf(v.velden) + ' velden open'; } });
+  const nGroen = it.filter(x => x.ok).length;
   // alles gaat naar Productdata 2.0 (31-10); alleen de steekproef woont nog op de oude poortpagina, de vloernaam in Vloernamen
-  const link = (x, i) => i === 2 ? dubbelLink() : x.steek ? '#/productdata/poort' : '#/pd2/open';
+  const link = (x, i) => i === 2 ? dubbelLink() : x.steek ? '#/productdata/poort' : x.pd2 && i >= 3 && i < 6 ? '#/pd2/stap/' + PD2STAP[i - 3] : '#/pd2/open';
   const knopT = (x, i) => i === 1 ? 'Overzetten' : i === 2 ? 'Kiezen' : x.laag || x.pd2 ? 'Invullen' : x.steek ? 'Steekproef' : 'Bekijken';
   const regels = it.map((x, i) => x.ok ? '' : `<li><span class="nt"><b>${esc(x.t)}</b><span class="muted klein">${esc(x.u || '')}</span></span>${x.steek && !x.kan ? '<span class="knop" aria-disabled="true" style="opacity:.55;cursor:not-allowed">Kan als laag 1–3 klaar zijn</span>' : knop(id, link(x, i), knopT(x, i))}</li>`).join('');
   const later = BP.inst('poortLaterMee') !== false;

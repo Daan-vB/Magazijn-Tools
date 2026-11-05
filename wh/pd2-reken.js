@@ -1191,6 +1191,20 @@ function status(c){
   return { so:so.v, soSt:so.st, open, af, stap, gew:g, tab:af ? 'afgerond' : so.v || 'pick' };
 }
 
+/* Telling per stap (Soort · Gewicht · Hoeveelheid) over een lijst producten: de enige bron voor Te doen, Poort 0.4 en het doel in Productdata 2.0.
+   vol = producten waar de stap klaar is, velden = open velden van die stap. */
+const STAPVELD = { soort:k => k === 'soort' || k === 'weg', gewicht:k => k === 'gewicht', hoev:k => !['soort', 'weg', 'gewicht'].includes(k) };
+function telStap(codes, s){
+  let vol = 0, velden = 0;
+  codes.forEach(c => {
+    let st; try{ st = status(c); }catch(e){ st = null; }
+    if(!st || st.kop || (st.stap && st.stap[s])){ vol++; return; }
+    velden += st.open.filter(STAPVELD[s]).length || 1;
+  });
+  return { vol, tot:codes.length, velden };
+}
+const belangrijk = () => P().lijst('belangrijk', false);   // belangrijke producten: A- en B-lopers en wat binnenkomt (zelfde lijst als Poort 0.4)
+
 /* ---------- live voorraad per locatie: wachtrij voor wat op het scherm staat (alleen lezen, met rem) ----------
    20 producten per vraag, 3 s ertussen. Warehouse, Vandaag en Aanvullen gaan voor: is de live-ronde van 3.0 bezig, of zei
    Picqer net "te veel", dan wacht 2.0. Bij een fout (429, 504, …) stopt de rij en probeert hij het na 2, 4, 8 … max 30 minuten. */
@@ -1448,5 +1462,5 @@ return { S, AANNAMES, KEY_OEFEN, KEY_FB, laad, flush, plan, schrijf, po, poZet, 
   VELD, SOORTEN, SOORTT, WEG, KOLOMMEN, NODIG, ROLNODIG, ROLVS, SAMVELD, MATEN, MATEN_WB, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
   eenheid, palletBewijs, rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
   naControle, liggerVan, labelsVerbeteren, rolCheck, labelsGoed, verschil, verschilKies, herstel, pdFlush, PDQ,
-  vraagLive, liveStatus, meet, meting, zetMeting, scoreVan, pd2Overzetten, overzetPlan, overzetToepassen, overzetTerug, overzetEcht, toetsItems, TOETSVELD, SCORE_VOOR, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };
+  vraagLive, liveStatus, meet, meting, zetMeting, scoreVan, telStap, belangrijk, pd2Overzetten, overzetPlan, overzetToepassen, overzetTerug, overzetEcht, toetsItems, TOETSVELD, SCORE_VOOR, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };
 })();

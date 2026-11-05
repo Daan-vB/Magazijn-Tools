@@ -22,7 +22,7 @@ const SEGS = [['open', 'Open'], ['afgerond', 'Afgerond']];
 const STAPPEN = [['soort', '1 Soort'], ['gewicht', '2 Gewicht'], ['hoev', '3 Hoeveelheid']];
 const SCOPES = [['belangrijk', 'Belangrijk'], ['AB', 'A+B'], ['beweegt', 'Alles dat beweegt'], ['binnen', 'Komt binnen'], ['voorraad', 'Alles met voorraad']];
 const UI = { el:null, scope:ls('scope') || 'belangrijk', zoek:'', lev:'', afd:'', hal:'', abc:'', filterOpen:false,
-  fk:null, mk:null, seg:'open', stap:'soort', view:null, wegAlle:null, sel:new Set(), undo:null, n:40, famN:30, lastK:{},
+  doel:null, doelRest:'', fk:null, mk:null, seg:'open', stap:'soort', view:null, wegAlle:null, sel:new Set(), undo:null, n:40, famN:30, lastK:{},
   weegKlaar:new Set(), rolOpen:{}, oefenen:ls('oefenen') === '1', oef:(() => { try{ return JSON.parse(ls('oef') || '') || { set:'pallet', i:0 }; }catch(e){ return { set:'pallet', i:0 }; } })() };
 const now = () => new Date().toISOString();
 const dk = iso => { const s = String(iso || ''); return s.length >= 10 ? s.slice(8, 10) + '-' + s.slice(5, 7) : ''; };
@@ -121,6 +121,38 @@ function wegAlle(){
 const wegAlleCodes = v => Object.entries(wegAlle()).filter(([c, w]) => w === v && !(R.po(c) && (R.po(c).weg || R.po(c).so))).map(([c]) => c);
 const sorteer = cs => cs.slice().sort((a, b) => (('ABC'.indexOf(R.abcVan(a)) + 4) % 4) - (('ABC'.indexOf(R.abcVan(b)) + 4) % 4) || R.naamVan(a).localeCompare(R.naamVan(b), 'nl', { numeric:true }) || a.localeCompare(b));
 
+/* ---------- doel (31-10): "Invullen →" in Te doen opent alleen wat nog open is voor stap 1, 2 of 3 ----------
+   Scope = belangrijke producten (A/B en wat binnenkomt); de telling komt uit PD2R.telStap, dezelfde als de Te doen-regel. */
+const DOELT = { soort:'Soort', gewicht:'Gewicht', hoev:'Hoeveelheid' };
+let DB = { dv:-1, v:null };
+const doelBel = () => { if(DB.dv !== R.S.dataVer || !DB.v){ DB = { dv:R.S.dataVer, v:R.belangrijk() }; } return DB.v; };
+const doelOpen = c => { let st; try{ st = R.status(c); }catch(e){ return false; } return !st.kop && !(st.stap && st.stap[UI.doel.stap]); };
+const doelCodes = () => UI.doel ? doelBel().filter(doelOpen) : [];
+// families met minstens één product uit de scope dat voor de stap nog open is: A vóór B, daarbinnen de meeste open vooraan
+function doelFams(){
+  const per = {}; doelCodes().forEach(c => { if(R.isKoppel(c)) return; (per[R.famVan(c)] = per[R.famVan(c)] || []).push(c); });
+  const rang = cs => cs.some(c => R.abcVan(c) === 'A') ? 0 : cs.some(c => R.abcVan(c) === 'B') ? 1 : 2;
+  return Object.entries(per).map(([fk, cs]) => ({ fk, cs, naam:R.famNaam(fk), lev:String((D.P[cs[0]] || {}).leverancier || fk.split('|')[0] || ''), rang:rang(cs), open:cs.length }))
+    .sort((a, b) => a.rang - b.rang || b.open - a.open || a.naam.localeCompare(b.naam, 'nl', { numeric:true }));
+}
+function doelBalk(){
+  if(!UI.doel) return '';
+  const t = R.telStap(doelBel(), UI.doel.stap), n = t.velden;
+  return `<div id="pd2-doel" class="pd2-doel" style="background:#e8f0fb;border-left:4px solid #2b6cb0;border-radius:6px;padding:10px 12px;margin:0 0 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between"><b>${esc(DOELT[UI.doel.stap])} · ${n ? 'nog ' + nf(n) + ' open' : '100% klaar'}</b><button class="knop" data-a="doelweg">Alles tonen</button></div>`;
+}
+function doelStart(){
+  const L = doelFams(), t = R.telStap(doelBel(), UI.doel.stap), naam = DOELT[UI.doel.stap];
+  const rijen = L.map(f => `<button class="pd2-fam" data-a="fam" data-v="${esc(f.fk)}"><span class="kn"><b>${esc(f.naam)}</b><span class="u">${esc(f.lev)} · ${mv(f.open, 'product', 'producten')} open</span></span><span class="n">${nf(f.open)} open</span></button>`).join('');
+  return `<header class="pd2-kop"><h1>Productdata 2.0</h1><p class="u" id="pd2-klaar">${esc(naam)} · ${nf(t.velden)} open · ${mv(L.length, 'familie', 'families')}</p></header>${doelBalk()}
+    ${L.length ? `<button class="knop pd2-hoofd" data-a="volgfam">Volgende familie →</button><div class="pd2-famlijst" id="pd2-fams">${rijen}</div>`
+      : `<div class="pd2-leeg"><b>${esc(naam)} is 100% klaar.</b></div><div class="rij"><a class="knop pd2-hoofd" href="#/todo">← Terug naar Te doen</a><button class="knop" data-a="doelweg">Alles tonen</button></div>`}`;
+}
+// bij het openen van een familie met een doel: de maat met open producten uit de scope en direct de gevraagde stap
+function doelMaat(){
+  const d = new Set(doelCodes()), m = maatgroepen().find(x => x.cs.some(c => d.has(c)));
+  if(m) UI.mk = m.k; UI.stap = UI.doel.stap;
+}
+
 /* ---------- families en maten ---------- */
 const FC = { key:null, v:null };
 function families(){
@@ -173,12 +205,13 @@ function blokCodes(){
 }
 const openCodes = () => blokCodes().filter(c => !R.status(c).af);
 const segVan = c => { const st = R.status(c); return st.af ? 'afgerond' : st.so || 'pick'; };
-const kaartCodes = () => opVolgorde(openCodes());
+const kaartCodes = () => { const l = opVolgorde(openCodes()); if(!UI.doel) return l; const d = new Set(doelCodes()); return l.filter(c => d.has(c)).concat(l.filter(c => !d.has(c))); };
 const stapN = (cs, s) => cs.filter(c => { const st = R.status(c); return !(st.stap && st.stap[s]); }).length;
 // bij een nieuwe maat: de eerste stap waar nog iets open staat
-function kiesStap(){ const cs = openCodes(), e = STAPPEN.find(([k]) => stapN(cs, k)); UI.stap = UI.view === 'wegalle' ? 'soort' : e ? e[0] : 'soort'; }
+function kiesStap(){ if(UI.doel && UI.view !== 'wegalle'){ UI.stap = UI.doel.stap; return; } const cs = openCodes(), e = STAPPEN.find(([k]) => stapN(cs, k)); UI.stap = UI.view === 'wegalle' ? 'soort' : e ? e[0] : 'soort'; }
 // is de stap klaar voor alle producten van de maat: door naar de volgende stap waar nog iets open staat
 function stapVerder(){
+  if(UI.doel) return false;   // met een doel blijft de gevraagde stap staan
   const cs = openCodes(); if(!cs.length || UI.view === 'wegalle' || stapN(cs, UI.stap)) return false;
   const i = STAPPEN.findIndex(x => x[0] === UI.stap), n = STAPPEN.slice(i + 1).concat(STAPPEN.slice(0, i)).find(([k]) => stapN(cs, k));
   if(!n) return false; UI.stap = n[0]; return true;
@@ -381,6 +414,7 @@ function famRijen(){
     + (L.length > toon.length ? `<button class="knop pd2-meer" data-a="fammeer">Meer families (${nf(L.length - toon.length)})</button>` : '');
 }
 function startHtml(){
+  if(UI.doel) return doelStart();
   const L = families(), klaar = L.filter(f => f.af === f.n).length, fn = filterN(), sn = snapTxt();
   return `<header class="pd2-kop"><h1>Productdata 2.0${UI.oefenen ? ' <i class="st grijs">oefenen</i>' : ''}</h1><p class="u" id="pd2-klaar">${nf(klaar)} van ${nf(L.length)} families klaar${sn ? ' · ' + esc(sn) : ''}${R.S.bewaar.fout ? ' · <b class="rood">bewaren mislukt</b>' : ''}${R.PDQ.fout ? ' · <b class="rood">naar productdata schrijven mislukt, opnieuw over 8 s</b>' : ''}</p></header>
     <button class="knop pd2-hoofd" data-a="volgfam">Volgende familie →</button>
@@ -445,7 +479,7 @@ function maatBlok(){
 }
 function famHtml(){
   kiesMaat();
-  return `<button class="pd2-link pd2-terug" data-a="famweg">← Alle families</button>
+  return `${doelBalk()}<button class="pd2-link pd2-terug" data-a="famweg">← ${UI.doel ? 'Lijst ' + esc(DOELT[UI.doel.stap]) : 'Alle families'}</button>
     <div class="pd2-famgrid"><aside class="pd2-zij"><section class="pd2-blok pd2-fkop" id="pd2-fkop">${famKop()}</section>
       <nav class="pd2-maten${plat() ? ' toc' : ''}" id="pd2-maten" aria-label="${plat() ? 'Inhoud' : 'Maat'}">${matenHtml()}</nav>
       <div class="pd2-volg" id="pd2-volg">${volgHtml()}</div></aside>
@@ -602,6 +636,7 @@ function verversKop(){
   const s = scherm();
   if(s === 'fam'){ zet('pd2-fkop', famKop()); zet('pd2-maten', matenHtml()); zet('pd2-volg', volgHtml()); zet('pd2-stapbalk', stapBalk()); zet('pd2-stapacties', stapActies()); const sb = document.querySelector('#pd2-maat .pd2-segbalk'); if(sb) sb.innerHTML = tabsHtml(); }
   if(s === 'start'){ const k = document.getElementById('pd2-klaar'); if(k){ const t = document.createElement('div'); t.innerHTML = startHtml(); k.innerHTML = t.querySelector('#pd2-klaar').innerHTML; } }
+  const db = document.getElementById('pd2-doel'); if(db && UI.doel){ const t = document.createElement('div'); t.innerHTML = doelBalk(); db.innerHTML = t.firstElementChild.innerHTML; }
   zet('pd2-actie', actieHtml()); zet('pd2-oefw', oefKaart());
 }
 function focusVan(){ const a = document.activeElement, k = a && a.closest && a.closest('[data-c]'); return k && a.dataset ? { c:k.dataset.c, k:a.dataset.k, d:a.dataset.d, a:a.dataset.a, pos:a.selectionStart } : null; }
@@ -872,7 +907,7 @@ function kopieer(){
 /* ---------- naar een familie, maat of soort ---------- */
 function openFam(fk, mk){
   UI.fk = fk; UI.mk = mk === undefined ? null : mk; UI.view = null; UI.seg = 'open'; UI.sel.clear(); nieuweGroep();
-  meld('fam', { fk }); kiesMaat();
+  meld('fam', { fk }); kiesMaat(); if(UI.doel) doelMaat();
   teken(); if(UI.el) UI.el.scrollTop = 0;
 }
 // oefening "Toon": de familie met de meeste treffers, de maat en de soort openzetten
@@ -924,7 +959,8 @@ function klik(ev){
       if(!k){ if(R.status(x).af) UI.seg = 'afgerond'; else { UI.seg = 'open'; const i = kaartCodes().indexOf(x); if(i >= UI.n) UI.n = i + 1; } verversMaat(); verversKop(); k = document.querySelector(`.pd2 [data-c="${CSS.escape(x)}"]`); }
       if(k){ k.scrollIntoView({ block:'start' }); if(UI.el) UI.el.scrollTop -= 8; } return; }
     case 'volgmaat': { const M = maatgroepen(); if(!M.length) return; const i = M.findIndex(m => m.k === UI.mk), L = M.slice(i + 1).concat(M.slice(0, i + 1)), n = L.find(m => m.open) || L[0]; UI.mk = n.k; UI.seg = 'open'; nieuweGroep(); kiesStap(); meld('maat', { naam:R.famNaam(UI.fk), mk:UI.mk }); zet('pd2-maten', matenHtml()); verversMaat(); verversKop(); naarBoven(); return; }
-    case 'volgfam': { const L = families(), i = L.findIndex(f => f.fk === UI.fk), rest = L.slice(i + 1).concat(L.slice(0, Math.max(0, i))), n = rest.find(f => f.af < f.n) || rest[0]; if(!n) return; openFam(n.fk); return; }
+    case 'doelweg': UI.doel = null; UI.doelRest = ''; UI.fk = null; UI.mk = null; UI.sel.clear(); teken(); if(UI.el) UI.el.scrollTop = 0; return;
+    case 'volgfam': if(UI.doel){ const L = doelFams().filter(f => f.fk !== UI.fk); if(!L.length){ UI.fk = null; UI.mk = null; UI.sel.clear(); teken(); if(UI.el) UI.el.scrollTop = 0; return; } openFam(L[0].fk); return; } { const L = families(), i = L.findIndex(f => f.fk === UI.fk), rest = L.slice(i + 1).concat(L.slice(0, Math.max(0, i))), n = rest.find(f => f.af < f.n) || rest[0]; if(!n) return; openFam(n.fk); return; }
     case 'seg': UI.seg = a.dataset.v; nieuweGroep(); meld('tab', { tab:UI.seg }); verversMaat(); return;
     case 'stap': UI.stap = a.dataset.v; UI.n = 40; verversMaat(); return;
     case 'rcfilter': UI.rcFilter = a.dataset.v; teken(); return;
@@ -1033,11 +1069,19 @@ function routeRest(rest){
   if(m){ if(openProduct(decodeURIComponent(m[1]))){ teken(); const k = UI.el && UI.el.querySelector(`[data-c="${CSS.escape(decodeURIComponent(m[1]))}"]`); if(k && k.scrollIntoView) k.scrollIntoView({ block:'start' }); } return; }
   if(rest === 'open'){ const f = families().find(f => f.af < f.n); if(f) openFam(f.fk); }
 }
+// #/pd2/stap/<soort|gewicht|hoev>: alleen wat voor die stap open is; #/pd2 (menu) toont weer alles
+function doelRoute(rest){
+  const m = String(rest || '').match(/^stap\/(soort|gewicht|hoev)$/);
+  if(m){ if(!UI.doel || UI.doel.stap !== m[1] || UI.doelRest !== rest){ UI.doel = { stap:m[1] }; UI.fk = null; UI.mk = null; UI.view = null; UI.sel.clear(); UI.doelRest = rest; UI.stap = m[1]; } return true; }
+  if(UI.doelRest){ UI.doel = null; UI.doelRest = ''; if(!rest){ UI.fk = null; UI.mk = null; UI.view = null; } }
+  return false;
+}
 function render(el, rest){
   stijl(); R.S.oefenen = UI.oefenen;
   UI.el = el; koppel();
-  if(!R.S.klaar && !R.S.fout) R.laad().then(() => { if(UI.el === el){ if(rest) routeRest(rest); else teken(); } });
-  if(rest && R.S.klaar){ routeRest(rest); return; }
+  const doel = doelRoute(rest);
+  if(!R.S.klaar && !R.S.fout) R.laad().then(() => { if(UI.el === el){ if(rest && !doel) routeRest(rest); else teken(); } });
+  if(rest && !doel && R.S.klaar){ routeRest(rest); return; }
   teken();
 }
 // nieuwe gegevens binnen (na de momentopname, of na verversen): opnieuw tekenen, maar niet midden in het typen
