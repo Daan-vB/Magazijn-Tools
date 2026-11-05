@@ -768,6 +768,9 @@ function kopBasis(text){
   return { regels:[], notities:[], containers:conts, ref:null, bl:null, totaal_stuks:null, totaal_eenheden:null };
 }
 const zoek1 = (text, rx) => { const m = String(text).match(rx); return m ? m[1].trim() : null; };
+// regels die geen product zijn (totalen, vracht, verzekering, korting, negatieve aantallen): nooit overnemen
+const RX_GEENPRODUCT = /sub\s*total|\btotal\b|\btotaal\b|say\s+total|extra\s+cost|freight|insurance|\bcharge\b|discount/i;
+const isGeenProduct = r => RX_GEENPRODUCT.test(String(r.pakbon_code || '') + ' ' + String(r.omschrijving || '')) || (num(r.aantal) || 0) < 0 || (num(r.totaal) || 0) < 0;
 // een pakbonregel in de vorm die de app kent
 function pbRegel(code, oms, totaal, per, extra){
   per = per && per > 0 ? per : 1;
@@ -892,12 +895,35 @@ function leesNingbo(text, L){
     const h = s.match(/^\d+\.\s*([A-Za-z].*?)\s*(?:\(.*)?$/);
     if(h && !/ {3,}\d/.test(s)){ kop = h[1].trim(); return; }
     if(/^(sub\s*)?total/i.test(s)){ const t = s.match(/(\d+(?:,\d+)?)/); if(t) res.totaal_eenheden = num(t[1]); return; }
-    const m = s.match(/^(.+?) {3,}(?:(.+?) {3,})?(\d+(?:,\d+)?) {3,}(\d+) (PCS|ROLLS?|SETS?|PAIRS?)\b(?: {3,}([\d.,]+) {3,}([\d.,]+) {3,}([\d.,]+))?$/i);
-    if(!m || /^(container|mark|n\/m)$/i.test(m[1])) return;
-    const pkgs = num(m[3]), qty = +m[4];
-    res.regels.push(pbRegel(m[1], [kop, m[2]].filter(Boolean).join(' · '), qty, pkgs ? qty / pkgs : 1,
-      { bruto_per:m[6] && pkgs ? afr(num(m[6]) / pkgs) : null, eenheid:/roll/i.test(m[5]) ? 'rol' : null }));
+    // code | omschrijving | CTNS | QTY | eenheid | (prijs | bedrag) of (G.W. | N.W. | m3); uit Excel staan de cellen 3 spaties uit elkaar, uit PDF soms 1
+    const m = s.match(/^(.+?) {3,}(?:(.+?) {3,})?(\d+(?:[.,]\d+)?) {3,}(\d+(?:\.0+)?) {1,}(PCS|ROLLS?|SETS?|PAIRS?)\b(?: {3,}([\d.,]+) {3,}([\d.,]+) {3,}([\d.,]+)| {3,}[\d.,]+(?: {3,}[\d.,]+)?)?$/i);
+    if(!m || /^(container|mark|n\/m)$/i.test(m[1]) || RX_GEENPRODUCT.test(m[1])) return;
+    const pkgs = Math.round(num(m[3])), qty = Math.round(+m[4]);
+    // totaal = QTY, aantal = CTNS, per = totaal / aantal (geen heel getal: naar boven afgerond, inhoud wisselt); CTNS = QTY → los
+    const per = pkgs > 0 ? Math.ceil(qty / pkgs - 1e-9) : 1;
+    const r = pbRegel(String(m[1]).replace(/\.0+$/, ''), [kop, m[2]].filter(Boolean).join(' · '), qty, per,
+      { bruto_per:m[6] && pkgs ? afr(num(m[6]) / pkgs) : null, eenheid:/roll/i.test(m[5]) ? 'rol' : null });
+    if(pkgs > 0){ r.aantal = pkgs; if(qty % pkgs) r.inhoud_wisselt = true; }
+    res.regels.push(r);
   });
+  return res;
+}
+
+/* Xiamen Honorchain — paklijst: PO | code | omschrijving | QTY | CTNS | pallet | bruto | netto | m3 (Excel: cellen 3 spaties uit elkaar) */
+function leesHonorchain(text, L){
+  const res = kopBasis(text);
+  res.ref = zoek1(text, /INVOICE\s*No\.?\s*:?\s*(PO\d{4}-\d+)/i);
+  L.forEach(l => {
+    const k = kolommen(l.s);
+    if(k.length < 8 || !/^\d{4}-\d{6}$/.test(k[0]) || !/^\d+$/.test(k[3])) return;
+    const qty = +k[3], ctn = num(k[4]);
+    // hele aantal dozen kleiner dan het aantal stuks → dozen; anders (CTNS = QTY of 2,5 doos) → los
+    const dozen = Number.isInteger(ctn) && ctn > 0 && ctn < qty;
+    const r = pbRegel(k[1], k[2], qty, dozen ? Math.ceil(qty / ctn - 1e-9) : 1, { bruto_per:null });
+    if(dozen){ r.aantal = ctn; if(qty % ctn) r.inhoud_wisselt = true; }
+    res.regels.push(r);
+  });
+  res.totaal_stuks = res.regels.reduce((a, r) => a + r.totaal, 0);
   return res;
 }
 
@@ -911,7 +937,12 @@ function leesRedSun(text, L){
     if(k.length === 10 && /^\d+$/.test(k[2]) && /^\d+$/.test(k[3])){
       const pcs = +k[2], ctn = +k[3];
       res.regels.push(pbRegel(k[0], k[1], pcs, ctn ? pcs / ctn : 1, { bruto_per:afr(num(k[5]) * (ctn ? pcs / ctn : 1)) }));
+    } else if(k.length === 9 && /^\d+$/.test(k[2]) && /^\d+\.\d+$/.test(k[3])){
+      // het aantal dozen staat op een eigen regel onder het artikel; "one piece in one carton" → per 1
+      const pcs = +k[2];
+      res.regels.push(pbRegel(k[0], k[1], pcs, 1, { bruto_per:afr(num(k[4])) }));
     } else if(k.length === 4 && /^\d+$/.test(k[0]) && res.regels.length) res.totaal_eenheden = +k[0];
+    else if(k.length === 3 && /^\d+$/.test(k[0]) && /^[\d.]+$/.test(k[1]) && res.regels.length && !res.totaal_eenheden) res.totaal_eenheden = +k[0];
   });
   return res;
 }
@@ -1103,6 +1134,7 @@ const PAKBON_LEV = [
   { id:'redsun',    naam:'Zhejiang Red Sun Edu. co. Ltd. (Wuzhi)',           zoek:/red\s*sun/i,            herken:/RED SUN EDUCATION/i,                    lees:leesRedSun },
   { id:'selected',  naam:'Selected Furniture Company Limited',               zoek:/selected\s*furniture/i, herken:/Selected Furniture/i,                   lees:leesSelected },
   { id:'gardenya',  naam:'Gardenya Plastik Sanayi Ticaret Ltd. Sti.',        zoek:/gardenya/i,             herken:/gardenya/i,                             lees:leesGardenya },
+  { id:'honorchain', naam:'Xiamen Honorchain Industry',               zoek:/honorchain/i,           herken:/Xiamen Honorchain/i,                    lees:leesHonorchain },
   { id:'todo',      naam:'Qingdao Todo Rubber Co., Ltd.',                    zoek:/todo\s*rubber|qingdao\s*todo/i, herken:/Todo Rubber/i,                 lees:leesTodo }
 ];
 const WALLACE = { id:'wallace', naam:'Wallace Langford & Associates', zoek:/wallace/i };
@@ -1919,7 +1951,7 @@ async function route(){
   return viewHome();
 }
 window.addEventListener('hashchange', route);
-window.CP_TEST = { aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
+window.CP_TEST = { leesPakbonTekst2:(t) => leesPakbonTekst(t), isGeenProduct, aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 function rerender(){
   const y = window.scrollY;
@@ -2620,7 +2652,7 @@ async function herkoppelOpen(){
     });
     if(ontdubbel(c.data.regels, c.leverancier)){ n++; wijz = true; }
     c.data.regels.forEach(r => {
-      if(r.productcode) return;
+      if(r.productcode || r.koppel_leeg) return;                  // koppel_leeg: bewust leeg gelaten (Picqer-code onbekend), niet opnieuw voorstellen
       const k = koppel(r, c.leverancier);
       if(k.productcode){ Object.assign(r, k); n++; wijz = true; }
     });
@@ -3472,7 +3504,7 @@ function toonKijker(){
 document.addEventListener('keydown', e => { if(e.key === 'Escape' && UI.kijk){ UI.kijk = null; toonKijker(); } });
 // zet de regels van één container (doc) uit een ingelezen pakbon in container c (zonder scherm)
 function vulRegels(c, doc, kop, bestand, methode, text){
-  c.data.regels = doc.regels.map((r, i) => { const x = Object.assign({ id:'r' + uid(), soort:'pallet', factor:1 }, r, { sl:r.sl || i + 1 }); delete x.container; return x; });
+  c.data.regels = doc.regels.filter(r => !isGeenProduct(r)).map((r, i) => { const x = Object.assign({ id:'r' + uid(), soort:'pallet', factor:1 }, r, { sl:r.sl || i + 1 }); delete x.container; return x; });
   if(kop.ref && !c.pakbon_ref) c.pakbon_ref = kop.ref;
   if(doc.container && !c.containernummer) c.containernummer = doc.container;
   c.data.pakbon = { bestand, methode, gelezen_op:new Date().toISOString(), totaal_stuks:doc.totaal_stuks ?? null, totaal_eenheden:doc.totaal_eenheden ?? null,
