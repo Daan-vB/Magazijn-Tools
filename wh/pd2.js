@@ -22,7 +22,7 @@ const SEGS = [['open', 'Open'], ['afgerond', 'Afgerond']];
 const STAPPEN = [['soort', '1 Soort'], ['gewicht', '2 Gewicht'], ['hoev', '3 Hoeveelheid']];
 const SCOPES = [['belangrijk', 'Belangrijk'], ['AB', 'A+B'], ['beweegt', 'Alles dat beweegt'], ['binnen', 'Komt binnen'], ['voorraad', 'Alles met voorraad']];
 const UI = { el:null, scope:ls('scope') || 'belangrijk', zoek:'', lev:'', afd:'', hal:'', abc:'', filterOpen:false,
-  doel:null, doelRest:'', vstap:'', vuit:new Set(), fk:null, mk:null, seg:'open', stap:'soort', view:null, wegAlle:null, sel:new Set(), undo:null, n:40, famN:30, lastK:{},
+  doel:null, doelRest:'', vstap:'', vuit:new Set(), vaan:new Set(), vwijz:{}, fk:null, mk:null, seg:'open', stap:'soort', view:null, wegAlle:null, sel:new Set(), undo:null, n:40, famN:30, lastK:{},
   weegKlaar:new Set(), rolOpen:{}, oefenen:ls('oefenen') === '1', oef:(() => { try{ return JSON.parse(ls('oef') || '') || { set:'pallet', i:0 }; }catch(e){ return { set:'pallet', i:0 }; } })() };
 const now = () => new Date().toISOString();
 const dk = iso => { const s = String(iso || ''); return s.length >= 10 ? s.slice(8, 10) + '-' + s.slice(5, 7) : ''; };
@@ -122,44 +122,116 @@ const wegAlleCodes = v => Object.entries(wegAlle()).filter(([c, w]) => w === v &
 const sorteer = cs => cs.slice().sort((a, b) => (('ABC'.indexOf(R.abcVan(a)) + 4) % 4) - (('ABC'.indexOf(R.abcVan(b)) + 4) % 4) || R.naamVan(a).localeCompare(R.naamVan(b), 'nl', { numeric:true }) || a.localeCompare(b));
 
 /* ---------- bewezen voorstellen in één tik (06-11) ----------
-   Per stap en per reden een blok; per familie de producten met een vinkje (uitvinken kan); "Klopt, bevestig geselecteerde" legt vast,
-   vooraf een kopie van de productdata-rijen. Claude zet niets definitief: alleen Daans tik bevestigt. */
+   Per stap en per reden een blok; per product één regel met de voorgestelde waarden als invulveld (aanpassen vinkt het product aan en
+   markeert "aangepast door jou"). Wat de data bewijst staat standaard aan; staat iets uit, dan staat in de regel waarom en is één tik genoeg.
+   "Klopt, bevestig geselecteerde" legt vast (vooraf een kopie wh-kopie-productdata-<datum>-7). Claude zet niets definitief: alleen Daans tik. */
 const VSTAPPEN = [['soort', 'Soort'], ['gewicht', 'Gewicht'], ['hoev', 'Hoeveelheid']];
-const vWaarde = b => b.stap === 'soort' ? (R.SOORTT[b.v] || b.v) + (b.weg ? ' → ' + (R.WEG.find(x => x[0] === b.weg) || [0, b.weg])[1] : '')
-  : b.stap === 'gewicht' ? (b.st === 'tewegen' ? 'te wegen (Weeglijst)' : nf(b.kg, 3) + ' kg vertrouwd')
-  : b.items.map(i => (i.k === 'spp' ? 'per pallet ' : i.k === 'maat' ? 'palletmaat ' : i.k === 'hoogte' ? 'hoogte ' : i.k === 'maxpick' ? 'max op pick ' : (R.VELD[i.k] ? R.VELD[i.k].t.toLowerCase() + ' ' : i.k + ' ')) + i.v + (i.k === 'hoogte' ? ' cm' : '')).join(' · ');
+const VSOORTEN = ['pallet', 'deel', 'bulk', 'pick', 'mix', 'weg'];
+const VLAB = { spp:'per pallet', maat:'palletmaat', hoogte:'hoogte cm', maxpick:'max op pick', gewpal:'gewicht pallet kg', plaatsen:'plaatsen', maxlig:'max per ligger', lvl:'aanvullen bij' };
+const vWijz = c => UI.vwijz[c] || null;
+const vAan = b => UI.vaan.has(b.c) || (!UI.vuit.has(b.c) && !(b.zwak && b.zwak.length));
+// wat er in de regel staat: voorstel, met Daans aanpassingen eroverheen
+const vSoortNu = b => { const w = vWijz(b.c); return { v:(w && w.so) || b.v, weg:(w && w.weg) || (((w && w.so) || b.v) === 'weg' ? b.weg : '') }; };
+const vGewNu = b => { const w = vWijz(b.c); return { st:(w && w.gst) || b.st, kg:w && w.kg !== undefined ? w.kg : b.kg }; };
+const vItemNu = (b, i) => { const w = vWijz(b.c); return w && w.f && w.f[i.k] !== undefined ? w.f[i.k] : i.v; };
+function vVelden(b){
+  const w = vWijz(b.c), kn = (cls, data, t, on) => `<button type="button" class="pd2-kz${on ? ' aan' : ''}" ${data} aria-pressed="${!!on}" style="min-height:36px;padding:4px 10px">${esc(t)}</button>`;
+  if(b.stap === 'soort'){
+    const n = vSoortNu(b);
+    return `<span class="vr-v">${VSOORTEN.map(k => kn('', `data-a="vsoort" data-v="${k}"`, R.SOORTT[k], n.v === k)).join('')}${n.v === 'weg' ? `<select class="pd2-in" data-vf="weg" aria-label="Weg-keuze" style="width:auto"><option value="">kies…</option>${R.WEG.map(([k, t]) => `<option value="${k}"${n.weg === k ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>` : ''}</span>`;
+  }
+  if(b.stap === 'gewicht'){
+    const g = vGewNu(b);
+    return `<span class="vr-v"><label class="vr-f">kg per stuk <input class="pd2-in" data-vf="kg" inputmode="decimal" value="${g.kg === null || g.kg === undefined ? '' : esc(String(g.kg).replace('.', ','))}" aria-label="kg per stuk" style="width:84px"></label>${kn('', 'data-a="vgst" data-v="vertrouwd"', 'vertrouwd', g.st === 'vertrouwd')}${kn('', 'data-a="vgst" data-v="tewegen"', 'te wegen', g.st === 'tewegen')}</span>`;
+  }
+  return `<span class="vr-v">${b.items.map(i => `<label class="vr-f">${esc(VLAB[i.k] || (R.VELD[i.k] ? R.VELD[i.k].t : i.k))} <input class="pd2-in" data-vf="f" data-k="${i.k}" inputmode="${i.k === 'maat' ? 'text' : 'numeric'}" value="${esc(vItemNu(b, i))}" aria-label="${esc(VLAB[i.k] || i.k)}" style="width:${i.k === 'maat' ? 92 : 72}px"></label>`).join('')}</span>`;
+}
+const vAangepast = b => { const w = vWijz(b.c); return !!(w && (w.so || w.weg || w.kg !== undefined || w.gst || (w.f && Object.keys(w.f).length))); };
+function vRij(b){
+  const aan = vAan(b), aangepast = vAangepast(b);
+  const uit = !aan && b.zwak && b.zwak.length && !UI.vaan.has(b.c) ? `<div class="u" style="color:#7a4b00">Nog niet bewezen: ${esc(b.zwak.map(z => z.tekst).join(', '))}. Vink aan als het klopt.</div>` : '';
+  return `<div class="vr" data-c="${esc(b.c)}"><label class="vr-k"><input type="checkbox" data-a="vsel"${aan ? ' checked' : ''} aria-label="Selecteer ${esc(b.c)}"></label>
+    <div class="vr-m"><div class="vr-t"><b class="m">${esc(b.c)}</b> ${esc(R.naamVan(b.c))}${aangepast ? ' <span class="badge b-warn">aangepast door jou</span>' : ''}</div>
+      ${vVelden(b)}${uit}
+      <div class="u">${esc(b.reden)}${b.som ? ` <details style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--blue,#2b6cb0)">rekensom</summary> ${esc(b.som)}</details>` : ''}</div></div></div>`;
+}
+const VCSS = `<style>.pd2 .vr{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line,#e6ebf0)} .pd2 .vr-k{flex:none;padding:6px 4px;cursor:pointer} .pd2 .vr-k input{width:22px;height:22px}
+.pd2 .vr-m{min-width:0;flex:1 1 auto;overflow-wrap:anywhere;word-break:break-word} .pd2 .vr-t{overflow-wrap:anywhere} .pd2 .vr-v{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:4px 0}
+.pd2 .vr-f{display:inline-flex;gap:4px;align-items:center;font-size:13px;flex-wrap:wrap} .pd2 .vr-f input,.pd2 .vr-v select{max-width:100%} .pd2 .vr .u{overflow-wrap:anywhere;font-size:13px}
+.pd2 [data-scherm="voorstel"],.pd2[data-scherm="voorstel"]{max-width:100%;overflow-x:hidden}</style>`;
+function vKnop(bs){
+  const n = bs.filter(vAan).length;
+  return n ? `Klopt, bevestig geselecteerde (${nf(n)})` : '0 geselecteerd — vink aan wat klopt';
+}
 function voorstelHtml(){
   const W = R.wachtOp(), eerste = VSTAPPEN.slice().sort((a, b) => W[b[0]].bewezen.length - W[a[0]].bewezen.length)[0][0], stap = UI.vstap || eerste;
   const tot = new Set(VSTAPPEN.flatMap(([k]) => W[k].bewezen.map(b => b.c))).size;
   const tabs = VSTAPPEN.map(([k, t]) => `<a class="knop${stap === k ? ' pd2-hoofd' : ''}" href="#/pd2/voorstel/${k}">${esc(t)} · ${nf(W[k].bewezen.length)}</a>`).join('');
   const groepen = {}; W[stap].bewezen.forEach(b => { (groepen[b.groep] = groepen[b.groep] || []).push(b); });
-  const blokken = Object.entries(groepen).sort((a, b) => b[1].length - a[1].length).map(([g, bs], gi) => {
+  const blokken = Object.entries(groepen).sort((a, b) => b[1].length - a[1].length).map(([g, bs]) => {
     const per = {}; bs.forEach(b => { (per[R.famVan(b.c)] = per[R.famVan(b.c)] || []).push(b); });
-    const gekozen = bs.filter(b => !UI.vuit.has(b.c)).length;
-    return `<section class="pd2-blok" data-g="${esc(g)}"><div class="rij" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between"><h3 style="margin:0">${esc(g)} <span class="u">${mv(bs.length, 'product', 'producten')}</span></h3>
-      <button class="knop pd2-hoofd" data-a="vbev" data-g="${esc(g)}" data-s="${stap}"${gekozen ? '' : ' disabled'}>Klopt, bevestig geselecteerde (${nf(gekozen)})</button></div>
-      ${Object.entries(per).map(([fk, l]) => `<div class="mt8"><b>${esc(R.famNaam(fk))}</b>${l.map(b => `<label class="pd2-vrij" data-c="${esc(b.c)}" style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line,#e6ebf0)"><input type="checkbox" data-a="vsel"${UI.vuit.has(b.c) ? '' : ' checked'} aria-label="${esc(b.c)}" style="margin-top:4px"><span style="min-width:0"><b class="m">${esc(b.c)}</b> ${esc(R.naamVan(b.c))}<br><b>${esc(vWaarde(b))}</b><div class="u">${esc(b.reden)}</div>${b.som ? `<div class="u">${esc(b.som)}</div>` : ''}</span></label>`).join('')}</div>`).join('')}</section>`;
+    return `<section class="pd2-blok" data-g="${esc(g)}"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between"><h3 style="margin:0;min-width:0;overflow-wrap:anywhere">${esc(g)} <span class="u">${mv(bs.length, 'product', 'producten')}</span></h3>
+      <button class="knop pd2-hoofd" data-a="vbev" data-g="${esc(g)}" data-s="${stap}"${bs.some(vAan) ? '' : ' disabled'}>${esc(vKnop(bs))}</button></div>
+      ${Object.entries(per).map(([fk, l]) => `<div class="mt8"><b style="overflow-wrap:anywhere">${esc(R.famNaam(fk))}</b>${l.map(vRij).join('')}</div>`).join('')}</section>`;
   }).join('');
   const rest = W[stap].vraag.length;
-  return `<header class="pd2-kop"><h1>Wacht op jouw tik</h1><p class="u">${mv(tot, 'product heeft', 'producten hebben')} een voorstel dat de data bewijst. Vink uit wat niet klopt; niets wordt vastgelegd voordat je bevestigt.</p></header>
+  return `${VCSS}<header class="pd2-kop"><h1>Wacht op jouw tik</h1><p class="u">${mv(tot, 'product heeft', 'producten hebben')} een voorstel dat de data bewijst. Pas een waarde aan in de regel zelf; niets wordt vastgelegd voordat je bevestigt.</p></header>
     <div class="rij" style="display:flex;gap:8px;flex-wrap:wrap">${tabs}</div>
     ${blokken || `<div class="pd2-leeg">Geen bewezen voorstellen meer voor ${esc(R.STAPNAAM[stap])}.</div>`}
     <p class="u mt8">${mv(rest, 'product blijft', 'producten blijven')} over als echte vraag bij ${esc(R.STAPNAAM[stap])}: <a href="#/pd2/stap/${stap}">naar die vragen →</a> · <a href="#/todo">← Terug naar Te doen</a></p>`;
 }
+// alleen deze regel en de knop van het blok opnieuw tekenen (focus en scrollpositie blijven)
+function vVerfris(c){
+  const stap = UI.vstap || VSTAPPEN.slice().sort((a, b) => R.wachtOp()[b[0]].bewezen.length - R.wachtOp()[a[0]].bewezen.length)[0][0];
+  const b = R.wachtOp()[stap].bewezen.find(x => x.c === c); if(!b) return;
+  const rij = document.querySelector(`.pd2 .vr[data-c="${CSS.escape(c)}"]`); if(!rij) return;
+  const f = document.activeElement && rij.contains(document.activeElement) ? { vf:document.activeElement.dataset.vf, k:document.activeElement.dataset.k } : null;
+  const t = document.createElement('div'); t.innerHTML = vRij(b); rij.replaceWith(t.firstElementChild);
+  if(f){ const n = document.querySelector(`.pd2 .vr[data-c="${CSS.escape(c)}"] [data-vf="${f.vf}"]${f.k ? `[data-k="${f.k}"]` : ''}`); if(n) n.focus(); }
+  const blok = document.querySelector(`.pd2 .vr[data-c="${CSS.escape(c)}"]`).closest('section[data-g]'), knop = blok.querySelector('[data-a="vbev"]'), bs = R.wachtOp()[stap].bewezen.filter(x => x.groep === blok.dataset.g);
+  knop.textContent = vKnop(bs); knop.disabled = !bs.some(vAan);
+}
+// een aanpassing van Daan: bewaar in het scherm, vink het product aan
+function vPas(c, fn){
+  const w = UI.vwijz[c] = UI.vwijz[c] || {}; fn(w);
+  UI.vaan.add(c); UI.vuit.delete(c);
+  vVerfris(c);
+}
+const vNorm = (k, ruw) => { const v = normVeld(k, ruw); if(v === null || v === '' || R.isNvt(v) || R.isOnb(v)) return null; if(['spp', 'maxpick', 'lvl', 'plaatsen', 'maxlig'].includes(k)) return String(Math.round(num(v))); return v; };
+function vVeldWijz(inp){
+  const rij = inp.closest('[data-c]'); if(!rij) return; const c = rij.dataset.c, vf = inp.dataset.vf;
+  if(vf === 'kg'){ const n = num(String(inp.value).replace(',', '.')); if(n === null || n <= 0){ WH.toast('Typ het gewicht in kg per stuk (een getal)', 3500); vVerfris(c); return; } vPas(c, w => { w.kg = n; if(!w.gst) w.gst = 'vertrouwd'; }); return; }
+  if(vf === 'weg'){ vPas(c, w => { w.weg = inp.value; }); return; }
+  if(vf === 'f'){ const k = inp.dataset.k, v = vNorm(k, inp.value); if(v === null){ WH.toast((VLAB[k] || k) + ': typ een getal' + (k === 'maat' ? ' of een maat als 80x120' : ''), 3500); vVerfris(c); return; }
+    if(k === 'hoogte' && String(num(inp.value)) !== v) WH.toast('Hoogte naar boven afgerond op 10 cm: ' + v, 2500);
+    vPas(c, w => { (w.f = w.f || {})[k] = v; }); }
+}
 function bevestigBewezen(c, stap){
   const b = R.bewezen(c, stap); if(!b) return false;
-  if(stap === 'soort'){ bevestigStap(c, 'soort'); return true; }
-  if(stap === 'gewicht'){ R.poZet(c, p => { delete p.heropend; p.gew = { st:b.st, kg:b.kg, via:'pallet', pallet:b.gp, t:now() }; }); return true; }
-  const I = R.info(c);
-  R.poZet(c, p => { delete p.heropend; b.items.forEach(i => { const voor = R.waarde(c, i.k, I).v; p.f[i.k] = { v:i.v, st:String(voor) === i.v ? 'bevestigd' : 'aangepast', voor:String(voor), t:now() }; }); });
+  const w = UI.vwijz[c] || {}, t = now(), door = 'Daan';
+  if(stap === 'soort'){
+    const v = w.so || b.v, weg = v === 'weg' ? (w.weg || (b.v === 'weg' ? b.weg : '')) : '';
+    if(v === 'weg' && !weg) return false;
+    R.poZet(c, p => { delete p.heropend; p.so = { v, st:v === b.v ? 'bevestigd' : 'aangepast', voor:b.v, t, door };
+      if(v === 'weg') p.weg = { v:weg, st:weg === b.weg ? 'bevestigd' : 'aangepast', voor:b.weg || '', t, door }; else delete p.weg; });
+    return true;
+  }
+  if(stap === 'gewicht'){ R.poZet(c, p => { delete p.heropend; p.gew = { st:w.gst || b.st, kg:w.kg !== undefined ? w.kg : b.kg, via:w.gst || w.kg !== undefined ? 'daan' : 'pallet', pallet:b.gp, t, door }; }); return true; }
+  R.poZet(c, p => { delete p.heropend; b.items.forEach(i => { const v = w.f && w.f[i.k] !== undefined ? w.f[i.k] : i.v; p.f[i.k] = { v, st:v === i.v && String(i.v) === String(i.voor) ? 'bevestigd' : 'aangepast', voor:i.voor, t, door }; }); });
   return true;
 }
 async function bevestigBlok(g, stap){
-  const codes = R.wachtOp()[stap].bewezen.filter(b => b.groep === g && !UI.vuit.has(b.c)).map(b => b.c);
+  const bs = R.wachtOp()[stap].bewezen.filter(b => b.groep === g && vAan(b));
+  if(!bs.length){ WH.toast('0 geselecteerd — vink aan wat klopt', 3500); return; }
+  const open = bs.filter(b => stap !== 'soort' || vSoortNu(b).v !== 'weg' || vSoortNu(b).weg);
+  if(open.length < bs.length) WH.toast(mv(bs.length - open.length, 'product mist', 'producten missen') + ' nog een Weg-keuze (Uitlopend, Backorder of Archief): dat blijft staan', 6000);
+  const codes = open.map(b => b.c);
   if(!codes.length) return;
   let kopie = null;
-  try{ kopie = await R.kopieProductdata(codes); }catch(e){ WH.toast('Kopie van productdata maken lukte niet: niets vastgelegd (' + (e.message || e) + ')', 6000); return; }
-  groep(codes, c => bevestigBewezen(c, stap), 'Bevestigd (' + R.STAPNAAM[stap] + ', ' + g + '): ' + mv(codes.length, 'product', 'producten'));
+  try{ kopie = await R.kopieProductdata(codes, 7); }catch(e){ WH.toast('Kopie van productdata maken lukte niet: niets vastgelegd (' + (e.message || e) + ')', 6000); return; }
+  const pas = codes.filter(c => UI.vwijz[c]).length;
+  groep(codes, c => bevestigBewezen(c, stap), 'Bevestigd (' + R.STAPNAAM[stap] + ', ' + g + '): ' + mv(codes.length, 'product', 'producten') + (pas ? ', waarvan ' + nf(pas) + ' aangepast door jou' : ''));
+  codes.forEach(c => { delete UI.vwijz[c]; UI.vaan.delete(c); UI.vuit.delete(c); });
   meld('vbev', { stap, n:codes.length, kopie:kopie.key });
   WH.toast(mv(codes.length, 'product', 'producten') + ' bevestigd · kopie ' + kopie.key, 5000);
 }
@@ -1003,7 +1075,9 @@ function klik(ev){
       if(!k){ if(R.status(x).af) UI.seg = 'afgerond'; else { UI.seg = 'open'; const i = kaartCodes().indexOf(x); if(i >= UI.n) UI.n = i + 1; } verversMaat(); verversKop(); k = document.querySelector(`.pd2 [data-c="${CSS.escape(x)}"]`); }
       if(k){ k.scrollIntoView({ block:'start' }); if(UI.el) UI.el.scrollTop -= 8; } return; }
     case 'volgmaat': { const M = maatgroepen(); if(!M.length) return; const i = M.findIndex(m => m.k === UI.mk), L = M.slice(i + 1).concat(M.slice(0, i + 1)), n = L.find(m => m.open) || L[0]; UI.mk = n.k; UI.seg = 'open'; nieuweGroep(); kiesStap(); meld('maat', { naam:R.famNaam(UI.fk), mk:UI.mk }); zet('pd2-maten', matenHtml()); verversMaat(); verversKop(); naarBoven(); return; }
-    case 'vsel': { if(!c) return; if(a.checked) UI.vuit.delete(c); else UI.vuit.add(c); const blok = a.closest('section[data-g]'), knop = blok && blok.querySelector('[data-a="vbev"]'); if(knop){ const n = blok.querySelectorAll('input[data-a="vsel"]:checked').length; knop.textContent = 'Klopt, bevestig geselecteerde (' + nf(n) + ')'; knop.disabled = !n; } return; }
+    case 'vsel': { if(!c) return; if(a.checked){ UI.vaan.add(c); UI.vuit.delete(c); } else { UI.vuit.add(c); UI.vaan.delete(c); } vVerfris(c); return; }
+    case 'vsoort': if(!c) return; vPas(c, w => { w.so = a.dataset.v; if(a.dataset.v !== 'weg') delete w.weg; }); return;
+    case 'vgst': if(!c) return; vPas(c, w => { w.gst = a.dataset.v; }); return;
     case 'vbev': bevestigBlok(a.dataset.g, a.dataset.s); return;
     case 'doelweg': UI.doel = null; UI.doelRest = ''; UI.fk = null; UI.mk = null; UI.sel.clear(); teken(); if(UI.el) UI.el.scrollTop = 0; return;
     case 'volgfam': if(UI.doel){ const L = doelFams().filter(f => f.fk !== UI.fk); if(!L.length){ UI.fk = null; UI.mk = null; UI.sel.clear(); teken(); if(UI.el) UI.el.scrollTop = 0; return; } openFam(L[0].fk); return; } { const L = families(), i = L.findIndex(f => f.fk === UI.fk), rest = L.slice(i + 1).concat(L.slice(0, Math.max(0, i))), n = rest.find(f => f.af < f.n) || rest[0]; if(!n) return; openFam(n.fk); return; }
@@ -1047,6 +1121,7 @@ function klik(ev){
 function koppel(){
   if(gekoppeld) return; gekoppeld = true;
   document.addEventListener('click', klik);
+  document.addEventListener('change', ev => { const i = ev.target.closest && ev.target.closest('.pd2 [data-vf]'); if(i) vVeldWijz(i); });
   document.addEventListener('click', ev => { if(ev.target.closest('#pd2-undo [data-a="ongedaan"]')) ongedaan(); });
   document.addEventListener('toggle', ev => { const d = ev.target; if(!d.matches) return; }, true);
   document.addEventListener('focusin', ev => { const k = ev.target.closest && ev.target.closest('.pd2 [data-c]'), x = ev.target.dataset && (ev.target.dataset.k || (ev.target.dataset.a === 'gewkg' ? 'gewicht' : '')); if(k && x) UI.lastK[k.dataset.c] = x; });
@@ -1118,7 +1193,7 @@ function routeRest(rest){
 // #/pd2/stap/<soort|gewicht|hoev>: alleen wat voor die stap open is; #/pd2 (menu) toont weer alles
 function doelRoute(rest){
   const v = String(rest || '').match(/^voorstel(?:\/(soort|gewicht|hoev))?$/);
-  if(v){ UI.doel = null; UI.doelRest = ''; UI.fk = null; UI.mk = null; UI.sel.clear(); UI.view = 'voorstel'; UI.vstap = v[1] || ''; UI.vuit = new Set(); return true; }
+  if(v){ UI.doel = null; UI.doelRest = ''; UI.fk = null; UI.mk = null; UI.sel.clear(); UI.view = 'voorstel'; UI.vstap = v[1] || ''; UI.vuit = new Set(); UI.vaan = new Set(); UI.vwijz = {}; return true; }
   if(UI.view === 'voorstel') UI.view = null;
   const m = String(rest || '').match(/^stap\/(soort|gewicht|hoev)$/);
   if(m){ if(!UI.doel || UI.doel.stap !== m[1] || UI.doelRest !== rest){ UI.doel = { stap:m[1] }; UI.fk = null; UI.mk = null; UI.view = null; UI.sel.clear(); UI.doelRest = rest; UI.stap = m[1]; } return true; }

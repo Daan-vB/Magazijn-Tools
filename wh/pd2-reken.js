@@ -1263,7 +1263,10 @@ function bewezen(c, stap){
   const ks = st.open.filter(k => !['soort', 'weg', 'gewicht'].includes(k)); if(!ks.length) return null;
   const items = ks.map(k => ({ k, w:waarde(c, k, I) }));
   if(!items.every(i => i.w.st === 'voorstel' && !leeg(i.w.v) && !(i.w.alt && i.w.alt.length))) return null;
-  return { c, stap, groep:'Aantallen uit ' + (String(I.bewijs || 'de data').replace(/\s*\d.*$/, '') || 'de data'), reden:items.map(i => (HOEVNAAM[i.k] || i.k) + ' ' + (i.k === 'hoogte' ? ROND10(i.w.v) : i.w.v) + ' (' + (i.w.why || '') + ')').join('; '), items:items.map(i => ({ k:i.k, v:i.k === 'hoogte' ? String(ROND10(i.w.v)) : String(i.w.v) })), som:'' };
+  // wat de data echt bewijst (palletlabel, voorraad, verplaatsing) staat standaard aan; een waarde uit een regel of de familie nog niet: dan staat het vinkje uit met de reden
+  const kans = r => { const sc = scoreVan(r); if(sc) return sc.p; const k = P().KANS && P().KANS[r]; return k ? k[0] : null; };
+  const zwak = items.filter(i => { const p = kans(i.w.r); return p !== null ? p < 0.8 : /regel|familie|schat|genoot/i.test(i.w.why || ''); }).map(i => ({ k:i.k, tekst:(HOEVNAAM[i.k] || i.k) + ' uit ' + String(i.w.why || 'een regel').replace(/\s+/g, ' ').slice(0, 60) }));
+  return { c, stap, zwak, groep:'Aantallen uit ' + (String(I.bewijs || 'de data').replace(/\s*\d.*$/, '') || 'de data'), reden:items.map(i => (HOEVNAAM[i.k] || i.k) + ' ' + (i.k === 'hoogte' ? ROND10(i.w.v) : i.w.v) + ' (' + (i.w.why || '') + ')').join('; '), items:items.map(i => ({ k:i.k, v:i.k === 'hoogte' ? String(ROND10(i.w.v)) : String(i.w.v), voor:String(i.w.v), why:i.w.why || '' })), som:'' };
 }
 // per stap: producten open · met bewezen voorstel (één tik) · echte vraag; live, geen tussenopslag buiten dezelfde versie
 let WO = { key:'', v:null };
@@ -1278,8 +1281,8 @@ function wachtOp(codes){
   return v;
 }
 // kopie van de productdata-rijen vóór een schrijfactie: catalog-rij wh-kopie-productdata-<datum>-6 (bij herhaling dezelfde dag aangevuld)
-async function kopieProductdata(codes){
-  const key = 'wh-kopie-productdata-' + isoDag() + '-6', uniek = [...new Set(codes)], rijen = [];
+async function kopieProductdata(codes, nr){
+  const key = 'wh-kopie-productdata-' + isoDag() + '-' + (nr || 6), uniek = [...new Set(codes)], rijen = [];
   for(let i = 0; i < uniek.length; i += 60){
     const lijst = uniek.slice(i, i + 60).map(c => '"' + String(c).replace(/"/g, '\\"') + '"').join(',');
     rijen.push(...((await WH.api('GET', 'productdata?productcode=in.(' + encodeURIComponent(lijst) + ')&select=productcode,data,meta')) || []));
