@@ -17,6 +17,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('80110WM (Per 1): blijft los en pallets, geen dozen', /pallets à 50/.test(t) && /17 los/.test(t) && !/dozen/.test(t.slice(0, 400)), t.slice(0, 300));
   // pakbon-tab
   await P.evaluate(() => { location.hash = '#/c/13/pakbon'; }); await P.waitForTimeout(3500);
+  await P.evaluate(() => { const d = document.getElementById('voordaan'); if(d) d.open = true; });   // productkaarten staan sinds 06-11 ingeklapt onder "voor Daan"
   t = await P.evaluate(() => document.body.innerText);
   check('Pakbon-tab: "5 dozen à 100 = 500 op de pakbon"', /5 dozen à 100 = 500/.test(t) || /5 dozen à 100/.test(t));
   // werkbon (Uitvoer)
