@@ -22,7 +22,7 @@ const SEGS = [['open', 'Open'], ['afgerond', 'Afgerond']];
 const STAPPEN = [['soort', '1 Soort'], ['gewicht', '2 Gewicht'], ['hoev', '3 Hoeveelheid']];
 const SCOPES = [['belangrijk', 'Belangrijk'], ['AB', 'A+B'], ['beweegt', 'Alles dat beweegt'], ['binnen', 'Komt binnen'], ['voorraad', 'Alles met voorraad']];
 const UI = { el:null, scope:ls('scope') || 'belangrijk', zoek:'', lev:'', afd:'', hal:'', abc:'', filterOpen:false,
-  doel:null, doelRest:'', fk:null, mk:null, seg:'open', stap:'soort', view:null, wegAlle:null, sel:new Set(), undo:null, n:40, famN:30, lastK:{},
+  doel:null, doelRest:'', vstap:'', vuit:new Set(), fk:null, mk:null, seg:'open', stap:'soort', view:null, wegAlle:null, sel:new Set(), undo:null, n:40, famN:30, lastK:{},
   weegKlaar:new Set(), rolOpen:{}, oefenen:ls('oefenen') === '1', oef:(() => { try{ return JSON.parse(ls('oef') || '') || { set:'pallet', i:0 }; }catch(e){ return { set:'pallet', i:0 }; } })() };
 const now = () => new Date().toISOString();
 const dk = iso => { const s = String(iso || ''); return s.length >= 10 ? s.slice(8, 10) + '-' + s.slice(5, 7) : ''; };
@@ -120,6 +120,49 @@ function wegAlle(){
 }
 const wegAlleCodes = v => Object.entries(wegAlle()).filter(([c, w]) => w === v && !(R.po(c) && (R.po(c).weg || R.po(c).so))).map(([c]) => c);
 const sorteer = cs => cs.slice().sort((a, b) => (('ABC'.indexOf(R.abcVan(a)) + 4) % 4) - (('ABC'.indexOf(R.abcVan(b)) + 4) % 4) || R.naamVan(a).localeCompare(R.naamVan(b), 'nl', { numeric:true }) || a.localeCompare(b));
+
+/* ---------- bewezen voorstellen in één tik (06-11) ----------
+   Per stap en per reden een blok; per familie de producten met een vinkje (uitvinken kan); "Klopt, bevestig geselecteerde" legt vast,
+   vooraf een kopie van de productdata-rijen. Claude zet niets definitief: alleen Daans tik bevestigt. */
+const VSTAPPEN = [['soort', 'Soort'], ['gewicht', 'Gewicht'], ['hoev', 'Hoeveelheid']];
+const vWaarde = b => b.stap === 'soort' ? (R.SOORTT[b.v] || b.v) + (b.weg ? ' → ' + (R.WEG.find(x => x[0] === b.weg) || [0, b.weg])[1] : '')
+  : b.stap === 'gewicht' ? (b.st === 'tewegen' ? 'te wegen (Weeglijst)' : nf(b.kg, 3) + ' kg vertrouwd')
+  : b.items.map(i => (i.k === 'spp' ? 'per pallet ' : i.k === 'maat' ? 'palletmaat ' : i.k === 'hoogte' ? 'hoogte ' : i.k === 'maxpick' ? 'max op pick ' : (R.VELD[i.k] ? R.VELD[i.k].t.toLowerCase() + ' ' : i.k + ' ')) + i.v + (i.k === 'hoogte' ? ' cm' : '')).join(' · ');
+function voorstelHtml(){
+  const W = R.wachtOp(), eerste = VSTAPPEN.slice().sort((a, b) => W[b[0]].bewezen.length - W[a[0]].bewezen.length)[0][0], stap = UI.vstap || eerste;
+  const tot = new Set(VSTAPPEN.flatMap(([k]) => W[k].bewezen.map(b => b.c))).size;
+  const tabs = VSTAPPEN.map(([k, t]) => `<a class="knop${stap === k ? ' pd2-hoofd' : ''}" href="#/pd2/voorstel/${k}">${esc(t)} · ${nf(W[k].bewezen.length)}</a>`).join('');
+  const groepen = {}; W[stap].bewezen.forEach(b => { (groepen[b.groep] = groepen[b.groep] || []).push(b); });
+  const blokken = Object.entries(groepen).sort((a, b) => b[1].length - a[1].length).map(([g, bs], gi) => {
+    const per = {}; bs.forEach(b => { (per[R.famVan(b.c)] = per[R.famVan(b.c)] || []).push(b); });
+    const gekozen = bs.filter(b => !UI.vuit.has(b.c)).length;
+    return `<section class="pd2-blok" data-g="${esc(g)}"><div class="rij" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between"><h3 style="margin:0">${esc(g)} <span class="u">${mv(bs.length, 'product', 'producten')}</span></h3>
+      <button class="knop pd2-hoofd" data-a="vbev" data-g="${esc(g)}" data-s="${stap}"${gekozen ? '' : ' disabled'}>Klopt, bevestig geselecteerde (${nf(gekozen)})</button></div>
+      ${Object.entries(per).map(([fk, l]) => `<div class="mt8"><b>${esc(R.famNaam(fk))}</b>${l.map(b => `<label class="pd2-vrij" data-c="${esc(b.c)}" style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line,#e6ebf0)"><input type="checkbox" data-a="vsel"${UI.vuit.has(b.c) ? '' : ' checked'} aria-label="${esc(b.c)}" style="margin-top:4px"><span style="min-width:0"><b class="m">${esc(b.c)}</b> ${esc(R.naamVan(b.c))}<br><b>${esc(vWaarde(b))}</b><div class="u">${esc(b.reden)}</div>${b.som ? `<div class="u">${esc(b.som)}</div>` : ''}</span></label>`).join('')}</div>`).join('')}</section>`;
+  }).join('');
+  const rest = W[stap].vraag.length;
+  return `<header class="pd2-kop"><h1>Wacht op jouw tik</h1><p class="u">${mv(tot, 'product heeft', 'producten hebben')} een voorstel dat de data bewijst. Vink uit wat niet klopt; niets wordt vastgelegd voordat je bevestigt.</p></header>
+    <div class="rij" style="display:flex;gap:8px;flex-wrap:wrap">${tabs}</div>
+    ${blokken || `<div class="pd2-leeg">Geen bewezen voorstellen meer voor ${esc(R.STAPNAAM[stap])}.</div>`}
+    <p class="u mt8">${mv(rest, 'product blijft', 'producten blijven')} over als echte vraag bij ${esc(R.STAPNAAM[stap])}: <a href="#/pd2/stap/${stap}">naar die vragen →</a> · <a href="#/todo">← Terug naar Te doen</a></p>`;
+}
+function bevestigBewezen(c, stap){
+  const b = R.bewezen(c, stap); if(!b) return false;
+  if(stap === 'soort'){ bevestigStap(c, 'soort'); return true; }
+  if(stap === 'gewicht'){ R.poZet(c, p => { delete p.heropend; p.gew = { st:b.st, kg:b.kg, via:'pallet', pallet:b.gp, t:now() }; }); return true; }
+  const I = R.info(c);
+  R.poZet(c, p => { delete p.heropend; b.items.forEach(i => { const voor = R.waarde(c, i.k, I).v; p.f[i.k] = { v:i.v, st:String(voor) === i.v ? 'bevestigd' : 'aangepast', voor:String(voor), t:now() }; }); });
+  return true;
+}
+async function bevestigBlok(g, stap){
+  const codes = R.wachtOp()[stap].bewezen.filter(b => b.groep === g && !UI.vuit.has(b.c)).map(b => b.c);
+  if(!codes.length) return;
+  let kopie = null;
+  try{ kopie = await R.kopieProductdata(codes); }catch(e){ WH.toast('Kopie van productdata maken lukte niet: niets vastgelegd (' + (e.message || e) + ')', 6000); return; }
+  groep(codes, c => bevestigBewezen(c, stap), 'Bevestigd (' + R.STAPNAAM[stap] + ', ' + g + '): ' + mv(codes.length, 'product', 'producten'));
+  meld('vbev', { stap, n:codes.length, kopie:kopie.key });
+  WH.toast(mv(codes.length, 'product', 'producten') + ' bevestigd · kopie ' + kopie.key, 5000);
+}
 
 /* ---------- doel (31-10): "Invullen →" in Te doen opent alleen wat nog open is voor stap 1, 2 of 3 ----------
    Scope = belangrijke producten (A/B en wat binnenkomt); de telling komt uit PD2R.telStap, dezelfde als de Te doen-regel. */
@@ -608,6 +651,7 @@ const oefBewaar = () => lsZet('oef', JSON.stringify(UI.oef));
 
 /* ---------- tekenen ---------- */
 function schermHtml(){
+  if(UI.view === 'voorstel') return ['voorstel', voorstelHtml()];
   if(UI.view === 'weeg') return ['weeg', weegHtml()];
   if(UI.view === 'aann') return ['aann', aannHtml()];
   if(UI.view === 'labels') return ['labels', labelsHtml()];
@@ -959,6 +1003,8 @@ function klik(ev){
       if(!k){ if(R.status(x).af) UI.seg = 'afgerond'; else { UI.seg = 'open'; const i = kaartCodes().indexOf(x); if(i >= UI.n) UI.n = i + 1; } verversMaat(); verversKop(); k = document.querySelector(`.pd2 [data-c="${CSS.escape(x)}"]`); }
       if(k){ k.scrollIntoView({ block:'start' }); if(UI.el) UI.el.scrollTop -= 8; } return; }
     case 'volgmaat': { const M = maatgroepen(); if(!M.length) return; const i = M.findIndex(m => m.k === UI.mk), L = M.slice(i + 1).concat(M.slice(0, i + 1)), n = L.find(m => m.open) || L[0]; UI.mk = n.k; UI.seg = 'open'; nieuweGroep(); kiesStap(); meld('maat', { naam:R.famNaam(UI.fk), mk:UI.mk }); zet('pd2-maten', matenHtml()); verversMaat(); verversKop(); naarBoven(); return; }
+    case 'vsel': { if(!c) return; if(a.checked) UI.vuit.delete(c); else UI.vuit.add(c); const blok = a.closest('section[data-g]'), knop = blok && blok.querySelector('[data-a="vbev"]'); if(knop){ const n = blok.querySelectorAll('input[data-a="vsel"]:checked').length; knop.textContent = 'Klopt, bevestig geselecteerde (' + nf(n) + ')'; knop.disabled = !n; } return; }
+    case 'vbev': bevestigBlok(a.dataset.g, a.dataset.s); return;
     case 'doelweg': UI.doel = null; UI.doelRest = ''; UI.fk = null; UI.mk = null; UI.sel.clear(); teken(); if(UI.el) UI.el.scrollTop = 0; return;
     case 'volgfam': if(UI.doel){ const L = doelFams().filter(f => f.fk !== UI.fk); if(!L.length){ UI.fk = null; UI.mk = null; UI.sel.clear(); teken(); if(UI.el) UI.el.scrollTop = 0; return; } openFam(L[0].fk); return; } { const L = families(), i = L.findIndex(f => f.fk === UI.fk), rest = L.slice(i + 1).concat(L.slice(0, Math.max(0, i))), n = rest.find(f => f.af < f.n) || rest[0]; if(!n) return; openFam(n.fk); return; }
     case 'seg': UI.seg = a.dataset.v; nieuweGroep(); meld('tab', { tab:UI.seg }); verversMaat(); return;
@@ -1071,6 +1117,9 @@ function routeRest(rest){
 }
 // #/pd2/stap/<soort|gewicht|hoev>: alleen wat voor die stap open is; #/pd2 (menu) toont weer alles
 function doelRoute(rest){
+  const v = String(rest || '').match(/^voorstel(?:\/(soort|gewicht|hoev))?$/);
+  if(v){ UI.doel = null; UI.doelRest = ''; UI.fk = null; UI.mk = null; UI.sel.clear(); UI.view = 'voorstel'; UI.vstap = v[1] || ''; UI.vuit = new Set(); return true; }
+  if(UI.view === 'voorstel') UI.view = null;
   const m = String(rest || '').match(/^stap\/(soort|gewicht|hoev)$/);
   if(m){ if(!UI.doel || UI.doel.stap !== m[1] || UI.doelRest !== rest){ UI.doel = { stap:m[1] }; UI.fk = null; UI.mk = null; UI.view = null; UI.sel.clear(); UI.doelRest = rest; UI.stap = m[1]; } return true; }
   if(UI.doelRest){ UI.doel = null; UI.doelRest = ''; if(!rest){ UI.fk = null; UI.mk = null; UI.view = null; } }

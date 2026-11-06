@@ -927,12 +927,26 @@ function telOud(){
   });
   return { t, prod };
 }
+// kopie van de productdata-rijen vóór een schrijfactie: catalog-rij wh-kopie-productdata-<datum>-6 (bij herhaling dezelfde dag aangevuld)
+async function kopieProductdata(codes){
+  const key = 'wh-kopie-productdata-' + isoDag(new Date()) + '-6', uniek = [...new Set(codes)], rijen = [];
+  for(let i = 0; i < uniek.length; i += 60){
+    const lijst = uniek.slice(i, i + 60).map(c => '"' + String(c).replace(/"/g, '\\"') + '"').join(',');
+    rijen.push(...((await api('GET', 'productdata?productcode=in.(' + encodeURIComponent(lijst) + ')&select=productcode,data,meta')) || []));
+  }
+  const oud = await WH.catHaal(key).catch(() => null), had = oud && oud.data && Array.isArray(oud.data.rijen) ? oud.data.rijen : [], zat = new Set(had.map(r => r.productcode));
+  const alle = had.concat(rijen.filter(r => !zat.has(r.productcode)));
+  await WH.catZet(key, { dag:isoDag(new Date()), op:new Date().toISOString(), rijen:alle, gevraagd:uniek.length });
+  return { key, n:alle.length };
+}
 async function overzetten(){
   const voor = telOud(), wijz = {};
   Object.keys(D.P).forEach(code => VOLG.forEach(k => {
     const o = oudeWaarde(code, k);
     if(o && !LEEGWAARDE(o.v) && pdWaarde(code, k) === null){ (wijz[code] = wijz[code] || {})[k] = o.v; }
   }));
+  // vooraf een kopie van de rijen die geraakt worden: catalog-rij wh-kopie-productdata-<datum>-6
+  if(Object.keys(wijz).length) await kopieProductdata(Object.keys(wijz));
   const n = await opslaan(wijz, 'overgezet');
   // na: tel per veld wat er nu in productdata staat met bron overgezet
   const na = {}; Object.values(S.pd).forEach(r => Object.entries(r.meta || {}).forEach(([k, m]) => { if(m && m.bron === 'overgezet') na[k] = (na[k] || 0) + 1; }));
@@ -3676,5 +3690,5 @@ function notities(){
   return Object.entries(g).map(([tekst, items]) => ({ tekst, items, codes:[...new Set(items.map(i => i.code))] })).sort((a, b) => b.codes.length - a.codes.length);
 }
 const intern = { maatgroepVan, verworpen, ribbelMaat, isSam, heeftPark, parkMeta, wachtOpLevering, zelfGebouwd, mvPatroon, mvSoort, kokosDoos, levKort, check, toonWaarde, abcVan, pdVan, vkmVan, rang, inScope, famTitel, famCorWaarde, schoneNaam, verschilNamen, pdWaarde, oudeWaarde, nuWaarde, LEEGWAARDE, NVT, uit, ZEKER, rerender, stijl, badge, abcBadge, chip, idVan, actief, famZichtbaar, sppBronnen, pbRegels, soortVan, regelVan, famCorNorm, BRONNAAM, kaartFn, bewaar, bewaard, leesJson, MATEN, PLAATSEN, plaatsenUitMaat, ehVan, prodStatus };
-return { view, viewOpen, openData, dubbel, openStappen, telt, pd2Klaar, herlaad, laad, zetLaterMee, notities, regelLijst, regelFout, verworpen, ribbelMaat, wachtOpLevering, isSam, heeftPark, appsZelftest, zetVers, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
+return { view, viewOpen, openData, dubbel, overzetten, telOud, kopieProductdata, openStappen, telt, pd2Klaar, herlaad, laad, zetLaterMee, notities, regelLijst, regelFout, verworpen, ribbelMaat, wachtOpLevering, isSam, heeftPark, appsZelftest, zetVers, intern, VELDEN, LAGEN, S, UI, KANS, gelijkPlan, toets, kleinSoort, kleinFeit, kleinWaarden, kleinPlan, autoPlan, voorstel, staat, famNaam, maatSig, index, opslaan, poort, poortCode, open, lijst, inLaag, nodig, waardeFn, kaartPlan, samenPlan, startSamen, selCodes, feedStatus, kaartFn, zoneVan, eenheid, inkVan, feedLijst, locaties, kgPicqer, isLater, alleenPick };
 })();

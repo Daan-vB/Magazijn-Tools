@@ -19,11 +19,12 @@ const knop = (stap, href, t, pri) => `<a class="knop${pri ? ' pri' : ''}" href="
 const ext = (href, t) => `<a class="knop" href="${esc(href)}" target="_blank" rel="noopener">${esc(t)} ↗</a>`;
 
 /* ---------- productdata in 3.0: pas laden als een taak hem nodig heeft ---------- */
-const PD = { p:null, fout:null, cache:null };
+const PD = { p:null, fout:null, cache:null, sinds:0, pd2fout:null };
 const pdKlaar = () => !!(window.WHPD && WHPD.S && WHPD.S.klaar && !WHPD.S.fout);
 function pdLaden(){
   if(pdKlaar()) return Promise.resolve(true);
   if(!PD.p) PD.p = (async () => {
+    PD.sinds = Date.now();
     try{
       // eerst de gedeelde gegevens (WH.load in 3.0); IVOL bestaat pas als ivol.js klaar is met opstarten
       while(!IV()) await new Promise(r => setTimeout(r, 50));
@@ -36,7 +37,7 @@ function pdLaden(){
       if(!window.WHPDF) await laadJs('wh/pdfamilie.js').catch(e => console.error(e));
       if(!window.WHPD) throw new Error('Productdata niet beschikbaar');
       await WHPD.laad();
-      if(window.PD2R && PD2R.laad && !(PD2R.S && PD2R.S.klaar)) await PD2R.laad().catch(e => console.error(e));   // Productdata 2.0 is de telling
+      if(window.PD2R && PD2R.laad && !(PD2R.S && PD2R.S.klaar)){ herteken(); await PD2R.laad().catch(e => { PD.pd2fout = e; console.error(e); }); }   // Productdata 2.0 is de telling
       WHPD.S.idx = null;   // index opnieuw op de volledig geladen gegevens
       if(WHPD.S.fout) throw WHPD.S.fout;
       PD.fout = null; PD.cache = null;
@@ -51,14 +52,18 @@ function pdLaden(){
 /* ---------- 0.4: Poort 0.4 uit Productdata ----------
    Te doen toont bij stap 0.4 alleen de poort: de regels die nog rood zijn, elk met één knop (Daan 17-10).
    Het werk zelf (open velden per laag) staat in het scherm "Nog open" in Productdata. */
+// live: de telling komt uit Productdata 2.0 (PD2R.status) en wordt opnieuw gemaakt zodra er iets is opgeslagen (S.ver) of nieuwe gegevens binnenkomen
+const pd2Klaar = () => !!(window.PD2R && PD2R.S && PD2R.S.klaar);
 function data04(){
   if(!pdKlaar()) return null;
-  if(PD.cache && Date.now() - PD.cache.op < 15e3) return PD.cache.d;
+  if(!pd2Klaar() && !PD.pd2fout) return null;   // wacht op Productdata 2.0; bij een mislukte lading valt de telling terug op de oude regels (voorlopig)
+  const sleutel = pd2Klaar() ? PD2R.S.ver + '|' + PD2R.S.dataVer : 'terugval';
+  if(PD.cache && PD.cache.sleutel === sleutel && Date.now() - PD.cache.op < 120e3) return PD.cache.d;
   const P = WHPD.poort();
   const open = [];
   P.bel.forEach(c => { const v = WHPD.openStappen(c); if(v.length) open.push({ c, v }); });
-  const d = { P, open };
-  PD.cache = { op:Date.now(), d };
+  const d = { P, open, voorlopig:!pd2Klaar() };
+  PD.cache = { op:Date.now(), d, sleutel };
   return d;
 }
 const PD2STAP = ['soort', 'gewicht', 'hoev'];
@@ -82,6 +87,14 @@ BP.registreer('0.4', () => {
   // vinkje 0 (besluit gelezen) en 8 (apps lezen productdata) blijven handmatig
   return { c:{ 1:ok(0), 2:ok(1), 3:ok(2), 4:ok(3), 5:ok(4), 6:ok(5), 7:ok(6) }, f:Object.assign({ aantal:d.P.bel.length, pdata:pct }, d.P.groen && d.P.code ? { code:d.P.code } : {}) };
 });
+// per laag: open nu · waarvan bewezen voorstel klaar (één tik) · waarvan echte vraag aan Daan
+function lagenBlok(d){
+  if(!pd2Klaar() || !PD2R.wachtOp) return '';
+  const W = PD2R.wachtOp(d.P.bel);
+  return `<ul class="nog">${['soort', 'gewicht', 'hoev'].map(k => { const w = W[k];
+    return `<li><span class="nt"><b>${esc(PD2R.STAPNAAM[k])}: ${nf(w.open)} open</b><span class="muted klein">${nf(w.bewezen.length)} met bewezen voorstel (één tik) · ${nf(w.vraag.length)} echte vraag aan jou</span></span>`
+      + `${w.bewezen.length ? knop('0.4', '#/pd2/voorstel/' + k, 'Bevestigen', true) : ''}${w.vraag.length ? knop('0.4', '#/pd2/stap/' + k, 'Vragen') : ''}</li>`; }).join('')}</ul>`;
+}
 function nodig04(id){
   if(PD.fout) return `<div class="melding">Productdata laden lukte niet: ${esc(PD.fout.message || String(PD.fout))}</div>`;
   const d = data04(); if(!d){ pdLaden(); return '<div class="leeg">Productdata laden…</div>'; }
@@ -92,13 +105,29 @@ function nodig04(id){
   // alles gaat naar Productdata 2.0 (31-10); alleen de steekproef woont nog op de oude poortpagina, de vloernaam in Vloernamen
   const link = (x, i) => i === 2 ? dubbelLink() : x.steek ? '#/productdata/poort' : x.pd2 && i >= 3 && i < 6 ? '#/pd2/stap/' + PD2STAP[i - 3] : '#/pd2/open';
   const knopT = (x, i) => i === 1 ? 'Overzetten' : i === 2 ? 'Kiezen' : x.laag || x.pd2 ? 'Invullen' : x.steek ? 'Steekproef' : 'Bekijken';
-  const regels = it.map((x, i) => x.ok ? '' : `<li><span class="nt"><b>${esc(x.t)}</b><span class="muted klein">${esc(x.u || '')}</span></span>${x.steek && !x.kan ? '<span class="knop" aria-disabled="true" style="opacity:.55;cursor:not-allowed">Kan als laag 1–3 klaar zijn</span>' : knop(id, link(x, i), knopT(x, i))}</li>`).join('');
+  const regels = it.map((x, i) => x.ok ? '' : `<li><span class="nt"><b>${esc(x.t)}</b><span class="muted klein">${esc(x.u || '')}</span></span>${i === 1 ? `<button class="knop" data-a="pd-overzet">${esc((x.u || '').match(/\d+/) ? 'Zet ' + (x.u.match(/\d+/) || [''])[0] + ' waarden over' : 'Overzetten')}</button>` : x.steek && !x.kan ? '<span class="knop" aria-disabled="true" style="opacity:.55;cursor:not-allowed">Kan als laag 1–3 klaar zijn</span>' : knop(id, link(x, i), knopT(x, i))}</li>`).join('');
   const later = BP.inst('poortLaterMee') !== false;
   return `<p class="kern"><b>${nf(nGroen)}</b> van ${nf(it.length)} groen in Poort 0.4 · ${nf(d.P.bel.length)} belangrijke producten · <b>${nf(d.open.length)}</b> producten open</p>
+    ${lagenBlok(d)}
     <ul class="nog">${regels || '<li><span class="nt"><b>Alle regels van Poort 0.4 zijn groen.</b></span></li>'}</ul>
     <label class="schakel"><input type="checkbox" data-a="bp-latermee" ${later ? 'checked' : ''}> Later en Op maat tellen mee in de poort</label>`;
 }
-function kort04(){ const d = data04(); if(!d) return PD.fout ? '' : '… producten open'; return nf(d.open.length) + ' producten open'; }
+// "…" mag nooit blijven staan: na 45 s staat er wat er mis is, en terwijl er geladen wordt tekent Te doen zichzelf elke 3 s opnieuw
+let laadT = null;
+function wachtOpLaden(){
+  if(laadT) return;
+  laadT = setTimeout(() => { laadT = null; const m = IV() && IV().huidig && IV().huidig(); if(m && ['todo', 'taak'].includes(m.native) && !data04()) herteken(); }, 3000);
+}
+function kort04(){
+  const d = data04();
+  if(!d){
+    if(PD.fout) return '';
+    wachtOpLaden();
+    const sec = PD.sinds ? Math.round((Date.now() - PD.sinds) / 1000) : 0;
+    return sec > 45 ? 'tellen duurt lang (' + sec + ' s): Productdata en Productdata 2.0 worden nog geladen' : 'tellen…';
+  }
+  return nf(d.open.length) + ' producten open' + (d.voorlopig ? ' (voorlopig: Productdata 2.0 laadde niet)' : '');
+}
 
 /* ---------- overige stappen ---------- */
 const SB = 'https://supabase.com/dashboard/project/jarbgetbwkjtxwtcfwmq';
@@ -272,10 +301,23 @@ function blokLater(){
     return `<section class="later"><h3><span aria-hidden="true">🔒</span> ${esc(id)} · ${esc(s ? s.t : '')} <i class="tel">${nf(r.reduce((t, x) => t + x[1], 0))}</i></h3>
       <ul>${r.map(([t, n]) => `<li><span>${esc(t)}</span><b>${nf(n)}</b></li>`).join('')}</ul></section>`; }).join('');
 }
+// producten die op Daans tik wachten: Te controleren plus de bewezen voorstellen in Productdata 2.0, met één knop die bij het grootste blok begint
+function blokTik(){
+  if(!pd2Klaar() || !PD2R.wachtOp){ if(!PD.fout && !pdKlaar()) pdLaden(); wachtOpLaden(); return '<p class="muted klein">Wat op jouw tik wacht wordt geteld…</p>'; }
+  const W = PD2R.wachtOp(), codes = new Set(), grootste = ['soort', 'gewicht', 'hoev'].slice().sort((a, b) => W[b].bewezen.length - W[a].bewezen.length)[0];
+  ['soort', 'gewicht', 'hoev'].forEach(k => W[k].bewezen.forEach(b => codes.add(b.c)));
+  let tc = null; try{ if(window.WHX && WHX.S && WHX.S.pd) tc = new Set(WHX.vraagLijst().map(q => q.c)); }catch(e){}
+  const bewezen = codes.size; if(tc) tc.forEach(c => codes.add(c));
+  const href = W[grootste].bewezen.length ? '#/pd2/voorstel/' + grootste : '#/nakijken';
+  return `<section class="taak nu"><span class="eyebrow">Wacht op jouw tik</span><h2>${nf(codes.size)} producten wachten op jouw tik</h2>
+    <p class="muted klein">${nf(bewezen)} met een voorstel dat de data bewijst (één tik per groep, uitvinken kan)${tc ? ' · ' + nf(tc.size) + ' om te controleren' : ' · Te controleren wordt nog geteld'}</p>
+    <div class="rij"><a class="knop pri groot" href="${href}">Begin</a></div></section>`;
+}
 function viewTodo(){
   return `<div class="pagina">
     <div class="bouwtekening"><a class="knop" href="https://claude.ai/artifact/8mvbCuxpKQLhz9hKG6SnVS" target="_blank" rel="noopener">Bouwtekening ↗</a><span class="muted klein">de pilaren en wat deze week gebouwd wordt</span></div>
     <h1>Te doen</h1>
+    ${blokTik()}
     ${blokNu()}
     <h2 class="bt">Vandaag</h2>${blokVandaag()}
     <h2 class="bt">Later</h2><p class="muted klein">Hoort bij een latere stap van het bouwplan. Nu niet aan beginnen.</p>${blokLater()}
@@ -320,11 +362,23 @@ async function kopieer(t){
   try{ await navigator.clipboard.writeText(t); WH.toast('Gekopieerd'); }
   catch(e){ const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); WH.toast('Gekopieerd'); }catch(e2){ WH.toast('Kopiëren lukte niet'); } ta.remove(); }
 }
+// de bekende waarden uit palletlabels en containers naar productdata (kopie eerst, in WHPD.overzetten); daarna vóór en na naast elkaar
+async function overzet04(){
+  try{
+    const voor = WHPD.telOud(), vN = Object.values(voor.t).reduce((x, y) => x + y, 0);
+    const m = await WHPD.overzetten();
+    const na = WHPD.telOud(), nN = Object.values(na.t).reduce((x, y) => x + y, 0);
+    PD.cache = null;
+    WH.toast(nf(m.n) + ' producten overgezet (' + nf(vN) + ' waarden vooraf, ' + nf(nN) + ' nog over); kopie in wh-kopie-productdata', 7000);
+  }catch(e){ console.error(e); WH.toast('Overzetten lukte niet: ' + (e.message || e), 7000); }
+  herteken();
+}
 document.addEventListener('click', ev => {
   const l = ev.target.closest('[data-taak]'); if(l) ssZet(l.dataset.taak);
   const k = ev.target.closest('[data-a]'); if(!k) return;
   const a = k.dataset.a, id = k.dataset.stap;
   if(a === 'taakbalk-weg'){ ssZet(null); balk(); return; }
+  if(a === 'pd-overzet'){ k.disabled = true; overzet04(); return; }
   if(a === 'bp-overnemen'){ k.disabled = true; BP.overnemen().then(herteken); return; }
   if(a === 'bp-af'){ if(BP.afronden(id)) WH.toast('Stap ' + id + ' afgerond'); return; }
   if(a === 'bp-wacht'){ UIT.wacht = id; herteken(); const i = $('bp-wachtwhy'); if(i) i.focus(); return; }

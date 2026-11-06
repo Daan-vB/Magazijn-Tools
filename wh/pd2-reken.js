@@ -1203,7 +1203,92 @@ function telStap(codes, s){
   });
   return { vol, tot:codes.length, velden };
 }
-const belangrijk = () => P().lijst('belangrijk', false);   // belangrijke producten: A- en B-lopers en wat binnenkomt (zelfde lijst als Poort 0.4)
+const belangrijk = () => P().lijst('belangrijk', false);
+
+/* ---------- wat wacht op Daans tik (06-11) ----------
+   Alles live uit dezelfde status() als Productdata 2.0: een opgeslagen antwoord telt direct mee (S.ver gaat omhoog).
+   reden(c): per open stap waarom het product nog open is. bewezen(c, stap): staat er een voorstel dat de data bewijst, dan is het één tik
+   (Daan bevestigt, uitvinken mogelijk); anders blijft het een echte vraag. Claude zet nooit zelf een soort of waarde definitief. */
+const GEW_OK = 0.15, GEW_FOUT = 0.25;
+const PALLETKG = 15;   // gewicht van de pallet zelf
+// gewicht per stuk afgeleid uit het gewicht van de volle pallet (palletgegevens uit containers) en het aantal per pallet, naast Picqer
+function gewBewijs(c){
+  const g = gewicht(c); if(g.st !== 'niet' || isSam(c)) return null;
+  const p = D.P[c] || {}, gp = num(p.gewicht_kg), w = waarde(c, 'spp', info(c)), spp = nOf(w.v);
+  if(!(gp > PALLETKG) || !(spp > 0) || !w.v || ['leeg', 'uitzoeken'].includes(w.st)) return null;
+  const af = Math.round((gp - PALLETKG) / spp * 1000) / 1000, som = '(' + nf(gp) + ' kg volle pallet − ' + PALLETKG + ' kg pallet) / ' + nf(spp) + ' stuks = ' + nf(af, 3) + ' kg per stuk';
+  if(!(g.pq > 0)) return { st:'vertrouwd', kg:af, via:'pallet', gp, why:'Picqer heeft geen gewicht; uit de pallet afgeleid', som };
+  const d = Math.abs(af - g.pq) / g.pq, pct = Math.round(d * 100);
+  if(d <= GEW_OK) return { st:'vertrouwd', kg:g.pq, via:'pallet', gp, why:'Picqer ' + nf(g.pq, 3) + ' kg klopt met de pallet (' + pct + '% verschil)', som: som + ' tegen Picqer ' + nf(g.pq, 3) + ' kg: ' + pct + '% verschil' };
+  if(d > GEW_FOUT) return { st:'tewegen', kg:g.pq, via:'pallet', gp, why:'Picqer ' + nf(g.pq, 3) + ' kg wijkt ' + pct + '% af van de pallet: op de Weeglijst', som: som + ' tegen Picqer ' + nf(g.pq, 3) + ' kg: ' + pct + '% verschil' };
+  return null;   // 15–25%: echte vraag
+}
+const WEGT = Object.fromEntries(WEG);
+const STAPNAAM = { soort:'Soort', gewicht:'Gewicht', hoev:'Hoeveelheid' };
+const HOEVNAAM = { spp:'stuks per pallet', maat:'palletmaat', hoogte:'hoogte', gewpal:'gewicht volle pallet', maxpick:'max op pick', plaatsen:'plaatsen', maxlig:'max per ligger', lvl:'aanvullen bij', rl:'lengte volle rol', rmax:'max rollen per pallet' };
+function reden(c){
+  const st = status(c); if(st.kop) return [];
+  const I = info(c), uit = [];
+  if(!st.stap.soort){
+    const so = soortWaarde(c, I);
+    uit.push({ stap:'soort', tekst: so.st === 'voorstel' ? 'Soort: niet bevestigd (voorstel ' + (SOORTT[so.v] || so.v) + ': ' + (so.why || '') + ')' : so.st === 'twijfel' ? 'Soort: twijfel tussen ' + [SOORTT[so.v]].concat((so.alt || [])).filter(Boolean).join(' / ') + ': ' + (so.why || '') : 'Soort: geen voorstel, echte vraag' });
+  }
+  if(!st.stap.gewicht){
+    const g = gewicht(c), af = gewAfwijking(c), b = gewBewijs(c);
+    uit.push({ stap:'gewicht', tekst: b ? 'Gewicht: ' + b.why : !(g.pq > 0) ? 'Gewicht: Picqer heeft geen gewicht' : af ? 'Gewicht: Picqer-gewicht verdacht (' + af + ')' : 'Gewicht: ' + nf(g.pq, 3) + ' kg uit Picqer, niet bevestigd en geen bewijs uit de pallet' });
+  }
+  const hk = st.open.filter(k => !['soort', 'weg', 'gewicht'].includes(k));
+  if(hk.length){
+    const stuk = hk.map(k => { const w = waarde(c, k, I); return (HOEVNAAM[k] || k) + (w.st === 'voorstel' && w.v ? ': voorstel ' + w.v + ' (' + (w.why || '') + ')' : w.st === 'twijfel' ? ': twijfel' : w.st === 'uitzoeken' ? ': uitzoeken' : ': geen bron'); });
+    uit.push({ stap:'hoev', tekst:'Hoeveelheid: ' + stuk.join('; ') + (I.bewijs ? ' · palletbewijs: ' + I.bewijs : '') });
+  }
+  return uit;
+}
+const ROND10 = v => Math.ceil(num(v) / 10) * 10;
+function bewezen(c, stap){
+  const st = status(c); if(st.kop || st.stap[stap]) return null;
+  const I = info(c);
+  if(stap === 'soort'){
+    const so = soortWaarde(c, I); if(so.st !== 'voorstel' || !so.v) return null;
+    let weg = '';
+    if(so.v === 'weg'){ const w = wegWaarde(c, I); if(w.st !== 'voorstel' || !w.v) return null; weg = w.v; }
+    const rg = (I.vsSo && I.vsSo.r) || so.v;
+    return { c, stap, groep:(SOORTT[so.v] || so.v) + (weg ? ' → ' + (WEGT[weg] || weg) : ''), reden:so.why || '', v:so.v, weg, som:'', rg };
+  }
+  if(!st.stap.soort) return null;   // soort eerst: gewicht en hoeveelheid pas na een bevestigde soort
+  if(stap === 'gewicht'){
+    const b = gewBewijs(c); if(!b) return null;
+    return Object.assign({ c, stap, groep:b.st === 'vertrouwd' ? 'Picqer-gewicht klopt (±15%)' : 'Picqer-gewicht wijkt meer dan 25% af: Weeglijst', reden:b.why }, b);
+  }
+  const ks = st.open.filter(k => !['soort', 'weg', 'gewicht'].includes(k)); if(!ks.length) return null;
+  const items = ks.map(k => ({ k, w:waarde(c, k, I) }));
+  if(!items.every(i => i.w.st === 'voorstel' && !leeg(i.w.v) && !(i.w.alt && i.w.alt.length))) return null;
+  return { c, stap, groep:'Aantallen uit ' + (String(I.bewijs || 'de data').replace(/\s*\d.*$/, '') || 'de data'), reden:items.map(i => (HOEVNAAM[i.k] || i.k) + ' ' + (i.k === 'hoogte' ? ROND10(i.w.v) : i.w.v) + ' (' + (i.w.why || '') + ')').join('; '), items:items.map(i => ({ k:i.k, v:i.k === 'hoogte' ? String(ROND10(i.w.v)) : String(i.w.v) })), som:'' };
+}
+// per stap: producten open · met bewezen voorstel (één tik) · echte vraag; live, geen tussenopslag buiten dezelfde versie
+let WO = { key:'', v:null };
+function wachtOp(codes){
+  codes = codes || belangrijk();
+  const key = S.ver + '|' + S.dataVer + '|' + codes.length;
+  if(WO.key === key && WO.v) return WO.v;
+  const v = { soort:{ open:0, bewezen:[], vraag:[] }, gewicht:{ open:0, bewezen:[], vraag:[] }, hoev:{ open:0, bewezen:[], vraag:[] } };
+  codes.forEach(c => { let st; try{ st = status(c); }catch(e){ return; } if(st.kop) return;
+    ['soort', 'gewicht', 'hoev'].forEach(s => { if(st.stap[s]) return; v[s].open++; let b = null; try{ b = bewezen(c, s); }catch(e){} if(b) v[s].bewezen.push(b); else v[s].vraag.push(c); }); });
+  WO = { key, v };
+  return v;
+}
+// kopie van de productdata-rijen vóór een schrijfactie: catalog-rij wh-kopie-productdata-<datum>-6 (bij herhaling dezelfde dag aangevuld)
+async function kopieProductdata(codes){
+  const key = 'wh-kopie-productdata-' + isoDag() + '-6', uniek = [...new Set(codes)], rijen = [];
+  for(let i = 0; i < uniek.length; i += 60){
+    const lijst = uniek.slice(i, i + 60).map(c => '"' + String(c).replace(/"/g, '\\"') + '"').join(',');
+    rijen.push(...((await WH.api('GET', 'productdata?productcode=in.(' + encodeURIComponent(lijst) + ')&select=productcode,data,meta')) || []));
+  }
+  const oud = await WH.catHaal(key).catch(() => null), had = oud && oud.data && Array.isArray(oud.data.rijen) ? oud.data.rijen : [], zat = new Set(had.map(r => r.productcode));
+  const alle = had.concat(rijen.filter(r => !zat.has(r.productcode)));
+  await WH.catZet(key, { dag:isoDag(), op:new Date().toISOString(), rijen:alle, gevraagd:uniek.length });
+  return { key, n:alle.length };
+}   // belangrijke producten: A- en B-lopers en wat binnenkomt (zelfde lijst als Poort 0.4)
 
 /* ---------- live voorraad per locatie: wachtrij voor wat op het scherm staat (alleen lezen, met rem) ----------
    20 producten per vraag, 3 s ertussen. Warehouse, Vandaag en Aanvullen gaan voor: is de live-ronde van 3.0 bezig, of zei
@@ -1462,5 +1547,5 @@ return { S, AANNAMES, KEY_OEFEN, KEY_FB, laad, flush, plan, schrijf, po, poZet, 
   VELD, SOORTEN, SOORTT, WEG, KOLOMMEN, NODIG, ROLNODIG, ROLVS, SAMVELD, MATEN, MATEN_WB, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
   eenheid, palletBewijs, rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
   naControle, liggerVan, labelsVerbeteren, rolCheck, labelsGoed, verschil, verschilKies, herstel, pdFlush, PDQ,
-  vraagLive, liveStatus, meet, meting, zetMeting, scoreVan, telStap, belangrijk, pd2Overzetten, overzetPlan, overzetToepassen, overzetTerug, overzetEcht, toetsItems, TOETSVELD, SCORE_VOOR, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };
+  vraagLive, liveStatus, meet, meting, zetMeting, scoreVan, telStap, belangrijk, reden, bewezen, wachtOp, gewBewijs, kopieProductdata, STAPNAAM, pd2Overzetten, overzetPlan, overzetToepassen, overzetTerug, overzetEcht, toetsItems, TOETSVELD, SCORE_VOOR, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };
 })();
