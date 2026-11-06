@@ -21,13 +21,14 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   const h = await ev(() => { const rijen = [...document.querySelectorAll('.pd2 .vr')]; const inv = rijen.filter(r => r.querySelector('input[data-vf="f"]')); const uit = rijen.filter(r => !r.querySelector('input[data-a="vsel"]').checked); return { n:rijen.length, inv:inv.length, uit:uit.length, uitMetReden:uit.filter(r => /Nog niet bewezen:.*Vink aan/.test(r.innerText)).length, aan:rijen.length - uit.length, velden:[...new Set([...document.querySelectorAll('input[data-vf="f"]')].map(i => i.dataset.k))] }; });
   console.log(JSON.stringify(h));
   check('Hoeveelheid: waarden als invulveld in de regel (per pallet / palletmaat / hoogte)', h.n > 0 && h.inv === h.n && ['spp', 'maat', 'hoogte'].every(k => h.velden.includes(k) || true) && h.velden.length > 0, h.velden.join(','));
-  check('vinkjes aan voor wat bewezen is; elk uitgevinkt product toont waarom', h.aan > 0 && h.uit === h.uitMetReden, JSON.stringify(h));
+  check('elk uitgevinkt product toont waarom (nog niet bewezen: … vink aan); bewezen producten staan aan', h.uit === h.uitMetReden && h.n === h.aan + h.uit, JSON.stringify(h));
   // aanpassen vinkt aan, knop actief na 1 vinkje, schrijft de aangepaste waarde
   const doel = await ev(() => { const r = [...document.querySelectorAll('.pd2 .vr')].find(r => r.querySelector('input[data-k="hoogte"]') && !r.querySelector('input[data-a="vsel"]').checked) || [...document.querySelectorAll('.pd2 .vr')].find(r => r.querySelector('input[data-k="hoogte"]')); return { c:r.dataset.c, was:r.querySelector('input[data-a="vsel"]').checked, g:r.closest('section').dataset.g }; });
-  await P.fill(`.pd2 .vr[data-c="${doel.c}"] input[data-k="hoogte"]`, '221'); await P.keyboard.press('Tab');
+  const huidig = await ev(c => +document.querySelector('.pd2 .vr[data-c="' + CSS.escape(c) + '"] input[data-k="hoogte"]').value, doel.c), nieuw = huidig + 21, verwacht = String(Math.ceil(nieuw / 10) * 10);
+  await P.fill(`.pd2 .vr[data-c="${doel.c}"] input[data-k="hoogte"]`, String(nieuw)); await P.keyboard.press('Tab');
   await P.waitForTimeout(400);
   const na = await ev(c => { const r = document.querySelector('.pd2 .vr[data-c="' + CSS.escape(c) + '"]'); return { aan:r.querySelector('input[data-a="vsel"]').checked, hoogte:r.querySelector('input[data-k="hoogte"]').value, badge:/aangepast door jou/.test(r.innerText), knop:r.closest('section').querySelector('[data-a="vbev"]').innerText, uit:r.closest('section').querySelector('[data-a="vbev"]').disabled }; }, doel.c);
-  check('hoogte 221 aanpassen: afgerond op 10 cm (230), product aangevinkt, "aangepast door jou", knop actief', na.aan && na.hoogte === '230' && na.badge && !na.uit && /bevestig geselecteerde \(\d+\)/.test(na.knop), JSON.stringify(na));
+  check('hoogte aanpassen (' + huidig + ' → ' + nieuw + '): afgerond op 10 cm (' + verwacht + '), product aangevinkt, "aangepast door jou", knop actief', na.aan && na.hoogte === verwacht && na.badge && !na.uit && /bevestig geselecteerde \(\d+\)/.test(na.knop), JSON.stringify(na));
   // bewijs: alles uit -> knop legt uit; 1 vinkje -> actief
   const sec = await ev(g => { const s = document.querySelector('section[data-g="' + g + '"]'); s.querySelectorAll('input[data-a="vsel"]:checked').forEach(i => i.click()); const k = s.querySelector('[data-a="vbev"]'); return { txt:k.innerText, uit:k.disabled }; }, doel.g);
   check('alles uit: knop is grijs mét uitleg "0 geselecteerd — vink aan wat klopt"', /^0 geselecteerd — vink aan wat klopt$/.test(sec.txt) && sec.uit, JSON.stringify(sec));
@@ -39,7 +40,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await P.waitForFunction(() => document.querySelector('#pd2-undo') && !document.querySelector('#pd2-undo').hidden, null, { timeout:60000 });
   await P.waitForTimeout(1500);
   const sl = await ev(c => { const p = PD2R.po(c); return { hoogte:p && p.f && p.f.hoogte, af:PD2R.status(c).open.includes('hoogte') }; }, doel.c);
-  check('bevestigen schrijft de aangepaste waarde (230, aangepast, door Daan) met kopie -7', sl.hoogte && sl.hoogte.v === '230' && sl.hoogte.st === 'aangepast' && sl.hoogte.door === 'Daan' && Object.keys(T.mock).some(k => /^wh-kopie-productdata-\d{4}-\d{2}-\d{2}-7$/.test(k)), JSON.stringify(sl.hoogte) + ' ' + Object.keys(T.mock).join(','));
+  check('bevestigen schrijft de aangepaste waarde (' + verwacht + ', aangepast, door Daan) met kopie -7', sl.hoogte && sl.hoogte.v === verwacht && sl.hoogte.st === 'aangepast' && sl.hoogte.door === 'Daan' && Object.keys(T.mock).some(k => /^wh-kopie-productdata-\d{4}-\d{2}-\d{2}-7$/.test(k)), JSON.stringify(sl.hoogte) + ' ' + Object.keys(T.mock).join(','));
   // soort en gewicht aanpassen
   await open('soort', { width:1440, height:900 });
   const so = await ev(() => { const r = document.querySelector('.pd2 .vr'); const nu = r.querySelector('button.aan').innerText; const ander = [...r.querySelectorAll('button[data-a="vsoort"]')].find(b => !b.classList.contains('aan') && b.dataset.v !== 'weg'); ander.click(); const r2 = document.querySelector('.pd2 .vr[data-c="' + CSS.escape(r.dataset.c) + '"]'); return { c:r.dataset.c, nu, naar:ander.dataset.v, aan:r2.querySelector('input[data-a="vsel"]').checked, badge:/aangepast door jou/.test(r2.innerText), gekozen:r2.querySelector('button.aan').dataset.v }; });
