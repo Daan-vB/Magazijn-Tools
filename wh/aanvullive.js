@@ -308,71 +308,111 @@ const verschiltNiv = (c, lvl, tot) => { const n = niveauPicqer(c); return n && (
 // de Pickvoorraad in de PDF is de fysieke voorraad op pick (bueno-bruin: PDF 33, vrij 3)
 const pickVeranderd = (pdf, s) => pdf.pickst != null && Number(pdf.pickst) !== s.pickFys;
 // met de retourkar erbij zit de pick boven het niveau (de app telt de kar nooit als pick of bron)
+const oudTxt = (c, M) => 'De stand van dit product is van ' + standTxt(M.standT(c)) + ', ouder dan de PDF (' + hhmm(M.pdfT) + '): eerst verversen';
+// rekensom van de app: pick vrij, niveau, aanvullen tot, gereserveerd op bulk, bulk beschikbaar
+function somTekst(s, lvl, tot, aantal){
+  if(!s) return '';
+  const met = lvl !== null && lvl !== undefined, res = s.bulkRes || 0;
+  const bulk = 'bulk heeft ' + nf(s.bulkV) + (res ? ' (' + nf(res) + ' gereserveerd)' : '');
+  if(!met && !res) return 'Pick vrij ' + nf(s.pickVrij) + ', geen aanvulniveau: de app vult niet aan';
+  const nodig = nodigAanvul(s, lvl, tot);
+  if(!nodig) return 'Pick vrij ' + nf(s.pickVrij) + (met ? ', niveau ' + nf(lvl) : '') + (met && s.pickVrij > lvl ? ' (erboven)' : '') + ' → de app vult niet aan';
+  const tot2 = met ? Math.max(tot || 0, lvl) : 0;
+  return 'Pick vrij ' + nf(s.pickVrij) + (met ? ', niveau ' + nf(lvl) + ', aanvullen tot ' + nf(tot2) : '') + (res ? ' + ' + nf(res) + ' gereserveerd op bulk' : '') + ' → aanvullen ' + nf(nodig) + '; ' + bulk + ' → app ' + nf(Math.min(s.bulkV, nodig));
+}
+// hoeveel producten met pick gelijk aan het niveau staan wél in de PDF: Picqer adviseert dus ook bij gelijk
+const gelijkInPdf = () => { const C = vergelijk(ronde()); return C ? C.beide.filter(b => b.a.r && b.pdf.pickst != null && Number(b.pdf.pickst) === Number(b.a.r.lvl)).length : 0; };
+// pick fysiek op het moment van de voorraadlijst (vóór de PDF); null als die er niet is
+function fysToen(c, s){
+  const vr = D.VR && D.VR[c]; if(!vr || !s.pick.length) return null;
+  const t = tijdMs(D.VRDATUM), pdfT = D.ADV ? tijdMs(D.ADV.datum || D.ADV.ingelezen) : null;
+  if(t == null || pdfT == null || t > pdfT) return null;
+  return s.pick.reduce((sum, l) => sum + (vr.locs[l[0]] || 0), 0);
+}
+function bulkToen(c, s){
+  const vr = D.VR && D.VR[c]; if(!vr || !s.bulk.length) return null;
+  return s.bulk.reduce((sum, l) => sum + (vr.locs[l[0]] || 0), 0);
+}
 function redenPdf(x, M){
   const c = x.code, q = niveau(c), lvl = q[0], tot = q[1], pdf = x.pdf || {}, s = stand(c);
   const opMap = opMapTxt(s), pn = niveauPicqer(c);
-  if(pdf.geenPick || (pdf.pick && !pdf.pick.length)) return { r:'Geen picklocatie: hoort bij Voor orders' + (opMap ? ' (' + opMap + ', telt niet als pick)' : '') + (!heeftNiv(q) ? '; geen aanvulniveau in de app' : ''), ok:true };
-  if(!S.cat || !S.cat.ids || !S.cat.ids[c]) return { r:'Geen voorraad meer in het Hoofdmagazijn', ok:true };
-  if(!s) return { r:'Nog geen live stand van dit product: eerst verversen', ok:false };
-  if(!M.vers(c)) return { r:'Stand van ' + standTxt(M.standT(c)) + ' is ouder dan de PDF: eerst verversen', ok:false };
-  if(!s.pick.length) return { r:opMap ? 'Pick staat op een map (' + opMap + '): telt niet als picklocatie' : 'Geen picklocatie meer in Picqer (PDF: ' + (pdf.pick || []).join(', ') + ')', ok:true };
+  if(pdf.geenPick || (pdf.pick && !pdf.pick.length)) return { r:'Geen vaste picklocatie: Picqer adviseert dit voor orders, de app zet het bij Voor orders' + (opMap ? ' (' + opMap + '; een map telt niet als pick)' : '') + (!heeftNiv(q) ? '; de app heeft geen aanvulniveau' : ''), ok:true };
+  if(!S.cat || !S.cat.ids || !S.cat.ids[c]) return { r:'Er is geen voorraad meer in het Hoofdmagazijn', ok:true };
+  if(!s) return { r:'Nog geen stand van dit product: eerst verversen', ok:false };
+  if(!M.vers(c)) return { r:oudTxt(c, M), ok:false };
+  if(!s.pick.length) return { r:opMap ? 'De pick staat op een map (' + opMap + '); een map telt niet als picklocatie' : 'Picqer heeft geen picklocatie meer voor dit product (de PDF noemde ' + (pdf.pick || []).join(', ') + ')', ok:true };
   if(!heeftNiv(q) && !s.bulkRes){
-    if(pn === null) return { r:'Geen aanvulniveau, ook niet in Picqer, en niets op bulk gereserveerd: Picqer adviseert dit voor orders → hoort bij Voor orders', ok:true };
-    return { r:'Geen aanvulniveau in de app; het niveau in Picqer is nog niet opgehaald: eerst verversen', ok:false };
+    if(pn === null) return { r:'Er is geen aanvulniveau, ook niet in Picqer, en niets op bulk gereserveerd: Picqer adviseert dit voor orders, dus het hoort bij Voor orders', ok:true };
+    return { r:'De app heeft geen aanvulniveau en het niveau in Picqer is nog niet opgehaald: eerst verversen', ok:false };
   }
   const n = verschiltNiv(c, lvl, tot);
-  if(n) return { r:'Aanvulniveau verschilt: app ' + nivTxt(lvl, tot) + ', Picqer ' + nivTxt(n[0], n[1]), ok:true };
+  if(n) return { r:'Het aanvulniveau is anders: app ' + nivTxt(lvl, tot) + ', Picqer ' + nivTxt(n[0], n[1]), ok:true };
   if(!nodigAanvul(s, lvl, tot)){
     // de verse stand toont het: nu meer op pick dan in de PDF
-    if(pdf.pickst != null && s.pickFys > pdf.pickst) return { r:'Inmiddels aangevuld: pick toen ' + nf(pdf.pickst) + ', nu ' + nf(s.pickFys) + ' (stand ' + standTxt(M.standT(c)) + ')', ok:true };
-    if(pickVeranderd(pdf, s)) return { r:'Voorraad veranderd sinds de PDF (pick toen ' + nf(pdf.pickst) + ', nu ' + nf(s.pickFys) + ')', ok:true };
-    return { r:'Onverklaard: vrij ' + nf(s.pickVrij) + ' boven het niveau ' + nf(lvl) + ', pick ' + nf(s.pickFys) + ' zoals in de PDF', ok:false };
+    if(pdf.pickst != null && s.pickFys > pdf.pickst) return { r:'Inmiddels aangevuld: pick was ' + nf(pdf.pickst) + ' (PDF), nu ' + nf(s.pickFys) + ' (stand van ' + standTxt(M.standT(c)) + ')', ok:true };
+    if(pickVeranderd(pdf, s)) return { r:'De voorraad is veranderd sinds de PDF: pick was ' + nf(pdf.pickst) + ', nu ' + nf(s.pickFys), ok:true };
+    return { r:'Onverklaard: pick vrij ' + nf(s.pickVrij) + ' ligt boven het niveau ' + nf(lvl) + ' en de pick (' + nf(s.pickFys) + ') is nog zoals in de PDF', ok:false };
   }
   if(!s.bulk.length){
     const bulkPdf = (pdf.bulk || []).filter(Boolean);
-    return { r:bulkPdf.length ? 'Bulk is leeg (PDF noemde nog ' + bulkPdf.slice(0, 2).join(', ') + ')' : 'Onder het niveau, maar geen bulk', ok:true };
+    return { r:bulkPdf.length ? 'Er ligt niets meer op bulk (de PDF noemde nog ' + bulkPdf.slice(0, 2).join(', ') + '): niets om aan te vullen' : 'De pick is onder het niveau, maar er ligt niets op bulk', ok:true };
   }
-  if(!kandidaten().includes(c)) return { r:'Niet in de aanvulronde: pick en bulk niet allebei gekoppeld in de locatie-export', ok:false };
-  return { r:'Onverklaard', ok:false };
+  if(!kandidaten().includes(c)) return { r:'Niet in de aanvulronde: pick en bulk staan niet allebei gekoppeld in de locatielijst', ok:false };
+  return { r:'Onverklaard: de app zou aanvullen maar neemt dit product niet op', ok:false };
 }
+// zonder locatie en retourkar als gewone zin (de Aanvulronde-tab houdt zijn eigen extraTxt)
+const extraVg = s => [s.geen ? nf(s.geen.n) + ' zonder locatie' + (s.geen.bron === 'export' ? ' (telling van ' + standTxt(tijdMs(s.geen.datum)) + ')' : '') : '', s.kar.length ? nf(s.karV) + ' op retourkar ' + s.kar.map(l => l[0]).join(', ') : ''].filter(Boolean).join(' en ');
+const extraZin = (g, kar, st) => [g ? nf(g.n) + ' zonder locatie' + (g.bron === 'export' ? ' (telling van ' + standTxt(tijdMs(g.datum)) + ')' : '') : '', kar ? nf(kar) + ' op retourkar ' + st.kar.map(l => l.n).join(', ') : ''].filter(Boolean).join(' en ');
 function redenLive(a, M){
   const c = a.code;
   if(a.bron === 'orders'){
-    if(M.pdfT == null || M.ordersT == null || M.ordersT < M.pdfT) return { r:'Orders van ' + standTxt(M.ordersT) + ' zijn ouder dan de PDF: eerst verversen', ok:false };
+    if(M.pdfT == null || M.ordersT == null || M.ordersT < M.pdfT) return { r:'De orders van ' + standTxt(M.ordersT) + ' zijn ouder dan de PDF: eerst verversen', ok:false };
     const oudste = tijdMs(a.n.datum);
-    if(oudste != null && oudste > M.pdfT) return { r:'Voor orders: order binnengekomen na de PDF (' + standTxt(oudste) + ')', ok:true };
+    if(oudste != null && oudste > M.pdfT) return { r:'Voor orders: order na de PDF (' + standTxt(oudste) + ')', ok:true };
     // live stand van het product (Picqer live): ligt er genoeg op de retourkar, dan adviseert Picqer niets
     const rij = window.WHLIVE && WHLIVE.rijen ? WHLIVE.rijen().find(x => x.p && x.p.code === c) : null, st = rij && rij.st;
     const kar = st ? st.kar.reduce((t, l) => t + Math.max(0, l.v - (l.r || 0)), 0) : 0;
     const g = geenVan([], c), geen = g ? g.n : 0;
-    const extra = [geen ? nf(geen) + ' zonder locatie (volgens export van ' + standTxt(tijdMs(g.datum)) + ')' : '', kar ? nf(kar) + ' op retourkar ' + st.kar.map(l => l.n).join(', ') : ''].filter(Boolean).join(' en ');
-    if(st && (kar || geen) && st.pickVrij + kar + geen >= a.n.stuks) return { r:'Voor orders: Picqer telt ' + extra + ' als pick, genoeg voor de orders (op de plank ' + nf(st.pickVrij) + '); de app verplaatst wat de orders vragen (' + nf(a.aantal) + ')', ok:true };
-    return { r:'Onverklaard: voor orders (' + nf(a.aantal) + '), niet in de PDF' + (st ? ' (vrij op pick ' + nf(st.pickVrij) + ', bulk ' + nf(st.bulkV) + ')' : ''), ok:false };
+    if(st && (kar || geen) && st.pickVrij + kar + geen >= a.n.stuks) return { r:'Er liggen ' + extraZin(g, kar, st) + '; Picqer telt die als pick en adviseert niets, de app niet (pick op de plank ' + nf(st.pickVrij) + '). De app verplaatst wat de orders vragen: ' + nf(a.aantal), ok:true };
+    return { r:'Onverklaard: de app verplaatst ' + nf(a.aantal) + ' voor orders, Picqer adviseert niets' + (st ? ' (pick vrij ' + nf(st.pickVrij) + ', bulk ' + nf(st.bulkV) + ')' : ''), ok:false };
   }
   const r = a.r, s = r.s;
-  if(!M.vers(c)) return { r:'Stand van ' + standTxt(M.standT(c)) + ' is ouder dan de PDF: eerst verversen', ok:false };
+  if(!M.vers(c)) return { r:oudTxt(c, M), ok:false };
   const n = verschiltNiv(c, r.lvl, r.tot);
-  if(n) return { r:'Aanvulniveau verschilt: app ' + nivTxt(r.lvl, r.tot) + ', Picqer ' + nivTxt(n[0], n[1]), ok:true };
+  if(n) return { r:'Het aanvulniveau is anders: app ' + nivTxt(r.lvl, r.tot) + ', Picqer ' + nivTxt(n[0], n[1]), ok:true };
   // aangetoond gedaald: een stand van ná de PDF stond nog boven het niveau, de nieuwste niet meer
   const v = vorigeStand(c), vT = v ? tijdMs(v.t) : null;
-  if(v && vT >= M.pdfT && !nodigAanvul(v, r.lvl, r.tot)) return { r:'Voorraad gedaald na de PDF: om ' + standTxt(vT) + ' vrij ' + nf(v.pickVrij) + ', nu ' + nf(s.pickVrij) + ' (niveau ' + nf(r.lvl) + ')', ok:true };
-  if(picqerSlaatOver(s, r.lvl, r.tot)) return { r:'Picqer telt ' + extraTxt(s) + ' als pick (pick volgens Picqer ' + nf(s.pqVrij) + ', op de plank ' + nf(s.pickVrij) + ', niveau ' + nf(r.lvl) + ')', ok:true };
-  if(r.lvl != null && s.pickVrij === r.lvl) return { r:'Onverklaard: vrij ' + nf(s.pickVrij) + ' = niveau, niet in de PDF', ok:false };
-  return { r:'Onverklaard: vrij ' + nf(s.pickVrij) + ' onder het niveau ' + nf(r.lvl) + ', bulk ' + nf(s.bulkV) + ', niet in de PDF', ok:false };
+  if(v && vT >= M.pdfT && !nodigAanvul(v, r.lvl, r.tot)) return { r:'De voorraad is gedaald na de PDF: om ' + standTxt(vT) + ' was vrij ' + nf(v.pickVrij) + ', nu ' + nf(s.pickVrij) + ' (niveau ' + nf(r.lvl) + ')', ok:true };
+  if(picqerSlaatOver(s, r.lvl, r.tot)) return { r:'Er liggen ' + extraVg(s) + '; Picqer telt die als pick, de app niet (pick op de plank ' + nf(s.pickVrij) + ', niveau ' + nf(r.lvl) + ')', ok:true };
+  // Picqer rekent met de vrije pick (fysiek min gereserveerd). Lag de pick bij de PDF (export van 17:06) even hoog als nu en stond hij toen
+  // boven het niveau, dan is het advies pas ontstaan doordat er daarna iets voor een order op de pick is gereserveerd
+  const resPick = s.pick.reduce((t, l) => t + (l[5] || 0), 0), toen = fysToen(c, s);
+  if(r.lvl != null && resPick > 0 && s.pickVrij <= r.lvl && s.pickFys > r.lvl && toen !== null && toen === s.pickFys)
+    return { r:'Er is na de PDF ' + nf(resPick) + ' op de pick gereserveerd voor een order: de pick ligt op ' + nf(s.pickFys) + ' (zoals bij de PDF, boven het niveau ' + nf(r.lvl) + ') maar vrij is nu ' + nf(s.pickVrij) + ' = niveau, dus vult de app aan. Picqer rekent ook met vrij en zag bij de PDF nog ' + nf(s.pickFys) + ' vrij', ok:true };
+  if(r.lvl != null && s.pickVrij === r.lvl) return { r:'Onverklaard: pick vrij ' + nf(s.pickVrij) + ' is gelijk aan het niveau en dit product staat niet in de PDF (' + plural(gelijkInPdf(), 'ander product met pick gelijk aan het niveau staat', 'andere producten met pick gelijk aan het niveau staan') + ' wel in de PDF)', ok:false };
+  return { r:'Onverklaard: pick vrij ' + nf(s.pickVrij) + ' onder het niveau ' + nf(r.lvl) + ', bulk ' + nf(s.bulkV) + ', en niet in de PDF', ok:false };
 }
 // in beide, maar een ander aantal
 function redenAantal(b, M){
   const c = b.code, a = b.a, pdf = b.pdf;
   if(Number(pdf.aantal) === Number(a.aantal)) return null;
-  const w = ' (PDF ' + nf(pdf.aantal) + ', app ' + nf(a.aantal) + ')';
-  if(a.bron === 'orders') return { r:'Voor orders: de app verplaatst wat de orders vragen, Picqer vult aan tot het niveau' + w, ok:true };
+  if(a.bron === 'orders') return { r:'Voor orders: de app verplaatst wat de orders vragen (' + nf(a.aantal) + '), Picqer vult aan tot het niveau (' + nf(pdf.aantal) + ')', ok:true };
   const r = a.r, s = r.s;
-  if(!M.vers(c)) return { r:'Stand van ' + standTxt(M.standT(c)) + ' is ouder dan de PDF: eerst verversen' + w, ok:false };
-  if(pickVeranderd(pdf, s)) return { r:'Voorraad veranderd sinds de PDF: pick toen ' + nf(pdf.pickst) + ', nu ' + nf(s.pickFys) + w, ok:true };
+  if(!M.vers(c)) return { r:oudTxt(c, M), ok:false };
+  if(pickVeranderd(pdf, s)) return { r:'De voorraad is veranderd sinds de PDF: pick was ' + nf(pdf.pickst) + ', nu ' + nf(s.pickFys), ok:true };
   const n = verschiltNiv(c, r.lvl, r.tot);
-  if(n) return { r:'Aanvulniveau verschilt: app ' + nivTxt(r.lvl, r.tot) + ', Picqer ' + nivTxt(n[0], n[1]) + w, ok:true };
-  if(a.aantal === s.bulkV && a.aantal < nodigAanvul(s, r.lvl, r.tot)) return { r:'Begrensd door de bulkvoorraad (' + nf(s.bulkV) + ')' + w, ok:true };
-  return { r:'Onverklaard: zelfde pick, ander aantal' + w, ok:false };
+  if(n) return { r:'Het aanvulniveau is anders: app ' + nivTxt(r.lvl, r.tot) + ', Picqer ' + nivTxt(n[0], n[1]), ok:true };
+  // Picqer telt zonder locatie en retourkar als pick: dan is het te vullen aantal kleiner dan de app (die alleen de plank telt)
+  if(s.pqVrij > s.pickVrij){
+    const nPq = nodigAanvul(Object.assign({}, s, { pickVrij:s.pqVrij }), r.lvl, r.tot), verwacht = Math.min(s.bulkV, nPq);
+    if(verwacht === Number(pdf.aantal)) return { r:'Er ligt ' + extraVg(s) + '; Picqer telt dat als pick (' + nf(s.pqVrij) + ' in plaats van ' + nf(s.pickVrij) + ' op de plank) en adviseert ' + nf(pdf.aantal) + ', de app telt alleen de plank en adviseert ' + nf(a.aantal), ok:true };
+  }
+  if(a.aantal === s.bulkV && a.aantal < nodigAanvul(s, r.lvl, r.tot)) return { r:'Er ligt maar ' + nf(s.bulkV) + ' op bulk; de app adviseert nooit meer dan er ligt', ok:true };
+  const d = Number(pdf.aantal) - Number(a.aantal);
+  // niets veranderd in niveau, pick en bulk sinds de PDF en de PDF zit hoger dan de som: de enige term die dan kan verschillen is wat toen op bulk gereserveerd stond
+  if(d > 0 && !s.bulkRes && niveauPicqer(c) !== undefined && fysToen(c, s) === s.pickFys && bulkToen(c, s) === s.bulkV)
+    return { r:'De PDF telde ' + nf(d) + ' meer dan de som. Niveau (' + nivTxt(r.lvl, r.tot) + '), pick (' + nf(s.pickFys) + ') en bulk (' + nf(s.bulkV) + ') zijn sinds de PDF gelijk gebleven, dus dat moet ' + nf(d) + ' stuk(s) zijn dat toen op bulk gereserveerd stond voor een order (Picqer telt dat erbij) en nu niet meer: de order is na de PDF (' + hhmm(M.pdfT) + ') vervallen of aangepast', ok:true };
+  return { r:'Onverklaard: zelfde pick (' + nf(s.pickFys) + ') en niveau, maar de PDF zegt ' + nf(pdf.aantal) + ' en de app ' + nf(a.aantal) + (d > 0 ? '. De PDF zit ' + nf(d) + ' hoger dan de som; dat past bij ' + nf(d) + ' stuks die toen op bulk gereserveerd stonden voor een order en nu niet meer. Dat is uit de gegevens niet meer te bewijzen: verversen en kijken of er nu iets gereserveerd staat' : ''), ok:false };
 }
 function uitleg(R){
   R = R || (S.st && S.st.p ? ronde() : null);
@@ -655,32 +695,48 @@ function tabVst(V){
         <td class="small">${esc(((D.VSTLOC || {})[p.code] || []).slice(0, 6).join(', '))}</td><td class="n">${nf(p.orders.length)}</td></tr>`).join('')}</table></div>
       <div class="small muted mt8">${plural(V.orders.length, 'order wordt', 'orders worden')} compleet met VST.</div>` : '<div class="empty">Geen orders die met VST compleet worden.</div>'}</div>`;
 }
+// één regel per product: Product · Plek · PDF zei · App zegt · Waarom (één zin) met de rekensom eronder
+function vgRegels(U){
+  const C = U.C, M = U.M, uit = [];
+  const naamVan = c => (D.P[c] || {}).naam || '';
+  const plekVan = (s, pdf) => s && s.pick.length ? s.pick[0][0] : (pdf && pdf.pick && pdf.pick[0]) || (s && s.map.length ? s.map[0][0] : '');
+  const aantalTxt = n => n === null || n === undefined ? 'niets' : nf(n);
+  const som = (a, s, lvl, tot, aantal) => a && a.bron === 'orders' ? 'Orders vragen ' + nf(a.n.stuks) + ', de app verplaatst ' + nf(a.aantal) + (s ? '; pick vrij ' + nf(s.pickVrij) + ', bulk ' + nf(s.bulkV) : '')
+    : s ? somTekst(s, lvl, tot, aantal) : '';
+  const red = {}; U.rijen.forEach(r => { red[r.soort + '|' + r.code] = r; });
+  C.alleenPdf.forEach(x => { const r = red['pdf|' + x.code]; if(!r) return; const q = niveau(x.code);
+    uit.push({ code:x.code, label:'alleen in de PDF', plek:plekVan(x.s, x.pdf), pdf:aantalTxt(x.pdf.aantal), app:'niets', r:r.r, ok:r.ok, som:x.s && x.s.pick.length ? somTekst(x.s, q[0], q[1], 0) + '. PDF: pick was ' + nf(x.pdf.pickst) + ', aanvullen ' + nf(x.pdf.aantal) : 'PDF: aanvullen ' + nf(x.pdf.aantal) }); });
+  C.alleenLive.forEach(a => { const r = red['live|' + a.code]; if(!r) return; const s = a.r ? a.r.s : stand(a.code);
+    uit.push({ code:a.code, label:'alleen in de app', plek:plekVan(s, null), pdf:'niets', app:aantalTxt(a.aantal), r:r.r, ok:r.ok, som:som(a, s, a.r ? a.r.lvl : null, a.r ? a.r.tot : null, a.aantal) }); });
+  const gelijk = [];
+  C.beide.forEach(b => { const a = b.a, s = a.r ? a.r.s : stand(b.code), r = red['beide|' + b.code];
+    const regel = { code:b.code, label:a.bron === 'orders' ? 'voor orders' : '', plek:plekVan(s, b.pdf), pdf:aantalTxt(b.pdf.aantal), app:aantalTxt(a.aantal), r:r ? r.r : 'Zelfde aantal', ok:r ? r.ok : true, som:som(a, s, a.r ? a.r.lvl : null, a.r ? a.r.tot : null, a.aantal) };
+    (r ? uit : gelijk).push(regel); });
+  uit.forEach(x => { x.naam = naamVan(x.code); }); gelijk.forEach(x => { x.naam = naamVan(x.code); });
+  return { onv:uit.filter(x => !x.ok), ver:uit.filter(x => x.ok), gelijk };
+}
+const VG_CSS = `<style>.vg-kop,.vg-rij{display:grid;grid-template-columns:minmax(0,1.5fr) 84px 64px 64px minmax(0,4fr);gap:6px 12px;align-items:start}
+.vg-kop{font-size:12px;font-weight:700;color:var(--muted,#6b7a89);padding:4px 0;border-bottom:1px solid var(--line,#d6dde5)}
+.vg-rij{padding:9px 0;border-bottom:1px solid var(--line,#e6ebf0)} .vg-rij .n{text-align:right} .vg-rij .som{color:var(--muted,#55626f);font-size:13px;margin-top:3px}
+.vg-rij .lab{display:none;font-size:11px;color:var(--muted,#6b7a89)}
+@media (max-width:760px){.vg-kop{display:none}.vg-rij{grid-template-columns:1fr 1fr 1fr}.vg-rij .p{grid-column:1/-1}.vg-rij .w{grid-column:1/-1}.vg-rij .n{text-align:left}.vg-rij .lab{display:block}}</style>`;
+function vgRij(x){
+  return `<div class="vg-rij"><div class="p"><span class="code">${esc(x.code)}</span>${x.label ? ` <span class="badge b-grey">${esc(x.label)}</span>` : ''}<div class="desc">${esc(x.naam)}</div></div>
+    <div><span class="lab">Plek</span>${x.plek ? `<span class="loc">${esc(x.plek)}</span>` : '<span class="desc">geen</span>'}</div>
+    <div class="n"><span class="lab">PDF zei</span>${esc(x.pdf)}</div><div class="n"><span class="lab">App zegt</span><b>${esc(x.app)}</b></div>
+    <div class="w">${x.ok ? '' : '<span class="badge b-bad">onverklaard</span> '}${esc(x.r)}${x.som ? `<div class="som">${esc(x.som)}</div>` : ''}</div></div>`;
+}
+const vgLijst = l => `<div class="vg-kop"><div>Product</div><div>Plek</div><div class="n" style="text-align:right">PDF zei</div><div class="n" style="text-align:right">App zegt</div><div>Waarom</div></div>${l.map(vgRij).join('')}`;
 function tabVergelijk(R){
   const U = uitleg(R);
   if(!U) return '<div class="card empty">Geen PDF-advies van Picqer ingeladen om mee te vergelijken (Gegevens → aanvuladvies-PDF).</div>';
-  const C = U.C, M = U.M, red = {}; U.rijen.forEach(r => { red[r.soort + '|' + r.code] = r; });
-  const rd = (soort, code) => { const r = red[soort + '|' + code]; return r ? `<span class="badge ${r.ok ? 'b-grey' : 'b-bad'}">${r.ok ? 'verklaard' : 'onverklaard'}</span> ${esc(r.r)}` : ''; };
-  // leeftijd van de stand per product; ouder dan de PDF = oranje
-  const leeft = (c, bron) => { const t = bron === 'orders' ? M.ordersT : M.standT(c); if(t == null) return '<span class="desc">geen stand</span>';
-    const oud = M.pdfT != null && t < M.pdfT; return `<span class="${oud ? 'badge b-warn' : 'small'}" title="${oud ? 'ouder dan de PDF' : 'na de PDF'}">${esc(standTxt(t))}</span>`; };
-  const bronTxt = a => a.bron === 'orders' ? '<span class="badge b-bad">voor orders</span>' : '<span class="badge b-grey">aanvulronde</span>';
-  const pdfPick = p => esc((p.pick || []).join ? p.pick.join(' ') : p.pick || '');
-  const rijPdf = x => `<tr><td><span class="code">${esc(x.code)}</span></td><td>${x.pdf ? pdfPick(x.pdf) : ''}</td><td class="n">${x.pdf ? nf(x.pdf.pickst) : ''}</td><td class="n">${x.pdf ? nf(x.pdf.aantal) : ''}</td>
-    <td>${x.s ? (x.s.pick.length ? pickLocs(x.s.pick) : '') + (x.s.map.length ? `<div class="desc">op een map: ${locs(x.s.map)}</div>` : '') || '<span class="desc">geen pick</span>' : '<span class="desc">geen live stand</span>'}</td><td>${leeft(x.code)}</td><td class="small">${rd('pdf', x.code)}</td></tr>`;
-  const rijBeide = b => { const a = b.a, s = a.r ? a.r.s : stand(b.code), af = Number(b.pdf.aantal) !== Number(a.aantal);
-    return `<tr${af ? ' style="background:#fff1dc"' : ''}><td><span class="code">${esc(b.code)}</span></td><td>${bronTxt(a)}</td><td class="n">${nf(b.pdf.pickst)} → ${s ? nf(s.pickFys) : '–'}${s && s.pickFys !== s.pickVrij ? `<div class="desc">vrij ${nf(s.pickVrij)}</div>` : ''}</td>
-      <td class="n">${nf(b.pdf.aantal)}</td><td class="n"><b>${nf(a.aantal)}</b>${af ? ' <span class="badge b-warn">anders</span>' : ''}</td><td>${leeft(b.code, a.bron)}</td><td class="small">${af ? rd('beide', b.code) : ''}</td></tr>`; };
-  const rijLive = a => { const r = a.r, s = r ? r.s : stand(a.code);
-    return `<tr><td><span class="code">${esc(a.code)}</span></td><td>${bronTxt(a)}</td><td>${s ? pickLocs(s.pick) + (s.pqVrij !== s.pickVrij ? `<div class="desc">volgens Picqer ${nf(s.pqVrij)} (${esc(extraTxt(s))})</div>` : '') : ''}</td><td class="n">${r ? nivTxt(r.lvl, r.tot) : ''}</td><td class="n">${nf(a.aantal)}</td><td>${leeft(a.code, a.bron)}</td><td class="small">${rd('live', a.code)}</td></tr>`; };
-  const nAnders = C.beide.filter(b => Number(b.pdf.aantal) !== Number(b.a.aantal)).length;
-  return `<div class="card"><h3>Vergelijk met het PDF-advies van Picqer</h3><div class="small muted">PDF van ${esc(tijdTxt(C.datum))} (${nf(C.nPdf)} regels) tegen wat de app adviseert: Voor orders + Aanvulronde. Per product de tijd van de stand; vergelijken telt pas als elke stand van ná de PDF is. Alleen onverklaarde verschillen zijn werk.</div>
+  const C = U.C, V = vgRegels(U);
+  return `${VG_CSS}<div class="card" id="vg"><h3>Vergelijk met het PDF-advies van Picqer</h3><div class="small muted">PDF van ${esc(tijdTxt(C.datum))} (${nf(C.nPdf)} regels) tegen wat de app adviseert (Voor orders + Aanvulronde). Bij elk verschil staat de reden in één zin en de rekensom eronder, zodat je ziet wie gelijk heeft.</div>
     ${U.teOud ? `<div class="status mt8 row wrap between" style="gap:8px;background:#fff1dc;color:#7a4b00;padding:8px 10px;border-radius:8px"><b>${esc(U.teOud)}</b>${S.bezig ? `<span class="small">${esc(S.stap || 'Bezig…')}</span>` : '<button class="btn pri sm" data-al="ververs-pdf">Live stand nu verversen</button>'}</div>` : ''}
     <div class="mt12"><b style="font-size:17px">${plural(U.verschillen, 'verschil', 'verschillen')} · ${nf(U.verklaard)} verklaard · ${nf(U.onverklaard)} onverklaard</b>${U.teOud ? ' <span class="badge b-warn">voorlopig</span>' : ''}</div>
-    <div class="tiles mt12"><div class="tile t-ok"><div class="lbl">In beide</div><div class="big">${nf(C.beide.length)}</div>${nAnders ? `<div class="sub">${nf(nAnders)} met ander aantal</div>` : ''}</div>
-      <div class="tile t-warn"><div class="lbl">Alleen in PDF</div><div class="big">${nf(C.alleenPdf.length)}</div></div><div class="tile t-info"><div class="lbl">Alleen live</div><div class="big">${nf(C.alleenLive.length)}</div></div></div>
-    ${C.beide.length ? `<details class="mt12"${nAnders ? ' open' : ''}><summary>In beide: aantal PDF ↔ app (${C.beide.length})</summary><div class="scroll mt8"><table><tr><th>Product</th><th>In de app</th><th class="n">Pick PDF → nu (fysiek)</th><th class="n">PDF</th><th class="n">App</th><th>Stand</th><th>Reden</th></tr>${C.beide.map(rijBeide).join('')}</table></div></details>` : ''}
-    ${C.alleenPdf.length ? `<details class="mt12" open><summary>Alleen in PDF (${C.alleenPdf.length})</summary><div class="scroll mt8"><table><tr><th>Product</th><th>Pick (PDF)</th><th class="n">Pickvrd PDF</th><th class="n">Aantal PDF</th><th>Pick nu (vrij)</th><th>Stand</th><th>Reden</th></tr>${C.alleenPdf.map(rijPdf).join('')}</table></div></details>` : ''}
-    ${C.alleenLive.length ? `<details class="mt12" open><summary>Alleen live (${C.alleenLive.length})</summary><div class="scroll mt8"><table><tr><th>Product</th><th>In de app</th><th>Pick (vrij)</th><th class="n">Onder / tot</th><th class="n">Aanvullen</th><th>Stand</th><th>Reden</th></tr>${C.alleenLive.map(rijLive).join('')}</table></div></details>` : ''}</div>`;
+    ${V.onv.length ? `<h4 class="mt12">Onverklaard (${nf(V.onv.length)})</h4>${vgLijst(V.onv)}` : ''}
+    ${V.ver.length ? `<h4 class="mt12">Verklaard (${nf(V.ver.length)})</h4>${vgLijst(V.ver)}` : ''}
+    ${V.gelijk.length ? `<details class="mt12"><summary>${nf(V.gelijk.length)} gelijk</summary>${vgLijst(V.gelijk)}</details>` : ''}</div>`;
 }
 
 let TAB = 'ronde';
