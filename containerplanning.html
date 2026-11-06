@@ -1453,6 +1453,9 @@ function koppelMaat(r, lev){
   let k = maatIndex().filter(x => Math.abs(x.mm - m.mm) < 0.01 && Math.abs(x.b - m.b) <= 1 && x.lc.includes(m.soort) && (P[x.code] || {}).actief !== false
     && !(m.soort === 'diamant' && x.lc.includes('mini diamant')) && !MAAT_EXTRA.some(q => x.lc.includes(q) && !txt.includes(q.trim())) && !/^outlet/i.test(x.code)
     && (x.perMeter || x.l == null || m.l == null || Math.abs(x.l - m.l) < 0.05));
+  const zelfde = ALIAS.filter(a => a.leverancier === lev && P[a.productcode]).filter(a => { const am = maatUit(a.pakbon_tekst || ''); return am && am.soort === m.soort && am.mm === m.mm && am.b === m.b && (am.l == null || m.l == null || Math.abs(am.l - m.l) < 0.05); });
+  const zp = [...new Set(zelfde.map(a => a.productcode))];
+  if(zp.length === 1) return { codes:zp, factor:num(zelfde[0].factor) || 1, reden:'geleerd van een eerdere container van ' + levKort(lev) + ' (zelfde maat en soort)' };
   if(!k.length) return null;
   let reden = 'maat gelijk: ' + nf(m.mm, 1) + ' mm × ' + m.b + ' cm' + (m.l ? ' × ' + nf(m.l, 2) + ' m' : '') + ', ' + m.soort.toUpperCase();
   const eerder = geleverdDoor(lev), h = k.filter(x => eerder.has(x.code));
@@ -2973,9 +2976,10 @@ function pakbonControle(c){
     : heeft ? 'Pakbon klopt: ' + (pb.totaal_stuks != null ? nf(pb.totaal_stuks) + ' ' + woord : nf(pb.totaal_eenheden) + ' colli') + ', ' + plural(R.length, 'regel', 'regels') : '';
   return { heeft, ok:!mis.length, akkoord:!!pb.afwijking_akkoord, mis, tekst, stuks:st, colli:ee, regels:R.length };
 }
-const pakbonBlokkeert = c => { const k = pakbonControle(c); return !k.ok && !k.akkoord; };
+// blokkeert alleen een container waarvan de verdeling nog niet begonnen is; een container met al bevestigde verdelingen wordt niet achteraf op slot gezet (wel de rode melding)
+const pakbonBlokkeert = c => { const k = pakbonControle(c); return !k.ok && !k.akkoord && !Object.values(c.data.verdeling || {}).some(v => v && v.bevestigd); };
 // een onbekende regel zonder enige kandidaat is een nieuw product: dat gaat naar Daan/Gino, niet naar Karin
-const isNieuwProduct = (c, r) => !r.productcode && !r.geenVoorraad && !(r.kandidaten || []).length && !kandidaten(r, c.leverancier, 1).length;
+const isNieuwProduct = (c, r) => !r.productcode && !r.geenVoorraad && (r.koppel_leeg || (!(r.kandidaten || []).length && !kandidaten(r, c.leverancier, 1).length));
 // wat alleen Daan kan oplossen: nieuwe producten en ontbrekende productgegevens (omrekening, gewicht, palletdata, vloernaam), met wat de pakbon al weet als voorstel
 function voorDaan(c, pl){
   const L = [];
@@ -3019,6 +3023,10 @@ function statusBalk(c, g){
 function viewVoorDaan(){
   const open = CONT.filter(c => c.status !== 'afgerond' && (c.data.regels || []).length);
   const L = []; open.forEach(c => voorDaan(c).forEach(x => L.push(x)));
+  const grens = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
+  CONT.filter(c => c.status === 'afgerond' && (c.losdatum || '') >= grens).forEach(c => {
+    pools(c).order.forEach(code => { const v = c.data.verdeling[code]; if(!(v && v.porties && v.porties.length) && !lossenIngevuld(code)) L.push({ c, code, reden:'bleef bij lossen bepalen (gelost ' + fdate(c.losdatum, { day:'numeric', month:'short' }) + '): palletgegevens na het lossen één keer invullen', voorstel:'' }); });
+  });
   app.innerHTML = `<a href="#/" class="backlink">← Alle containers</a>
     <div class="card"><h2>Voor Daan <span class="badge ${L.length ? 'b-warn' : 'b-ok'}">${L.length}</span></h2>
     <p class="small muted mt8">Alleen wat Karin niet kan oplossen: nieuwe producten en ontbrekende productgegevens. Tot het is ingevuld staat het product op "bij lossen bepalen". Wat de pakbon al weet staat erbij als voorstel (niet opgeslagen).</p>

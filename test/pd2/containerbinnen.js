@@ -29,6 +29,7 @@ const rest = (P, code) => P.evaluate(c => { const k = document.getElementById('v
 (async () => {
   // 1. RP0100: opslagpallet 15
   let T = await open('#/c/8/pakbon', { RP0100:15, RPNBR0300:15, '01010300':150, __vd:1 }), P = T.p;
+  await P.evaluate(() => { const d = document.getElementById('voordaan'); if(d) d.open = true; });   // productgegevens staan sinds 06-11 ingeklapt onder "voor Daan"
   let t = await P.evaluate(() => { const k = [...document.querySelectorAll('.vcard')].find(x => x.innerText.includes('RP0100') && /Binnen/.test(x.innerText)); return k ? k.innerText.replace(/\s+/g, ' ') : ''; });
   check('Pakbonstap RP0100: toont "30 … los", geen "zelf opgebouwd"', /Binnen: 30 .*30 .*los/.test(t) && !/zelf opgebouwd/.test(document_text(t)), t);
   check('Pakbonstap: geen "zelf opgebouwd" op de hele pagina', !(await P.evaluate(() => /zelf opgebouwd/.test(document.body.innerText))));

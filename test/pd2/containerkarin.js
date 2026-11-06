@@ -70,6 +70,17 @@ const PAKBONNEN = [
   if(gwk.p.RP0100) check('Great Wall "1mm x1.4m x 10m SBR" → RP0100 (zeker)', /^RP0100\|maat\|true/.test(gwk.sbr1), gwk.sbr1);
   if(gwk.p.RP0200) check('Great Wall "2mm" → RP0200 (zeker)', /^RP0200\|maat\|true/.test(gwk.sbr2), gwk.sbr2);
   if(gwk.p.RPNBR0300) check('Great Wall "3mm x1.4m NBR" → RPNBR0300 (zeker)', /^RPNBR0300\|maat\|true/.test(gwk.nbr3), gwk.nbr3);
+  // 2b. geleerd van Great Wall container 8: elke bevestigde regel heeft een alias; een iets andere tekst met dezelfde maat koppelt via die alias
+  const c8 = await P.evaluate(() => { const X = CP_TEST, c = X.cont().find(c => c.id === 8); if(!c) return null; const al = X.alias(), n = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const zonder = c.data.regels.filter(r => r.bevestigd && !al.some(a => a.leverancier === c.leverancier && a.pakbon_code === n(r.pakbon_code) && a.productcode === r.productcode)).map(r => r.pakbon_code);
+    const v = X.koppel({ pakbon_code:'Willow rubber sheet black 3mm x 1.5m x 10m', omschrijving:'', totaal:1, per:1, aantal:1 }, c.leverancier);
+    return { zonder, v:[v.productcode, v.match, v.bevestigd, v.factor].join('|') }; });
+  if(c8){ check('container 8: elke bevestigde regel heeft een geleerde alias', c8.zonder.length === 0, c8.zonder.join(', '));
+    check('Great Wall: andere tekst, zelfde maat → geleerde koppeling (RTDIAM0315, factor 10)', /^RTDIAM0315\|maat\|true\|10$/.test(c8.v), c8.v); }
+  await P.evaluate(() => { location.hash = '#/voordaan'; }); await P.waitForTimeout(1500);
+  const vdl = await P.evaluate(() => document.body.innerText);
+  check('Voor Daan toont producten die bij een geloste container op bij lossen bepalen bleven', /bleef bij lossen bepalen/.test(vdl) || !/GW2026-BH013/.test(vdl), (vdl.match(/.{0,60}bleef bij lossen.{0,60}/) || [''])[0]);
+  await P.evaluate(() => { location.hash = '#/'; }); await P.waitForTimeout(1500);
   // 3. onbekend product → Voor Daan, niet bij Karin
   const vd = await P.evaluate(() => {
     const X = CP_TEST, c = X.ensureData({ id:-77, leverancier:'Testleverancier zonder aliassen', status:'concept', data:{ regels:[{ id:'q1', pakbon_code:'ZQXW-PLORK', omschrijving:'qzxw vbnm', totaal:5, per:1, aantal:5, soort:'los', factor:1, productcode:'', match:'onbekend', bevestigd:false }] } });
