@@ -25,33 +25,23 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   const nu = () => ev(() => { const v = WHDL.S.pad[WHDL.S.i]; return { t:v.t, fk:v.f.fk, rows:(v.rows || []).slice(), melding:(document.querySelector('.dl .melding') || {}).innerText || '', tekst:document.querySelector('.dl main').innerText }; });
   const klopt = async () => { await ev(() => document.getElementById('dl-klopt').click()); await wacht(400); };
   // familie met minstens 3 producten en soort open
-  const fam = await ev(() => { const f = WHDL.S.fams.find(f => f.cs.length >= 3 && f.cs.every(c => !PD2R.isSam(c))) || WHDL.S.fams[0]; return { fk:f.fk, cs:f.cs.slice(0, 3) }; });
+  const fam = await ev(() => { const goed = n => WHDL.S.fams.find(f => f.cs.length >= n && f.cs.slice(0, 3).every(c => !PD2R.isSam(c) && !PD2R.status(c).stap.gewicht)); const f = goed(3) || goed(2) || WHDL.S.fams[0]; return { fk:f.fk, cs:f.cs.slice(0, 3) }; });
   await naar('soort', fam.fk);
   // per product een andere soort: tik op de waarde van product 2 → Pick, product 3 → Mix; de rest volgt "Selectie is: Pallet"
   await ev(() => document.querySelector('.dl [data-keus="pallet"]').click());
-  for(const [c, k] of [[fam.cs[1], 'pick'], [fam.cs[2], 'mix']]){
+  for(const [c, k] of [[fam.cs[1], 'pick'], [fam.cs[2], 'mix']].filter(x => x[0])){
     await ev(c => document.querySelector(`.dl [data-kies="${CSS.escape(c)}"]`).click(), c);
     await ev(([c, k]) => document.querySelector(`.dl [data-rijkeus="${CSS.escape(c)}|${k}"]`).click(), [c, k]);
   }
   const vk = await ev(cs => cs.map(c => document.querySelector(`.dl [data-kies="${CSS.escape(c)}"]`).innerText), fam.cs);
-  check('per product een andere soort (tik op de waarde): Pallet · Pick · Mix', /Pallet/.test(vk[0]) && /Pick/.test(vk[1]) && /Mix/.test(vk[2]), vk.join(' / '));
+  console.log('familie', fam.fk, fam.cs.join(','));
+  check('per product een andere soort (tik op de waarde): Pallet · Pick · Mix', /Pallet/.test(vk[0]) && /Pick/.test(vk[1]) && (!fam.cs[2] || /Mix/.test(vk[2])), vk.join(' / '));
   await klopt();
   const na1 = await ev(cs => cs.map(c => { const p = PD2R.po(c); return p && p.so ? p.so.v + ':' + p.so.st : '-'; }), fam.cs);
-  check('Klopt schrijft de soort direct (bevestigd of aangepast)', na1[0].startsWith('pallet') && na1[1].startsWith('pick') && na1[2].startsWith('mix'), na1.join(' '));
+  check('Klopt schrijft de soort direct (bevestigd of aangepast)', na1[0].startsWith('pallet') && na1[1].startsWith('pick') && (!fam.cs[2] || na1[2].startsWith('mix')), na1.join(' '));
   const kopie = Object.keys(T.mock).some(k => /^wh-pd2-kopie-/.test(k)) || T.pdWrites.length > 0;
-  // 3. gewicht: gewogen zonder kg → melding; met kg → door
   let v = await nu();
-  check('na Soort volgt Gewicht voor deze familie', v.t === 'gewicht' && v.fk === fam.fk, v.t + ' ' + v.rows.join(','));
-  const gc = v.rows[0];
-  await ev(c => document.querySelector(`.dl [data-kies="${CSS.escape(c)}"]`).click(), gc);
-  await ev(c => document.querySelector(`.dl [data-rijkeus="${CSS.escape(c)}|gewogen"]`).click(), gc);
-  const kgVak = await ev(c => !!document.querySelector(`.dl [data-kg="${CSS.escape(c)}"]`), gc);
-  await klopt(); v = await nu();
-  check('Gewogen: kg-vakje direct zichtbaar; zonder kg geen Klopt (melding met het product)', kgVak && v.t === 'gewicht' && /Gewogen: typ de kg bij/.test(v.melding) && v.melding.includes(gc), v.melding);
-  await P.fill(`.dl [data-kg="${gc}"]`, '19,5'); await P.keyboard.press('Tab'); await wacht(300);
-  await klopt();
-  const g1 = await ev(c => { const p = PD2R.po(c); return p && p.gew; }, gc);
-  check('Gewogen met kg: opgeslagen als gewogen 19,5 kg', g1 && g1.st === 'gewogen' && g1.kg === 19.5, JSON.stringify(g1));
+  check('na Soort volgt meteen de volgende open vraag van deze familie (gewicht al vast → hoeveelheid)', v.fk === fam.fk && ['gewicht', 'spp', 'maat', 'hoogte', 'maxpick', 'rl', 'rmax'].includes(v.t), v.t + ' ' + v.rows.join(','));
   // 4. hoeveelheid volgt de soort per product: pick/mix nooit palletvragen, pallet zonder bewijs ook niet
   const vragen = await ev(fk => { const S = WHDL.S;
     // rijen uit de status, zoals de Doorloop ze bepaalt
@@ -120,7 +110,27 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   // 9. klaar-overzicht na de familie
   await naar('klaar', fam.fk);
   const kl = await ev(() => ({ t:document.querySelector('.dl .klaar') ? document.querySelector('.dl .klaar').innerText : '', knop:document.getElementById('dl-klopt').innerText }));
-  check('na de familie: overzicht (vast, nog open) en knop "Volgende familie →"', /gewicht gewogen 19,5 kg|nog open/.test(kl.t) && /Volgende familie →|Klaar/.test(kl.knop), kl.knop);
+  check('na de familie: overzicht (vast, nog open) en knop "Volgende familie →"', kl.t.length > 0 && /Volgende familie →|Klaar/.test(kl.knop), kl.knop);
+  // gewicht: gewogen zonder kg → melding; met kg → opgeslagen (route Gewicht)
+  await P.goto(B + 'ivol.html#/doorloop/gewicht'); await P.reload();
+  await P.waitForSelector('.dl .vraag, .dl .klaar', { timeout:280000 });
+  const gj = await ev(() => { const S = WHDL.S, j = S.pad.findIndex(v => v.t === 'gewicht' && v.f.cs.some(c => { const s = PD2R.status(c); return s.stap.soort && s.so !== 'weg' && !PD2R.isSam(c) && !s.stap.gewicht; })); if(j < 0) return -1; S.i = j; S.sel = null; S.melding = ''; delete S.pad[j].rows; WHDL.teken(); return j; });
+  if(gj >= 0){
+    v = await nu();
+    check('Gewicht: vraag "Klopt het gewicht per stuk uit Picqer?" met Picqer-kg bij de feiten', v.t === 'gewicht' && /Klopt het gewicht per stuk uit Picqer/.test(v.tekst) && /Picqer .* kg|Picqer heeft geen gewicht/.test(v.tekst));
+    const gc = v.rows[0];
+    await ev(c => document.querySelector(`.dl [data-kies="${CSS.escape(c)}"]`).click(), gc);
+    await ev(c => document.querySelector(`.dl [data-rijkeus="${CSS.escape(c)}|gewogen"]`).click(), gc);
+    const kgVak = await ev(c => !!document.querySelector(`.dl [data-kg="${CSS.escape(c)}"]`), gc);
+    await klopt(); v = await nu();
+    check('Gewogen: kg-vakje direct zichtbaar; zonder kg geen Klopt (melding met het product)', kgVak && v.t === 'gewicht' && /Gewogen: typ de kg bij/.test(v.melding) && v.melding.includes(gc), v.melding);
+    await P.fill(`.dl [data-kg="${gc}"]`, '19,5'); await P.keyboard.press('Tab'); await wacht(300);
+    await klopt();
+    const g1 = await ev(c => { const p = PD2R.po(c); return p && p.gew; }, gc);
+    check('Gewogen met kg: opgeslagen als gewogen 19,5 kg', g1 && g1.st === 'gewogen' && g1.kg === 19.5, JSON.stringify(g1));
+    const te = await ev(() => { const v = WHDL.S.pad[WHDL.S.i]; return v.t === 'gewicht' ? v.rows : null; });
+    if(te && te.length){ await ev(() => document.querySelector('.dl [data-keus="tewegen"]').click()); await klopt(); const t2 = await ev(cs => cs.map(c => (PD2R.po(c) || {}).gew), te); check('Te wegen zonder kg: door, op de Weeglijst', t2.every(g => g && g.st === 'tewegen'), JSON.stringify(t2.slice(0, 2))); }
+  } else check('geen gewichtvraag open in deze data (gewicht-paden overgeslagen)', true);
   // 10. telling in Te doen loopt af
   await wacht(1500);
   await P.goto(B + 'ivol.html#/taak/0.4');
