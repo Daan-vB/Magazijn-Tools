@@ -70,6 +70,7 @@ const M = [
   { id:'productdata', g:'prod', t:'Productdata', u:T('#/productdata'), st:'proef', r:DV, data:'producten, catalog-ean', uit:'Afdelingen doorlopen, automatisch invullen, importeren.' },
   { id:'pdfamilie', g:'prod', t:'Per familie', u:T('#/productdata/familie'), st:'proef', r:DV, data:'productdata, wh-pd-fam, wh-inkoop, wh-verplaatsingen', uit:'Een hele familie in één keer: familie, maatgroep, product, met voorraad per locatie, inkoop en backorders per product.' },
   { id:'pd2', g:'prod', t:'Productdata 2.0', native:'pd2', st:'proef', r:DV, data:'productdata (schrijft met bron pd2, vooraf een kopie in wh-pd2-kopie-*), wh-pd2-oefen, wh-pd2-feedback (lezen: wh-pd-fam, wh-inkoop, wh-verplaatsingen, wh-locaties)', uit:'Productdata per familie, maat en product: voorstellen met reden, Klopt of aanpassen; gaat direct naar productdata. Met het oefenkaartje aan alleen naar een oefenkopie.' },
+  { id:'doorloop', g:'prod', t:'Doorloop', native:'doorloop', st:'proef', r:DV, data:'productdata (schrijft via Productdata 2.0, bron pd2, vooraf een kopie), wh-palletmaten, wh-pd2-feedback', uit:'De open vragen van Te doen invullen: één vraag per scherm, per familie.' },
   { id:'gelijk', g:'prod', t:'Gelijkzetten', u:T('#/productdata/gelijk'), st:'proef', r:DV, data:'productdata, catalog-ean, producten', uit:'Productdata naar Palletlabels en Containers zetten.' },
   { id:'soorten', g:'prod', t:'Soorten', u:T('#/productdata/soort'), st:'proef', r:DV, data:'opslag', uit:'1 pallet · 2 deel · 3 mix · 4 pick · 5 rol alleen backorder.' },
   { id:'productkaart', g:'prod', t:'Productkaart', u:'./productkaart.html', st:'draait', r:DK, data:'catalog-ean, producten', uit:'Alles over één product.' },
@@ -161,6 +162,15 @@ const zijAria = () => $('menuknop').setAttribute('aria-expanded', String(zijOpen
 zijAria();
 try{ window.matchMedia('(max-width:820px)').addEventListener('change', zijAria); }catch(e){}
 
+// Doorloop (wh/doorloop.js) pas laden als hij geopend wordt, altijd de nieuwste versie
+let dlP = null;
+function laadDoorloop(){
+  if(window.WHDL) return Promise.resolve();
+  if(!dlP) dlP = fetch('wh/doorloop.js', { cache:'no-cache' }).then(r => { if(!r.ok) throw new Error('status ' + r.status); return r.text(); })
+    .then(t => { const s = document.createElement('script'); s.textContent = t + '\n//# sourceURL=wh/doorloop.js'; document.body.appendChild(s); })
+    .catch(e => { dlP = null; console.error(e); $('native').innerHTML = '<div class="pagina"><div class="melding">Doorloop laden lukte niet: ' + (e.message || e) + '</div></div>'; });
+  return dlP;
+}
 /* ---------- inhoud ---------- */
 let frameUrl = null;
 function toon(){
@@ -175,6 +185,7 @@ function toon(){
     else if(m.native === 'kennisbank' && window.WHKB){ WHKB.render(nat); nat.scrollTop = 0; return; }
     else if(m.native === 'ryan' && window.WHKB){ WHKB.renderRyan(nat); nat.scrollTop = 0; return; }
     else if(m.native === 'pd2' && window.WHPD2){ WHPD2.render(nat, UI.rest); nat.scrollTop = 0; return; }
+    else if(m.native === 'doorloop'){ laadDoorloop().then(() => { if(huidig().native === 'doorloop' && window.WHDL) WHDL.render(nat, UI.rest); }); nat.scrollTop = 0; return; }
     else if(/^x-/.test(m.native) && window.WHX){ WHX.render(m.native.slice(2), nat, UI.rest); nat.scrollTop = 0; return; }
     else { nat.innerHTML = m.native === 'kaart' ? viewKaart() : m.native === 'bronnen' ? viewBronnen() : m.native === 'naslag' ? viewNaslag() : viewFundament(); nat.scrollTop = 0; }
     if(m.native === 'naslag') laadNaslag();

@@ -93,7 +93,7 @@ function lagenBlok(d){
   const W = PD2R.wachtOp(d.P.bel);
   return `<ul class="nog">${['soort', 'gewicht', 'hoev'].map(k => { const w = W[k];
     return `<li><span class="nt"><b>${esc(PD2R.STAPNAAM[k])}: ${nf(w.open)} open</b><span class="muted klein">${nf(w.bewezen.length)} met bewezen voorstel (één tik) · ${nf(w.vraag.length)} echte vraag aan jou</span></span>`
-      + `${w.bewezen.length ? knop('0.4', '#/pd2/voorstel/' + k, 'Bevestigen', true) : ''}${w.vraag.length ? knop('0.4', '#/pd2/stap/' + k, 'Vragen') : ''}</li>`; }).join('')}</ul>`;
+      + `${w.bewezen.length ? knop('0.4', '#/pd2/voorstel/' + k, 'Bevestigen', true) : ''}${w.vraag.length ? knop('0.4', '#/doorloop/' + k, 'Invullen') : ''}</li>`; }).join('')}</ul>`;
 }
 function nodig04(id){
   if(PD.fout) return `<div class="melding">Productdata laden lukte niet: ${esc(PD.fout.message || String(PD.fout))}</div>`;
@@ -103,7 +103,7 @@ function nodig04(id){
   if(window.PD2R && PD2R.S && PD2R.S.klaar && PD2R.telStap) it.forEach((x, i) => { if(x.pd2 && i >= 3 && i < 6){ const v = PD2R.telStap(d.P.bel, PD2STAP[i - 3]); x.u = nf(v.vol) + ' van ' + nf(v.tot) + ' compleet · ' + nf(v.velden) + ' velden open'; } });
   const nGroen = it.filter(x => x.ok).length;
   // alles gaat naar Productdata 2.0 (31-10); alleen de steekproef woont nog op de oude poortpagina, de vloernaam in Vloernamen
-  const link = (x, i) => i === 2 ? dubbelLink() : x.steek ? '#/productdata/poort' : x.pd2 && i >= 3 && i < 6 ? '#/pd2/stap/' + PD2STAP[i - 3] : '#/pd2/open';
+  const link = (x, i) => i === 2 ? dubbelLink() : x.steek ? '#/productdata/poort' : x.pd2 && i >= 3 && i < 6 ? '#/doorloop/' + PD2STAP[i - 3] : '#/pd2/open';
   const knopT = (x, i) => i === 1 ? 'Overzetten' : i === 2 ? 'Kiezen' : x.laag || x.pd2 ? 'Invullen' : x.steek ? 'Steekproef' : 'Bekijken';
   const regels = it.map((x, i) => x.ok ? '' : `<li><span class="nt"><b>${esc(x.t)}</b><span class="muted klein">${esc(x.u || '')}</span></span>${i === 1 ? `<button class="knop" data-a="pd-overzet">${esc((x.u || '').match(/\d+/) ? 'Zet ' + (x.u.match(/\d+/) || [''])[0] + ' waarden over' : 'Overzetten')}</button>` : x.steek && !x.kan ? '<span class="knop" aria-disabled="true" style="opacity:.55;cursor:not-allowed">Kan als laag 1–3 klaar zijn</span>' : knop(id, link(x, i), knopT(x, i))}</li>`).join('');
   const later = BP.inst('poortLaterMee') !== false;

@@ -143,6 +143,7 @@ function laad(vers){
       if(P().S.fout) throw P().S.fout;
       if(window.WHAL && !WHAL.S.geladen) await WHAL.laadOpslag().catch(() => {});
       await haalEigen();
+      await haalMaten();
       S.idx = null; dataVers(); S.ver++; S.klaar = true; S.uitSnap = null; S.bijgewerkt = Date.now(); S.fout = null; S.achterFout = null;
       try{ herstel(); }catch(e){ console.error(e); }
       setTimeout(() => snapSchrijf().catch(() => {}), 2000);
@@ -463,7 +464,31 @@ function vastPd(c, k){
 }
 
 /* ---------- velden ---------- */
-const MATEN = ['80x120', '90x120', '100x100', '100x150', '110x110', '120x150', '120x180', '100x200', '120x200', '120x240'];
+// MATEN_REGEL: de maten waar de regels (voorstellen) mee rekenen, ongewijzigd. MATEN: wat Daan te kiezen krijgt (Doorloop en Productdata 2.0):
+// de hele lijst vaste opslagmaten (OPSLAG uit productdata) plus Daans eigen maten uit catalog-rij wh-palletmaten (CLAUDE.md §5)
+const MATEN_REGEL = ['80x120', '90x120', '100x100', '100x150', '110x110', '120x150', '120x180', '100x200', '120x200', '120x240'];
+const OPSLAG_MATEN = ['80x120', '90x120', '100x100', '100x120', '90x150', '100x150', '110x110', '120x150', '120x180', '100x200', '120x200', '120x240'];
+const MATEN = OPSLAG_MATEN.slice(), EIGEN_MATEN = [];
+const KEY_MATEN = 'wh-palletmaten';
+const maatSleutel = m => { const x = String(m || '').replace(/,/g, '.').match(/(\d+)\s*[x×*]\s*(\d+)/i); return x ? x[1] + 'x' + x[2] : null; };
+function zetEigenMaten(l){
+  EIGEN_MATEN.length = 0; (l || []).map(maatSleutel).filter(Boolean).forEach(m => { if(!EIGEN_MATEN.includes(m)) EIGEN_MATEN.push(m); });
+  MATEN.length = 0; OPSLAG_MATEN.concat(EIGEN_MATEN.filter(m => !OPSLAG_MATEN.includes(m) && !MATEN_WB.includes(m))).forEach(m => MATEN.push(m));
+}
+async function haalMaten(){ try{ const r = await WH.catHaal(KEY_MATEN); zetEigenMaten(r && r.data && r.data.maten); }catch(e){ console.error(e); } }
+// de hele keuzelijst voor een product: vaste maten, whiteboardmaten bij whiteboards, en Daans eigen maten
+const matenVoor = c => MATEN.concat(isWB(c) || /whiteboard|^fwb/i.test(naamVan(c) + ' ' + c) ? MATEN_WB : []).concat(EIGEN_MATEN.filter(m => MATEN_WB.includes(m) && !(isWB(c) || /whiteboard|^fwb/i.test(naamVan(c) + ' ' + c))));
+// nieuwe maat meteen bewaren (vooraf een kopie van de rij in wh-palletmaten-kopie-<datum>)
+async function voegMaatToe(m){
+  m = maatSleutel(m); if(!m) return null;
+  if(OPSLAG_MATEN.includes(m) || MATEN_WB.includes(m) || EIGEN_MATEN.includes(m)) return m;
+  const oud = await WH.catHaal(KEY_MATEN).catch(() => null), had = (oud && oud.data && oud.data.maten) || [];
+  await WH.catZet(KEY_MATEN + '-kopie-' + isoDag(), { maten:had, op:new Date().toISOString() });
+  const nieuw = [...new Set(had.map(maatSleutel).filter(Boolean).concat(m))];
+  await WH.catZet(KEY_MATEN, { maten:nieuw, op:new Date().toISOString() });
+  zetEigenMaten(nieuw); S.ver++;
+  return m;
+}
 const MATEN_WB = ['120x210', '130x210', '130x250'];
 const VERP = ['doos', 'omdoos', 'bundel', 'pak', 'rol', 'los', 'wisselend', 'nvt'];
 const PICKC = [['klopt', 'klopt'], ['anders', 'moet anders'], ['moetpick', 'moet pick krijgen'], ['geenpick', 'geen pick']];
@@ -808,8 +833,8 @@ function maatRegel(c){
     const m = maatUitNaam(c);
     if(m && m[0] <= 127 && m[1] <= 87) return R('80x120', 180, 'regel Daan: whiteboard t/m 80x120 → 80x120x180');
     // grote borden (200 cm en langer) krijgen ruimte in de lengte: zo kiest Daan 120x210 voor 120x200 en 130x250 voor 120x240
-    if(m && m[0] >= 200){ const pm = kleinsteMaat(m[0] + 12, m[1] + 7, MATEN.concat(MATEN_WB)); if(pm) return R(pm, wbHoogte(), 'regel Daan: groot whiteboard ' + m[0] + 'x' + m[1] + ' → kleinste opslagmaat met ruimte in de lengte: ' + pm); }
-    if(m){ const pm = kleinsteMaat(m[0], m[1], MATEN) || kleinsteMaat(m[0], m[1], MATEN.concat(MATEN_WB)); if(pm) return R(pm, wbHoogte(), 'regel Daan: whiteboard ' + m[0] + 'x' + m[1] + ' → kleinste opslagmaat waar het bord in past: ' + pm); }
+    if(m && m[0] >= 200){ const pm = kleinsteMaat(m[0] + 12, m[1] + 7, MATEN_REGEL.concat(MATEN_WB)); if(pm) return R(pm, wbHoogte(), 'regel Daan: groot whiteboard ' + m[0] + 'x' + m[1] + ' → kleinste opslagmaat met ruimte in de lengte: ' + pm); }
+    if(m){ const pm = kleinsteMaat(m[0], m[1], MATEN_REGEL) || kleinsteMaat(m[0], m[1], MATEN_REGEL.concat(MATEN_WB)); if(pm) return R(pm, wbHoogte(), 'regel Daan: whiteboard ' + m[0] + 'x' + m[1] + ' → kleinste opslagmaat waar het bord in past: ' + pm); }
     return R('100x150', wbHoogte(), 'regel Daan: whiteboard, maat onbekend → 100x150');
   }
   if((/sportvloer/.test(n) && /tegel/.test(n)) || (/rubber/.test(n) && /tegel/.test(n) && /(^|[,|]\s*)CE/i.test(String((D.P[c] || {}).locaties_hm || '')))) return R('110x110', 160, 'regel Daan: sportvloer tegel / rubber tegel afdeling CE → 110x110x160');
@@ -817,16 +842,16 @@ function maatRegel(c){
   if((/ringmat/.test(n) || (/rubber/.test(n) && /\bmet rand\b/.test(n))) && !/batch midden/i.test(String((D.P[c] || {}).tags || ''))){
     if(/\brol\b|\broll\b/.test(n)) return R('100x150', 120, 'regel Daan: ringmat op rol → 100x150x120');
     // ringmatten met een maat in de naam: de opslagmaat waar de mat plat op past (Daan: 100x100 op 100x100, 80x120 op 80x120, 100x200 op 100x200)
-    const m = maatUitNaam(c), pm = m && kleinsteMaat(m[0], m[1], MATEN);
+    const m = maatUitNaam(c), pm = m && kleinsteMaat(m[0], m[1], MATEN_REGEL);
     if(pm) return R(pm, 120, 'regel Daan: rubber ringmat ' + m[0] + 'x' + m[1] + ' → plat op ' + pm + ', hoogte 120');
     return R('100x150', 120, 'regel Daan: rubber ringmat met rand → 100x150x120');
   }
   if(/(rubber|sportvloer)/.test(n) && /\brol\b|rollen|per meter/.test(n)){ const b = breedteNaam(c); if(b) return b <= 120 ? R('80x120', 140, 'regel Daan: rubber rol ' + b + ' breed (≤ 120) → 80x120x140') : b <= 160 ? R('100x150', 100, 'regel Daan: rubber rol ' + b + ' breed (120–160) → 100x150x100') : R('120x180', 100, 'regel Daan: rubber rol ' + b + ' breed (> 160) → 120x180x100'); }
   const m = maatUitNaam(c);
-  if(m && m[0] >= 60 && m[1] >= 60 && !(m[0] <= 127 && m[1] <= 87)){ const pm = kleinsteMaat(m[0], m[1], MATEN); if(pm) return Object.assign(R(pm, 180, 'regel Daan: productmaat ' + m[0] + 'x' + m[1] + ' uit de naam → opslagmaat ' + pm), { r:'maat:regel-naam' }); }
+  if(m && m[0] >= 60 && m[1] >= 60 && !(m[0] <= 127 && m[1] <= 87)){ const pm = kleinsteMaat(m[0], m[1], MATEN_REGEL); if(pm) return Object.assign(R(pm, 180, 'regel Daan: productmaat ' + m[0] + 'x' + m[1] + ' uit de naam → opslagmaat ' + pm), { r:'maat:regel-naam' }); }
   return Object.assign(R('80x120', 180, 'regel Daan: al het andere → 80x120x180'), { r:'maat:regel-rest' });
 }
-const opLijst = (c, m) => { const lijst = MATEN.concat(isWB(c) ? MATEN_WB : []), k = maatNorm(m); if(lijst.some(x => maatNorm(x) === k)) return lijst.find(x => maatNorm(x) === k); const d = palDims(m); return kleinsteMaat(d[0], d[1], lijst); };
+const opLijst = (c, m) => { const lijst = MATEN_REGEL.concat(isWB(c) ? MATEN_WB : []), k = maatNorm(m); if(lijst.some(x => maatNorm(x) === k)) return lijst.find(x => maatNorm(x) === k); const d = palDims(m); return kleinsteMaat(d[0], d[1], lijst); };
 function vsMaat(c){
   if(isSam(c)) return null;
   const pb = X().pbRegels(c).find(r => r.palletmaat || r.maat); if(pb){ const v = opLijst(c, pb.palletmaat || pb.maat); if(v) return { v, why:'pakbon: palletmaat ' + (pb.palletmaat || pb.maat), r:'maat:pakbon' }; }
@@ -1547,7 +1572,7 @@ function telling(){
 
 return { S, AANNAMES, KEY_OEFEN, KEY_FB, laad, flush, plan, schrijf, po, poZet, poHerstel, wisAlles, oefDone, fbTab, fbOpm, fbOpmWeg, fbAann, mgPlus,
   koppelVan, isKoppel, koppelTekst, wegLicht, controle, maatRegel, vnRegel, sppUitBronnen, famVan, maatVan, famNaam, isSam, naamVan, abcVan, actief, kgPq, vk6, vk28, inkoop, backorders, inkomend, locInfo, som, anderOpPlek,
-  VELD, SOORTEN, SOORTT, WEG, KOLOMMEN, NODIG, ROLNODIG, ROLVS, SAMVELD, MATEN, MATEN_WB, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
+  VELD, SOORTEN, SOORTT, WEG, KOLOMMEN, NODIG, ROLNODIG, ROLVS, SAMVELD, MATEN, MATEN_WB, EIGEN_MATEN, OPSLAG_MATEN, matenVoor, voegMaatToe, maatSleutel, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
   eenheid, palletBewijs, rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
   naControle, liggerVan, labelsVerbeteren, rolCheck, labelsGoed, verschil, verschilKies, herstel, pdFlush, PDQ,
   vraagLive, liveStatus, meet, meting, zetMeting, scoreVan, telStap, belangrijk, reden, bewezen, wachtOp, gewBewijs, kopieProductdata, STAPNAAM, pd2Overzetten, overzetPlan, overzetToepassen, overzetTerug, overzetEcht, toetsItems, TOETSVELD, SCORE_VOOR, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };
