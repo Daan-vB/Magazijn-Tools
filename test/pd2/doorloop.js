@@ -39,7 +39,6 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await klopt();
   const na1 = await ev(cs => cs.map(c => { const p = PD2R.po(c); return p && p.so ? p.so.v + ':' + p.so.st : '-'; }), fam.cs);
   check('Klopt schrijft de soort direct (bevestigd of aangepast)', na1[0].startsWith('pallet') && na1[1].startsWith('pick') && (!fam.cs[2] || na1[2].startsWith('mix')), na1.join(' '));
-  const kopie = Object.keys(T.mock).some(k => /^wh-pd2-kopie-/.test(k)) || T.pdWrites.length > 0;
   let v = await nu();
   check('na Soort volgt meteen de volgende open vraag van deze familie (gewicht al vast → hoeveelheid)', v.fk === fam.fk && ['gewicht', 'spp', 'maat', 'hoogte', 'maxpick', 'rl', 'rmax'].includes(v.t), v.t + ' ' + v.rows.join(','));
   // 4. hoeveelheid volgt de soort per product: pick/mix nooit palletvragen, pallet zonder bewijs ook niet
@@ -61,6 +60,13 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     await wacht(300); const m2 = await nu();
     check('decimalen in een aantal: melding, niets opgeslagen', /Geen decimalen in aantallen/.test(m2.melding), m2.melding);
   } else check('geen max op pick-vraag in deze familie (overgeslagen)', true);
+  // geen voorstel: een getalvraag waar de data niets voorstelt → leeg vak, Klopt zonder waarde geeft een melding
+  const gv = await ev(() => { const S = WHDL.S; for(let j = 0; j < S.pad.length; j++){ const v = S.pad[j]; if(!['spp', 'hoogte', 'maxpick'].includes(v.t)) continue; const c = v.f.cs.find(c => { const s = PD2R.status(c); return s.stap.soort && s.so !== 'weg' && s.open.includes(v.t) && !PD2R.waarde(c, v.t).v; }); if(c){ S.i = j; S.sel = null; S.melding = ''; delete v.rows; WHDL.teken(); return { j, c, t:v.t }; } } return null; });
+  if(gv){
+    const leegVak = await ev(c => !!document.querySelector(`.dl [data-num="${CSS.escape(c)}"]`), gv.c);
+    await klopt(); const m = await nu();
+    check('geen voorstel (' + gv.t + ' ' + gv.c + '): leeg vak "typ", Klopt geeft een melding met het product', leegVak && /Typ een getal bij/.test(m.melding) && m.melding.includes(gv.c), m.melding);
+  } else check('geen getalvraag zonder voorstel in deze data (overgeslagen)', true);
   // 6. nieuwe maat: bewaren, meteen in de lijst, kopie vooraf, na herladen terug (ook in Productdata 2.0)
   const maatFam = await ev(() => { const S = WHDL.S; for(const v of S.pad.filter(v => v.t === 'maat')){ const r = v.f.cs.filter(c => { const s = PD2R.status(c); return s.stap.soort && s.so !== 'weg' && s.open.includes('maat'); }); if(r.length) return v.f.fk; } return null; });
   if(maatFam){
@@ -146,7 +152,8 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   }
   // 12. nieuwe maat na herladen terug, ook in Productdata 2.0
   if(maatFam){ const m = await ev(() => ({ eigen:PD2R.EIGEN_MATEN.slice(), pd2:PD2R.MATEN.includes('120x215') })); check('na herladen: 120x215 staat in de lijst (ook Productdata 2.0)', m.eigen.includes('120x215') && m.pd2, JSON.stringify(m)); }
-  check('kopie vóór schrijven naar productdata (wh-pd2-kopie)', kopie);
+  await wacht(2000);
+  check('schrijft naar productdata (bron pd2) met kopie vooraf (wh-pd2-kopie)', T.pdWrites.length > 0 && T.pdWrites.every(r => Object.values(r.meta || {}).some(m => m && m.bron === 'pd2')) && Object.keys(T.mock).some(k => /^wh-pd2-kopie-/.test(k)), T.pdWrites.length + ' rijen · ' + Object.keys(T.mock).join(','));
   check('0 geblokkeerde schrijfpogingen', T.blocked.length === 0, JSON.stringify(T.blocked.slice(0, 3)));
   console.log('ERRORS', T.errors.filter(e => !/Failed to load resource|locaties\.js/.test(e)).slice(0, 5).join('\n'));
   console.log(ok.length + ' OK, ' + fout.length + ' FOUT');
