@@ -39,6 +39,8 @@ Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet
 ## 5. Hoeveelheden, pallets en locaties
 - Max op pick = aanvullen bij + wat je aanvult (bij 10 + pallet van 67 = 77), zoals "vul aan tot" in Picqer.
 - Pallethoogtes naar boven afronden op 10 cm.
+- Palletmaat kiezen: altijd de hele lijst vaste opslagmaten tonen (niet 3 maten + typen). Een nieuwe maat die Daan typt wordt meteen bewaard en staat daarna overal in de lijst.
+- Elk scherm vóór oplevering zelf doorlopen met alle antwoorden (elke soort, Weg-keuzes, gewogen zonder kg, geen voorstel, uitvinken, Later, terug) tegen deze regels.
 - Hal A heeft alleen 3-liggers en een lager dak (20-locatie ± 140 cm). Hal B en C bijna allemaal 4-liggers, behalve begin/eind van een gang. BA en BB hebben 10, 20 en 30.
 - Vloernaam = productcode + " - " + korte omschrijving (bijv. "4560WM - Whiteboard magnetisch 45x60"); bij lopers/matten de dikte erin.
 - Rubber per stuk (ringmat, sportvloer, stalmat), A/B met picklocatie: aanvullen bij 10 met een hele pallet.
