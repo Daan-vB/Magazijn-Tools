@@ -22,18 +22,19 @@ Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet
 ## 3. Soort en welke vragen erbij horen
 - Pallet = komt per volle pallet binnen en wordt per volle pallet aangevuld.
 - Deel = komt op een pallet of in grotere hoeveelheid dan op pick past; deel naar pick, rest naar bulk; aanvullen met een deel van de bulkvoorraad.
-- Bulk = pallet staat alleen op bulk, geen picklocatie. Alleen als het besteld wordt: 1 stuk naar geen specifieke locatie verplaatsen en de backorder verwerken, zodat het op de picklijst komt. Nooit aanvuladvies naar pick. Vragen: gewicht en de palletvragen (per pallet, palletmaat, hoogte, gewicht volle pallet); geen max op pick. Voorbeeld: alle Sprinttrack kunstgras.
+- Bulk = pallet staat alleen op bulk, geen picklocatie. Alleen als het besteld wordt: 1 stuk naar geen specifieke locatie verplaatsen en de backorder verwerken, zodat het op de picklijst komt. Nooit aanvuladvies naar pick. Vragen: gewicht en de palletvragen (per pallet, palletmaat, hoogte); geen max op pick. Voorbeeld: alle Sprinttrack kunstgras.
 - Pick = kleine hoeveelheden, geen bulk. Enige vraag: max op pick.
 - Mix = pallet met meerdere producten, met een deel naar pick.
 - Weg = keuzemenu Uitlopend (geen data meer nodig) / Backorder (alleen voor backorders ingekocht; voorlopig wegfilteren) / Archief.
-- Pallet, Deel en Bulk: stuks per pallet, palletmaat, hoogte incl. pallet, gewicht volle pallet. Stuks per doos, doosmaat en inkoopverpakking niet vragen (later).
+- Pallet, Deel en Bulk: stuks per pallet, palletmaat, hoogte incl. pallet. Gewicht volle pallet nooit vragen (zie §4). Stuks per doos, doosmaat en inkoopverpakking niet vragen (later).
 - VASTE REGEL palletvragen: palletvragen (per pallet, palletmaat, hoogte, gewicht volle pallet, plaatsen, max per ligger) alleen voor producten waarvan de data bewijst dat ze per pallet komen of liggen: bulk- of VST-voorraad, palletlabels, pallet-verplaatsingen naar pick, of inkoop van minstens één volle pallet. Producten met voorraad 0 of minimaal, alleen voor backorders ingekocht, of per enkele stuks of rollen binnen: voorstel Pick (of Weg → Backorder) en nooit palletvragen.
 - Per familie invullen, maar waarden per product uit de eigen data van dat product (inkoop, gewicht, verkoop), nooit één getal voor alles.
 - Volgorde van bronnen voor een voorstel: 1) eigen data van het product (palletbewijs-regel gaat altijd voor), 2) kleurgenoten of dezelfde familie en maat, 3) dezelfde familie. Nooit "meerderheid bij de leverancier": één leverancier levert heel verschillende producten (lockers zijn geen whiteboards).
 
 ## 4. Gewicht
 - Status: gewogen (echt gewogen) · vertrouwd (Daan vertrouwt de Picqer-waarde) · te wegen (nu zeker fout; komt op de Weeglijst, kg niet verplicht).
-- Picqer-gewichten zijn bij bijna elke leverancier deels fout. Losse producten op de weegschaal, volle pallets met de reachtruck.
+- Picqer-gewichten zijn bij bijna elke leverancier deels fout. Losse producten op de weegschaal.
+- Gewicht volle pallet = gewicht per stuk × stuks per pallet + 15 kg pallet. Altijd berekend, nooit een vraag. Alleen met gewicht vertrouwd of gewogen; staat het op te wegen, dan wacht de berekening op het gewogen gewicht.
 
 ## 5. Hoeveelheden, pallets en locaties
 - Max op pick = aanvullen bij + wat je aanvult (bij 10 + pallet van 67 = 77), zoals "vul aan tot" in Picqer.
