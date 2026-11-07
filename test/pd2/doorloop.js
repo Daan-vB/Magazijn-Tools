@@ -66,7 +66,16 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     const leegVak = await ev(c => !!document.querySelector(`.dl [data-num="${CSS.escape(c)}"]`), gv.c);
     await klopt(); const m = await nu();
     check('geen voorstel (' + gv.t + ' ' + gv.c + '): leeg vak "typ", Klopt geeft een melding met het product', leegVak && /Typ een getal bij/.test(m.melding) && m.melding.includes(gv.c), m.melding);
-  } else check('geen getalvraag zonder voorstel in deze data (overgeslagen)', true);
+  } else {
+    // in de echte data heeft elk product een voorstel: het pad zonder voorstel nabootsen voor één product (alleen in deze test, PD2R.waarde geeft leeg)
+    const nb = await ev(() => { const S = WHDL.S; for(let j = 0; j < S.pad.length; j++){ const v = S.pad[j]; if(!['spp', 'hoogte', 'maxpick'].includes(v.t)) continue; const c = v.f.cs.find(c => { const s = PD2R.status(c); return s.stap.soort && s.so !== 'weg' && s.open.includes(v.t); }); if(c){ const oud = PD2R.waarde; window.__oudWaarde = oud; PD2R.waarde = (x, k, I) => x === c && k === v.t ? { v:'', st:'leeg', why:'' } : oud(x, k, I); S.i = j; S.sel = null; S.melding = ''; delete v.rows; if(S.A[c] && S.A[c].f) delete S.A[c].f[v.t]; WHDL.teken(); return { c, t:v.t }; } } return null; });
+    if(nb){
+      const leegVak = await ev(c => !!document.querySelector(`.dl [data-num="${CSS.escape(c)}"]`), nb.c);
+      await klopt(); const m = await nu();
+      check('geen voorstel (nagebootst, ' + nb.t + ' ' + nb.c + '): leeg vak "typ", Klopt geeft een melding met het product', leegVak && /Typ een getal bij/.test(m.melding) && m.melding.includes(nb.c), m.melding);
+      await ev(() => { PD2R.waarde = window.__oudWaarde; WHDL.S.melding = ''; WHDL.teken(); });
+    } else check('geen getalvraag gevonden (pad zonder voorstel overgeslagen)', true);
+  }
   // 6. nieuwe maat: bewaren, meteen in de lijst, kopie vooraf, na herladen terug (ook in Productdata 2.0)
   const maatFam = await ev(() => { const S = WHDL.S; for(const v of S.pad.filter(v => v.t === 'maat')){ const r = v.f.cs.filter(c => { const s = PD2R.status(c); return s.stap.soort && s.so !== 'weg' && s.open.includes('maat'); }); if(r.length) return v.f.fk; } return null; });
   if(maatFam){
