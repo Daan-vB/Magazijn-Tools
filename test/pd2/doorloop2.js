@@ -21,6 +21,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await ev(() => document.querySelector('[data-gast="PD-M-BLA"]').click());
   await wacht(500);
   let v = await nu();
+  check('1 Soort toont "Bevestigd: Deel" als alle producten al een bevestigde soort hebben (geen "Geen voorstel")', /Bevestigd: Deel/.test(v.tekst) && !/Geen voorstel uit de data/.test(v.tekst), v.tekst.split('\n').slice(0, 12).join(' | ').slice(0, 300));
   check('kiezen opent de familie in de Doorloop met alle vragen, knop "← Terug naar waar ik was"', v.gast && /Kattenluik/i.test(v.tekst) && !!(await ev(() => document.getElementById('dl-terugmain'))) , v.t);
   // vaste uitgangssituatie (in het geheugen): Daan vertrouwt het Picqer-gewicht van PD-M-BLA (0,378 kg), zoals in de melding van Daan
   await ev(() => { PD2R.poZet('PD-M-BLA', p => { p.gew = { st:'vertrouwd', kg:0.378, t:new Date().toISOString() }; }); });
@@ -29,6 +30,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   const ov = await ev(() => ({ afw:[...document.querySelectorAll('.afw')].map(a => a.innerText.replace(/\s+/g, ' ')), rijen:[...document.querySelectorAll('[data-prod]')].map(b => b.dataset.prod) }));
   const a1 = ov.afw.find(t => /PD-M-BLA/.test(t));
   check('overzicht: oranje regel bij PD-M-BLA met wat afwijkt (kg per stuk, volle pallet)', a1 && /0,38 kg per stuk, PD-L 3 kg/.test(a1) && /volle pallet 76 tegen 495 kg/.test(a1) && /Klopt dat\?/.test(a1), a1);
+  check('Kattenluik: geen hoogte-melding (geen 20-locatie in hal A)', !ov.afw.some(t => /hoogte/.test(t)), ov.afw.join(' | ').slice(0, 200));
   check('overzicht: elke productregel is tikbaar', ov.rijen.includes('PD-M-BLA') && ov.rijen.includes('PD-L-WHI'), ov.rijen.join(','));
   // PRODUCTSCHERM: alle velden van het product
   await ev(() => document.querySelector('[data-prod="PD-M-BLA"]').click());
@@ -39,6 +41,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await ev(() => document.querySelector('[data-vergt="gewicht"]').click());
   const vg = await ev(() => [...document.querySelectorAll('.verg .vrij')].map(r => r.innerText.replace(/\s+/g, ' ')));
   check('Vergelijkbaar: PD-L-WHI en PD-L-BLA met hun gewicht (max 5, kleurgenoten eerst)', vg.length <= 5 && vg.some(t => /PD-L-WHI/.test(t) && /3 kg/.test(t)) && vg.some(t => /PD-L-BLA/.test(t) && /3 kg/.test(t)) && vg.every(t => /bevestigd|voorstel/.test(t)), vg.join(' | '));
+  check('Vergelijkbaar: eerst kleurgenoten (PD-M-BRO, PD-M-WHI), dan de L-maten', vg.length >= 4 && /PD-M-BRO/.test(vg[0]) && /PD-M-WHI/.test(vg[1]) && /PD-L-/.test(vg[2]), vg.map(t => t.slice(0, 9)).join(' '));
   check('Vergelijkbaar bevat nooit SAM Europe', !(await ev(() => [...document.querySelectorAll('.verg code')].some(c => PD2R.isSam(c.innerText)))));
   // NEEM OVER + Klopt → volle pallet opnieuw
   await ev(() => document.querySelector('.verg [data-over="PD-M-BLA|gewicht|PD-L-WHI"]').click());
@@ -75,6 +78,11 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await ev(() => document.getElementById('dl-terugmain').click()); await wacht(300);
   const tm = await ev(() => ({ gast:WHDL.S.gast, pad:WHDL.S.pad.length }));
   check('"← Terug naar waar ik was" zet de Doorloop terug zoals hij was', !tm.gast && tm.pad === padVoor, JSON.stringify(tm) + ' vs ' + padVoor);
+  // hoogte-melding alleen bij een product met een pick- of bulklocatie op een 20-locatie in hal A en een pallet boven 140 cm
+  const ha = await ev(() => { const P = PD2R; const c = Object.keys(WH.D.P).find(c => P.actief(c) && !P.isSam(c) && WHDL.halA20(c) && ['pallet', 'deel', 'bulk'].includes(P.status(c).so) && +P.waarde(c, 'hoogte').v > 140); if(!c) return null; return { c, loc:WHDL.halA20(c), hoogte:P.waarde(c, 'hoogte').v, afw:(WHDL.afwijkLijn(c) || {}).tekst || '' }; });
+  const zonder = await ev(() => { const P = PD2R; const c = Object.keys(WH.D.P).find(c => P.actief(c) && !P.isSam(c) && !WHDL.halA20(c) && ['pallet', 'deel', 'bulk'].includes(P.status(c).so) && +P.waarde(c, 'hoogte').v > 140); return c ? { c, afw:(WHDL.afwijkLijn(c) || {}).tekst || '' } : null; });
+  check('product met een 20-locatie in hal A en een pallet boven 140 cm: wel een hoogte-melding' + (ha ? ' (' + ha.c + ' op ' + ha.loc + ', ' + ha.hoogte + ' cm)' : ''), ha ? /hoogte .* cm is hoger dan 140 cm en het product staat op A[A-Z]\d{2}[A-D]20 \(20-locatie in hal A\)/.test(ha.afw) : true, ha ? ha.afw : 'geen product met zo\'n locatie in de data (overgeslagen)');
+  check('pallet boven 140 cm zonder 20-locatie in hal A: geen hoogte-melding' + (zonder ? ' (' + zonder.c + ')' : ''), !zonder || !/hoogte/.test(zonder.afw), zonder ? zonder.afw : '');
   // KLOPT op een afwijking: onthouden (ook na herladen), niet meer melden; er wordt niets gewijzigd
   await ev(() => { PD2R.poZet('PD-XL-WHI', p => { p.gew = { st:'vertrouwd', kg:0.2, t:new Date().toISOString() }; }); });
   await ev(() => document.getElementById('dl-zoekknop').click()); await P.fill('#dl-zoekin', 'PD-XL-WHI'); await P.waitForSelector('[data-gast="PD-XL-WHI"]');

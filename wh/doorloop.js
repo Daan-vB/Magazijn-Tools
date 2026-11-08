@@ -205,17 +205,26 @@ function meesteVoorstel(v, rijen){
   const t = {}; rijen.forEach(c => { const w = waarde(v, c); if(w.v && !w.zelf){ t[w.v] = t[w.v] || { n:0, c, why:w.why }; t[w.v].n++; } });
   const b = Object.entries(t).sort((x, y) => y[1].n - x[1].n)[0]; return b ? { v:b[0], n:b[1].n, why:b[1].why, c:b[1].c } : null;
 }
+// wat al bevestigd is: "Bevestigd: Deel", of per product als het verschilt
+function bevestigdTekst(v, rijen){
+  const groepen = {};
+  rijen.forEach(c => { const w = waarde(v, c); if(!w.zelf || w.v === null || w.v === undefined || w.v === '') return;
+    const g = veldVan(c, v.t), t = toonVeld(v.t, Object.assign({}, g, { v:w.v })); (groepen[t] = groepen[t] || []).push(c); });
+  const k = Object.keys(groepen); if(!k.length) return '';
+  const alle = k.length === 1 && groepen[k[0]].length === rijen.length;
+  return 'Bevestigd: ' + (alle ? k[0] : k.map(t => t + ' (' + groepen[t].join(', ') + ')').join(' · ')) + '.';
+}
 function tekst(v, rijen){
-  const m = meesteVoorstel(v, rijen), n = rijen.length, kort = s => esc(String(s || '').replace(/\s+/g, ' ').slice(0, 160));
+  const m = meesteVoorstel(v, rijen), bev = esc(bevestigdTekst(v, rijen)), n = rijen.length, kort = s => esc(String(s || '').replace(/\s+/g, ' ').slice(0, 160));
   switch(v.t){
-    case 'soort': return ['Welke soort ' + (n === 1 ? 'is dit product' : 'zijn deze ' + n) + '?', m ? 'Voorstel <b>' + esc(naamSoort(m.v)) + '</b>: ' + kort(m.why) + (m.n < n ? ' (' + m.n + ' van ' + n + ')' : '') + '.' : 'Geen voorstel uit de data: kies zelf.'];
-    case 'gewicht': return ['Klopt het gewicht per stuk uit Picqer?', (m && m.why ? '<b>' + kort(m.why) + '</b>. ' : '') + 'Vertrouwd = Picqer klopt · te wegen = komt op de Weeglijst · gewogen = typ het echte gewicht.'];
-    case 'spp': return ['Hoeveel stuks per pallet?', m ? 'Voorstel per product uit <b>' + kort(m.why) + '</b>. Tik een getal om het aan te passen.' : 'Geen voorstel uit de data: typ per product het aantal.'];
-    case 'maat': return ['Welke palletmaat?', 'Jouw vaste maten' + (R().EIGEN_MATEN.length ? ' plus je eigen toegevoegde maten' : '') + '. Een nieuwe maat wordt meteen bewaard en staat er de volgende keer gewoon tussen.' + (m ? ' Voorstel: <b>' + kort(m.why) + '</b>.' : '')];
-    case 'hoogte': return ['Hoe hoog is een volle pallet, incl. pallet?', 'Wordt naar boven afgerond op 10 cm. Hal A 20-locatie: max ± 140 cm.' + (m ? ' Voorstel uit <b>' + kort(m.why) + '</b>.' : '')];
-    case 'maxpick': return ['Max op pick?', 'Aanvullen bij + wat je aanvult.' + (m ? ' Voorstel uit <b>' + kort(m.why) + '</b>.' : ' Geen voorstel uit de data: typ per product.')];
-    case 'rl': return ['Hoe lang is een volle rol (m)?', m ? 'Voorstel uit <b>' + kort(m.why) + '</b>.' : 'Geen voorstel uit de data: typ per product.'];
-    case 'rmax': return ['Hoeveel rollen passen op een pallet?', m ? 'Voorstel uit <b>' + kort(m.why) + '</b>.' : 'Geen voorstel uit de data: typ per product.'];
+    case 'soort': return ['Welke soort ' + (n === 1 ? 'is dit product' : 'zijn deze ' + n) + '?', m ? 'Voorstel <b>' + esc(naamSoort(m.v)) + '</b>: ' + kort(m.why) + (m.n < n ? ' (' + m.n + ' van ' + n + ')' : '') + '.' + (bev ? ' ' + bev : '') : bev || 'Geen voorstel uit de data: kies zelf.'];
+    case 'gewicht': return ['Klopt het gewicht per stuk uit Picqer?', (m && m.why ? '<b>' + kort(m.why) + '</b>. ' : '') + 'Vertrouwd = Picqer klopt · te wegen = komt op de Weeglijst · gewogen = typ het echte gewicht.' + (bev ? ' ' + bev : '')];
+    case 'spp': return ['Hoeveel stuks per pallet?', m ? 'Voorstel per product uit <b>' + kort(m.why) + '</b>. Tik een getal om het aan te passen.' + (bev ? ' ' + bev : '') : bev || 'Geen voorstel uit de data: typ per product het aantal.'];
+    case 'maat': return ['Welke palletmaat?', 'Jouw vaste maten' + (R().EIGEN_MATEN.length ? ' plus je eigen toegevoegde maten' : '') + '. Een nieuwe maat wordt meteen bewaard en staat er de volgende keer gewoon tussen.' + (m ? ' Voorstel: <b>' + kort(m.why) + '</b>.' : '') + (bev ? ' ' + bev : '')];
+    case 'hoogte': return ['Hoe hoog is een volle pallet, incl. pallet?', 'Wordt naar boven afgerond op 10 cm. Hal A 20-locatie: max ± 140 cm.' + (m ? ' Voorstel uit <b>' + kort(m.why) + '</b>.' : '') + (bev ? ' ' + bev : '')];
+    case 'maxpick': return ['Max op pick?', 'Aanvullen bij + wat je aanvult.' + (m ? ' Voorstel uit <b>' + kort(m.why) + '</b>.' + (bev ? ' ' + bev : '') : bev ? ' ' + bev : ' Geen voorstel uit de data: typ per product.')];
+    case 'rl': return ['Hoe lang is een volle rol (m)?', m ? 'Voorstel uit <b>' + kort(m.why) + '</b>.' + (bev ? ' ' + bev : '') : bev || 'Geen voorstel uit de data: typ per product.'];
+    case 'rmax': return ['Hoeveel rollen passen op een pallet?', m ? 'Voorstel uit <b>' + kort(m.why) + '</b>.' + (bev ? ' ' + bev : '') : bev || 'Geen voorstel uit de data: typ per product.'];
   }
   return ['', ''];
 }
@@ -444,6 +453,10 @@ function effStg(c){ return A(c).gst || R().gewicht(c).st; }
 function effKg(c){ const a = A(c), g = R().gewicht(c); if(num(a.kg) > 0) return num(a.kg); if(effStg(c) === 'gewogen') return g.st === 'gewogen' ? g.kg : null; return g.kg > 0 && g.st !== 'niet' ? g.kg : g.pq > 0 ? g.pq : g.kg > 0 ? g.kg : null; }
 function effVal(c, t){ const a = A(c); if(a.f && a.f[t] !== undefined) return a.f[t]; const w = R().waarde(c, t, R().info(c)); return w.v === '' || w.v === undefined ? null : (t === 'hoogte' && num(w.v) ? Math.ceil(num(w.v) / 10) * 10 : w.v); }
 function volleCalc(c){ if(!PAL.includes(soortNu(c))) return null; const kg = effKg(c), spp = num(effVal(c, 'spp')); return kg > 0 && spp > 0 ? Math.ceil(kg * spp + 15) : null; }
+// alleen een pick- of bulklocatie van dit product op een 20-locatie in hal A (A.. + sectie + plaats + 20) geeft een hoogtemelding
+function halA20(c){
+  try{ const f = R().locInfo(c), l = (f.pick || []).concat(f.bulk || []).map(x => x.n || x[0]).find(n => /^A[A-Z]\d{2}[A-D]20$/i.test(String(n || '').trim())); return l ? String(l).trim() : ''; }catch(e){ return ''; }
+}
 function afwijkLijn(c){
   const P = R();
   try{
@@ -459,7 +472,7 @@ function afwijkLijn(c){
     const vp = volleCalc(c), spp = num(effVal(c, 'spp'));
     if(vp && spp){ const gl = leden.filter(x => PAL.includes(soortNu(x)) && num(effVal(x, 'spp')) === spp).map(volleCalc).filter(Boolean); if(gl.length){ const m = mediaan(gl); if(vp / m > 2 || vp / m < 0.5) delen.push('volle pallet ' + nf(vp) + ' tegen ' + nf(Math.round(m)) + ' kg'); } }
     if(vp && (vp < 50 || vp > 1500)) delen.push('volle pallet ' + nf(vp) + ' kg is ' + (vp < 50 ? 'onder 50' : 'boven 1500') + ' kg');
-    const h = num(effVal(c, 'hoogte')); if(h > 140 && PAL.includes(so)) delen.push('hoogte ' + h + ' cm is hoger dan 140 cm: past niet op een 20-locatie in hal A');
+    const h = num(effVal(c, 'hoogte')); if(h > 140 && PAL.includes(so)){ const loc = halA20(c); if(loc) delen.push('hoogte ' + h + ' cm is hoger dan 140 cm en het product staat op ' + loc + ' (20-locatie in hal A)'); }
     const mp = num(effVal(c, 'maxpick')); if(mp > 0 && spp > 0 && ['pallet', 'deel'].includes(so) && mp > spp) delen.push('max op pick ' + nf(mp) + ' is groter dan ' + nf(spp) + ' per pallet');
     if(!delen.length) return null;
     const tekst = c + ': ' + delen.join('; ') + '. Klopt dat?';
@@ -490,12 +503,14 @@ function veldVan(c, t){
   if(t === 'gewicht'){ const g = P.gewicht(c); return { v:w.v, zelf:w.zelf, kg:w.v === 'gewogen' ? (g.kg || null) : g.pq || null }; }
   return { v:w.v, zelf:w.zelf };
 }
+const basisNaam = c => { const d = String(R().naamVan(c)).toLowerCase().split(' - '); return (d.length >= 2 ? d.slice(0, -1) : d).join(' - ').trim(); };
+const zelfdeMaat = (a, b) => { const P = R(), ma = P.maatVan(a); return ma === P.maatVan(b) && (ma !== '' || basisNaam(a) === basisNaam(b)); };
 function vergelijkbaar(c, t){
   const P = R(); if(P.isSam(c)) return [];
   const uit = [], zie = new Set([c]), voeg = l => l.forEach(x => { if(uit.length < 5 && !zie.has(x)){ zie.add(x); uit.push(x); } });
-  const leden = fam(c).filter(x => x !== c && bruikbaar(x) && !P.isSam(x)), mk = P.maatVan(c);
-  voeg(leden.filter(x => P.maatVan(x) === mk));
-  voeg(leden.filter(x => P.maatVan(x) !== mk));
+  const leden = fam(c).filter(x => x !== c && bruikbaar(x) && !P.isSam(x));
+  voeg(leden.filter(x => zelfdeMaat(x, c)));
+  voeg(leden.filter(x => !zelfdeMaat(x, c)));
   if(uit.length < 5){ const w = hoofdwoord(c); if(w) voeg((hwIndex()[String((WH.D.P[c] || {}).leverancier || '') + '|' + w] || []).filter(x => x !== c && !P.isSam(x))); }
   return uit.map(x => Object.assign({ c:x, naam:P.naamVan(x) }, veldVan(x, t))).filter(x => x.v !== null && x.v !== undefined && x.v !== '');
 }
@@ -677,5 +692,5 @@ async function render(el, rest){
   if(S.sleutel !== sleutel || !S.pad.length){ S.sleutel = sleutel; S.stap = stap; bouw(stap); sla(1); }
   teken();
 }
-return { render, S, bouw, teken };
+return { render, S, bouw, teken, afwijkLijn, vergelijkbaar, halA20 };
 })();
