@@ -38,6 +38,8 @@ function pdLaden(){
       if(!window.WHPD) throw new Error('Productdata niet beschikbaar');
       await WHPD.laad();
       if(window.PD2R && PD2R.laad && !(PD2R.S && PD2R.S.klaar)){ herteken(); await PD2R.laad().catch(e => { PD.pd2fout = e; console.error(e); }); }   // Productdata 2.0 is de telling
+      await laadLater();
+      WHPD.zetLaterMee(false);   // Later en Op maat tellen nooit mee in de poort (08-11)
       WHPD.S.idx = null;   // index opnieuw op de volledig geladen gegevens
       if(WHPD.S.fout) throw WHPD.S.fout;
       PD.fout = null; PD.cache = null;
@@ -49,6 +51,65 @@ function pdLaden(){
   return PD.p;
 }
 
+/* ---------- Later (08-11): bewaard in catalog-rij wh-doorloop-later, telt niet mee, staat apart bovenaan Te doen ----------
+   Per product en vraag: { op:<ISO>, opm:<opmerking> }. Elke schrijfactie maakt eerst een kopie (wh-doorloop-later-kopie-<datum>) en voegt samen
+   met de nieuwste versie in de database, zodat een ander apparaat niets overschrijft. */
+const LKEY = 'wh-doorloop-later';
+const LATER = { klaar:false, items:{}, p:null, q:Promise.resolve() };
+const lk = (c, t) => c + '|' + t;
+function laadLater(vers){
+  if(LATER.p && !vers) return LATER.p;
+  LATER.p = WH.catHaal(LKEY).then(r => { LATER.items = (r && r.data && r.data.items) || {}; LATER.klaar = true; }).catch(e => { console.error(e); LATER.klaar = true; });
+  return LATER.p;
+}
+// wijz: [{ c, t, opm }] zet op Later (de oorspronkelijke datum blijft), [{ c, t, weg:true }] haalt eraf
+function zetLater(wijz){
+  const pas = (items, nu) => wijz.forEach(w => { const k = lk(w.c, w.t); if(w.weg) delete items[k]; else items[k] = { op:(items[k] && items[k].op) || nu, opm:String(w.opm !== undefined ? w.opm : (items[k] && items[k].opm) || '') }; });
+  const nu = new Date().toISOString(); pas(LATER.items, nu);
+  LATER.q = LATER.q.catch(() => {}).then(async () => {
+    const r = await WH.catHaal(LKEY).catch(() => null), remote = (r && r.data && r.data.items) || {};
+    if(r && r.data) await WH.catZet(LKEY + '-kopie-' + WH.isoDag(), r.data);   // kopie vóór schrijven
+    pas(remote, nu); await WH.catZet(LKEY, { items:remote, op:nu });
+    LATER.items = Object.assign({}, remote);
+  }).catch(e => { console.error(e); WH.toast('Later bewaren lukte niet: ' + (e.message || e), 6000); });
+  return LATER.q;
+}
+const isLater = (c, t) => !!LATER.items[lk(c, t)];
+const STAPKEYS = { soort:k => k === 'soort' || k === 'weg', gewicht:k => k === 'gewicht', hoev:k => !['soort', 'weg', 'gewicht'].includes(k) };
+const laterT = k => k === 'weg' ? 'soort' : k;
+// de open sleutels van een product voor een stap, zonder wat op Later staat; '' = alle drie de stappen
+function openZL(c, stap){
+  try{
+    const s = PD2R.status(c); if(s.kop) return [];
+    const stappen = stap ? [stap] : ['soort', 'gewicht', 'hoev'];
+    return stappen.flatMap(p => s.stap[p] ? [] : s.open.filter(STAPKEYS[p]).filter(k => !isLater(c, laterT(k))));
+  }catch(e){ return []; }
+}
+// telling per stap zonder Later: een stap is klaar als alles behalve Later is ingevuld
+function telStapZL(codes, stap){
+  let vol = 0, velden = 0;
+  codes.forEach(c => {
+    let s; try{ s = PD2R.status(c); }catch(e){ s = null; }
+    if(!s || s.kop || s.stap[stap]){ vol++; return; }
+    const ks = s.open.filter(STAPKEYS[stap]);
+    if(!ks.length){ velden += 1; return; }
+    const open = ks.filter(k => !isLater(c, laterT(k))).length;
+    if(!open) vol++; else velden += open;
+  });
+  return { vol, tot:codes.length, velden };
+}
+function wachtOpZL(codes){
+  const W = PD2R.wachtOp(codes), uit = {};
+  ['soort', 'gewicht', 'hoev'].forEach(k => { const rest = c => openZL(c, k).length > 0, bew = W[k].bewezen.filter(b => rest(b.c)), vr = W[k].vraag.filter(rest); uit[k] = { open:bew.length + vr.length, bewezen:bew, vraag:vr }; });
+  return uit;
+}
+// Later-items die nog echt open zijn (een antwoord in Productdata 2.0 haalt ze vanzelf van de lijst), oudste eerst
+function laterOpen(){
+  return Object.entries(LATER.items).map(([k, v]) => { const i = k.lastIndexOf('|'); return { c:k.slice(0, i), t:k.slice(i + 1), op:v.op, opm:v.opm || '' }; })
+    .filter(x => WH.D.P[x.c] && pd2Klaar() && (() => { try{ const s = PD2R.status(x.c); if(s.kop) return false; if(x.t === 'soort') return !s.stap.soort; if(!s.stap.soort || s.so === 'weg') return false; return x.t === 'gewicht' ? !s.stap.gewicht : s.open.includes(x.t); }catch(e){ return false; } })())
+    .sort((a, b) => String(a.op).localeCompare(String(b.op)));
+}
+
 /* ---------- 0.4: Poort 0.4 uit Productdata ----------
    Te doen toont bij stap 0.4 alleen de poort: de regels die nog rood zijn, elk met één knop (Daan 17-10).
    Het werk zelf (open velden per laag) staat in het scherm "Nog open" in Productdata. */
@@ -57,11 +118,15 @@ const pd2Klaar = () => !!(window.PD2R && PD2R.S && PD2R.S.klaar);
 function data04(){
   if(!pdKlaar()) return null;
   if(!pd2Klaar() && !PD.pd2fout) return null;   // wacht op Productdata 2.0; bij een mislukte lading valt de telling terug op de oude regels (voorlopig)
-  const sleutel = pd2Klaar() ? PD2R.S.ver + '|' + PD2R.S.dataVer : 'terugval';
+  if(!LATER.klaar) return null;
+  const sleutel = (pd2Klaar() ? PD2R.S.ver + '|' + PD2R.S.dataVer : 'terugval') + '|' + Object.keys(LATER.items).length + '|' + Object.values(LATER.items).map(x => x.op).join(',').length;
   if(PD.cache && PD.cache.sleutel === sleutel && Date.now() - PD.cache.op < 120e3) return PD.cache.d;
   const P = WHPD.poort();
   const open = [];
-  P.bel.forEach(c => { const v = WHPD.openStappen(c); if(v.length) open.push({ c, v }); });
+  P.bel.forEach(c => { const v = pd2Klaar() ? openZL(c, '') : WHPD.openStappen(c); if(v.length) open.push({ c, v }); });
+  // Soort · Gewicht · Hoeveelheid zonder Later (een stap is klaar als alles behalve Later is ingevuld)
+  if(pd2Klaar()) PD2STAP.forEach((stap, n) => { const x = P.items[3 + n]; if(!x || !x.pd2) return; const v = telStapZL(P.bel, stap); x.ok = v.tot > 0 && v.vol === v.tot; x.u = nf(v.vol) + ' van ' + nf(v.tot) + ' compleet · ' + nf(v.velden) + ' velden open'; });
+  if(pd2Klaar()){ P.groen = P.items.every(x => x.ok); if(P.groen && !P.code) try{ P.code = WHPD.poortCode(P.bel.length); }catch(e){} }
   const d = { P, open, voorlopig:!pd2Klaar() };
   PD.cache = { op:Date.now(), d, sleutel };
   return d;
@@ -90,7 +155,7 @@ BP.registreer('0.4', () => {
 // per laag: open nu · waarvan bewezen voorstel klaar (één tik) · waarvan echte vraag aan Daan
 function lagenBlok(d){
   if(!pd2Klaar() || !PD2R.wachtOp) return '';
-  const W = PD2R.wachtOp(d.P.bel);
+  const W = wachtOpZL(d.P.bel);
   return `<ul class="nog">${['soort', 'gewicht', 'hoev'].map(k => { const w = W[k];
     return `<li><span class="nt"><b>${esc(PD2R.STAPNAAM[k])}: ${nf(w.open)} open</b><span class="muted klein">${nf(w.bewezen.length)} met bewezen voorstel (één tik) · ${nf(w.vraag.length)} echte vraag aan jou</span></span>`
       + `${w.bewezen.length ? knop('0.4', '#/pd2/voorstel/' + k, 'Bevestigen', true) : ''}${w.vraag.length ? knop('0.4', '#/doorloop/' + k, 'Invullen') : ''}</li>`; }).join('')}</ul>`;
@@ -99,18 +164,15 @@ function nodig04(id){
   if(PD.fout) return `<div class="melding">Productdata laden lukte niet: ${esc(PD.fout.message || String(PD.fout))}</div>`;
   const d = data04(); if(!d){ pdLaden(); return '<div class="leeg">Productdata laden…</div>'; }
   const it = d.P.items;
-  // Soort · Gewicht · Hoeveelheid: dezelfde telling als het doel in Productdata 2.0 (PD2R.telStap)
-  if(window.PD2R && PD2R.S && PD2R.S.klaar && PD2R.telStap) it.forEach((x, i) => { if(x.pd2 && i >= 3 && i < 6){ const v = PD2R.telStap(d.P.bel, PD2STAP[i - 3]); x.u = nf(v.vol) + ' van ' + nf(v.tot) + ' compleet · ' + nf(v.velden) + ' velden open'; } });
   const nGroen = it.filter(x => x.ok).length;
   // alles gaat naar Productdata 2.0 (31-10); alleen de steekproef woont nog op de oude poortpagina, de vloernaam in Vloernamen
   const link = (x, i) => i === 2 ? dubbelLink() : x.steek ? '#/productdata/poort' : x.pd2 && i >= 3 && i < 6 ? '#/doorloop/' + PD2STAP[i - 3] : '#/pd2/open';
   const knopT = (x, i) => i === 1 ? 'Overzetten' : i === 2 ? 'Kiezen' : x.laag || x.pd2 ? 'Invullen' : x.steek ? 'Steekproef' : 'Bekijken';
   const regels = it.map((x, i) => x.ok ? '' : `<li><span class="nt"><b>${esc(x.t)}</b><span class="muted klein">${esc(x.u || '')}</span></span>${i === 1 ? `<button class="knop" data-a="pd-overzet">${esc((x.u || '').match(/\d+/) ? 'Zet ' + (x.u.match(/\d+/) || [''])[0] + ' waarden over' : 'Overzetten')}</button>` : x.steek && !x.kan ? '<span class="knop" aria-disabled="true" style="opacity:.55;cursor:not-allowed">Kan als laag 1–3 klaar zijn</span>' : knop(id, link(x, i), knopT(x, i))}</li>`).join('');
-  const later = BP.inst('poortLaterMee') !== false;
   return `<p class="kern"><b>${nf(nGroen)}</b> van ${nf(it.length)} groen in Poort 0.4 · ${nf(d.P.bel.length)} belangrijke producten · <b>${nf(d.open.length)}</b> producten open</p>
     ${lagenBlok(d)}
     <ul class="nog">${regels || '<li><span class="nt"><b>Alle regels van Poort 0.4 zijn groen.</b></span></li>'}</ul>
-    <label class="schakel"><input type="checkbox" data-a="bp-latermee" ${later ? 'checked' : ''}> Later en Op maat tellen mee in de poort</label>`;
+    <p class="muted klein">Wat op Later staat telt niet mee en staat apart bovenaan Te doen.</p>`;
 }
 // "…" mag nooit blijven staan: na 45 s staat er wat er mis is, en terwijl er geladen wordt tekent Te doen zichzelf elke 3 s opnieuw
 let laadT = null;
@@ -256,12 +318,12 @@ function blokNu(){
   if(!s) return `<section class="taak"><span class="eyebrow">Nu</span><h2>Bouwplan af</h2></section>`;
   if(LEV[s.id] && LEV[s.id].pd && !pdKlaar() && !PD.fout) pdLaden();
   const e = BP.eff(s.id), n = s.checks.filter((_, i) => e.c[i]).length, k = kortVan(s.id);
-  const wacht = BP.holdList(s.i);
+  const wacht = BP.holdList(s.i).filter(w => w.id !== '1.1');   // 1.1 staat geparkeerd tot spoor 3 begint
   return `<section class="taak nu"><span class="eyebrow">Nu · stap ${esc(s.id)} · ${esc(BP.pijler(s))}</span>
       <h2>${esc(s.t)}</h2><p>${esc(eersteZin(s.do))}</p>
       <p class="voortgang">${nf(n)} van ${nf(s.checks.length)} klaar${k ? ' · ' + esc(k) : ''}</p>
       <div class="rij"><a class="knop pri groot" href="#/taak/${esc(s.id)}">Open taak</a></div></section>
-    ${(BP.meelopers ? BP.meelopers() : []).map(m => { const em = BP.eff(m.id), nm = m.checks.filter((_, i) => em.c[i]).length, km = kortVan(m.id);
+    ${(BP.meelopers ? BP.meelopers() : []).filter(m => m.id !== '1.1').map(m => { const em = BP.eff(m.id), nm = m.checks.filter((_, i) => em.c[i]).length, km = kortVan(m.id);
       return `<section class="taak nu"><span class="eyebrow">Loopt mee · stap ${esc(m.id)} · ${esc(BP.pijler(m))}</span><h2>${esc(m.t)}</h2><p>${esc(eersteZin(m.do))}</p>
         <p class="voortgang">${nf(nm)} van ${nf(m.checks.length)} klaar${km ? ' · ' + esc(km) : ''}</p><div class="rij"><a class="knop" href="#/taak/${esc(m.id)}">Open taak</a></div></section>`; }).join('')}
     ${wacht.map(w => `<div class="wachtregel"><span><b>Wacht: ${esc(w.id)}</b> · ${esc(BP.rec(w.id).holdWhy || w.t)}</span><button class="knop" data-a="bp-hervat" data-stap="${esc(w.id)}">Hervat</button></div>`).join('')}`;
@@ -286,8 +348,6 @@ function laterGroepen(){
   const S = IV() && IV().stats(); if(!S) return [];
   const g = [];
   const U = S.uitleg;
-  if(U && U.onverklaard) g.push(['1.1', [['Live naast PDF: onverklaarde verschillen', U.onverklaard]]]);
-  else if(!U && S.V) g.push(['1.1', [['Live naast PDF: verschillen', S.V.alleenPdf.length + S.V.alleenLive.length]]]);
   g.push(['3.3', locRegels(S)]);
   g.push(['4.1', [['Aanvulniveaus naar Picqer: lopers zonder niveau' + (S.cnt.nivPd ? ' (' + nf(S.cnt.nivPd) + ' klaar in Productdata)' : ''), S.cnt.niveau], ['Lopers zonder vaste picklocatie (4.1/4.2)', S.cnt.pick]]]);
   const nu = BP.huidig();
@@ -304,7 +364,7 @@ function blokLater(){
 // producten die op Daans tik wachten: Te controleren plus de bewezen voorstellen in Productdata 2.0, met één knop die bij het grootste blok begint
 function blokTik(){
   if(!pd2Klaar() || !PD2R.wachtOp){ if(!PD.fout && !pdKlaar()) pdLaden(); wachtOpLaden(); return '<p class="muted klein">Wat op jouw tik wacht wordt geteld…</p>'; }
-  const W = PD2R.wachtOp(), codes = new Set(), grootste = ['soort', 'gewicht', 'hoev'].slice().sort((a, b) => W[b].bewezen.length - W[a].bewezen.length)[0];
+  const W = wachtOpZL(PD2R.belangrijk()), codes = new Set(), grootste = ['soort', 'gewicht', 'hoev'].slice().sort((a, b) => W[b].bewezen.length - W[a].bewezen.length)[0];
   ['soort', 'gewicht', 'hoev'].forEach(k => W[k].bewezen.forEach(b => codes.add(b.c)));
   let tc = null; try{ if(window.WHX && WHX.S && WHX.S.pd) tc = new Set(WHX.vraagLijst().map(q => q.c)); }catch(e){}
   const bewezen = codes.size; if(tc) tc.forEach(c => codes.add(c));
@@ -313,10 +373,31 @@ function blokTik(){
     <p class="muted klein">${nf(bewezen)} met een voorstel dat de data bewijst (één tik per groep, uitvinken kan)${tc ? ' · ' + nf(tc.size) + ' om te controleren' : ' · Te controleren wordt nog geteld'}</p>
     <div class="rij"><a class="knop pri groot" href="${href}">Begin</a></div></section>`;
 }
+// stap 1.1 (Live advies tegen de PDF) hoort bij spoor 3 (Aanvullen): op de parkeerlijst tot dat spoor begint, met een kopie vooraf van de bouwplan-rij
+let parkeerP = null;
+function parkeer11(){
+  if(parkeerP || !BP.B || BP.B.bestaat !== true || !BP.BYID['1.1'] || BP.isDone('1.1') || BP.isHold('1.1')) return;
+  parkeerP = (async () => {
+    try{ const r = await WH.catHaal('wh-bouwplan').catch(() => null); if(r && r.data) await WH.catZet('wh-bouwplan-kopie-' + WH.isoDag(), r.data); }catch(e){ console.error(e); }
+    BP.opWacht('1.1', 'Geparkeerd tot spoor 3 (Aanvullen) begint. De pagina Live advies blijft bereikbaar in het menu.');
+  })();
+}
+const LNAAM = { soort:'Soort', gewicht:'Gewicht', spp:'Hoeveelheid: stuks per pallet', maat:'Hoeveelheid: palletmaat', hoogte:'Hoeveelheid: hoogte', maxpick:'Hoeveelheid: max op pick', rl:'Hoeveelheid: lengte volle rol', rmax:'Hoeveelheid: max rollen per pallet' };
+const dagTijd = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.getDate() + '-' + (d.getMonth() + 1) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+// Later · moet nog: eigen kaart bovenaan, geen onderdeel van de tellingen
+function blokLaterKaart(){
+  if(!LATER.klaar || !pd2Klaar()) return '';
+  const l = laterOpen(); if(!l.length) return '';
+  return `<section class="taak nu laterkaart" id="later-kaart"><span class="eyebrow">Later</span><h2>Later · moet nog (${nf(l.length)})</h2>
+    <ul class="nog">${l.slice(0, 8).map(x => `<li><span class="nt"><b>${esc(x.c)} · ${esc((WH.D.P[x.c] || {}).naam || '')}</b><span class="muted klein">${esc(LNAAM[x.t] || x.t)} · sinds ${esc(dagTijd(x.op))}${x.opm ? ' · ' + esc(x.opm) : ''}</span></span></li>`).join('')}${l.length > 8 ? `<li><span class="nt muted klein">+ ${nf(l.length - 8)} meer</span></li>` : ''}</ul>
+    <div class="rij"><a class="knop pri groot" href="#/doorloop/later" data-taak="0.4">Later-lijst →</a></div></section>`;
+}
 function viewTodo(){
+  parkeer11();
   return `<div class="pagina">
     <div class="bouwtekening"><a class="knop" href="https://claude.ai/artifact/8mvbCuxpKQLhz9hKG6SnVS" target="_blank" rel="noopener">Bouwtekening ↗</a><span class="muted klein">de pilaren en wat deze week gebouwd wordt</span></div>
     <h1>Te doen</h1>
+    ${blokLaterKaart()}
     ${blokTik()}
     ${blokNu()}
     <h2 class="bt">Vandaag</h2>${blokVandaag()}
@@ -393,13 +474,6 @@ document.addEventListener('click', ev => {
 document.addEventListener('change', ev => {
   const t = ev.target;
   if(t.dataset && t.dataset.a === 'bp-vink'){ BP.vink(t.dataset.stap, +t.dataset.i); return; }
-  if(t.dataset && t.dataset.a === 'bp-latermee'){
-    const v = t.checked;
-    BP.zetInst('poortLaterMee', v);
-    if(window.WHPD) WHPD.zetLaterMee(v);
-    try{ const fw = $('frame') && $('frame').contentWindow; if(fw && fw.WHPD) fw.WHPD.zetLaterMee(v); }catch(e){}
-    PD.cache = null; herteken(); return;
-  }
 });
 document.addEventListener('input', ev => {
   const t = ev.target;
@@ -408,5 +482,5 @@ document.addEventListener('input', ev => {
 });
 BP.opNieuw(herteken);
 
-return { viewTodo, viewTaak, inhoud, render, herteken, balk, pdLaden, data04, kortVan };
+return { viewTodo, viewTaak, inhoud, render, herteken, balk, pdLaden, data04, kortVan, openZL, later:{ laad:laadLater, is:isLater, zet:zetLater, lijst:laterOpen, items:() => LATER.items, klaar:() => LATER.klaar } };
 })();
