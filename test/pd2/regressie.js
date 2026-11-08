@@ -49,4 +49,6 @@ const h = s => crypto.createHash('sha1').update(s).digest('hex').slice(0, 10);
   }
   require('fs').writeFileSync((process.env.UIT_MAP || '.') + '/' + (process.env.UIT || 'regressie.json'), JSON.stringify(uit, null, 1));
   await b.close();
+  // schermvullend.js hoort bij de regressie (SCHERM=1 draait hem erachteraan; hij moet groen zijn vóór elke push)
+  if(process.env.SCHERM){ try{ require('child_process').execFileSync('node', [require('path').join(__dirname, 'schermvullend.js')], { stdio:'inherit' }); }catch(e){ console.log('schermvullend.js ROOD'); process.exitCode = 1; } }
 })();
