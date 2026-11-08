@@ -1,0 +1,93 @@
+// Doorloop: terug, aanpassen, zoeken, controle en vergelijkbaar (08-11). Kattenluik (PD-M-BLA). Echte data inclusief Daans antwoorden alleen lezen;
+// schrijven gaat naar een kopie in het geheugen.
+const { start } = require('./opzet.js');
+const ok = [], fout = [];
+const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' : 'FOUT ') + n + (x ? ' — ' + x : '')); };
+(async () => {
+  const T = await start({ echt:true }); const P = T.p, B = process.env.PD2_URL || 'http://localhost:8811/';
+  const ev = (f, a) => P.evaluate(f, a);
+  const wacht = ms => P.waitForTimeout(ms);
+  const nu = () => ev(() => { const v = WHDL.S.pad[WHDL.S.i]; return { t:v.t, prod:WHDL.S.prod, gast:WHDL.S.gast, tekst:document.querySelector('.dl main') ? document.querySelector('.dl main').innerText : '' }; });
+  await P.goto(B + 'ivol.html#/doorloop/gewicht');
+  await P.waitForSelector('.dl .kop', { timeout:280000 });
+  await P.waitForFunction(() => window.WHDL && WHDL.S.pad && document.getElementById('dl-zoekknop'), null, { timeout:60000 });
+  const padVoor = await ev(() => WHDL.S.pad.length);
+  // ZOEKEN
+  await ev(() => document.getElementById('dl-zoekknop').click());
+  await P.fill('#dl-zoekin', 'PD-M');
+  await P.waitForSelector('[data-gast="PD-M-BLA"]', { timeout:20000 });
+  const res = await ev(() => [...document.querySelectorAll('[data-gast]')].map(b => b.dataset.gast));
+  check('zoeken op "PD-M" vindt Kattenluik M (ook producten die niet open staan)', res.includes('PD-M-BLA') && res.includes('PD-M-BRO'), res.join(','));
+  await ev(() => document.querySelector('[data-gast="PD-M-BLA"]').click());
+  await wacht(500);
+  let v = await nu();
+  check('kiezen opent de familie in de Doorloop met alle vragen, knop "← Terug naar waar ik was"', v.gast && /Kattenluik/i.test(v.tekst) && !!(await ev(() => document.getElementById('dl-terugmain'))) , v.t);
+  // OVERZICHT: oranje regel bij PD-M-BLA
+  await ev(() => { const S = WHDL.S, j = S.pad.findIndex(x => x.t === 'klaar'); S.i = j; S.sel = null; WHDL.teken(); });
+  const ov = await ev(() => ({ afw:[...document.querySelectorAll('.afw')].map(a => a.innerText.replace(/\s+/g, ' ')), rijen:[...document.querySelectorAll('[data-prod]')].map(b => b.dataset.prod) }));
+  const a1 = ov.afw.find(t => /PD-M-BLA/.test(t));
+  check('overzicht: oranje regel bij PD-M-BLA met wat afwijkt (kg per stuk, volle pallet)', a1 && /0,38 kg per stuk, PD-L 3 kg/.test(a1) && /volle pallet 76 tegen 495 kg/.test(a1) && /Klopt dat\?/.test(a1), a1);
+  check('overzicht: elke productregel is tikbaar', ov.rijen.includes('PD-M-BLA') && ov.rijen.includes('PD-L-WHI'), ov.rijen.join(','));
+  // PRODUCTSCHERM: alle velden van het product
+  await ev(() => document.querySelector('[data-prod="PD-M-BLA"]').click());
+  await wacht(300);
+  const pr = await ev(() => ({ velden:document.querySelectorAll('.dl .veld').length, tekst:document.querySelector('.dl main').innerText }));
+  check('tik op PD-M-BLA opent één scherm met alle velden (soort, gewicht, per pallet, palletmaat, hoogte, max op pick)', pr.velden >= 5 && /Welke soort/.test(pr.tekst) && /gewicht per stuk/.test(pr.tekst) && /stuks per pallet/.test(pr.tekst) && /palletmaat/.test(pr.tekst) && /Hoe hoog/.test(pr.tekst) && /Max op pick/.test(pr.tekst), pr.velden + ' velden');
+  // VERGELIJKBAAR
+  await ev(() => document.querySelector('[data-vergt="gewicht"]').click());
+  const vg = await ev(() => [...document.querySelectorAll('.verg .vrij')].map(r => r.innerText.replace(/\s+/g, ' ')));
+  check('Vergelijkbaar: PD-L-WHI en PD-L-BLA met hun gewicht (max 5, kleurgenoten eerst)', vg.length <= 5 && vg.some(t => /PD-L-WHI/.test(t) && /3 kg/.test(t)) && vg.some(t => /PD-L-BLA/.test(t) && /3 kg/.test(t)) && vg.every(t => /bevestigd|voorstel/.test(t)), vg.join(' | '));
+  check('Vergelijkbaar bevat nooit SAM Europe', !(await ev(() => [...document.querySelectorAll('.verg code')].some(c => PD2R.isSam(c.innerText)))));
+  // NEEM OVER + Klopt → volle pallet opnieuw
+  await ev(() => document.querySelector('.verg [data-over="PD-M-BLA|gewicht|PD-L-WHI"]').click());
+  await wacht(300);
+  const no = await ev(() => ({ chip:document.querySelector('[data-pk="gewicht|vertrouwd"]').className, tekst:document.querySelector('.dl main').innerText, nog:!(PD2R.po('PD-M-BLA') && PD2R.po('PD-M-BLA').gew && PD2R.po('PD-M-BLA').gew.kg === 3) }));
+  check('Neem over zet 3 kg bij PD-M-BLA, zichtbaar zwart, nog niet opgeslagen; volle pallet 495 kg', /\bon\b/.test(no.chip) && /volle pallet 495 kg/.test(no.tekst) && no.nog, no.chip);
+  await ev(() => document.getElementById('dl-klopt').click());
+  await wacht(800);
+  const na = await ev(() => { const g = PD2R.po('PD-M-BLA') && PD2R.po('PD-M-BLA').gew; return { g, tekst:document.querySelector('.dl main').innerText, afw:[...document.querySelectorAll('.afw')].some(a => /PD-M-BLA/.test(a.innerText)) }; });
+  check('Klopt → terug naar het overzicht, opnieuw berekend (volle pallet 495 kg), oranje regel weg, opgeslagen als 3 kg', na.g && na.g.kg === 3 && /PD-M-BLA[^\n]*volle pallet 495 kg/.test(na.tekst) && !na.afw, JSON.stringify(na.g));
+  // STAPPEN TIKBAAR + ← naar de vorige vraag met bevestigde waarden
+  await ev(() => document.querySelector('[data-stap="2"]').click());
+  await wacht(300);
+  v = await nu();
+  const gw = await ev(() => [...document.querySelectorAll('.dl .rij')].map(r => ({ c:r.querySelector('code').innerText, w:r.querySelector('.waarde').innerText, zelf:r.querySelector('.waarde').classList.contains('zelf') })));
+  check('tik op 2 Gewicht toont alle 3 producten met hun bevestigde status (zwart)', v.t === 'gewicht' && gw.length >= 3 && gw.every(x => /Vertrouwd|Gewogen|Te wegen/.test(x.w)) && gw.filter(x => x.zelf).length >= 3, JSON.stringify(gw));
+  await ev(() => document.querySelector('[data-stap="3"]').click());
+  await wacht(300);
+  v = await nu();
+  check('tik op 3 Hoeveelheid opent de eerste hoeveelheidsvraag voor alle producten', ['spp', 'maat', 'hoogte', 'maxpick'].includes(v.t), v.t);
+  await ev(() => document.getElementById('dl-terug').click());
+  await wacht(300);
+  v = await nu();
+  check('← vanaf Hoeveelheid komt bij Gewicht (met bevestigde waarden)', v.t === 'gewicht', v.t);
+  // Klopt na een stap-sprong → terug naar waar Daan was
+  await ev(() => { const S = WHDL.S; S.i = S.pad.findIndex(x => x.t === 'klaar'); S.terugNaar = null; S.prod = null; WHDL.teken(); });
+  const klaarI = await ev(() => WHDL.S.i);
+  await ev(() => document.querySelector('[data-stap="2"]').click()); await wacht(300);
+  await ev(() => document.getElementById('dl-klopt').click()); await wacht(500);
+  check('Klopt na een sprong brengt Daan terug naar waar hij was (overzicht)', (await ev(() => WHDL.S.i)) === klaarI, String(klaarI));
+  // KLOPT onthouden (afwijking melden maar niet meer): op een product met een afwijking
+  const afwC = await ev(() => { const c = WHDL.S.fams[0].cs.concat(Object.keys(WH.D.P).filter(x => /^PD-/.test(x))).find(x => { try{ return document.querySelector('x') || false; }catch(e){ return false; } }); return null; });
+  // 0 geblokkeerd; terug naar waar ik was
+  await ev(() => document.getElementById('dl-terugmain').click()); await wacht(300);
+  const tm = await ev(() => ({ gast:WHDL.S.gast, pad:WHDL.S.pad.length }));
+  check('"← Terug naar waar ik was" zet de Doorloop terug zoals hij was', !tm.gast && tm.pad === padVoor, JSON.stringify(tm) + ' vs ' + padVoor);
+  // 390 en 1440 px
+  for(const vp of [{ width:1440, height:900 }, { width:390, height:844 }]){
+    await P.setViewportSize(vp);
+    await ev(() => document.getElementById('dl-zoekknop').click()); await P.fill('#dl-zoekin', 'PD-M'); await P.waitForSelector('[data-gast="PD-M-BLA"]');
+    const sc = {};
+    sc.zoek = await ev(() => document.documentElement.scrollWidth > innerWidth + 1);
+    await ev(() => document.querySelector('[data-gast="PD-M-BLA"]').click());
+    await ev(() => { const S = WHDL.S; S.i = S.pad.findIndex(x => x.t === 'klaar'); WHDL.teken(); }); sc.overzicht = await ev(() => document.documentElement.scrollWidth > innerWidth + 1 || [...document.querySelectorAll('.dl *')].some(e => { const b = e.getBoundingClientRect(); return b.width > 0 && b.right > innerWidth + 1; }));
+    await ev(() => document.querySelector('[data-prod="PD-M-BLA"]').click()); await ev(() => document.querySelector('[data-vergt="gewicht"]').click());
+    sc.product = await ev(() => document.documentElement.scrollWidth > innerWidth + 1 || [...document.querySelectorAll('.dl *')].some(e => { const b = e.getBoundingClientRect(); return b.width > 0 && b.right > innerWidth + 1; }));
+    await ev(() => { document.getElementById('dl-terug').click(); document.getElementById('dl-terugmain').click(); });
+    check('zoeken, overzicht en productscherm ' + vp.width + ' px: geen horizontaal scrollen', !sc.zoek && !sc.overzicht && !sc.product, JSON.stringify(sc));
+  }
+  check('0 geblokkeerde schrijfpogingen', T.blocked.length === 0, JSON.stringify(T.blocked.slice(0, 3)));
+  console.log('ERRORS', T.errors.filter(e => !/Failed to load resource|locaties\.js/.test(e)).slice(0, 5).join('\n'));
+  console.log(ok.length + ' OK, ' + fout.length + ' FOUT');
+  await T.b.close();
+})().catch(e => { console.error('CRASH', e); process.exit(1); });
