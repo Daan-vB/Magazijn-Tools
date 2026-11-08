@@ -45,9 +45,9 @@ function stijl(){
 :root[data-theme="dark"] .dl{--bg:#0F1318;--vlak:#181E26;--inkt:#E9EDF2;--stil:#97A1AE;--lijn:#2A333F;--voor:#8FB0F0;--voor-bg:#1A2740;--ok:#6FC793;--kop:#0A0D11}
 .dl *{box-sizing:border-box}
 .dl .kop{position:sticky;top:0;z-index:5;background:var(--kop);color:var(--kop-inkt);padding:12px 16px}
-.dl .kop-in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.dl .kop-in{max-width:720px;width:100%;min-width:0;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
 .dl .kop b{font-size:15px}
-.dl .kop .waar{font-size:13px;opacity:.75;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dl .kop .waar{font-size:13px;opacity:.75;flex:1 1 90px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dl .kop a{color:var(--kop-inkt);border:1px solid #ffffff40;border-radius:8px;padding:6px 10px;font:600 13px inherit;text-decoration:none}
 .dl .balk{height:4px;background:#ffffff22;max-width:720px;margin:10px auto 0;border-radius:2px;overflow:hidden}
 .dl .balk i{display:block;height:100%;background:var(--accent);transition:width .3s}
@@ -108,7 +108,8 @@ function stijl(){
 .dl .klaar ul{margin:0;padding-left:18px;color:var(--stil);font-size:15px}
 .dl .klaar li b{color:var(--inkt)}
 .dl .tip{font-size:13px;color:var(--stil)}
-.dl .kopknop{background:transparent;color:var(--kop-inkt);border:1px solid #ffffff40;border-radius:8px;padding:6px 10px;font:600 13px inherit;cursor:pointer}
+.dl .kop{min-width:0}
+.dl .kopknop{white-space:nowrap;background:transparent;color:var(--kop-inkt);border:1px solid #ffffff40;border-radius:8px;padding:6px 10px;font:600 13px inherit;cursor:pointer}
 .dl .stap{background:transparent;font-family:inherit;cursor:pointer}
 .dl .stap:focus-visible{outline:3px solid var(--voor);outline-offset:2px}
 .dl .prodlijst{list-style:none;padding-left:0}

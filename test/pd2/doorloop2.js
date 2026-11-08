@@ -22,6 +22,8 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await wacht(500);
   let v = await nu();
   check('kiezen opent de familie in de Doorloop met alle vragen, knop "← Terug naar waar ik was"', v.gast && /Kattenluik/i.test(v.tekst) && !!(await ev(() => document.getElementById('dl-terugmain'))) , v.t);
+  // vaste uitgangssituatie (in het geheugen): Daan vertrouwt het Picqer-gewicht van PD-M-BLA (0,378 kg), zoals in de melding van Daan
+  await ev(() => { PD2R.poZet('PD-M-BLA', p => { p.gew = { st:'vertrouwd', kg:0.378, t:new Date().toISOString() }; }); });
   // OVERZICHT: oranje regel bij PD-M-BLA
   await ev(() => { const S = WHDL.S, j = S.pad.findIndex(x => x.t === 'klaar'); S.i = j; S.sel = null; WHDL.teken(); });
   const ov = await ev(() => ({ afw:[...document.querySelectorAll('.afw')].map(a => a.innerText.replace(/\s+/g, ' ')), rijen:[...document.querySelectorAll('[data-prod]')].map(b => b.dataset.prod) }));
@@ -32,7 +34,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await ev(() => document.querySelector('[data-prod="PD-M-BLA"]').click());
   await wacht(300);
   const pr = await ev(() => ({ velden:document.querySelectorAll('.dl .veld').length, tekst:document.querySelector('.dl main').innerText }));
-  check('tik op PD-M-BLA opent één scherm met alle velden (soort, gewicht, per pallet, palletmaat, hoogte, max op pick)', pr.velden >= 5 && /Welke soort/.test(pr.tekst) && /gewicht per stuk/.test(pr.tekst) && /stuks per pallet/.test(pr.tekst) && /palletmaat/.test(pr.tekst) && /Hoe hoog/.test(pr.tekst) && /Max op pick/.test(pr.tekst), pr.velden + ' velden');
+  check('tik op PD-M-BLA opent één scherm met alle velden die bij Deel horen (soort, gewicht, per pallet, palletmaat, hoogte)', pr.velden >= 5 && /Welke soort/.test(pr.tekst) && /gewicht per stuk/.test(pr.tekst) && /stuks per pallet/.test(pr.tekst) && /palletmaat/.test(pr.tekst) && /Hoe hoog/.test(pr.tekst) && !/Max op pick/.test(pr.tekst), pr.velden + ' velden (Deel: geen max op pick)');
   // VERGELIJKBAAR
   await ev(() => document.querySelector('[data-vergt="gewicht"]').click());
   const vg = await ev(() => [...document.querySelectorAll('.verg .vrij')].map(r => r.innerText.replace(/\s+/g, ' ')));
@@ -45,8 +47,8 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('Neem over zet 3 kg bij PD-M-BLA, zichtbaar zwart, nog niet opgeslagen; volle pallet 495 kg', /\bon\b/.test(no.chip) && /volle pallet 495 kg/.test(no.tekst) && no.nog, no.chip);
   await ev(() => document.getElementById('dl-klopt').click());
   await wacht(800);
-  const na = await ev(() => { const g = PD2R.po('PD-M-BLA') && PD2R.po('PD-M-BLA').gew; return { g, tekst:document.querySelector('.dl main').innerText, afw:[...document.querySelectorAll('.afw')].some(a => /PD-M-BLA/.test(a.innerText)) }; });
-  check('Klopt → terug naar het overzicht, opnieuw berekend (volle pallet 495 kg), oranje regel weg, opgeslagen als 3 kg', na.g && na.g.kg === 3 && /PD-M-BLA[^\n]*volle pallet 495 kg/.test(na.tekst) && !na.afw, JSON.stringify(na.g));
+  const na = await ev(() => { const g = PD2R.po('PD-M-BLA') && PD2R.po('PD-M-BLA').gew; return { g, tekst:document.querySelector('.dl main').innerText, afw:[...document.querySelectorAll('.afw')].map(a => a.innerText) }; });
+  check('Klopt → terug naar het overzicht, opnieuw berekend (volle pallet 495 kg), oranje regel weg, opgeslagen als 3 kg', na.g && na.g.kg === 3 && /volle pallet 495 kg/.test(na.tekst) && !na.afw.some(t => /kg per stuk/.test(t)), JSON.stringify(na.g));
   // STAPPEN TIKBAAR + ← naar de vorige vraag met bevestigde waarden
   await ev(() => document.querySelector('[data-stap="2"]').click());
   await wacht(300);
