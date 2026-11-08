@@ -18,6 +18,7 @@ Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet
 - Groepsacties: vinkje per product; "Selectie is: Pallet · Deel · Bulk · Pick · Mix · Weg"; een familieknop laat altijd zien welke producten eronder vallen en laat uitvinken.
 - Soort eerst. Pas na een door Daan bevestigde soort komen gewicht en hoeveelheid.
 - Elk invulscherm: altijd terug kunnen naar een eerdere vraag, elke bevestigde waarde aanpasbaar, zoeken op code/naam/familie, en bij aanpassen vergelijkbare producten (kleurgenoten → familie → zelfde hoofdwoord bij dezelfde leverancier) met "Neem over". Afwijkende waarden in een familie melden (nooit zelf wijzigen).
+- Later = bewust uitstellen: wordt bewaard (ook na herstart en op elk apparaat) en komt pas achteraan, na alle andere vragen, of als Daan zelf de Later-lijst opent. Nooit weer vooraan.
 - Tijden altijd 24-uurs.
 - Nooit decimalen in aantallen (stuks, dozen, rollen, pallets).
 
