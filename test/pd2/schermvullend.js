@@ -31,7 +31,10 @@ function meet(opt){
     if(!heeftTekst && !heeftRand && !['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'IMG', 'SVG', 'CANVAS'].includes(e.tagName.toUpperCase())) return;
     lo = Math.min(lo, r.left); hi = Math.max(hi, r.right);
   });
-  uit.breed = hi > lo ? (hi - lo) / Math.max(1, pr.width) : 0;
+  // zijbalken (sticky of vast, hoog en smal) horen niet bij de inhoud: die breedte gaat van het vlak af
+  let zij = 0;
+  doc.querySelectorAll((opt.pane || 'body') + ' *').forEach(e => { const cs = getComputedStyle(e); if((cs.position === 'sticky' || cs.position === 'fixed') && sichtbaar(e)){ const r = e.getBoundingClientRect(); if(r.height >= innerHeight * 0.5 && r.width < pr.width * 0.5) zij += r.width; } });
+  uit.breed = hi > lo ? (hi - lo) / Math.max(1, pr.width - zij) : 0;
   uit.paneBreed = Math.round(pr.width);
   // (c) werkelijk begrenzende max-width (px) op structuur: niet op tekstblokken en formuliervelden
   const vrij = new Set(['P', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'LABEL', 'SPAN', 'A', 'CODE', 'SMALL', 'B', 'I', 'STRONG', 'EM', 'INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'IMG', 'SVG', 'CANVAS', 'TD', 'TH', 'KBD', 'PRE', 'SUMMARY', 'OPTION']);
@@ -69,7 +72,7 @@ function meet(opt){
   const extra = ['junior.html', 'junior.html#/'];
   if(process.env.ROUTES) routes = routes.filter(r => new RegExp(process.env.ROUTES).test(r));
   console.log(routes.length + ' routes in het menu');
-  const lijst = routes.map(r => ({ naam:r, url:B + 'ivol.html' + r })).concat(process.env.ROUTES ? [] : [{ naam:'junior.html', url:B + 'junior.html' }]);
+  const lijst = routes.map(r => ({ naam:r, url:B + 'ivol.html' + r })).concat(!process.env.ROUTES || /junior/.test(process.env.ROUTES) ? [{ naam:'junior.html', url:B + 'junior.html' }] : []);
   for(const rt of lijst){
     try{
       await P.setViewportSize({ width:1440, height:900 });
@@ -86,7 +89,7 @@ function meet(opt){
           if(f && !f.hidden){ let d; try{ d = f.contentDocument; }catch(e){ return null; } if(!d || !d.body) return null;
             const code = '(' + fnSrc + ')'; const win = f.contentWindow; const res = win.eval('(function(){ const meet = ' + fnSrc + '; return JSON.stringify(meet({ pane:null })); })()');
             const o = JSON.parse(res); o.frame = true; o.paneBreed = win.innerWidth; return o; }
-          return Object.assign(meet({ pane:'#native' }), { frame:false });
+          return Object.assign(meet({ pane:document.getElementById('native') ? '#native' : null }), { frame:false });
         }, [meet.toString(), rt.naam]);
         if(!r){ meld(rt.naam, vn, 'niet meetbaar'); continue; }
         if(r.hscroll) meld(rt.naam, vn, 'de pagina scrollt horizontaal');
