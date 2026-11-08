@@ -24,7 +24,7 @@ const GETAL = ['spp', 'hoogte', 'maxpick', 'rl', 'rmax'];
 const HEEL = ['spp', 'maxpick', 'rmax'];   // aantallen: nooit decimalen
 const NAAM = { soort:'soort', gewicht:'gewicht', spp:'stuks per pallet', maat:'palletmaat', hoogte:'hoogte', maxpick:'max op pick', rl:'lengte volle rol', rmax:'max rollen per pallet' };
 const OK = ['bevestigd', 'aangepast', 'vastgelegd'];
-const S = { el:null, stap:'', fams:[], pad:[], i:0, A:{}, sel:null, openRij:null, melding:'', nieuweMaat:false, notities:{}, notId:{}, sleutel:'', klaar:false, terugNaar:null, prod:null, prodSnap:null, zoek:null, main:null, gast:false, akk:new Set(), vergC:null, vergT:null };
+const S = { laterModus:false, el:null, stap:'', fams:[], pad:[], i:0, A:{}, sel:null, openRij:null, melding:'', nieuweMaat:false, notities:{}, notId:{}, sleutel:'', klaar:false, terugNaar:null, prod:null, prodSnap:null, zoek:null, main:null, gast:false, akk:new Set(), vergC:null, vergT:null };
 const naamSoort = v => (SOORTEN.find(s => s[0] === v) || [0, v || '?'])[1];
 const naamWeg = v => (WEG.find(s => s[0] === v) || [0, v || '?'])[1];
 const naamGew = v => (GEWST.find(s => s[0] === v) || [0, v || '?'])[1];
@@ -32,6 +32,11 @@ const fmt = v => v === null || v === undefined || v === '' ? '' : String(v).repl
 const rang = a => a === 'A' ? 0 : a === 'B' ? 1 : 2;
 const A = c => S.A[c] = S.A[c] || { later:{} };
 const st = c => R().status(c);
+// Later (wh-doorloop-later, wh/taak.js): telt niet mee en komt nooit vooraan in de gewone Doorloop
+const LT = () => (window.WHTAAK && WHTAAK.later) || null;
+const lat = (c, t) => !!(LT() && LT().is(c, t));
+const nLater = () => LT() ? LT().lijst().length : 0;
+const laterOpm = (c, t) => { const f = S.pad[S.i] && S.pad[S.i].f; return f ? String(S.notities[f.fk + '|' + t] || '') : ''; };
 const mag = () => { const h = location.hash || ''; return h.startsWith('#/doorloop') && S.el && document.body.contains(S.el); };
 
 /* ---------- stijl (alleen binnen .dl) ---------- */
@@ -133,7 +138,8 @@ function stijl(){
 
 /* ---------- pad: families met open vragen, A vóór B ---------- */
 function bouw(stap){
-  const P = R(), alle = P.belangrijk().filter(c => { let s; try{ s = st(c); }catch(e){ return false; } return !s.kop && !P.isKoppel(c) && (stap ? !s.stap[stap] : s.open.length > 0); });
+  if(S.laterModus) return bouwLater();
+  const P = R(), alle = P.belangrijk().filter(c => { let s; try{ s = st(c); }catch(e){ return false; } return !s.kop && !P.isKoppel(c) && (window.WHTAAK && WHTAAK.openZL ? WHTAAK.openZL(c, stap).length > 0 : (stap ? !s.stap[stap] : s.open.length > 0)); });
   const per = {}; alle.forEach(c => { (per[P.famVan(c)] = per[P.famVan(c)] || []).push(c); });
   S.fams = Object.entries(per).map(([fk, cs]) => {
     cs.sort((a, b) => rang(P.abcVan(a)) - rang(P.abcVan(b)) || P.naamVan(a).localeCompare(P.naamVan(b), 'nl', { numeric:true }) || a.localeCompare(b));
@@ -145,13 +151,24 @@ function bouw(stap){
   laadNotities();
 }
 
+// Later-lijst: alleen de vragen die op Later staan, oudste eerst, per familie
+function bouwLater(){
+  const P = R(), items = LT() ? LT().lijst() : [], fams = [], perFam = {};
+  items.forEach(x => { const fk = P.famVan(x.c); if(!perFam[fk]){ perFam[fk] = { fk, items:[] }; fams.push(perFam[fk]); } perFam[fk].items.push(x); });
+  S.fams = fams.map(g => { const cs = [...new Set(g.items.map(x => x.c))]; const kl = ['A', 'B', 'C'].find(k => cs.some(c => P.abcVan(c) === k)) || '–';
+    return { fk:g.fk, naam:P.famNaam(g.fk), lev:String((WH.D.P[cs[0]] || {}).leverancier || ''), kl, cs, items:g.items }; });
+  S.pad = []; S.fams.forEach(f => { VRAGEN.forEach(t => { const rows = [...new Set(f.items.filter(x => x.t === t).map(x => x.c))]; if(rows.length) S.pad.push({ t, f, rows, laterlijst:true }); }); S.pad.push({ t:'klaar', f }); });
+  S.i = 0; S.A = {}; S.sel = null; S.openRij = null; S.melding = ''; S.nieuweMaat = false; S.klaar = false;
+  laadNotities();
+}
+
 /* ---------- rijen per vraag: live uit dezelfde status als Productdata 2.0 (één keer vastgezet zodra de vraag in beeld komt) ---------- */
 function rijenNu(v){
   const P = R();
-  if(v.t === 'soort') return v.f.cs.filter(c => !st(c).stap.soort);
+  if(v.t === 'soort') return v.f.cs.filter(c => !st(c).stap.soort && !lat(c, 'soort'));
   // soort eerst: gewicht en hoeveelheid pas na een bevestigde soort; Weg heeft verder geen vragen
-  if(v.t === 'gewicht') return v.f.cs.filter(c => { const s = st(c); return s.stap.soort && s.so !== 'weg' && !P.isSam(c) && !s.stap.gewicht; });
-  return v.f.cs.filter(c => { const s = st(c); return s.stap.soort && s.so !== 'weg' && s.open.includes(v.t); });
+  if(v.t === 'gewicht') return v.f.cs.filter(c => { const s = st(c); return s.stap.soort && s.so !== 'weg' && !P.isSam(c) && !s.stap.gewicht && !lat(c, 'gewicht'); });
+  return v.f.cs.filter(c => { const s = st(c); return s.stap.soort && s.so !== 'weg' && s.open.includes(v.t) && !lat(c, v.t); });
 }
 // alle producten van de familie voor deze vraag, ook al bevestigde (voor ←, de stap-knoppen, zoeken): alleen wat bij de soort hoort (NODIG)
 function alleRijen(v){
@@ -242,8 +259,18 @@ function teken(){
   if(!S.el) return;
   if(!R() || !R().S.klaar){ S.el.innerHTML = `<div class="dl"><main><p class="leeg">Productdata laden…</p></main></div>`; return; }
   if(S.zoek){ S.el.innerHTML = zoekHtml(); const x = document.getElementById('dl-zoekin'); if(x){ x.focus(); const l = x.value.length; try{ x.setSelectionRange(l, l); }catch(e){} } return; }
-  if(!S.pad.length){ S.el.innerHTML = `<div class="dl">${kopHtml('Niets open', 100)}<main><div class="klaar"><h2>Niets meer open${S.stap ? ' voor ' + esc(R().STAPNAAM[S.stap]) : ''}</h2><p class="waarom">Alle belangrijke producten zijn ingevuld.</p><a class="knop hoofd" href="#/todo" style="text-align:center;text-decoration:none">← Te doen</a></div></main></div>`; return; }
-  if(S.klaar){ S.el.innerHTML = `<div class="dl">${kopHtml('Klaar', 100)}<main><div class="klaar"><h2>Alles doorlopen</h2><p class="waarom">Elk antwoord staat in Productdata. Wat je uitvinkte of op Later zette, komt de volgende keer terug.</p><a class="knop hoofd" href="#/todo" style="text-align:center;text-decoration:none">← Te doen</a></div></main></div>`; return; }
+  const nL = nLater(), laterKnop = nL > 0 && !S.laterModus ? `<a class="knop hoofd" href="#/doorloop/later" style="text-align:center;text-decoration:none">Later-lijst →</a>` : '';
+  const eind = (kop, titel, tekst) => { S.el.innerHTML = `<div class="dl">${kopHtml(kop, 100)}<main><div class="klaar"><h2>${esc(titel)}</h2><p class="waarom">${esc(tekst)}</p><div class="rij">${laterKnop}<a class="knop${laterKnop ? '' : ' hoofd'}" href="#/todo" style="text-align:center;text-decoration:none">← Te doen</a></div></div></main></div>`; };
+  if(!S.pad.length){
+    if(S.laterModus) return eind('Later-lijst leeg', 'Niets meer op Later', 'Alles wat op Later stond is ingevuld.');
+    return nL > 0 ? eind('Klaar, behalve ' + nL + ' op Later', 'Klaar, behalve ' + nL + ' op Later', 'Alles wat open stond is ingevuld. ' + nL + (nL === 1 ? ' vraag staat' : ' vragen staan') + ' op Later.')
+      : eind('Niets open', 'Niets meer open' + (S.stap ? ' voor ' + R().STAPNAAM[S.stap] : ''), 'Alle belangrijke producten zijn ingevuld.');
+  }
+  if(S.klaar){
+    if(S.laterModus) return eind('Klaar', 'Later-lijst doorlopen', nL > 0 ? nL + (nL === 1 ? ' vraag blijft' : ' vragen blijven') + ' op Later.' : 'Alles wat op Later stond is ingevuld.');
+    return nL > 0 ? eind('Klaar, behalve ' + nL + ' op Later', 'Klaar, behalve ' + nL + ' op Later', 'Elk antwoord staat in Productdata. ' + nL + (nL === 1 ? ' vraag staat' : ' vragen staan') + ' op Later.')
+      : eind('Klaar', 'Alles doorlopen', 'Elk antwoord staat in Productdata.');
+  }
   const v = S.pad[S.i], f = v.f, fi = S.fams.indexOf(f);
   if(v.t !== 'klaar' && !v.rows && !v.alle) v.rows = rijenNu(v);
   const stp = S.prod ? 4 : STAPNR[v.t] || 4;
@@ -396,11 +423,14 @@ function klopt(){
   if(v.t !== 'klaar'){
     const fout = controle(v); if(fout){ S.melding = fout; teken(); return; }
     const mee = rijenVoor(v).filter(c => S.sel.on.has(c));
-    rijenVoor(v).filter(c => !S.sel.on.has(c)).forEach(c => { A(c).later[v.t] = true; });   // uitgevinkt: blijft open
+    // uitgevinkt + Klopt = Later (bewaard, telt niet mee); wat nu wel is ingevuld gaat van de Later-lijst
+    const uit = rijenVoor(v).filter(c => !S.sel.on.has(c));
+    if(LT() && uit.length) LT().zet(uit.map(c => ({ c, t:v.t, opm:laterOpm(c, v.t) })));
+    if(LT() && mee.some(c => lat(c, v.t))) LT().zet(mee.filter(c => lat(c, v.t)).map(c => ({ c, t:v.t, weg:true })));
     mee.filter(c => verandert(v.t, c)).forEach(c => bewaar(v, c));
     if(mee.length){ try{ R().flush && R().flush(); }catch(e){} }
     // latere vragen van deze familie opnieuw bepalen (soort kan net veranderd zijn)
-    S.pad.forEach(x => { if(x.f === v.f && x !== v && !x.alle && S.pad.indexOf(x) > S.i) delete x.rows; });
+    S.pad.forEach(x => { if(x.f === v.f && x !== v && !x.alle && !x.laterlijst && S.pad.indexOf(x) > S.i) delete x.rows; });
   }
   na();
 }
@@ -416,7 +446,12 @@ function na(){
   }
   volgende();
 }
-function later(){ const v = S.pad[S.i]; if(!v || v.t === 'klaar' || S.prod) return; rijenVoor(v).forEach(c => { if(S.sel.on.has(c)) A(c).later[v.t] = true; }); na(); }
+function later(){
+  const v = S.pad[S.i]; if(!v || v.t === 'klaar' || S.prod) return;
+  const rij = rijenVoor(v).filter(c => S.sel.on.has(c));
+  if(LT() && rij.length) LT().zet(rij.map(c => ({ c, t:v.t, opm:laterOpm(c, v.t) })));   // bewaard in wh-doorloop-later, telt niet meer mee
+  na();
+}
 // ← gaat altijd naar de vorige vraag van de familie, ook als die al beantwoord is (dan met de bevestigde waarden, aan te passen)
 function heeftTerug(){
   if(S.klaar) return true;
@@ -685,14 +720,18 @@ function koppel(){
 /* ---------- route: #/doorloop/<soort|gewicht|hoev> ---------- */
 async function render(el, rest){
   stijl(); koppel(); S.el = el;
-  const stap = STAPVAN[String(rest || '').split('/')[0]] || '';
+  const eerste = String(rest || '').split('/')[0], stap = STAPVAN[eerste] || '';
+  S.laterModus = eerste === 'later';
   if(!R() || !R().S.klaar){
     teken();
     if(window.WHTAAK) await WHTAAK.pdLaden();
     if(window.PD2R && PD2R.laad && !PD2R.S.klaar) await PD2R.laad().catch(e => console.error(e));
     if(S.el !== el || !mag()) return;
   }
-  const sleutel = stap + '|' + (location.hash || '');
+  if(window.WHTAAK && WHTAAK.later) await WHTAAK.later.laad();
+  try{ WHPD.zetLaterMee(false); }catch(e){}
+  if(S.el !== el || !mag()) return;
+  const sleutel = (S.laterModus ? 'later' : stap) + '|' + (location.hash || '');
   if(S.sleutel !== sleutel || !S.pad.length){ S.sleutel = sleutel; S.stap = stap; bouw(stap); sla(1); }
   teken();
 }
