@@ -40,89 +40,91 @@ function stijl(){
   const s = document.createElement('style'); s.id = 'dl-stijl';
   s.textContent = `
 .dl{--bg:#EDF0F4;--vlak:#FFFFFF;--inkt:#121820;--stil:#5C6675;--lijn:#D6DCE4;--accent:#EF8A4A;--accent-inkt:#1B1205;--voor:#2350A8;--voor-bg:#EAF0FB;--ok:#2E7D4F;--kop:#121820;--kop-inkt:#F4F6F9;
-  background:var(--bg);color:var(--inkt);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;min-height:100%;display:flex;flex-direction:column}
+  background:var(--bg);color:var(--inkt);font:1rem/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;min-height:100%;display:flex;flex-direction:column}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dl{--bg:#0F1318;--vlak:#181E26;--inkt:#E9EDF2;--stil:#97A1AE;--lijn:#2A333F;--voor:#8FB0F0;--voor-bg:#1A2740;--ok:#6FC793;--kop:#0A0D11}}
 :root[data-theme="dark"] .dl{--bg:#0F1318;--vlak:#181E26;--inkt:#E9EDF2;--stil:#97A1AE;--lijn:#2A333F;--voor:#8FB0F0;--voor-bg:#1A2740;--ok:#6FC793;--kop:#0A0D11}
 .dl *{box-sizing:border-box}
-.dl .kop{position:sticky;top:0;z-index:5;background:var(--kop);color:var(--kop-inkt);padding:12px 16px}
-.dl .kop-in{max-width:720px;width:100%;min-width:0;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
-.dl .kop b{font-size:15px}
-.dl .kop .waar{font-size:13px;opacity:.75;flex:1 1 90px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dl .kop a{color:var(--kop-inkt);border:1px solid #ffffff40;border-radius:8px;padding:6px 10px;font:600 13px inherit;text-decoration:none}
-.dl .balk{height:4px;background:#ffffff22;max-width:720px;margin:10px auto 0;border-radius:2px;overflow:hidden}
+.dl .kop{position:sticky;top:0;z-index:5;background:var(--kop);color:var(--kop-inkt);padding:0.75rem 1rem}
+.dl .kop-in{width:100%;min-width:0;margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:0.375rem 0.75rem}
+.dl .kop b{font-size:0.9375rem}
+.dl .kop .waar{font-size:0.8125rem;opacity:.75;flex:1 1 5.625rem;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dl .kop a{color:var(--kop-inkt);border:1px solid #ffffff40;border-radius:0.5rem;padding:0.375rem 0.625rem;font:600 0.8125rem inherit;text-decoration:none}
+.dl .balk{height:0.25rem;background:#ffffff22;width:100%;margin:0.625rem 0 0;border-radius:2px;overflow:hidden}
 .dl .balk i{display:block;height:100%;background:var(--accent);transition:width .3s}
-.dl main{flex:1;width:100%;max-width:720px;margin:0 auto;padding:20px 16px 24px;display:flex;flex-direction:column;gap:16px}
-.dl .fam{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
-.dl .fam h1{font-size:22px;margin:0;overflow-wrap:anywhere}
-.dl .fam span{color:var(--stil);font-size:14px}
-.dl .stappen{display:flex;gap:6px;flex-wrap:wrap}
-.dl .stap{font-size:13px;font-weight:700;padding:4px 10px;border-radius:999px;border:1px solid var(--lijn);color:var(--stil)}
+.dl main{flex:1;width:100%;margin:0;padding:1.25rem 1rem 1.5rem;display:flex;flex-direction:column;gap:1rem}
+.dl .fam{display:flex;flex-wrap:wrap;align-items:baseline;gap:0.25rem 0.625rem}
+.dl .fam h1{font-size:1.375rem;margin:0;overflow-wrap:anywhere}
+.dl .fam span{color:var(--stil);font-size:0.875rem}
+.dl .stappen{display:flex;gap:0.375rem;flex-wrap:wrap}
+.dl .stap{font-size:0.8125rem;font-weight:700;padding:0.25rem 0.625rem;border-radius:62.4375rem;border:1px solid var(--lijn);color:var(--stil)}
 .dl .stap.nu{background:var(--inkt);color:var(--vlak);border-color:var(--inkt)}
 .dl .stap.af{color:var(--ok);border-color:var(--ok)}
-.dl .vraag{font-size:24px;font-weight:750;margin:4px 0 0;line-height:1.25}
-.dl .waarom{font-size:15px;color:var(--stil);margin:0;overflow-wrap:anywhere}
+.dl .vraag{font-size:1.5rem;font-weight:750;margin:0.25rem 0 0;line-height:1.25}
+.dl .waarom{font-size:0.9375rem;color:var(--stil);margin:0;overflow-wrap:anywhere}
 .dl .waarom b{color:var(--voor);font-weight:600}
-.dl .chips{display:flex;flex-wrap:wrap;gap:8px}
-.dl .chip{border:1.5px solid var(--lijn);background:var(--vlak);color:var(--inkt);border-radius:10px;padding:10px 14px;font:600 16px inherit;cursor:pointer;min-height:46px}
+.dl .chips{display:flex;flex-wrap:wrap;gap:0.5rem}
+.dl .chip{border:1.5px solid var(--lijn);background:var(--vlak);color:var(--inkt);border-radius:0.625rem;padding:0.625rem 0.875rem;font:600 1rem inherit;cursor:pointer;min-height:2.875rem}
 .dl .chip.voor{border-color:var(--voor);color:var(--voor);background:var(--voor-bg)}
 .dl .chip.on{background:var(--inkt);border-color:var(--inkt);color:var(--vlak)}
-.dl .chip kbd{font:600 11px ui-monospace,Menlo,monospace;opacity:.5;margin-left:6px}
-.dl .sub{display:flex;flex-wrap:wrap;gap:8px;padding-left:4px}
-.dl .lijst{background:var(--vlak);border:1px solid var(--lijn);border-radius:14px;overflow:hidden}
-.dl .rij{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 14px;border-top:1px solid var(--lijn)}
-.dl .rij:first-child{border-top:0}
+.dl .chip kbd{font:600 0.6875rem ui-monospace,Menlo,monospace;opacity:.5;margin-left:0.375rem}
+.dl .sub{display:flex;flex-wrap:wrap;gap:0.5rem;padding-left:0.25rem}
+.dl .lijst{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr));gap:.5rem}
+.dl .rij{display:grid;grid-template-columns:1.75rem minmax(0,1fr) auto;gap:0.625rem;align-items:center;padding:0.75rem 0.875rem;background:var(--vlak);border:1px solid var(--lijn);border-radius:0.75rem;align-content:start}
 .dl .rij.uit{opacity:.45}
-.dl .rij input[type=checkbox]{width:22px;height:22px;accent-color:var(--inkt);margin:0}
+.dl .rij input[type=checkbox]{width:1.375rem;height:1.375rem;accent-color:var(--inkt);margin:0}
 .dl .rij .nm{min-width:0;overflow-wrap:anywhere}
-.dl .rij .nm b{display:block;font-size:15px}
-.dl .rij .nm code{font:12px ui-monospace,Menlo,monospace;color:var(--stil)}
-.dl .rij .feit{display:block;font-size:12.5px;color:var(--stil)}
-.dl .waarde{font:700 17px inherit;font-variant-numeric:tabular-nums;border:1.5px solid var(--voor);background:var(--voor-bg);color:var(--voor);border-radius:10px;padding:8px 12px;min-width:84px;text-align:right;cursor:pointer;display:inline-block}
+.dl .rij .nm b{display:block;font-size:0.9375rem}
+.dl .rij .nm code{font:0.75rem ui-monospace,Menlo,monospace;color:var(--stil)}
+.dl .rij .feit{display:block;font-size:0.7812rem;color:var(--stil)}
+.dl .waarde{font:700 1.0625rem inherit;font-variant-numeric:tabular-nums;border:1.5px solid var(--voor);background:var(--voor-bg);color:var(--voor);border-radius:0.625rem;padding:0.5rem 0.75rem;min-width:5.25rem;text-align:right;cursor:pointer;display:inline-block}
 .dl .waarde.zelf{border-color:var(--inkt);background:var(--vlak);color:var(--inkt)}
-.dl .waarde.leeg{border-style:dashed;border-color:var(--stil);background:transparent;color:var(--stil);font-weight:600;font-size:14px}
-.dl .waarde input{width:84px;font:700 17px inherit;text-align:right;border:0;background:transparent;color:inherit;outline:none}
-.dl .rijkeus{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:8px}
-.dl .rijkeus .chip{min-height:40px;padding:8px 12px;font-size:15px}
-.dl .chips.maten .chip{min-height:42px;padding:8px 12px;font-size:15px;font-variant-numeric:tabular-nums}
+.dl .waarde.leeg{border-style:dashed;border-color:var(--stil);background:transparent;color:var(--stil);font-weight:600;font-size:0.875rem}
+.dl .waarde input{width:5.25rem;font:700 1.0625rem inherit;text-align:right;border:0;background:transparent;color:inherit;outline:none}
+.dl .rijkeus{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:0.5rem}
+.dl .rijkeus .chip{min-height:2.5rem;padding:0.5rem 0.75rem;font-size:0.9375rem}
+.dl .chips.maten .chip{min-height:2.625rem;padding:0.5rem 0.75rem;font-size:0.9375rem;font-variant-numeric:tabular-nums}
 .dl .chip.eigen{border-style:dashed}
-.dl .chip.nieuw{display:inline-flex;gap:6px;align-items:center;padding:4px 6px 4px 12px}
-.dl .chip.nieuw input{width:120px;border:0;background:transparent;color:inherit;font:inherit;outline:none}
-.dl .chip.nieuw button{border:0;border-radius:8px;padding:6px 10px;font:700 14px inherit;background:var(--accent);color:var(--accent-inkt);cursor:pointer}
-.dl .rechts{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
-.dl .waarde.kg{display:inline-flex;align-items:center;gap:4px}
-.dl .waarde.kg input{width:70px}
-.dl .waarde.kg small{font-size:13px;opacity:.7}
-.dl .melding{border:1.5px solid var(--accent);border-radius:10px;padding:10px 12px;font-size:15px;font-weight:600;overflow-wrap:anywhere}
+.dl .chip.nieuw{display:inline-flex;gap:0.375rem;align-items:center;padding:0.25rem 0.375rem 0.25rem 0.75rem}
+.dl .chip.nieuw input{width:7.5rem;border:0;background:transparent;color:inherit;font:inherit;outline:none}
+.dl .chip.nieuw button{border:0;border-radius:0.5rem;padding:0.375rem 0.625rem;font:700 0.875rem inherit;background:var(--accent);color:var(--accent-inkt);cursor:pointer}
+.dl .rechts{display:flex;flex-direction:column;gap:0.375rem;align-items:flex-end}
+.dl .waarde.kg{display:inline-flex;align-items:center;gap:0.25rem}
+.dl .waarde.kg input{width:4.375rem}
+.dl .waarde.kg small{font-size:0.8125rem;opacity:.7}
+.dl .melding{border:1.5px solid var(--accent);border-radius:0.625rem;padding:0.625rem 0.75rem;font-size:0.9375rem;font-weight:600;overflow-wrap:anywhere}
 .dl .klaar .open{color:var(--accent);font-weight:600}
-.dl .notitie{display:flex;flex-direction:column;gap:6px}
-.dl .notitie button{align-self:flex-start;background:none;border:0;color:var(--stil);font:600 14px inherit;padding:0;cursor:pointer;text-decoration:underline}
-.dl .notitie textarea{font:15px inherit;border:1px solid var(--lijn);border-radius:10px;padding:10px;background:var(--vlak);color:var(--inkt);min-height:70px;resize:vertical}
-.dl .onder{position:sticky;bottom:0;background:var(--vlak);border-top:1px solid var(--lijn);padding:12px 16px}
-.dl .onder-in{max-width:720px;margin:0 auto;display:flex;gap:10px}
-.dl .knop{border-radius:12px;padding:14px 16px;font:700 17px inherit;cursor:pointer;border:1.5px solid var(--lijn);background:var(--vlak);color:var(--inkt)}
+.dl .notitie{display:flex;flex-direction:column;gap:0.375rem}
+.dl .notitie button{align-self:flex-start;background:none;border:0;color:var(--stil);font:600 0.875rem inherit;padding:0;cursor:pointer;text-decoration:underline}
+.dl .notitie textarea{font:0.9375rem inherit;border:1px solid var(--lijn);border-radius:0.625rem;padding:0.625rem;background:var(--vlak);color:var(--inkt);min-height:4.375rem;resize:vertical}
+.dl .onder{position:sticky;bottom:0;background:var(--vlak);border-top:1px solid var(--lijn);padding:0.75rem 1rem}
+.dl .onder-in{width:100%;margin:0;display:flex;gap:0.625rem}
+.dl .knop{border-radius:0.75rem;padding:0.875rem 1rem;font:700 1.0625rem inherit;cursor:pointer;border:1.5px solid var(--lijn);background:var(--vlak);color:var(--inkt)}
 .dl .knop.hoofd{flex:1;background:var(--accent);border-color:var(--accent);color:var(--accent-inkt)}
 .dl .knop:disabled{opacity:.4;cursor:default}
-.dl .knop:focus-visible,.dl .chip:focus-visible,.dl .waarde:focus-visible{outline:3px solid var(--voor);outline-offset:2px}
-.dl .klaar{background:var(--vlak);border:1px solid var(--lijn);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:8px;overflow-wrap:anywhere}
-.dl .klaar h2{margin:0;font-size:20px}
-.dl .klaar ul{margin:0;padding-left:18px;color:var(--stil);font-size:15px}
+.dl .knop:focus-visible,.dl .chip:focus-visible,.dl .waarde:focus-visible{outline:0.1875rem solid var(--voor);outline-offset:2px}
+.dl .klaar{width:100%;background:var(--vlak);border:1px solid var(--lijn);border-radius:0.875rem;padding:1.125rem;display:flex;flex-direction:column;gap:0.5rem;overflow-wrap:anywhere}
+.dl .klaar h2{margin:0;font-size:1.25rem}
+.dl .klaar ul{margin:0;padding-left:1.125rem;color:var(--stil);font-size:0.9375rem}
 .dl .klaar li b{color:var(--inkt)}
-.dl .tip{font-size:13px;color:var(--stil)}
+.dl .tip{font-size:0.8125rem;color:var(--stil)}
 .dl .kop{min-width:0}
-.dl .kopknop{white-space:nowrap;background:transparent;color:var(--kop-inkt);border:1px solid #ffffff40;border-radius:8px;padding:6px 10px;font:600 13px inherit;cursor:pointer}
+.dl .kopknop{white-space:nowrap;background:transparent;color:var(--kop-inkt);border:1px solid #ffffff40;border-radius:0.5rem;padding:0.375rem 0.625rem;font:600 0.8125rem inherit;cursor:pointer}
 .dl .stap{background:transparent;font-family:inherit;cursor:pointer}
-.dl .stap:focus-visible{outline:3px solid var(--voor);outline-offset:2px}
-.dl .prodlijst{list-style:none;padding-left:0}
-.dl .prodknop{background:none;border:0;text-align:left;font:inherit;color:inherit;width:100%;padding:8px 0;cursor:pointer;overflow-wrap:anywhere;min-height:44px}
-.dl .zoekrij{padding:12px 14px;border-top:1px solid var(--lijn)}
-.dl .zoekin{font:17px inherit;border:1.5px solid var(--lijn);border-radius:10px;padding:12px;background:var(--vlak);color:var(--inkt);width:100%}
-.dl .afw{border:1.5px solid var(--accent);border-radius:10px;padding:8px 10px;margin:6px 0 2px;font-size:14px;font-weight:600;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between;overflow-wrap:anywhere;color:var(--inkt)}
-.dl .afw>span:first-child{min-width:0;flex:1 1 220px}
-.dl .afwk{display:flex;gap:6px}.dl .afwk .chip,.dl .kleinchip{min-height:36px;padding:6px 10px;font-size:14px}
-.dl .verg{background:var(--vlak);border:1px solid var(--lijn);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
-.dl .vrij{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;font-size:14px;overflow-wrap:anywhere}
-.dl .vrij .vw{color:var(--stil);grid-column:1/2}.dl .vrij .chip{grid-column:2/3;grid-row:1/3;min-height:38px;padding:6px 10px;font-size:14px}
-.dl .veld{display:flex;flex-direction:column;gap:8px;padding:10px 0;border-top:1px solid var(--lijn)}
+.dl .stap:focus-visible{outline:0.1875rem solid var(--voor);outline-offset:2px}
+.dl .prodlijst{list-style:none;padding-left:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,24rem),1fr));gap:.25rem 1.5rem}
+.dl .prodknop{background:none;border:0;text-align:left;font:inherit;color:inherit;width:100%;padding:0.5rem 0;cursor:pointer;overflow-wrap:anywhere;min-height:2.75rem}
+.dl .zoekrij{padding:0.75rem 0.875rem;border-top:1px solid var(--lijn)}
+.dl .zoekin{font:1.0625rem inherit;border:1.5px solid var(--lijn);border-radius:0.625rem;padding:0.75rem;background:var(--vlak);color:var(--inkt);width:100%}
+.dl .afw{border:1.5px solid var(--accent);border-radius:0.625rem;padding:0.5rem 0.625rem;margin:0.375rem 0 2px;font-size:0.875rem;font-weight:600;display:flex;flex-wrap:wrap;gap:0.375rem 0.625rem;align-items:center;justify-content:space-between;overflow-wrap:anywhere;color:var(--inkt)}
+.dl .afw>span:first-child{min-width:0;flex:1 1 13.75rem}
+.dl .afwk{display:flex;gap:0.375rem}.dl .afwk .chip,.dl .kleinchip{min-height:2.25rem;padding:0.375rem 0.625rem;font-size:0.875rem}
+.dl .verg{background:var(--vlak);border:1px solid var(--lijn);border-radius:0.75rem;padding:0.625rem 0.75rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr));gap:0.375rem 1rem}
+.dl .verg>.tip{grid-column:1/-1}
+.dl code{background:var(--lijn);color:var(--inkt);padding:1px 0.3125rem;border-radius:0.25rem;font:0.75rem ui-monospace,Menlo,monospace}
+.dl .vrij{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0.25rem 0.625rem;align-items:center;font-size:0.875rem;overflow-wrap:anywhere}
+.dl .vrij .vw{color:var(--stil);grid-column:1/2}.dl .vrij .chip{grid-column:2/3;grid-row:1/3;min-height:2.375rem;padding:0.375rem 0.625rem;font-size:0.875rem}
+.dl .veld{display:flex;flex-direction:column;gap:0.5rem;padding:0.625rem 0;border-top:1px solid var(--lijn);min-width:0}
+.dl .veldengrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr));gap:0 1.5rem;align-items:start}
 .dl .leeg{color:var(--stil)}
 @media (max-width:480px){.dl .vraag{font-size:21px}.dl .waarde{min-width:70px}}
 @media (prefers-reduced-motion:reduce){.dl .balk i{transition:none}}`;
@@ -539,6 +541,7 @@ function openProd(c){ S.terugNaar = S.terugNaar != null && S.prod ? S.terugNaar 
 function prodHtml(c){
   const P = R(), f = S.pad[S.i].f, vtekst = { soort:'Welke soort?', gewicht:'Klopt het gewicht per stuk uit Picqer?', spp:'Hoeveel stuks per pallet?', maat:'Welke palletmaat?', hoogte:'Hoe hoog is een volle pallet, incl. pallet?', maxpick:'Max op pick?', rl:'Lengte volle rol (m)?', rmax:'Max rollen per pallet?' };
   let h = `<div class="fam"><h1>${esc(P.naamVan(c))}</h1><span>${esc(c)} · ${esc(f.naam)}</span></div>${afwHtml(c, true)}`;
+  h += '<div class="veldengrid">';
   veldenVan(c).forEach(t => {
     const v = { t, f }, w = waarde(v, c), a = A(c);
     let ctrl = '';
@@ -548,8 +551,9 @@ function prodHtml(c){
       if(t === 'soort' && w.v === 'weg') ctrl += `<div class="sub">${WEG.map(([k, tx]) => `<button type="button" class="chip ${wegVan(c) === k ? 'on' : ''}" data-pweg="${k}">Weg · ${tx}</button>`).join('')}</div>`;
       if(t === 'gewicht'){ ctrl += `<div class="tip">Picqer ${P.gewicht(c).pq > 0 ? fmt(P.gewicht(c).pq) + ' kg' : 'heeft geen gewicht'}</div>`; if(w.v === 'gewogen') ctrl += `<span class="waarde zelf kg"><input data-kg="${esc(c)}" inputmode="decimal" value="${fmt(a.kg || P.gewicht(c).kg)}" placeholder="kg" aria-label="gewogen kg"><small>kg</small></span>`; }
     } else ctrl = `<span class="waarde ${w.zelf ? 'zelf' : ''} ${w.v == null ? 'leeg' : ''}"><input data-num="${esc(c)}" data-t="${t}" inputmode="${t === 'rl' ? 'decimal' : 'numeric'}" value="${esc(fmt(w.v))}" placeholder="typ" aria-label="${esc(NAAM[t])}">${t === 'hoogte' ? ' cm' : t === 'rl' ? ' m' : ''}</span>`;
-    h += `<div class="veld"><p class="vraag" style="font-size:18px">${esc(vtekst[t])}</p>${ctrl}<button type="button" class="chip kleinchip" data-vergt="${t}">Vergelijkbare producten ${S.vergT === t ? '▴' : '▾'}</button>${S.vergT === t ? vergHtml(c, t) : ''}</div>`;
+    h += `<div class="veld"><p class="vraag" style="font-size:1.125rem">${esc(vtekst[t])}</p>${ctrl}<button type="button" class="chip kleinchip" data-vergt="${t}">Vergelijkbare producten ${S.vergT === t ? '▴' : '▾'}</button>${S.vergT === t ? vergHtml(c, t) : ''}</div>`;
   });
+  h += '</div>';
   const vp = volPallet(c); if(vp) h += `<div class="tip"><b>${esc(vp)}</b></div>`;
   if(S.melding) h += `<div class="melding" role="alert">${esc(S.melding)}</div>`;
   return h;

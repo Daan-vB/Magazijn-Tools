@@ -1,6 +1,6 @@
 /* IVOL Warehouse 3.0 — Productdata 2.0 (oefen). Rustig zoals Per familie: wit en grijs, blauw alleen voor het voorstelvak,
    groen = klopt of vast, rood alleen bij ontbrekend of onmogelijk. Geen tabellen, nergens horizontaal scrollen. */
-.pd2{max-width:1040px;padding:16px 16px 140px;gap:12px;min-width:0}
+.pd2{padding:1rem 1rem 8.75rem;gap:12px;min-width:0}
 .pd2 *{min-width:0}
 .pd2 h1{font-size:22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .pd2 h2{font-size:19px;font-weight:800;margin:0;overflow-wrap:anywhere}
@@ -26,7 +26,7 @@
 .pd2-kaart .pd2-ic{min-width:28px;min-height:26px}
 .pd2-in::placeholder{color:#8a96a3}
 .pd2-zoekrij{display:flex;gap:8px;align-items:center}
-.pd2-zoekrij .pd2-in{flex:1 1 auto;max-width:420px}
+.pd2-zoekrij .pd2-in{flex:1 1 auto;max-width:26rem}
 .pd2-filters{background:#fff;border:1px solid #d6dde5;border-radius:10px;padding:10px 12px;display:grid;gap:8px}
 .pd2-selrij{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:8px}
 .pd2-seg{display:flex;flex-wrap:wrap;gap:6px}
@@ -47,7 +47,7 @@
 .pd2-fkop{display:grid;gap:8px;align-content:start}
 .pd2-fkop .kn{display:grid;gap:2px}
 .pd2-vg{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px}
-.pd2-vg .balk{height:6px;background:#e3e8ee;border-radius:3px;overflow:hidden;flex:1 1 160px;max-width:420px}
+.pd2-vg .balk{height:6px;background:#e3e8ee;border-radius:3px;overflow:hidden;flex:1 1 160px;max-width:26rem}
 .pd2-vg .balk i{display:block;height:100%;background:var(--ok)}
 .pd2-aand{display:flex;flex-wrap:wrap;gap:0 18px;align-items:center}
 .pd2-maten{display:flex;gap:6px;flex-wrap:wrap}
@@ -69,7 +69,7 @@
 .pd2-uitleg p{margin:2px 0 6px}
 .pd2-zelfdekg[open]{flex:1 1 100%}
 .pd2-zk{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:4px 0}
-.pd2-zk .pd2-in{flex:1 1 180px;max-width:260px}
+.pd2-zk .pd2-in{flex:1 1 180px;max-width:16.5rem}
 .pd2-vink{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:13px;min-height:40px}
 .pd2-vink input,.pd2-alle input{width:20px;height:20px;accent-color:var(--ink)}
 .pd2-segrij{display:flex;justify-content:space-between;align-items:center;gap:6px 12px;flex-wrap:wrap}
@@ -172,7 +172,7 @@
 .pd2-menu .knop{justify-self:stretch}
 #pd2-actie{position:sticky;bottom:0;z-index:60;padding:0 16px calc(10px + env(safe-area-inset-bottom,0px))}
 #pd2-actie:empty{padding:0}
-.pd2-actie{max-width:1008px;margin:0 auto;background:#fff;border:1px solid #c9ced6;border-radius:12px;padding:8px 10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;box-shadow:0 6px 24px rgba(15,23,32,.18);font-size:14px}
+.pd2-actie{width:100%;margin:0;background:#fff;border:1px solid #c9ced6;border-radius:12px;padding:8px 10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;box-shadow:0 6px 24px rgba(15,23,32,.18);font-size:14px}
 .pd2-actie .knop{min-height:40px;padding:4px 10px;font-size:13.5px;font-weight:700;border:1px solid #c9ced6;border-radius:8px;background:#fff;color:var(--ink);cursor:pointer;font-family:inherit;max-width:100%}
 .pd2-actie select.knop{appearance:auto}
 .pd2-oefkaart{position:fixed;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:55;width:min(340px,calc(100vw - 24px));max-height:60vh;overflow:auto;background:#fff;border:1px solid #c9ced6;border-radius:12px;padding:10px 12px;box-shadow:0 6px 24px rgba(15,23,32,.18);display:grid;gap:8px;font-size:14px}
@@ -189,7 +189,7 @@
 .pd2-vragen textarea{width:100%;min-height:54px;font:inherit;font-size:14px;padding:6px 8px;border:1px solid #c5ccd6;border-radius:8px}
 body:has(#pd2-actie .pd2-actie) .pd2-oefkaart{bottom:calc(90px + env(safe-area-inset-bottom,0px))}
 @media (max-width:600px){body:has(#pd2-actie .pd2-actie) .pd2-oefkaart{bottom:calc(150px + env(safe-area-inset-bottom,0px))}}
-.pd2-undo{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 8px 8px 14px;border-radius:10px;font-size:14px;z-index:70;box-shadow:0 4px 16px rgba(0,0,0,.3);display:flex;gap:10px;align-items:center;max-width:calc(100vw - 24px)}
+.pd2-undo{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 8px 8px 14px;border-radius:10px;font-size:14px;z-index:70;box-shadow:0 4px 16px rgba(0,0,0,.3);display:flex;gap:10px;align-items:center;max-width:calc(100vw - 1.5rem)}
 .pd2-undo button{min-height:40px;background:#fff;color:var(--ink);border:0;border-radius:8px;font:inherit;font-weight:800;padding:4px 12px;cursor:pointer}
 .pd2-modal-bg{position:fixed;inset:0;background:rgba(8,12,18,.5);z-index:80;display:flex;align-items:flex-end;justify-content:center;padding:12px}
 @media (min-width:700px){.pd2-modal-bg{align-items:center}}
@@ -275,7 +275,7 @@ body:has(#pd2-actie .pd2-actie) .pd2-oefkaart{bottom:calc(90px + env(safe-area-i
 .pd2-kz.vs{border-color:var(--blauw);color:#123a7a;background:#f5f8fe}
 .pd2-kz .vw{font-size:10.5px;font-weight:600}
 .pd2-kz.aan{background:var(--ok);border-color:var(--ok);color:#fff}
-.pd2-vraag > select.pd2-in{max-width:260px}
+.pd2-vraag > select.pd2-in{max-width:16.5rem}
 .pd2-kaart .pd2-in{font-size:14px;padding:4px 8px;min-height:40px;height:auto;border-radius:8px}
 .pd2-kaart .pd2-mini{min-height:40px;padding:2px 12px;font-size:13px}
 .pd2-kaart .pd2-velden{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 12px}

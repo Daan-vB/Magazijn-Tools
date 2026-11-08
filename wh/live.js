@@ -189,7 +189,7 @@ const pqLink = (pad, tekst) => `<a href="${PICQER}/${pad}" target="_blank" rel="
 function koppelKaart(){
   return `<div class="card" style="border-left:5px solid var(--blue)"><h3>Picqer koppelen</h3>
     <div class="small muted mt4">Vul één keer de koppelcode in (staat in Supabase bij de Secrets als IVOL_CODE). Hij blijft alleen op dit apparaat bewaard. De app leest alleen; er wordt niets in Picqer veranderd.</div>
-    <div class="row wrap mt8"><input id="lv-code" type="password" autocomplete="off" placeholder="koppelcode" style="max-width:240px"><button class="btn pri" data-lv="code">Koppelen</button></div></div>`;
+    <div class="row wrap mt8"><input id="lv-code" type="password" autocomplete="off" placeholder="koppelcode" style="max-width:15rem"><button class="btn pri" data-lv="code">Koppelen</button></div></div>`;
 }
 function containersKaart(){
   if(D.fout || !Array.isArray(D.CONT)) return '';

@@ -212,7 +212,7 @@ function tekening(niveaus, bulk){
   const n = lagen.length, stap = (vloer - top) / (n + 0.2);
   const yL = i => vloer - i * stap;
   const isBulk = lv => bulk.includes(lv);
-  let g = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:380px" font-family="Arial" font-size="11">`;
+  let g = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:24rem" font-family="Arial" font-size="11">`;
   g += `<line x1="20" y1="${vloer}" x2="${x1 + 30}" y2="${vloer}" stroke="#000" stroke-width="2"/>`;
   const eindStaander = bulk.length ? yL(n - 1) - stap * 0.45 : top;
   g += `<rect x="${x0 - 8}" y="${eindStaander}" width="8" height="${vloer - eindStaander}" fill="#555"/><rect x="${x1}" y="${eindStaander}" width="8" height="${vloer - eindStaander}" fill="#555"/>`;

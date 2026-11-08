@@ -1091,7 +1091,7 @@ function stijl(){
   .pd-pill:disabled{opacity:.4;cursor:not-allowed}
   .pd-inv{display:inline-flex;gap:8px;align-items:center;min-width:0}
   .pd-ctl .pd-inv{display:flex}
-  .pd-inv input{flex:1 1 auto;min-width:0;max-width:340px;font-size:16px;padding:9px 11px;min-height:42px}
+  .pd-inv input{flex:1 1 auto;min-width:0;max-width:21rem;font-size:16px;padding:9px 11px;min-height:42px}
   .pd-inv.klein input{width:90px;flex:none}
   .pd-inv .eh{font-size:13px;color:var(--muted);white-space:nowrap}
   .pd-inv input.voor{background:#fff8d6;border-color:#d9b640}
@@ -1179,7 +1179,7 @@ function stijl(){
   .pd-tg{border-collapse:separate;border-spacing:0;font-size:13px;width:100%;min-width:1100px}
   .pd-tg th{text-align:left;padding:6px 6px;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:700;border-bottom:1px solid #d6dde5;background:#fbfcfd;white-space:nowrap}
   .pd-tg td{padding:0;border-bottom:1px solid #e3e8ee;border-right:1px solid #eef1f4;vertical-align:middle;white-space:nowrap}
-  .pd-tg .prod{position:sticky;left:0;z-index:1;background:#fff;padding:5px 8px;min-width:300px;max-width:440px;width:32%;white-space:normal;border-right:1px solid #d6dde5}
+  .pd-tg .prod{position:sticky;left:0;z-index:1;background:#fff;padding:5px 8px;min-width:300px;max-width:27.5rem;width:32%;white-space:normal;border-right:1px solid #d6dde5}
   .pd-tg .pn{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.25}
   .pd-tg .pinfo{display:flex;flex-wrap:wrap;gap:0 10px;font-size:11px;line-height:1.35}
   .pd-tg th.prod{background:#fbfcfd;z-index:2}
@@ -1196,7 +1196,7 @@ function stijl(){
   .pd-naarklein + .pd-naarklein{margin-left:4px}
   .pd-naarklein{margin-left:auto;font-size:11px;padding:1px 7px;border:1px solid #c9bde0;border-radius:4px;background:#f6f3fb;color:#5a3e8f;cursor:pointer;white-space:nowrap}
   .pd-naarklein:hover{background:#5a3e8f;color:#fff}
-  .k-tg{min-width:880px} .k-tg .prod{width:auto;max-width:560px}
+  .k-tg{min-width:880px} .k-tg .prod{width:auto;max-width:35rem}
   .k-chk{display:inline-flex;align-items:center;cursor:pointer;padding:2px 2px 2px 0} .k-chk input{width:17px;height:17px;accent-color:var(--blue);margin:0;cursor:pointer}
   .k-why{font-size:11px;line-height:1.3;margin-top:2px} .k-why.voor{color:#6b4f00} .k-why.twijfel{color:#9a4205;font-weight:700} .k-why.ok{color:#1c6b3f}
   .k-tg td.k-bij{padding:0 8px;text-align:right;font-variant-numeric:tabular-nums;color:#4a5a6a}
@@ -1216,7 +1216,7 @@ function stijl(){
   .pd-nt{border-collapse:separate;border-spacing:0;font-size:13px;width:100%}
   .pd-nt th{text-align:left;padding:6px 6px;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:700;border-bottom:1px solid #d6dde5;background:#fbfcfd;white-space:nowrap}
   .pd-nt td{padding:0;border-bottom:1px solid #e3e8ee;border-right:1px solid #eef1f4;vertical-align:top}
-  .pd-nt .n-prod{position:sticky;left:0;z-index:1;background:#fff;padding:5px 8px;min-width:150px;max-width:260px;white-space:normal;border-right:1px solid #d6dde5;overflow-wrap:anywhere}
+  .pd-nt .n-prod{position:sticky;left:0;z-index:1;background:#fff;padding:5px 8px;min-width:150px;max-width:16.5rem;white-space:normal;border-right:1px solid #d6dde5;overflow-wrap:anywhere}
   .pd-nt th.n-prod{background:#fbfcfd;z-index:2}
   .pd-nt .n-naam{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.25}
   .pd-nt input{border:0;border-radius:0;width:100%;min-width:76px;height:34px;padding:3px 6px;font-size:14px;background:transparent;color:var(--ink)}
@@ -1260,7 +1260,7 @@ function levKeuze(){
   const lev = [...new Set(Object.values(D.P).filter(p => inScope(p.productcode, UI.scope === 'voorraad' ? 'voorraad' : 'beweegt') || p.leverancier === UI.lev).map(p => p.leverancier).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   return `<select data-pd="lev" style="width:auto;max-width:100%"><option value="">Alle leveranciers</option>${lev.map(l => `<option ${l === UI.lev ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
 }
-const zoekVeld = () => `<input id="pd-zoek" data-pd="zoek" value="${esc(UI.zoek)}" placeholder="zoek code of naam" style="max-width:260px">`;
+const zoekVeld = () => `<input id="pd-zoek" data-pd="zoek" value="${esc(UI.zoek)}" placeholder="zoek code of naam" style="max-width:16.5rem">`;
 function laagTabs(codes){
   return `<div class="pd-chips">${LAGEN.map(l => { const v = voortgang(codes, l.n); const o = v.velden - v.gevuld; return `<button class="pd-chip ${UI.laag === l.n ? 'on' : ''}" data-pd="laag" data-v="${l.n}">${l.n}. ${esc(l.t)}<span class="n">${o ? nf(o) + ' open' : '✓'}</span></button>`; }).join('')}</div>`;
 }
@@ -2952,8 +2952,8 @@ function viewKlein(arg){
       <div class="k-frij"><span class="l">Voorstel</span>${chip('bron', '', 'Alle', (L.tBron.zeker || 0) + (L.tBron.data || 0) + (L.tBron.twijfel || 0) + (L.tBron.ok || 0), !K.bron)}${chip('bron', 'zeker', 'Uit jouw invoer', L.tBron.zeker, K.bron === 'zeker')}${chip('bron', 'data', 'Uit de data: nakijken', L.tBron.data, K.bron === 'data')}${chip('bron', 'twijfel', 'Twijfel', L.tBron.twijfel, K.bron === 'twijfel')}${chip('bron', 'ok', 'Vastgelegd', L.tBron.ok, K.bron === 'ok')}</div>
       <div class="k-frij"><span class="l">Status</span>${chip('status', 'open', 'Nog te doen', L.tStatus.open, K.status === 'open')}${chip('status', 'klaar', 'Klaar', L.tStatus.klaar, K.status === 'klaar')}${chip('status', 'alles', 'Alles', L.tStatus.alles, K.status === 'alles')}<span style="width:12px"></span>${chip('zp', '1', 'Zonder picklocatie', L.tZp.zonder, K.zp)}</div>
       <div class="k-frij"><span class="l">Afdeling</span>${chip('afd', '', 'Alle', Object.values(L.tAfd).reduce((a, b) => a + b, 0), !K.afd.size)}${afds.map(([z, n]) => chip('afd', z, KZNAAM[z] || z, n, K.afd.has(z))).join('')}${[...K.afd].filter(z => !L.tAfd[z]).map(z => chip('afd', z, KZNAAM[z] || z, 0, true)).join('')}</div>
-      <div class="k-frij"><span class="l">Zoeken</span><input id="pk-zoek" data-pk="zoek" value="${esc(K.zoek)}" placeholder="magneet, marker · wit 20 mm" style="max-width:300px">
-        <select data-pk="lev" style="width:auto;max-width:300px"><option value="">Alle leveranciers</option>${levs.map(([l, n]) => `<option value="${esc(l)}" ${l === K.lev ? 'selected' : ''}>${esc(l)} (${n})</option>`).join('')}${K.lev && !L.tLev[K.lev] ? `<option selected>${esc(K.lev)} (0)</option>` : ''}</select>
+      <div class="k-frij"><span class="l">Zoeken</span><input id="pk-zoek" data-pk="zoek" value="${esc(K.zoek)}" placeholder="magneet, marker · wit 20 mm" style="max-width:19rem">
+        <select data-pk="lev" style="width:auto;max-width:19rem"><option value="">Alle leveranciers</option>${levs.map(([l, n]) => `<option value="${esc(l)}" ${l === K.lev ? 'selected' : ''}>${esc(l)} (${n})</option>`).join('')}${K.lev && !L.tLev[K.lev] ? `<option selected>${esc(K.lev)} (0)</option>` : ''}</select>
         <select data-pk="sort" style="width:auto"><option value="loc" ${K.sort === 'loc' ? 'selected' : ''}>Volgorde: afdeling en locatie</option><option value="vk" ${K.sort === 'vk' ? 'selected' : ''}>Volgorde: meest verkocht</option><option value="lev" ${K.sort === 'lev' ? 'selected' : ''}>Volgorde: leverancier</option><option value="mg" ${K.sort === 'mg' ? 'selected' : ''}>Volgorde: mixgroep</option></select>
         ${K.afd.size || K.lev || K.zoek || K.zp || K.soort || K.bron ? '<button class="btn sm ghost" data-pk="filterleeg">Filters wissen</button>' : ''}</div>
     </div>
@@ -3099,7 +3099,7 @@ function viewKg(){
    .forEach(c => { const g = (D.P[c] || {}).leverancier || '–'; (groepen[g] = groepen[g] || []).push(c); });
   const kop = `<tr><th class="prod">Product</th><th>Picqer</th><th>Gevonden (tik = gebruiken)</th><th style="min-width:72px">kg per st/m</th><th style="min-width:80px">Per pallet</th><th style="min-width:76px">Gewicht kg</th><th></th></tr>`;
   app.innerHTML = `<div class="pd-feedkop"><a class="small" href="#/productdata">← Productdata</a> <b style="font-size:18px;margin-left:6px">Gewicht uitzoeken</b> <span class="small muted">${plural(l.length, 'product', 'producten')}</span>
-    <div class="small muted mt8" style="max-width:820px">Hier heb je bij <b>kg per st/m</b> een x gezet: het Picqer-gewicht klopt niet. Bij Gevonden staat wat in pakbonnen, palletgewichten of kleurgenoten zit: tik om het te gebruiken, het palletgewicht rekent mee. Niets gevonden? Dan is hij voor jou (wegen of navragen), of vraag Claude om in je mail en bij de leverancier te zoeken. Typ je het juiste gewicht in, dan gaat hij van de lijst.</div></div>
+    <div class="small muted mt8" style="max-width:70ch">Hier heb je bij <b>kg per st/m</b> een x gezet: het Picqer-gewicht klopt niet. Bij Gevonden staat wat in pakbonnen, palletgewichten of kleurgenoten zit: tik om het te gebruiken, het palletgewicht rekent mee. Niets gevonden? Dan is hij voor jou (wegen of navragen), of vraag Claude om in je mail en bij de leverancier te zoeken. Typ je het juiste gewicht in, dan gaat hij van de lijst.</div></div>
   ${Object.entries(groepen).map(([g, cs]) => `<section class="pd-sec"><div class="pd-sec-kop"><div class="l"><h3>${esc(g)}</h3><span class="small muted">${plural(cs.length, 'product', 'producten')}</span></div></div>
     <div class="pd-tab"><table class="pd-tg"><thead>${kop}</thead><tbody>${cs.map(kgRij).join('')}</tbody></table></div></section>`).join('') || '<div class="card empty">Niets uit te zoeken. Zet een x bij kg per st/m in de tabel van een afdeling als het Picqer-gewicht niet klopt.</div>'}`;
 }

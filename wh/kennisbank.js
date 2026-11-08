@@ -85,7 +85,7 @@ function stijl(){
   if($('kb-stijl')) return;
   const s = document.createElement('style'); s.id = 'kb-stijl';
   s.textContent = `
-  .kb{max-width:680px;margin:0 auto;padding:14px 16px 80px;display:grid;gap:14px}
+  .kb{margin:0;padding:14px 16px 80px;display:grid;gap:14px}
   .kb>*{min-width:0}
   .kb-balk{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;font-weight:700}
   .kb-balk .muted{font-weight:600}

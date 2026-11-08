@@ -376,7 +376,7 @@ function stijl(){
   .lk-zoek{display:flex;gap:8px;flex-wrap:wrap}
   .lk-zoek input{flex:1 1 220px;min-height:44px;font-size:16px}
   .lk-tabel td,.lk-tabel th{vertical-align:middle}
-  .lk-mist{flex:1 1 170px;max-width:240px;min-height:44px;font-family:ui-monospace,Consolas,monospace;text-transform:uppercase}
+  .lk-mist{flex:1 1 170px;max-width:15rem;min-height:44px;font-family:ui-monospace,Consolas,monospace;text-transform:uppercase}
   .lk-mist::placeholder{text-transform:none;font-family:inherit}
   #app a:focus-visible,#app button:focus-visible,#app input:focus-visible,#app summary:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
   @media (max-width:700px){

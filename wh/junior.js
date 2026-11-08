@@ -81,7 +81,7 @@ function koppelKaart(){
   const s = LV();
   if(!s || s.code) return s && s.fout ? `<div class="reason mt8">${esc(t('live.fout'))} <span class="small muted">${esc(s.fout.message)}</span></div>` : '';
   return `<div class="card noprint"><h3>${esc(t('live.titel'))}</h3><div class="small muted mt4">${esc(t('live.uitleg'))}</div>
-    <div class="row wrap mt8"><input id="j-code" type="password" autocomplete="off" style="max-width:220px;padding:8px 10px;font-size:15px;border:1px solid #cdd5df;border-radius:6px"><button class="btn pri" data-a="koppel">${esc(t('live.knop'))}</button></div></div>`;
+    <div class="row wrap mt8"><input id="j-code" type="password" autocomplete="off" style="max-width:14rem;padding:8px 10px;font-size:15px;border:1px solid #cdd5df;border-radius:6px"><button class="btn pri" data-a="koppel">${esc(t('live.knop'))}</button></div></div>`;
 }
 function lijsten(){
   const C = WHL.bereken();

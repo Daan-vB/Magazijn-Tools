@@ -329,9 +329,9 @@ function stijl(){
   .pf-t th{text-align:left;padding:6px;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);font-weight:700;border-bottom:1px solid #d6dde5;background:#fbfcfd;white-space:nowrap;vertical-align:bottom}
   .pf-t th .pf-k{display:block;margin-top:3px;text-transform:none;letter-spacing:0;font-weight:600}
   .pf-t td{padding:4px;border-bottom:1px solid #e3e8ee;vertical-align:top}
-  .pf-t td.kop{position:sticky;left:0;background:#fff;z-index:1;min-width:150px;max-width:260px;white-space:normal;border-right:1px solid #d6dde5}
+  .pf-t td.kop{position:sticky;left:0;background:#fff;z-index:1;min-width:150px;max-width:16.5rem;white-space:normal;border-right:1px solid #d6dde5}
   .pf-t .pf-in{min-width:84px;font-size:14px;min-height:36px;padding:5px 7px}
-  .pf-t .pf-why{max-width:170px;font-size:11px}
+  .pf-t .pf-why{max-width:10.5rem;font-size:11px}
   .pf-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#e8891c;margin-right:4px}
   .pf-keus{font-size:12.5px;background:#fff4e5;border:1px solid #f1d2a8;border-radius:8px;padding:6px 8px;margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
   .pf-uitl td{background:#f3f5f8;color:#8795a4}
@@ -387,7 +387,7 @@ function stijl(){
     .pf .pf-k{display:inline-flex;align-items:center;padding:8px 10px;font-size:13px;border-radius:6px}
     .pf .pf-t th .pf-k{display:flex;margin-top:4px}
     .pf .pf-t .pf-in{min-height:44px;font-size:15px;min-width:96px}
-    .pf .pf-t td.kop{min-width:132px;max-width:170px}
+    .pf .pf-t td.kop{min-width:132px;max-width:10.5rem}
     .pf .pf-why{font-size:12px}
     .pf .pf-fam{padding:12px}
     .pf input#pf-naam, .pf select#pf-erbij{max-width:none!important;width:100%}
@@ -450,7 +450,7 @@ function viewLijst(){
   <div class="card mt8"><div class="pd-kop"><div><h2>Per familie</h2><div class="small muted mt4">Kies een familie en daarbinnen een maat: je ziet alle kleuren onder elkaar. De app toont en stelt voor wat uit Picqer, inkoop, verplaatsingen en verkoop volgt, met de reden. Jij bevestigt met een klik of typt het zelf; er wordt niets opgeslagen zonder jouw klik.</div></div>
     ${vg ? `<a class="btn acc" href="${famUrl(vg.fk)}">Volgende familie →</a>` : ''}</div>
     <div class="small mt8"><b>${nf(v.klaar)}</b> van ${nf(v.tot)} families klaar (laag 1–3, families met een A-, B- of binnenkomend product)</div>
-    <div class="row wrap mt8"><input id="pf-zoek" data-pfz="1" value="${esc(UI.zoek)}" placeholder="zoek familie, code of naam" style="max-width:300px"></div></div>
+    <div class="row wrap mt8"><input id="pf-zoek" data-pfz="1" value="${esc(UI.zoek)}" placeholder="zoek familie, code of naam" style="max-width:19rem"></div></div>
   ${vs.map(x => `<div class="card" style="border-left:4px solid var(--blue)"><div class="row between wrap"><div><h3>Voorstel indeling: ${esc(x.v.naam)}</h3><div class="small muted mt4">${esc(x.v.uit)} Nu ${plural(x.cs.length, 'product', 'producten')} in ${plural(x.fks.length, 'familie', 'families')}.</div></div>
     <button class="btn pri" data-pfa="voorstel" data-id="${esc(x.v.id)}">Indeling overnemen</button></div></div>`).join('')}
   <div class="pf-lijst">${(q ? f : open.concat(f.filter(x => !x.open))).slice(0, UI.n).map(x => `<a class="pf-fam${x.open ? '' : ' klaar'}" href="${famUrl(x.fk)}"><div><b>${esc(x.naam)}</b><div class="u">${esc(x.fk.split('|')[0])} · ${plural(x.n, 'product', 'producten')} · ${plural(x.maten, 'maatgroep', 'maatgroepen')}${x.ab ? ' · A/B' : ''}${x.binnen ? ' · komt binnen' : ''}</div></div>
@@ -790,8 +790,8 @@ function viewWerkblad(fk){
   <div class="card mt8 pf-kop"><div class="pd-kop"><div><h2>${esc(famNaam(fk))}</h2><div class="small muted">${esc(fk.split('|')[0])} · ${plural(ls.length, 'product', 'producten')} · ${plural(mg.length, 'maatgroep', 'maatgroepen')}</div></div>
       ${vg ? `<a class="btn" href="${famUrl(vg.fk)}">Volgende familie →</a>` : ''}</div>
     <div class="pf-stats"><span>Verkoop <b>${nf(Math.round(vkm))}</b> per maand</span><span>Picks <b>${nf(pdd, 1)}</b> per dag</span><span>ABC ${Object.entries(abc).map(([a, n]) => `<b>${esc(a)}</b> ${n}`).join(' · ')}</span><span>Open containers <b>${nf(cont.size)}</b></span></div>
-    <div class="row wrap" style="gap:8px"><input id="pf-naam" data-pfnaam="1" value="${esc(X().famCorWaarde('naam', fk) || '')}" placeholder="Naam voor deze familie (bijv. Kokos)" style="max-width:280px"><button class="btn sm" data-pfa="naam">Naam bewaren</button>
-      ${famOpts.length ? `<select id="pf-erbij" style="max-width:280px"><option value="">Familie erbij…</option>${famOpts.map(f => `<option value="${esc(f)}">${esc(famNaam(f))} (${actiefLeden(f).length})</option>`).join('')}</select><button class="btn sm" data-pfa="erbij">Samenvoegen</button>` : ''}</div>
+    <div class="row wrap" style="gap:8px"><input id="pf-naam" data-pfnaam="1" value="${esc(X().famCorWaarde('naam', fk) || '')}" placeholder="Naam voor deze familie (bijv. Kokos)" style="max-width:17.5rem"><button class="btn sm" data-pfa="naam">Naam bewaren</button>
+      ${famOpts.length ? `<select id="pf-erbij" style="max-width:17.5rem"><option value="">Familie erbij…</option>${famOpts.map(f => `<option value="${esc(f)}">${esc(famNaam(f))} (${actiefLeden(f).length})</option>`).join('')}</select><button class="btn sm" data-pfa="erbij">Samenvoegen</button>` : ''}</div>
     ${(() => { const u = ls.filter(naamUitl); return u.length ? `<div class="pf-keus"><b>Uitlopend?</b> ${plural(u.length, 'product heeft', 'producten hebben')} UITLOPEND in de naam: ${esc(u.map(c => lab[c] || c).join(', '))}<button class="pf-k" data-pfa="uitl" data-codes="${esc(u.join('\n'))}" data-aan="1">${u.length > 1 ? 'Alle ' + u.length + ' op uitlopend' : 'Op uitlopend'}</button></div>` : ''; })()}
     ${Object.keys(ehAlle).length > 1 ? `<button class="pf-mld rood" data-pfa="ehpaneel"><b>Eenheid verschilt in Picqer:</b> ${Object.entries(ehAlle).map(([e, cs]) => nf(cs.length) + ' ' + esc(e) + (cs.length <= 4 ? ' (' + esc(cs.join(', ')) + ')' : '')).join(' · ')}. Controleer dat stuks per pallet en max op pick in de eenheid van Picqer staan.</button>`
       : ehVast(fk) && ehPicqer ? `<div class="small muted">Eenheid: <b>${esc(EHT2[ehVast(fk)].t)}</b> voor de hele familie, Picqer-eenheid genegeerd <button class="pf-k" data-pfa="ehpaneel">wijzigen</button></div>` : ''}

@@ -43,7 +43,7 @@
   .top .saved{margin-left:auto;font-size:12px;color:#8fa0b5}
   .top .saved.err{color:#ff9a86}
 
-  main{max-width:1200px;margin:0 auto;padding:16px 16px 70px}
+  main{width:100%;margin:0;padding:1rem 1rem 4.5rem}
   .card{background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(15,23,32,.08);padding:16px;margin-bottom:14px}
   h2{font-size:16px;font-weight:800}
   h3{font-size:14px;font-weight:800}
@@ -95,7 +95,7 @@
   tr.err td{background:#fff6f5}
   tr.warn td{background:#fffaf0}
   .code{font-family:ui-monospace,Consolas,monospace;font-weight:700;font-size:12.5px;white-space:nowrap}
-  .desc{font-size:11.5px;color:var(--muted);max-width:280px}
+  .desc{font-size:.72rem;color:var(--muted);max-width:70ch}
 
   /* Home */
   .datastrip{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:13px}
@@ -195,7 +195,7 @@
     .card{padding:12px}
     .top{padding:8px 12px}
     .top .saved{width:100%;margin-left:0}
-    .desc{max-width:180px}
+    .desc{max-width:70ch}
     .hide-m{display:none}
   }
   @media print{
@@ -2431,7 +2431,7 @@ function viewGegevens(){
   </div>
   <div class="card">
     <div class="row between wrap"><h3>2. Verkoop (Magazijnverkopen)</h3></div>
-    <div class="fields mt8" style="max-width:520px">
+    <div class="fields mt8">
       <div class="fld"><label>Periode van</label><input type="date" id="vk_van" value="${iso(van)}"></div>
       <div class="fld"><label>t/m</label><input type="date" id="vk_tot" value="${iso(tot)}"></div>
       <div class="fld" style="align-self:end"><label class="btn pri file">Rapport kiezen<input type="file" accept=".xlsx,.xls,.csv" data-change="impVerkoop"></label></div>
