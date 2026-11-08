@@ -30,7 +30,8 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   const ov = await ev(() => ({ afw:[...document.querySelectorAll('.afw')].map(a => a.innerText.replace(/\s+/g, ' ')), rijen:[...document.querySelectorAll('[data-prod]')].map(b => b.dataset.prod) }));
   const a1 = ov.afw.find(t => /PD-M-BLA/.test(t));
   check('overzicht: oranje regel bij PD-M-BLA met wat afwijkt (kg per stuk, volle pallet)', a1 && /0,38 kg per stuk, PD-L 3 kg/.test(a1) && /volle pallet 76 tegen 495 kg/.test(a1) && /Klopt dat\?/.test(a1), a1);
-  check('Kattenluik: geen hoogte-melding (geen 20-locatie in hal A)', !ov.afw.some(t => /hoogte/.test(t)), ov.afw.join(' | ').slice(0, 200));
+  const hl = await ev(() => ['PD-L-BLA', 'PD-L-WHI', 'PD-M-BLA'].map(c => c + '=' + (WHDL.halA20(c) || '-')).join(' '));
+  check('Kattenluik: hoogte-melding alleen bij een product dat op een 20-locatie in hal A staat (' + hl + ')', ov.afw.every(t => !/hoogte/.test(t) || ((t.match(/^⚠ (\S+):/) || [])[1] && new RegExp(((t.match(/^⚠ (\S+):/) || [])[1]) + '=A[A-Z]\\d{2}[A-D]20').test(hl))) && !ov.afw.some(t => /PD-M-BLA: .*hoogte/.test(t)), ov.afw.join(' | ').slice(0, 260));
   check('overzicht: elke productregel is tikbaar', ov.rijen.includes('PD-M-BLA') && ov.rijen.includes('PD-L-WHI'), ov.rijen.join(','));
   // PRODUCTSCHERM: alle velden van het product
   await ev(() => document.querySelector('[data-prod="PD-M-BLA"]').click());
