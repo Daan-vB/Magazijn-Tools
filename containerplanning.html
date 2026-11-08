@@ -467,6 +467,7 @@ async function load(){
       safe('containers', T('containers', 'select=*&order=id', ['updated_at'])),
       safe('todos', getAll('todos', 'select=*'))
     ]);
+    if(window.PDBRON && PDBRON.laadCp) await PDBRON.laadCp(true);   // productdata altijd lezen voor het advies (alleen bevestigde waarden), los van de schakelaar
     if(window.PDBRON) await PDBRON.laad(true);   // schakelaar "Andere apps gebruiken productdata" (standaard uit); uit = niets verandert
     indexProducten(prod);
     indexCatalog(cat && cat.length ? cat[0].data : {});
@@ -1885,14 +1886,17 @@ function adviesKern(c, pool, eerder){
   if(qtySoort((geh1(code) || {}).qty) === 'onb') return teBepalen('stuks per pallet onbekend — nog te bepalen, verdeel zelf');
   if(!f.rate && !pallets.length && !sppVan(code) && !(R.losdest || R.pickmax || R.restdest || R.bulk || R.maxpal)) return teBepalen('geen verkoophistorie en geen bekende pallet — nog te bepalen, verdeel zelf');
   // soort Bulk (productdata): pallet alleen op bulk, nooit naar pick; zonder bekende stuks per pallet blijft het bij lossen bepalen
-  if(window.PDBRON && PDBRON.leesLos(code, 'opslag') === 'bulk'){
+  const PDd = window.PDBRON && PDBRON.cp ? PDBRON.cp(code) : null;   // productdata: soort, stuks per pallet, max op pick, aanvullen bij (bevestigd of vastgelegd)
+  if((window.PDBRON && PDBRON.leesLos(code, 'opslag') === 'bulk') || (PDd && PDd.soort === 'bulk')){
     if(!sppVan(code)) return teBepalen('soort Bulk, stuks per pallet onbekend — nog te bepalen, verdeel zelf');
     if(Math.abs(pool.losU - Math.round(pool.losU)) > 1e-9) return teBepalen('aantal is geen heel getal — nog te bepalen, verdeel zelf');
     const per = {}; pallets.forEach(x => { per[x] = (per[x] || 0) + 1; });
     Object.entries(per).forEach(([sz, n]) => porties.push({ soort:'pallet', n, per:+sz, dest:'UP' }));
     if(pool.losU > 0) porties.push({ soort:'los', n:Math.round(pool.losU), dest:'UP' });
-    return { porties, uitleg:'soort Bulk: pallets alleen naar Bulk (up), nooit naar pick', feiten:f, eerder, proj:0, verbruik:0, uitVst:0, mnd:maandenTot(c) };
+    return { porties, uitleg:'productdata: Bulk → pallets alleen naar Bulk (up), nooit naar pick', feiten:f, eerder, proj:0, verbruik:0, uitVst:0, mnd:maandenTot(c) };
   }
+  // productdata: Weg → alleen info, bij lossen bepalen (Backorder: alleen backorders, rest VST, kan pas als productdata die keuze kent)
+  if(PDd && PDd.soort === 'weg') return teBepalen('productdata: Weg' + (PDd.uitlopend ? ' · Uitlopend' : '') + ' — info, bij lossen bepalen, verdeel zelf');
   // alleen hele eenheden (st., rollen, hele meters/cm) en losse goederen alleen in hele dozen ("Per" van de pakbonregel)
   if(Math.abs(pool.losU - Math.round(pool.losU)) > 1e-9) return teBepalen('aantal is geen heel getal — nog te bepalen, verdeel zelf');
   const dozen = pool.regels.filter(r => r.soort !== 'pallet').map(r => (num(r.per) || 0) * (num(r.factor) || 1));
@@ -1948,12 +1952,35 @@ function adviesKern(c, pool, eerder){
   let nHier = 0, acc = 0;
   while(need > 0 && acc < need && nHier < pallets.length){ acc += pallets[nHier]; nHier++; }
   const pickLeeg = pool.losU === 0 && (f.hm - f.bo + (vrij - f.vrij)) <= Math.max(0, (f.rate || 0) * 0.25);
+  // productdata (08-11): advies per soort in hele eenheden; pick krijgt hele dozen of niets. Ontbreekt een waarde, dan geldt de oude regel.
+  const SN = { deel:'Deel', pallet:'Pallet', pick:'Pick', mix:'Mix' };
+  let PDa = null;
+  if(PDd && SN[PDd.soort] && PDd.maxpick > 0 && !(R.bulk || R.maxpal)){
+    const stock = Math.max(0, vrij), ruim = PDd.lvl === null ? stock <= 0 : stock <= PDd.lvl;
+    PDa = { soort:PDd.soort, max:PDd.maxpick, lvl:PDd.lvl, stock, ruim, room:Math.max(0, naarDozen(PDd.maxpick - stock, false)) };
+  }
   pallets.forEach((s, i) => {
-    const dest = R.bulk || R.maxpal ? 'UP' : i < nHier ? ((i === 0 && pickLeeg) ? 'PICK' : 'UP') : 'VST';
+    let dest = R.bulk || R.maxpal ? 'UP' : i < nHier ? ((i === 0 && pickLeeg) ? 'PICK' : 'UP') : 'VST';
+    if(PDa){
+      const basis = i < nHier ? 'UP' : 'VST';
+      if(PDa.soort === 'deel') dest = basis;   // Deel: nooit een hele pallet naar pick
+      else if(PDa.soort === 'pallet'){ if(PDa.ruim && PDd.maxpick >= (PDa.lvl || 0) + s && PDa.room >= s && i < nHier){ dest = 'PICK'; PDa.room -= s; PDa.ruim = false; } else dest = basis; }   // hele pallet naar pick alleen als pick ≤ aanvullen bij én max op pick ≥ aanvullen bij + pallet
+      else if(PDa.room >= s){ dest = 'PICK'; PDa.room -= s; } else dest = basis;   // Pick en Mix: tot max op pick, rest Bulk/VST
+    }
     const last = porties[porties.length - 1];
     if(last && last.soort === 'pallet' && last.dest === dest && last.per === s) last.n++;
     else porties.push({ soort:'pallet', n:1, per:s, dest });
   });
+  if(PDa && PDa.soort === 'deel' && PDa.ruim){
+    // Deel: de pallet gaat naar Bulk (up); daarvan komt max op pick − pick-voorraad naar de Picklocatie (hele dozen)
+    const up = porties.find(x => x.soort === 'pallet' && x.dest === 'UP');
+    const n = up ? Math.min(PDa.room, Math.round(up.n * up.per)) : 0;
+    if(n > 0){ up.note = 'daarvan ' + nf(n) + ' naar Picklocatie'; up.pickU = n; }
+    PDa.pickU = n;
+  }
+  if(PDa) uitleg.push('productdata: ' + SN[PDa.soort] + ', max op pick ' + nf(PDa.max) + (PDa.lvl !== null ? ', bij ' + nf(PDa.lvl) : '') + ', pick nu ' + nf(PDa.stock) + (PDa.soort === 'deel' ? (PDa.pickU ? ' → ' + nf(PDa.pickU) + ' naar pick, rest Bulk (up)' : ' → alles naar Bulk (up) of VST, pick is vol genoeg') : PDa.soort === 'pallet' ? ' → hele pallet naar pick alleen als pick ≤ aanvullen bij en er past een hele pallet bij' : ' → tot max op pick, rest Bulk/VST'));
+  else if(PDd && PDd.soort) uitleg.push('(oude regel: productdata mist ' + (PDd.maxpick > 0 ? 'de soort' : 'max op pick') + ')');
+  else uitleg.push('(oude regel)');
   porties.forEach(x => { x.n = Math.round(x.n); });   // nooit decimalen in een verdeling
   return { porties, uitleg:uitleg.join(' · '), feiten:f, eerder, proj, verbruik, uitVst, mnd };
 }
@@ -4072,7 +4099,7 @@ function viewVooruit(){
       const na = x.adv.proj + x.h + x.b;
       return `<tr class="sub"><td></td><td class="small">${esc(c.losdatum ? losTekst(c) : 'geen datum')} · ${esc(c.pakbon_ref || c.containernummer || '')}</td>
         <td class="n">+${nf(pool ? pool.totaalU : 0)}</td>
-        <td class="small">${x.porties.filter(y => portieU(y) > 0).map(y => `<span class="badge d-${y.dest}">${y.soort === 'pallet' ? y.n + '× ' + nf(y.per) : (doosVan(c, code) ? losPortie(c, code, y.n) : nf(y.n) + ' los')} → ${DEST[y.dest].nl}</span>`).join(' ')} ${x.vast ? '' : '<span class="tiny muted">(advies)</span>'}</td>
+        <td class="small">${x.porties.filter(y => portieU(y) > 0).map(y => `<span class="badge d-${y.dest}">${y.soort === 'pallet' ? y.n + '× ' + nf(y.per) : (doosVan(c, code) ? losPortie(c, code, y.n) : nf(y.n) + ' los')} → ${DEST[y.dest].nl}${y.note ? ', ' + esc(y.note) : ''}</span>`).join(' ')} ${x.vast ? '' : '<span class="tiny muted">(advies)</span>'}</td>
         <td class="n">${nf(x.adv.proj)}</td><td class="n"><b>${nf(na)}</b></td><td class="n">${dek(na)}</td></tr>`;
     }).join('');
     return `<tr class="prod"><td><span class="code">${esc(code)}</span></td><td class="small">${esc(naamVan(code))}</td>
@@ -4146,7 +4173,7 @@ function wegzetTekst(c, pool){
 }
 function portiesTekst(c, code, porties, taal){
   return (porties || []).filter(x => portieU(x) > 0).sort((a, b) => DEST_ORDER.indexOf(a.dest) - DEST_ORDER.indexOf(b.dest)).map(x =>
-    (x.soort === 'pallet' ? x.n + '× ' + eenhTekst(c, code, x.per) : losPortie(c, code, x.n, taal)) + ' → ' + (DEST[x.dest] ? DEST[x.dest][taal || 'nl'] : x.dest)).join(' · ');
+    (x.soort === 'pallet' ? x.n + '× ' + eenhTekst(c, code, x.per) : losPortie(c, code, x.n, taal)) + ' → ' + (DEST[x.dest] ? DEST[x.dest][taal || 'nl'] : x.dest) + (x.note ? ', ' + x.note : '')).join(' · ');
 }
 function tabVerdeling(c, g){
   const pl = g.pl;
@@ -4204,7 +4231,7 @@ function verdeelKaart(c, pool){
   if(heeft && v.bevestigd && rest.ok && !UI.open['v-' + code]){
     return `<div class="vcard okk" id="v-${esc(code)}" data-code="${esc(code)}"><div class="row between wrap">
       <div class="grow"><span class="code" style="font-size:14px">${esc(code)}</span> <span class="small muted">${esc(naamVan(code))}</span>
-      <div class="chips mt8">${(v.porties || []).filter(x => portieU(x) > 0).sort((a, b) => DEST_ORDER.indexOf(a.dest) - DEST_ORDER.indexOf(b.dest)).map(x => `<span class="badge d-${x.dest}">${x.soort === 'pallet' ? x.n + '× ' + eenhTekst(c, code, x.per) : losPortie(c, code, x.n)} → ${DEST[x.dest].nl}</span>`).join('')}</div></div>
+      <div class="chips mt8">${(v.porties || []).filter(x => portieU(x) > 0).sort((a, b) => DEST_ORDER.indexOf(a.dest) - DEST_ORDER.indexOf(b.dest)).map(x => `<span class="badge d-${x.dest}">${x.soort === 'pallet' ? x.n + '× ' + eenhTekst(c, code, x.per) : losPortie(c, code, x.n)} → ${DEST[x.dest].nl}${x.note ? ', ' + esc(x.note) : ''}</span>`).join('')}</div></div>
       <span class="badge b-ok">akkoord</span><button class="btn ghost sm" data-act="vopen">details / wijzigen</button></div></div>`;
   }
   return `<div class="vcard ${cls}" id="v-${esc(code)}">
@@ -4219,7 +4246,7 @@ function verdeelKaart(c, pool){
       ${f.rate ? `<span>Hier na levering <b>${nf(na)}</b> ≈ <b>${nf(na / f.rate, 1)} mnd</b></span>` : ''}
     </div>
     <div class="adv"><b>Advies:</b> <span>${portiesTekst(c, code, adv.porties)}</span><span class="tiny muted">(${esc(adv.uitleg)})</span>
-      ${portiesGelijk(adv.porties, v.porties) ? '<span class="badge b-ok">= huidige verdeling</span>' : `<button class="btn sm" data-act="advneem" data-code="${esc(code)}">Advies overnemen</button>`}</div>
+      ${portiesGelijk(adv.porties, v.porties) ? '<span class="badge b-ok">= huidige verdeling</span>' : `${v.bevestigd && /productdata:/.test(adv.uitleg || '') ? '<span class="badge b-warn">advies is veranderd door productdata</span> ' : ''}<button class="btn sm" data-act="advneem" data-code="${esc(code)}">Advies overnemen</button>`}</div>
     <div data-code="${esc(code)}">
       ${(v.porties || []).map((x, i) => `<div class="portie" data-i="${i}">
         <input class="num" data-p="n" value="${x.soort !== 'pallet' && dz ? doosAantal(dz, num(x.n) || 0) : x.n}" inputmode="decimal" style="width:64px">

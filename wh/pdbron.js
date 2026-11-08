@@ -53,6 +53,34 @@ function laad(vers, alleenSchakelaar){
   return S.laden;
 }
 const aan = () => S.aan;
+
+/* ---------- Containers (08-11): productdata altijd lezen, los van de schakelaar, alleen bevestigde of vastgelegde waarden ----------
+   Alleen lezen. Warehouse, Junior en Palletlabels roepen dit nooit aan. Een waarde die nog een schatting van Claude is (meta.tw) of geparkeerd telt niet. */
+const CP = { pd:null, laden:null, fout:null };
+function laadCp(vers){
+  if(CP.laden && !vers) return CP.laden;
+  CP.laden = (async () => {
+    try{
+      const pd = {};
+      for(let van = 0; ; van += 1000){
+        const deel = await rest('GET', 'productdata?select=productcode,data,meta&order=productcode&limit=1000&offset=' + van);
+        (deel || []).forEach(r => { pd[String(r.productcode).toLowerCase()] = { code:r.productcode, data:r.data || {}, meta:r.meta || {} }; });
+        if(!deel || deel.length < 1000) break;
+      }
+      CP.pd = pd; CP.fout = null;
+    }catch(e){ CP.fout = e; CP.pd = null; }   // lukt het niet, dan geldt de oude regel
+    return !!CP.pd;
+  })();
+  return CP.laden;
+}
+// wat productdata over dit product zegt (bevestigd of vastgelegd), of null als het product er niet staat
+function cp(code){
+  if(!CP.pd || leeg(code)) return null;
+  const r = CP.pd[String(code).trim().toLowerCase()]; if(!r) return null;
+  const w = veld => { const m = r.meta[veld]; if(m && (m.tw || m.park)) return null; const v = r.data[veld]; const x = v && typeof v === 'object' ? v.v : v; return onb(x) ? null : String(x).trim(); };
+  const soort = (w('opslag') || '').toLowerCase();
+  return { code:r.code, soort:['pallet', 'deel', 'bulk', 'pick', 'mix', 'weg'].includes(soort) ? soort : '', uitlopend:!!w('uitlopend'), spp:getal(w('spp')), maxpick:getal(w('maxpick')), lvl:getal(w('lvl')), pickkeuze:w('pickkeuze') || '', pick:w('pick') || '' };
+}
 // zoals D.PD in core.js verwacht: alleen wat andere apps mogen lezen (geen onnagekeken schattingen)
 const rijen = () => Object.keys(S.pd).map(c => { const r = S.pd[c], d = {}; Object.keys(r.data).forEach(k => { if(!(r.meta[k] && r.meta[k].tw)) d[k] = r.data[k]; }); return { productcode:c, data:d }; });
 
@@ -200,5 +228,5 @@ function zelftest(){
   return { ok:!f.length, fouten:f };
 }
 
-return { laad, aan, rijen, lees, leesLos, overlayCatalog, kies, overlayProducten, overlayGeh, plan, schrijf, schrijfRij, vanProducten, spiegelAanvul, zelftest, S, BESCHERMD };
+return { laadCp, cp, laad, aan, rijen, lees, leesLos, overlayCatalog, kies, overlayProducten, overlayGeh, plan, schrijf, schrijfRij, vanProducten, spiegelAanvul, zelftest, S, BESCHERMD };
 })();
