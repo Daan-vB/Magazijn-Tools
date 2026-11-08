@@ -14,6 +14,7 @@ Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet
 ## 2. Vragen en schermen
 - Vraag alleen wat de data niet kan beantwoorden. Leid eerst af uit Picqer, palletlabels (± 1000 producten), VST, verplaatsingen, pakbonnen en inkoop.
 - Eén vraag tegelijk, rustig scherm: geen tabellen met horizontaal scrollen, weinig kleur en knoppen, schermvullend, 390 en 1440 px.
+- VASTE REGEL schermvullend: nergens een vaste max-width op pagina, kop, kaart, lijst of knoppenbalk (alleen lopende tekst mag max 70ch). Breed scherm of uitzoomen = meer naast elkaar (kolommen), inzoomen = groter en herschikken. Maten in rem/%, geen px-breedtes. De test schermvullend.js (elke route op 390, 1440 en 2560 px en zoom 50% en 200%: geen lege zijkanten, geen horizontaal scrollen) hoort bij de regressie en moet groen zijn vóór elke push.
 - Groepsacties: vinkje per product; "Selectie is: Pallet · Deel · Bulk · Pick · Mix · Weg"; een familieknop laat altijd zien welke producten eronder vallen en laat uitvinken.
 - Soort eerst. Pas na een door Daan bevestigde soort komen gewicht en hoeveelheid.
 - Elk invulscherm: altijd terug kunnen naar een eerdere vraag, elke bevestigde waarde aanpasbaar, zoeken op code/naam/familie, en bij aanpassen vergelijkbare producten (kleurgenoten → familie → zelfde hoofdwoord bij dezelfde leverancier) met "Neem over". Afwijkende waarden in een familie melden (nooit zelf wijzigen).
