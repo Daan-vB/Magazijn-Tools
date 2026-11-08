@@ -34,7 +34,7 @@
 .pd2-seg.klein button{font-size:13px;min-height:36px;font-weight:600}
 .pd2-seg button.aan{background:var(--ink);border-color:var(--ink);color:#fff}
 .pd2-seg button .n{font-variant-numeric:tabular-nums;opacity:.75;margin-left:4px;font-weight:600}
-.pd2-famlijst{display:grid;gap:8px}
+.pd2-famlijst{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,24rem),1fr));gap:8px}
 .pd2-fam{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center;background:#fff;border:1px solid #d6dde5;border-radius:10px;padding:10px 14px}
 .pd2-fam:hover,.pd2-fam:focus-visible{border-color:var(--ink)}
 .pd2-fam.klaar{opacity:.6}

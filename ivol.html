@@ -53,6 +53,9 @@
   #native{height:100%;overflow-y:auto}
   .pagina{width:100%;margin:0;padding:1.25rem 1rem 5rem;display:grid;gap:1rem}
   .pagina h1{font-size:26px;font-weight:800}
+  /* Te doen en takenpagina's: de kaarten naast elkaar op een breed scherm of uitgezoomd, onder elkaar als het smal of ingezoomd is */
+  .pagina:has(> section.taak){grid-template-columns:repeat(auto-fit,minmax(min(100%,26rem),1fr));align-items:start}
+  .pagina:has(> section.taak) > :not(section.taak){grid-column:1/-1}
   .lede{color:var(--muted);max-width:70ch}
   .muted{color:var(--muted)} .klein{font-size:13px}
   .code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px}

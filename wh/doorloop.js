@@ -49,7 +49,7 @@ function stijl(){
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dl{--bg:#0F1318;--vlak:#181E26;--inkt:#E9EDF2;--stil:#97A1AE;--lijn:#2A333F;--voor:#8FB0F0;--voor-bg:#1A2740;--ok:#6FC793;--kop:#0A0D11}}
 :root[data-theme="dark"] .dl{--bg:#0F1318;--vlak:#181E26;--inkt:#E9EDF2;--stil:#97A1AE;--lijn:#2A333F;--voor:#8FB0F0;--voor-bg:#1A2740;--ok:#6FC793;--kop:#0A0D11}
 .dl *{box-sizing:border-box}
-.dl .kop{position:sticky;top:0;z-index:5;background:var(--kop);color:var(--kop-inkt);padding:0.75rem 1rem}
+.dl .kop{display:block;position:sticky;top:0;z-index:5;background:var(--kop);color:var(--kop-inkt);padding:0.75rem 1rem}
 .dl .kop-in{width:100%;min-width:0;margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:0.375rem 0.75rem}
 .dl .kop b{font-size:0.9375rem}
 .dl .kop .waar{font-size:0.8125rem;opacity:.75;flex:1 1 5.625rem;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
