@@ -75,6 +75,21 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await ev(() => document.getElementById('dl-terugmain').click()); await wacht(300);
   const tm = await ev(() => ({ gast:WHDL.S.gast, pad:WHDL.S.pad.length }));
   check('"← Terug naar waar ik was" zet de Doorloop terug zoals hij was', !tm.gast && tm.pad === padVoor, JSON.stringify(tm) + ' vs ' + padVoor);
+  // KLOPT op een afwijking: onthouden (ook na herladen), niet meer melden; er wordt niets gewijzigd
+  await ev(() => { PD2R.poZet('PD-XL-WHI', p => { p.gew = { st:'vertrouwd', kg:0.2, t:new Date().toISOString() }; }); });
+  await ev(() => document.getElementById('dl-zoekknop').click()); await P.fill('#dl-zoekin', 'PD-XL-WHI'); await P.waitForSelector('[data-gast="PD-XL-WHI"]');
+  await ev(() => document.querySelector('[data-gast="PD-XL-WHI"]').click());
+  await ev(() => { const S = WHDL.S; S.i = S.pad.findIndex(x => x.t === 'klaar'); WHDL.teken(); });
+  const af0 = await ev(() => [...document.querySelectorAll('.afw')].filter(a => /PD-XL-WHI/.test(a.innerText)).length);
+  const gewVoor = await ev(() => JSON.stringify(PD2R.po('PD-XL-WHI').gew));
+  if(af0){
+    await ev(() => document.querySelector('.afw [data-akkoord="PD-XL-WHI"]').click()); await wacht(500);
+    const af1 = await ev(() => [...document.querySelectorAll('.afw')].filter(a => /PD-XL-WHI/.test(a.innerText)).length);
+    const opm = await ev(() => (PD2R.S.fb.opm || []).filter(o => o.bron === 'doorloop-akkoord' && /PD-XL-WHI/.test(o.key)).length);
+    const gewNa = await ev(() => JSON.stringify(PD2R.po('PD-XL-WHI').gew));
+    check('Klopt op een afwijking: regel weg, onthouden (feedback-opmerking), waarde ongewijzigd', af1 === 0 && opm === 1 && gewNa === gewVoor, af0 + ' → ' + af1 + ', opm ' + opm);
+  } else check('geen afwijking bij PD-XL-WHI in deze situatie (Klopt-onthouden overgeslagen)', true);
+  await ev(() => document.getElementById('dl-terugmain').click()); await wacht(300);
   // 390 en 1440 px
   for(const vp of [{ width:1440, height:900 }, { width:390, height:844 }]){
     await P.setViewportSize(vp);
