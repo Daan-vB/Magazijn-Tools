@@ -22,8 +22,8 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await P.waitForSelector('.dl .vraag', { timeout:200000 });
   let ronde = 0;
   while(ronde++ < 8){
-    const gevonden = await ev(c => { const S = WHDL.S; const j = S.pad.findIndex(v => v.t !== 'klaar' && (v.rows || []).includes(c) || (v.t !== 'klaar' && v.f.cs.includes(c) && !v.rows && (WHTAAK.openZL(c, 'hoev').length))); if(j < 0) return false;
-      S.i = j; S.sel = null; delete S.pad[j].rows; WHDL.teken(); const v = S.pad[j]; if(!(v.rows || []).includes(c)) return false; S.sel.on.clear(); S.sel.on.add(c); WHDL.teken(); return true; }, c);
+    const gevonden = await ev(c => { const S = WHDL.S; const j = S.pad.findIndex(v => v.t !== 'klaar' && v.f.cs.includes(c) && PD2R.status(c).open.includes(v.t) && !WHTAAK.later.is(c, v.t)); if(j < 0) return false;
+      S.i = j; S.sel = null; delete S.pad[j].rows; WHDL.teken(); if(!(S.pad[j].rows || []).includes(c)) return false; S.sel.on.clear(); S.sel.on.add(c); WHDL.teken(); return true; }, c);
     if(!gevonden) break;
     await ev(() => document.getElementById('dl-later').click()); await wacht(500);
     if(!(await ev(c => WHTAAK.openZL(c, 'hoev').length, c))) break;
@@ -87,7 +87,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await P.waitForSelector('.pagina h1', { timeout:120000 }); await wacht(2500);
   const td = await ev(() => ({ tekst:document.querySelector('#native').innerText, menu:!!document.querySelector('#menulijst a[href="#/vergelijk"]') }));
   check('stap 1.1 (Live advies tegen de PDF) staat niet meer in Te doen; de pagina blijft in het menu', !/Live advies tegen de PDF/.test(td.tekst) && !/stap 1\.1/.test(td.tekst) && td.menu, td.menu + '');
-  check('stap 1.1 op de parkeerlijst (wacht), met kopie van wh-bouwplan vooraf', await ev(() => BP.isHold('1.1') || BP.isDone('1.1')), '');
+  check('stap 1.1 op de parkeerlijst (wacht), met kopie van wh-bouwplan vooraf', await ev(() => WHBP.isHold('1.1') || WHBP.isDone('1.1')), '');
   // 8. kop gebruikt de volle breedte
   await P.setViewportSize({ width:1440, height:900 });
   await laad('#/doorloop/later'); await P.waitForSelector('.dl .kop', { timeout:120000 });

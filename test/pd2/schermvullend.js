@@ -99,6 +99,23 @@ function meet(opt){
       goed.push(rt.naam);
     }catch(e){ meld(rt.naam, '-', 'route faalde', e.message.slice(0, 120)); }
   }
+  // zoom 200%: rijen en kaarten in één kolom (herschikt); 2560 px: in meerdere kolommen
+  const KOL = `(function(sel){ const els = [...document.querySelectorAll(sel)].filter(e => { const r = e.getBoundingClientRect(); return r.width > 40 && r.height > 20; }); const l = [...new Set(els.map(e => Math.round(e.getBoundingClientRect().left / 24)))]; return JSON.stringify({ n:els.length, kol:l.length }); })`;
+  const KOLROUTES = [['#/todo', '.pagina > section'], ['#/doorloop/soort', '.dl .rij'], ['#/pd2', '.pd2-fam'], ['#/containers', '.cgrid > *']];
+  for(const [r, sel] of KOLROUTES){
+    if(process.env.ROUTES && !new RegExp(process.env.ROUTES).test(r)) continue;
+    try{
+      await P.setViewportSize({ width:1440, height:900 }); await P.goto(B + 'ivol.html' + r); await P.reload();
+      await P.waitForTimeout(/doorloop|pd2/.test(r) ? 25000 : 14000);
+      for(const [vn, w, h] of [['zoom 200%', 720, 450], ['2560', 2560, 1300]]){
+        await P.setViewportSize({ width:w, height:h }); await P.waitForTimeout(600);
+        const x = JSON.parse(await P.evaluate(([k, kol]) => { const f = document.getElementById('frame'); const win = f && !f.hidden ? f.contentWindow : window; return win.eval(kol)(k); }, [sel, KOL]));
+        if(x.n < 2){ console.log('(overgeslagen: ' + r + ' heeft maar ' + x.n + ' ' + sel + ')'); continue; }
+        if(vn === 'zoom 200%' && x.kol !== 1) meld(r, vn, 'rijen en kaarten staan niet in één kolom', x.kol + ' kolommen bij ' + x.n + ' x ' + sel);
+        if(vn === '2560' && x.kol < 2) meld(r, vn, 'rijen en kaarten staan niet in meerdere kolommen', x.kol + ' kolom bij ' + x.n + ' x ' + sel);
+      }
+    }catch(e){ meld(r, '-', 'kolommen meten faalde', e.message.slice(0, 120)); }
+  }
   console.log('\n' + lijst.length + ' routes, ' + fouten.length + ' fouten');
   const uniek = [...new Set(fouten.map(f => f.replace(/^.* @ [^:]+: /, '')))];
   if(fouten.length) console.log('Unieke meldingen:\n' + uniek.slice(0, 80).join('\n'));
