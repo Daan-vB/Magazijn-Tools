@@ -19,6 +19,7 @@ Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet
 - Soort eerst. Pas na een door Daan bevestigde soort komen gewicht en hoeveelheid.
 - Elk invulscherm: altijd terug kunnen naar een eerdere vraag, elke bevestigde waarde aanpasbaar, zoeken op code/naam/familie, en bij aanpassen vergelijkbare producten (kleurgenoten → familie → zelfde hoofdwoord bij dezelfde leverancier) met "Neem over". Afwijkende waarden in een familie melden (nooit zelf wijzigen).
 - Later = bewust uitstellen: wordt bewaard (ook na herstart en op elk apparaat), telt niet mee voor het afronden van een stap of poort, en staat apart bovenaan Te doen als "Later · moet nog" (prioriteit). Komt alleen terug als Daan de Later-lijst opent. Nooit weer vooraan in de gewone Doorloop.
+- Te doen = tabs per categorie (Overzicht met Claudes analyse eerst · Later · Picklocaties · Bulklocaties · Hercontrole · Gewicht controleren · Te wegen · Aantal per pallet). Elk punt met Claudes voorstel en reden; Daan beslist met één tik. Picqer-locaties koppelen/ontkoppelen doet Daan zelf; de app maakt per hal/gang de werklijst (pickwens).
 - Tijden altijd 24-uurs.
 - Nooit decimalen in aantallen (stuks, dozen, rollen, pallets).
 
