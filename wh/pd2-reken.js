@@ -466,7 +466,8 @@ function halVan(x){
 }
 const halTekst = (h, kort) => h ? (kort ? h.hal + (h.deel ? ' · ' + h.deel : '') + ' · ' + h.gang : 'hal ' + h.hal + (h.deel ? ' · gedeelte ' + h.deel : '') + ' · gang ' + h.gang) : '';
 // oude pickwens met hal "D" lezen als hal C, gedeelte D (pas bij Daans volgende bewaaractie omgezet, met kopie)
-function wensNorm(w){ if(!w || typeof w !== 'object') return null; const h = halVan(w.gang); if(h) return { hal:h.hal, deel:h.deel, gang:h.gang, opm:w.opm || '', oud:w.hal !== h.hal || (h.deel && w.deel !== h.deel) }; const hal = String(w.hal || '').toUpperCase(); return { hal:hal === 'D' ? 'C' : hal, deel:hal === 'D' ? 'D' : hal === 'C' ? (w.deel || '') : '', gang:String(w.gang || '').toUpperCase(), opm:w.opm || '', oud:hal === 'D' }; }
+// opgeslagen als { hal, ged, gang, opm } (ged = gedeelte, alleen bij hal C); deel = hetzelfde gedeelte voor de schermen
+function wensNorm(w){ if(!w || typeof w !== 'object') return null; const g0 = w.ged || w.deel || '', h = halVan(w.gang); if(h) return { hal:h.hal, deel:h.deel, ged:h.deel, gang:h.gang, opm:w.opm || '', oud:w.hal !== h.hal || (!!h.deel && g0 !== h.deel) }; const hal = String(w.hal || '').toUpperCase(), d = hal === 'D' ? 'D' : hal === 'C' ? g0 : ''; return { hal:hal === 'D' ? 'C' : hal, deel:d, ged:d, gang:String(w.gang || '').toUpperCase(), opm:w.opm || '', oud:hal === 'D' }; }
 const GANG = { n:-1, l:[] };
 // gangen die echt bestaan (WH.D.LOC): per hal en gedeelte
 function gangen(){

@@ -33,7 +33,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await kies('hal', 'C'); await kies('deel', 'D'); await kies('gang', 'DD'); await kies('opm', 'nieuwe pick naast de ingang');
   await groepKnop(gk, 'g-pick'); await wacht(2000);
   const wens = T.pdWrites.find(r => r.productcode === 'DT140-711' && r.data && r.data.pickwens);
-  check('pickwens {hal, gedeelte, gang, opm} bewaard in productdata (bron pd2) met kopie -8', wens && wens.data.pickwens.hal === 'C' && wens.data.pickwens.deel === 'D' && wens.data.pickwens.gang === 'DD' && /ingang/.test(wens.data.pickwens.opm) && wens.meta.pickwens.bron === 'pd2' && Object.keys(T.mock).some(k => /^wh-kopie-productdata-\d{4}-\d{2}-\d{2}-8$/.test(k)), JSON.stringify(wens && wens.data.pickwens));
+  check('pickwens {hal, gedeelte, gang, opm} bewaard in productdata (bron pd2) met kopie -8', wens && wens.data.pickwens.hal === 'C' && wens.data.pickwens.ged === 'D' && wens.data.pickwens.gang === 'DD' && /ingang/.test(wens.data.pickwens.opm) && wens.meta.pickwens.bron === 'pd2' && Object.keys(T.mock).some(k => /^wh-kopie-productdata-\d{4}-\d{2}-\d{2}-8$/.test(k)), JSON.stringify(wens && wens.data.pickwens));
   check('na Pick nodig: DT140-711 uit de open lijst, de rest van de groep blijft staan', !(await heeft('picklocaties', 'DT140-711')) && await heeft('pickklaar', 'DT140-711') && await heeft('picklocaties', 'DT140-747'));
   await ev(() => { const f = document.querySelector('[data-cp-f="hal"]'); f.value = 'C'; f.dispatchEvent(new Event('change', { bubbles:true })); }); await wacht(600);
   await ev(() => { const f = document.querySelector('[data-cp-f="deel"]'); f.value = 'D'; f.dispatchEvent(new Event('change', { bubbles:true })); }); await wacht(600);

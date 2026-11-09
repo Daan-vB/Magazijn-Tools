@@ -261,7 +261,7 @@ async function bewaarPickwensen(lijst){   // [{ c, h:{ hal, deel, gang }, opm }]
   const t = nu(), codes = lijst.map(x => x.c), rijen = [];
   for(let i = 0; i < codes.length; i += 60){ const q = codes.slice(i, i + 60).map(c => '"' + String(c).replace(/"/g, '\\"') + '"').join(','); rijen.push(...((await WH.api('GET', 'productdata?productcode=in.(' + encodeURIComponent(q) + ')&select=productcode,data,meta')) || [])); }
   const op = lijst.map(x => { const r = rijen.find(y => y.productcode === x.c) || { productcode:x.c, data:{}, meta:{} };
-    const data = Object.assign({}, r.data, { pickwens:{ hal:x.h.hal, deel:x.h.deel || '', gang:x.h.gang, opm:x.opm || '' } }), meta = Object.assign({}, r.meta, { pickwens:{ op:t, bron:'pd2', uit:'Te doen · Picklocaties' } });
+    const data = Object.assign({}, r.data, { pickwens:{ hal:x.h.hal, ged:x.h.hal === 'C' ? (x.h.deel || '') : '', gang:x.h.gang, opm:x.opm || '' } }), meta = Object.assign({}, r.meta, { pickwens:{ op:t, bron:'pd2', uit:'Te doen · Picklocaties' } });
     return { productcode:x.c, data, meta, updated_at:t }; });
   await WH.upsert('productdata', op, 'productcode');
   op.forEach(r => { try{ WHPD.S.pd[r.productcode] = { data:r.data, meta:r.meta, t }; }catch(e){} S.wijzig.delete(r.productcode); });
