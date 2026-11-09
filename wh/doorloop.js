@@ -156,10 +156,11 @@ function famObj(fk, cs){
   return { fk, naam:P.famNaam(fk), lev:String((WH.D.P[cs[0]] || {}).leverancier || fk.split('|')[0] || ''), kl, cs, gk:g.k, gnaam:g.naam };
 }
 // "Volgende familie" volgt de groep (leverancier + hoofdwoord, zoals in de tabs van Te doen): een hele groep na elkaar, A-groepen eerst
+const rangKl = k => ({ A:0, B:1, C:2 })[k] ?? 3;   // zonder klasse (–) na C
 function volgensGroep(fams){
   const per = new Map(); fams.forEach(f => { if(!per.has(f.gk)) per.set(f.gk, []); per.get(f.gk).push(f); });
-  return [...per.values()].map(l => l.sort((a, b) => rang(a.kl) - rang(b.kl) || b.cs.length - a.cs.length || a.naam.localeCompare(b.naam, 'nl', { numeric:true })))
-    .sort((a, b) => rang(a[0].kl) - rang(b[0].kl) || b.reduce((n, f) => n + f.cs.length, 0) - a.reduce((n, f) => n + f.cs.length, 0) || a[0].gnaam.localeCompare(b[0].gnaam, 'nl'))
+  return [...per.values()].map(l => l.sort((a, b) => rangKl(a.kl) - rangKl(b.kl) || b.cs.length - a.cs.length || a.naam.localeCompare(b.naam, 'nl', { numeric:true })))
+    .sort((a, b) => rangKl(a[0].kl) - rangKl(b[0].kl) || b.reduce((n, f) => n + f.cs.length, 0) - a.reduce((n, f) => n + f.cs.length, 0) || a[0].gnaam.localeCompare(b[0].gnaam, 'nl'))
     .flat();
 }
 // Later-lijst: alleen de vragen die op Later staan, oudste eerst, per familie

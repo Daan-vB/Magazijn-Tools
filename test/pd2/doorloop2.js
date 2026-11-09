@@ -38,7 +38,10 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await ev(() => document.querySelector('[data-prod="PD-M-BLA"]').click());
   await wacht(300);
   const pr = await ev(() => ({ velden:document.querySelectorAll('.dl .veld').length, tekst:document.querySelector('.dl main').innerText }));
-  check('tik op PD-M-BLA opent één scherm met alle velden die bij Deel horen (soort, gewicht, per pallet, palletmaat, hoogte)', pr.velden >= 5 && /Welke soort/.test(pr.tekst) && /gewicht per stuk/.test(pr.tekst) && /stuks per pallet/.test(pr.tekst) && /palletmaat/.test(pr.tekst) && /Hoe hoog/.test(pr.tekst) && !/Max op pick/.test(pr.tekst), pr.velden + ' velden (Deel: geen max op pick)');
+  // 09-11 (CLAUDE.md §5, Claudes keuze): Deel met een vaste picklocatie krijgt ook aanvullen bij en max op pick, alleen als die ontbreken
+  const metPick = await ev(() => PD2R.metVastePick('PD-M-BLA'));
+  const lvlOpen = await ev(() => PD2R.nodigVan('PD-M-BLA', 'deel').includes('lvl'));
+  check('tik op PD-M-BLA opent één scherm met alle velden die bij Deel horen (soort, gewicht, per pallet, palletmaat, hoogte; met picklocatie ook aanvullen bij en max op pick)', pr.velden >= 5 && /Welke soort/.test(pr.tekst) && /gewicht per stuk/.test(pr.tekst) && /stuks per pallet/.test(pr.tekst) && /palletmaat/.test(pr.tekst) && /Hoe hoog/.test(pr.tekst) && (metPick && lvlOpen ? /Aanvullen bij/.test(pr.tekst) && /Max op pick/.test(pr.tekst) : !/Max op pick/.test(pr.tekst)), pr.velden + ' velden · picklocatie ' + metPick);
   // VERGELIJKBAAR
   await ev(() => document.querySelector('[data-vergt="gewicht"]').click());
   const vg = await ev(() => [...document.querySelectorAll('.verg .vrij')].map(r => r.innerText.replace(/\s+/g, ' ')));
