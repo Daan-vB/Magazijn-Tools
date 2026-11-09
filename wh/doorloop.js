@@ -17,12 +17,12 @@ const SOORTEN = [['pallet', 'Pallet'], ['deel', 'Deel'], ['bulk', 'Bulk'], ['pic
 const WEG = [['uitlopend', 'Uitlopend'], ['backorder', 'Backorder'], ['archief', 'Archief']];
 const GEWST = [['vertrouwd', 'Vertrouwd'], ['tewegen', 'Te wegen'], ['gewogen', 'Gewogen']];
 const PAL = ['pallet', 'deel', 'bulk'];
-const VRAGEN = ['soort', 'gewicht', 'spp', 'maat', 'hoogte', 'maxpick', 'rl', 'rmax'];
-const STAPNR = { soort:1, gewicht:2, spp:3, maat:3, hoogte:3, maxpick:3, rl:3, rmax:3 };
+const VRAGEN = ['soort', 'gewicht', 'spp', 'maat', 'hoogte', 'lvl', 'maxpick', 'rl', 'rmax'];
+const STAPNR = { soort:1, gewicht:2, spp:3, maat:3, hoogte:3, lvl:3, maxpick:3, rl:3, rmax:3 };
 const STAPVAN = { soort:'soort', gewicht:'gewicht', hoev:'hoev' };
-const GETAL = ['spp', 'hoogte', 'maxpick', 'rl', 'rmax'];
-const HEEL = ['spp', 'maxpick', 'rmax'];   // aantallen: nooit decimalen
-const NAAM = { soort:'soort', gewicht:'gewicht', spp:'stuks per pallet', maat:'palletmaat', hoogte:'hoogte', maxpick:'max op pick', rl:'lengte volle rol', rmax:'max rollen per pallet' };
+const GETAL = ['spp', 'hoogte', 'lvl', 'maxpick', 'rl', 'rmax'];
+const HEEL = ['spp', 'lvl', 'maxpick', 'rmax'];   // aantallen: nooit decimalen
+const NAAM = { soort:'soort', gewicht:'gewicht', spp:'stuks per pallet', maat:'palletmaat', hoogte:'hoogte', lvl:'aanvullen bij', maxpick:'max op pick', rl:'lengte volle rol', rmax:'max rollen per pallet' };
 const OK = ['bevestigd', 'aangepast', 'vastgelegd'];
 const S = { laterModus:false, el:null, stap:'', fams:[], pad:[], i:0, A:{}, sel:null, openRij:null, melding:'', nieuweMaat:false, notities:{}, notId:{}, sleutel:'', klaar:false, terugNaar:null, prod:null, prodSnap:null, zoek:null, main:null, gast:false, akk:new Set(), vergC:null, vergT:null };
 const naamSoort = v => (SOORTEN.find(s => s[0] === v) || [0, v || '?'])[1];
@@ -126,6 +126,8 @@ function stijl(){
 .dl .verg{background:var(--vlak);border:1px solid var(--lijn);border-radius:0.75rem;padding:0.625rem 0.75rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr));gap:0.375rem 1rem}
 .dl .verg>.tip{grid-column:1/-1}
 .dl code{background:var(--lijn);color:var(--inkt);padding:1px 0.3125rem;border-radius:0.25rem;font:0.75rem ui-monospace,Menlo,monospace}
+.dl .vrij code.vcode{background:var(--inkt);color:var(--vlak);font-weight:700;font-size:0.8125rem}
+.dl .neemregel{grid-column:1/-1;margin:0;color:var(--inkt)}
 .dl .vrij{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0.25rem 0.625rem;align-items:center;font-size:0.875rem;overflow-wrap:anywhere}
 .dl .vrij .vw{color:var(--stil);grid-column:1/2}.dl .vrij .chip{grid-column:2/3;grid-row:1/3;min-height:2.375rem;padding:0.375rem 0.625rem;font-size:0.875rem}
 .dl .veld{display:flex;flex-direction:column;gap:0.5rem;padding:0.625rem 0;border-top:1px solid var(--lijn);min-width:0}
@@ -141,22 +143,30 @@ function bouw(stap){
   if(S.laterModus) return bouwLater();
   const P = R(), alle = P.belangrijk().filter(c => { let s; try{ s = st(c); }catch(e){ return false; } return !s.kop && !P.isKoppel(c) && (window.WHTAAK && WHTAAK.openZL ? WHTAAK.openZL(c, stap).length > 0 : (stap ? !s.stap[stap] : s.open.length > 0)); });
   const per = {}; alle.forEach(c => { (per[P.famVan(c)] = per[P.famVan(c)] || []).push(c); });
-  S.fams = Object.entries(per).map(([fk, cs]) => {
-    cs.sort((a, b) => rang(P.abcVan(a)) - rang(P.abcVan(b)) || P.naamVan(a).localeCompare(P.naamVan(b), 'nl', { numeric:true }) || a.localeCompare(b));
-    const kl = ['A', 'B', 'C'].find(k => cs.some(c => P.abcVan(c) === k)) || '–';
-    return { fk, naam:P.famNaam(fk), lev:String((WH.D.P[cs[0]] || {}).leverancier || fk.split('|')[0] || ''), kl, cs };
-  }).sort((a, b) => rang(a.kl) - rang(b.kl) || b.cs.length - a.cs.length || a.naam.localeCompare(b.naam, 'nl', { numeric:true }));
+  S.fams = volgensGroep(Object.entries(per).map(([fk, cs]) => famObj(fk, cs)));
   S.pad = []; S.fams.forEach(f => { VRAGEN.forEach(t => S.pad.push({ t, f })); S.pad.push({ t:'klaar', f }); });
   S.i = 0; S.A = {}; S.sel = null; S.openRij = null; S.melding = ''; S.nieuweMaat = false; S.klaar = false;
   laadNotities();
 }
 
+function famObj(fk, cs){
+  const P = R(), g = P.groepVanFam(fk);
+  cs.sort((a, b) => rang(P.abcVan(a)) - rang(P.abcVan(b)) || P.naamVan(a).localeCompare(P.naamVan(b), 'nl', { numeric:true }) || a.localeCompare(b));
+  const kl = ['A', 'B', 'C'].find(k => cs.some(c => P.abcVan(c) === k)) || '–';
+  return { fk, naam:P.famNaam(fk), lev:String((WH.D.P[cs[0]] || {}).leverancier || fk.split('|')[0] || ''), kl, cs, gk:g.k, gnaam:g.naam };
+}
+// "Volgende familie" volgt de groep (leverancier + hoofdwoord, zoals in de tabs van Te doen): een hele groep na elkaar, A-groepen eerst
+function volgensGroep(fams){
+  const per = new Map(); fams.forEach(f => { if(!per.has(f.gk)) per.set(f.gk, []); per.get(f.gk).push(f); });
+  return [...per.values()].map(l => l.sort((a, b) => rang(a.kl) - rang(b.kl) || b.cs.length - a.cs.length || a.naam.localeCompare(b.naam, 'nl', { numeric:true })))
+    .sort((a, b) => rang(a[0].kl) - rang(b[0].kl) || b.reduce((n, f) => n + f.cs.length, 0) - a.reduce((n, f) => n + f.cs.length, 0) || a[0].gnaam.localeCompare(b[0].gnaam, 'nl'))
+    .flat();
+}
 // Later-lijst: alleen de vragen die op Later staan, oudste eerst, per familie
 function bouwLater(){
   const P = R(), items = LT() ? LT().lijst() : [], fams = [], perFam = {};
   items.forEach(x => { const fk = P.famVan(x.c); if(!perFam[fk]){ perFam[fk] = { fk, items:[] }; fams.push(perFam[fk]); } perFam[fk].items.push(x); });
-  S.fams = fams.map(g => { const cs = [...new Set(g.items.map(x => x.c))]; const kl = ['A', 'B', 'C'].find(k => cs.some(c => P.abcVan(c) === k)) || '–';
-    return { fk:g.fk, naam:P.famNaam(g.fk), lev:String((WH.D.P[cs[0]] || {}).leverancier || ''), kl, cs, items:g.items }; });
+  S.fams = fams.map(g => Object.assign(famObj(g.fk, [...new Set(g.items.map(x => x.c))]), { items:g.items }));
   S.pad = []; S.fams.forEach(f => { VRAGEN.forEach(t => { const rows = [...new Set(f.items.filter(x => x.t === t).map(x => x.c))]; if(rows.length) S.pad.push({ t, f, rows, laterlijst:true }); }); S.pad.push({ t:'klaar', f }); });
   S.i = 0; S.A = {}; S.sel = null; S.openRij = null; S.melding = ''; S.nieuweMaat = false; S.klaar = false;
   laadNotities();
@@ -241,6 +251,7 @@ function tekst(v, rijen){
     case 'spp': return ['Hoeveel stuks per pallet?', m ? 'Voorstel per product uit <b>' + kort(m.why) + '</b>. Tik een getal om het aan te passen.' + (bev ? ' ' + bev : '') : bev || 'Geen voorstel uit de data: typ per product het aantal.'];
     case 'maat': return ['Welke palletmaat?', 'Jouw vaste maten' + (R().EIGEN_MATEN.length ? ' plus je eigen toegevoegde maten' : '') + '. Een nieuwe maat wordt meteen bewaard en staat er de volgende keer gewoon tussen.' + (m ? ' Voorstel: <b>' + kort(m.why) + '</b>.' : '') + (bev ? ' ' + bev : '')];
     case 'hoogte': return ['Hoe hoog is een volle pallet, incl. pallet?', 'Wordt naar boven afgerond op 10 cm. Hal A 20-locatie: max ± 140 cm.' + (m ? ' Voorstel uit <b>' + kort(m.why) + '</b>.' : '') + (bev ? ' ' + bev : '')];
+    case 'lvl': return ['Aanvullen bij?', 'Bij welke voorraad op pick wordt aangevuld. Containers hebben het nodig; alleen gevraagd waar het nog ontbreekt.' + (rijen.some(c => soortNu(c) === 'pallet') ? ' Pallet: max op pick = aanvullen bij + stuks per pallet (wordt berekend).' : '') + (m ? ' Voorstel uit <b>' + kort(m.why) + '</b>.' : ' Geen voorstel uit de data: typ per product.') + (bev ? ' ' + bev : '')];
     case 'maxpick': return ['Max op pick?', 'Aanvullen bij + wat je aanvult.' + (m ? ' Voorstel uit <b>' + kort(m.why) + '</b>.' + (bev ? ' ' + bev : '') : bev ? ' ' + bev : ' Geen voorstel uit de data: typ per product.')];
     case 'rl': return ['Hoe lang is een volle rol (m)?', m ? 'Voorstel uit <b>' + kort(m.why) + '</b>.' + (bev ? ' ' + bev : '') : bev || 'Geen voorstel uit de data: typ per product.'];
     case 'rmax': return ['Hoeveel rollen passen op een pallet?', m ? 'Voorstel uit <b>' + kort(m.why) + '</b>.' + (bev ? ' ' + bev : '') : bev || 'Geen voorstel uit de data: typ per product.'];
@@ -274,7 +285,9 @@ function teken(){
   const v = S.pad[S.i], f = v.f, fi = S.fams.indexOf(f);
   if(v.t !== 'klaar' && !v.rows && !v.alle) v.rows = rijenNu(v);
   const stp = S.prod ? 4 : STAPNR[v.t] || 4;
+  const inGroep = S.fams.filter(x => x.gk && x.gk === f.gk), gi = inGroep.indexOf(f);
   let h = `<div class="fam"><h1>${esc(f.naam)}</h1><span>${esc(f.lev)} · ${esc(f.kl)} · ${f.cs.length} ${f.cs.length === 1 ? 'product' : 'producten'}</span></div>
+  ${f.gnaam ? `<div class="tip">Groep <b>${esc(f.gnaam)}</b>${inGroep.length > 1 ? ' · familie ' + (gi + 1) + ' van ' + inGroep.length + ' in deze groep' : ''}</div>` : ''}
   <div class="stappen">${['Soort', 'Gewicht', 'Hoeveelheid'].map((n, k) => `<button type="button" class="stap ${stp === k + 1 ? 'nu' : stp > k + 1 ? 'af' : ''}" data-stap="${k + 1}">${k + 1} ${n}</button>`).join('')}</div>`;
   const waar = 'Familie ' + (fi + 1) + ' van ' + S.fams.length + ' · nog ' + telVragen(S.i) + ' vragen';
   const pct = Math.round(S.i / S.pad.length * 100);
@@ -335,7 +348,7 @@ function klaarHtml(f){
     if(so.v !== 'weg' && s.stap.soort){
       const g = P.gewicht(c);
       if(!P.isSam(c)){ if(s.stap.gewicht) d.push('gewicht ' + naamGew(g.st).toLowerCase() + (g.st === 'gewogen' && g.kg ? ' ' + fmt(g.kg) + ' kg' : '')); else open.push('gewicht'); }
-      ['spp', 'maat', 'hoogte', 'maxpick', 'rl', 'rmax'].forEach(k => { const w = P.waarde(c, k, I); if(s.open.includes(k)) open.push(NAAM[k]); else if(OK.includes(w.st) && w.v) d.push(NAAM[k] + ' ' + w.v + (k === 'hoogte' ? ' cm' : '')); });
+      ['spp', 'maat', 'hoogte', 'lvl', 'maxpick', 'rl', 'rmax'].forEach(k => { const w = P.waarde(c, k, I); if(s.open.includes(k)) open.push(NAAM[k]); else if(OK.includes(w.st) && w.v) d.push(NAAM[k] + ' ' + w.v + (k === 'hoogte' ? ' cm' : '')); });
       const vp = volPallet(c); if(vp && !/na wegen/.test(vp)) d.push(vp);
     }
     return `<li><button type="button" class="prodknop" data-prod="${esc(c)}"><b>${esc(c)}</b> ${esc(d.join(' · ') || '–')}${open.length ? ` <span class="open">· nog open: ${esc(open.join(', '))}</span>` : ''} <span class="tip">· tik om aan te passen</span></button>${afwHtml(c)}</li>`;
@@ -360,7 +373,7 @@ async function bewaarNieuweMaat(){
 }
 function zetGetal(v, c, raw){
   const x = String(raw).trim().replace(',', '.'); if(x === ''){ teken(); return; }
-  if(isNaN(+x) || +x <= 0){ S.melding = 'Typ een getal.'; teken(); return; }
+  if(isNaN(+x) || +x < 0 || (+x === 0 && v.t !== 'lvl')){ S.melding = 'Typ een getal.'; teken(); return; }
   if(HEEL.includes(v.t) && !Number.isInteger(+x)){ S.melding = 'Geen decimalen in aantallen: typ een heel getal (' + c + ').'; teken(); return; }
   zetVeld(v.t, c, v.t === 'hoogte' ? Math.ceil(+x / 10) * 10 : +x); S.melding = ''; teken();
 }
@@ -471,7 +484,7 @@ function terug(){
 }
 function springStap(n){
   const v = S.pad[S.i]; if(!v) return;
-  const ts = n === 1 ? ['soort'] : n === 2 ? ['gewicht'] : ['spp', 'maat', 'hoogte', 'maxpick', 'rl', 'rmax'];
+  const ts = n === 1 ? ['soort'] : n === 2 ? ['gewicht'] : ['spp', 'maat', 'hoogte', 'lvl', 'maxpick', 'rl', 'rmax'];
   for(let j = S.pad.findIndex(x => x.f === v.f); j < S.pad.length && S.pad[j].f === v.f; j++){
     const x = S.pad[j]; if(!ts.includes(x.t)) continue;
     x.alle = true;
@@ -499,18 +512,15 @@ function afwijkLijn(c){
   try{
     if(P.isSam(c)) return null;
     const so = soortNu(c); if(!so || so === 'weg') return null;
-    const kg = effKg(c), delen = [], leden = fam(c).filter(x => x !== c && bruikbaar(x) && !P.isSam(x));
-    const metKg = leden.map(x => ({ c:x, kg:effKg(x) })).filter(x => x.kg > 0);
-    if(kg > 0 && metKg.length){
-      const m = mediaan(metKg.map(x => x.kg)), dicht = metKg.slice().sort((x, y) => Math.abs(x.kg - m) - Math.abs(y.kg - m))[0];
-      if(kg / m > 3 || kg / m < 1 / 3) delen.push(fmtKg(kg) + ' kg per stuk, ' + korteCode(dicht.c) + ' ' + fmtKg(dicht.kg) + ' kg');
-      else { const mk = P.maatVan(c); if(mk){ const kl = metKg.filter(x => P.maatVan(x.c) === mk); if(kl.length >= 2){ const m2 = mediaan(kl.map(x => x.kg)); if(Math.abs(kg - m2) / m2 > 0.25) delen.push(fmtKg(kg) + ' kg per stuk, kleurgenoten ' + fmtKg(m2) + ' kg'); } } }
-    }
+    // alleen vergelijken met kleurgenoten (zelfde familie én maat): een andere maat weegt en stapelt anders (CLAUDE.md §3, 09-11)
+    const kg = effKg(c), delen = [], kl = P.kleurgenoten(c).filter(x => bruikbaar(x) && !P.isSam(x));
+    const metKg = kl.map(x => ({ c:x, kg:effKg(x) })).filter(x => x.kg > 0);
+    if(kg > 0 && metKg.length){ const m2 = mediaan(metKg.map(x => x.kg)); if(Math.abs(kg - m2) / m2 > 0.25) delen.push(fmtKg(kg) + ' kg per stuk, kleurgenoten (zelfde maat) ' + fmtKg(m2) + ' kg'); }
     const vp = volleCalc(c), spp = num(effVal(c, 'spp'));
-    if(vp && spp){ const gl = leden.filter(x => PAL.includes(soortNu(x)) && num(effVal(x, 'spp')) === spp).map(volleCalc).filter(Boolean); if(gl.length){ const m = mediaan(gl); if(vp / m > 2 || vp / m < 0.5) delen.push('volle pallet ' + nf(vp) + ' tegen ' + nf(Math.round(m)) + ' kg'); } }
+    if(vp && spp){ const gl = kl.filter(x => PAL.includes(soortNu(x)) && num(effVal(x, 'spp')) === spp).map(volleCalc).filter(Boolean); if(gl.length){ const m = mediaan(gl); if(vp / m > 2 || vp / m < 0.5) delen.push('volle pallet ' + nf(vp) + ' tegen ' + nf(Math.round(m)) + ' kg bij de kleurgenoten'); } }
     if(vp && (vp < 50 || vp > 1500)) delen.push('volle pallet ' + nf(vp) + ' kg is ' + (vp < 50 ? 'onder 50' : 'boven 1500') + ' kg');
     const h = num(effVal(c, 'hoogte')); if(h > 140 && PAL.includes(so)){ const loc = halA20(c); if(loc) delen.push('hoogte ' + h + ' cm is hoger dan 140 cm en het product staat op ' + loc + ' (20-locatie in hal A)'); }
-    const mp = num(effVal(c, 'maxpick')); if(mp > 0 && spp > 0 && ['pallet', 'deel'].includes(so) && mp > spp) delen.push('max op pick ' + nf(mp) + ' is groter dan ' + nf(spp) + ' per pallet');
+    const mp = num(effVal(c, 'maxpick')); if(mp > 0 && spp > 0 && so === 'deel' && mp > spp) delen.push('max op pick ' + nf(mp) + ' is groter dan ' + nf(spp) + ' per pallet');
     if(!delen.length) return null;
     const tekst = c + ': ' + delen.join('; ') + '. Klopt dat?';
     return { c, tekst, key:c + '|' + tekst };
@@ -526,35 +536,29 @@ function bewaarAkkoord(c){
   try{ R().fbOpm({ bron:'doorloop-akkoord', key:l.key, tekst:l.tekst }); }catch(e){ console.error(e); }
 }
 
-/* ---------- vergelijkbare producten: kleurgenoten → zelfde familie andere maat → zelfde leverancier en hoofdwoord (nooit SAM, nooit "meerderheid bij de leverancier") ---------- */
-let HW = null;
-const hoofdwoord = c => { const w = String(R().naamVan(c)).toLowerCase().replace(/[^a-zà-ÿ\s]/g, ' ').split(/\s+/).filter(x => x.length >= 4 && !['rubber', 'mat', 'matten', 'set', 'voor', 'met', 'zwart', 'wit', 'bruin'].includes(x))[0]; return w || ''; };
-function hwIndex(){
-  if(HW) return HW; HW = {};
-  Object.keys(WH.D.P).forEach(c => { if(!bruikbaar(c) || R().isSam(c)) return; const w = hoofdwoord(c); if(!w) return; const k = String((WH.D.P[c] || {}).leverancier || '') + '|' + w; (HW[k] = HW[k] || []).push(c); });
-  return HW;
-}
+/* ---------- vergelijkbare producten: kleurgenoten (zelfde maat) → zelfde familie andere maat → zelfde groep (leverancier + hoofdwoord) (nooit SAM, nooit "meerderheid bij de leverancier") ---------- */
 function veldVan(c, t){
   const P = R(), w = waarde({ t }, c);
   if(t === 'soort') return { v:w.v, zelf:w.zelf, weg:w.v === 'weg' ? wegVan(c) : '' };
   if(t === 'gewicht'){ const g = P.gewicht(c); return { v:w.v, zelf:w.zelf, kg:w.v === 'gewogen' ? (g.kg || null) : g.pq || null }; }
   return { v:w.v, zelf:w.zelf };
 }
-const basisNaam = c => { const d = String(R().naamVan(c)).toLowerCase().split(' - '); return (d.length >= 2 ? d.slice(0, -1) : d).join(' - ').trim(); };
-const zelfdeMaat = (a, b) => { const P = R(), ma = P.maatVan(a); return ma === P.maatVan(b) && (ma !== '' || basisNaam(a) === basisNaam(b)); };
 function vergelijkbaar(c, t){
   const P = R(); if(P.isSam(c)) return [];
-  const uit = [], zie = new Set([c]), voeg = l => l.forEach(x => { if(uit.length < 5 && !zie.has(x)){ zie.add(x); uit.push(x); } });
+  const uit = [], zie = new Set([c]), voeg = (l, waarom) => l.forEach(x => { if(uit.length < 6 && !zie.has(x)){ zie.add(x); uit.push({ x, waarom }); } });
   const leden = fam(c).filter(x => x !== c && bruikbaar(x) && !P.isSam(x));
-  voeg(leden.filter(x => zelfdeMaat(x, c)));
-  voeg(leden.filter(x => !zelfdeMaat(x, c)));
-  if(uit.length < 5){ const w = hoofdwoord(c); if(w) voeg((hwIndex()[String((WH.D.P[c] || {}).leverancier || '') + '|' + w] || []).filter(x => x !== c && !P.isSam(x))); }
-  return uit.map(x => Object.assign({ c:x, naam:P.naamVan(x) }, veldVan(x, t))).filter(x => x.v !== null && x.v !== undefined && x.v !== '');
+  voeg(leden.filter(x => P.zelfdeMaat(x, c)), 'zelfde maat (kleurgenoot)');
+  voeg(leden.filter(x => !P.zelfdeMaat(x, c)), 'zelfde familie, andere maat');
+  if(uit.length < 6){ const g = P.groepVan(c); voeg(P.groepLeden(g.k).filter(fk => fk !== P.famVan(c)).flatMap(fk => (WHPD.index().fam[fk] || []).filter(x => bruikbaar(x) && !P.isSam(x))), 'zelfde groep (' + g.naam + ')'); }
+  return uit.map(({ x, waarom }) => Object.assign({ c:x, naam:P.naamVan(x), waarom }, veldVan(x, t))).filter(x => x.v !== null && x.v !== undefined && x.v !== '');
 }
 const toonVeld = (t, x) => t === 'soort' ? (x.v === 'weg' ? 'Weg · ' + naamWeg(x.weg) : naamSoort(x.v)) : t === 'gewicht' ? naamGew(x.v) + (x.kg ? ' · ' + fmtKg(x.kg) + ' kg' : '') : fmt(x.v) + (t === 'hoogte' ? ' cm' : t === 'rl' ? ' m' : '');
 function vergHtml(c, t){
   const l = vergelijkbaar(c, t); if(!l.length) return '';
-  return `<div class="verg"><div class="tip"><b>Vergelijkbare producten</b> bij ${esc(c)} · ${esc(NAAM[t])}</div>${l.map(x => `<div class="vrij"><span class="vn"><code>${esc(x.c)}</code> ${esc(x.naam)}</span><span class="vw">${esc(toonVeld(t, x))} · ${x.zelf ? 'bevestigd' : 'voorstel'}</span><button type="button" class="chip" data-over="${esc(c)}|${t}|${esc(x.c)}">Neem over</button></div>`).join('')}</div>`;
+  const rechts = waarde({ t }, c), nu = rechts && rechts.v !== null && rechts.v !== undefined && rechts.v !== '' ? toonVeld(t, Object.assign(veldVan(c, t), { v:rechts.v })) : 'nog leeg';
+  return `<div class="verg"><div class="tip"><b>Vergelijkbare producten</b> bij ${esc(c)} · ${esc(NAAM[t])}</div>
+  <p class="tip neemregel">Neem over zet dit getal bij ${esc(c)}; pas definitief na Klopt. Klopt zonder Neem over bewaart de waarde die rechts staat (nu: ${esc(nu)}).</p>
+  ${l.map(x => `<div class="vrij"><span class="vn"><code class="vcode">${esc(x.c)}</code> ${esc(x.naam)}</span><span class="vw">${esc(toonVeld(t, x))} · ${x.zelf ? 'bevestigd' : 'voorstel'} · ${esc(x.waarom)}</span><button type="button" class="chip" data-over="${esc(c)}|${t}|${esc(x.c)}">Neem over</button></div>`).join('')}</div>`;
 }
 // "Neem over": de waarde van het vergelijkbare product wordt bij dit product gezet (zwart, pas definitief na Klopt)
 function neemOver(c, t, x){
@@ -574,7 +578,7 @@ function veldenVan(c){
 }
 function openProd(c){ S.terugNaar = S.terugNaar != null && S.prod ? S.terugNaar : S.i; S.prodSnap = JSON.parse(JSON.stringify(A(c))); S.prod = c; S.vergT = null; reset(); teken(); const nat = document.getElementById('native'); if(nat) nat.scrollTop = 0; }
 function prodHtml(c){
-  const P = R(), f = S.pad[S.i].f, vtekst = { soort:'Welke soort?', gewicht:'Klopt het gewicht per stuk uit Picqer?', spp:'Hoeveel stuks per pallet?', maat:'Welke palletmaat?', hoogte:'Hoe hoog is een volle pallet, incl. pallet?', maxpick:'Max op pick?', rl:'Lengte volle rol (m)?', rmax:'Max rollen per pallet?' };
+  const P = R(), f = S.pad[S.i].f, vtekst = { soort:'Welke soort?', gewicht:'Klopt het gewicht per stuk uit Picqer?', spp:'Hoeveel stuks per pallet?', maat:'Welke palletmaat?', hoogte:'Hoe hoog is een volle pallet, incl. pallet?', lvl:'Aanvullen bij?', maxpick:'Max op pick?', rl:'Lengte volle rol (m)?', rmax:'Max rollen per pallet?' };
   let h = `<div class="fam"><h1>${esc(P.naamVan(c))}</h1><span>${esc(c)} · ${esc(f.naam)}</span></div>${afwHtml(c, true)}`;
   h += '<div class="veldengrid">';
   veldenVan(c).forEach(t => {
@@ -613,22 +617,33 @@ function zoekRes(q){
   for(const c of Object.keys(WH.D.P)){
     if(!bruikbaar(c)) continue;
     const naam = P.naamVan(c); let ok = c.toLowerCase().includes(q) || naam.toLowerCase().includes(q);
-    if(!ok){ try{ ok = String(P.famNaam(P.famVan(c))).toLowerCase().includes(q); }catch(e){} }
+    if(!ok){ try{ ok = String(P.famNaam(P.famVan(c))).toLowerCase().includes(q) || String(P.groepVan(c).naam).toLowerCase().includes(q); }catch(e){} }
     if(ok) res.push(c);
   }
   res.sort((a, b) => (bel.has(b) ? 1 : 0) - (bel.has(a) ? 1 : 0) || a.localeCompare(b));
   if(!res.length) return '<p class="tip">Niets gevonden.</p>';
-  return `<div class="lijst">${res.slice(0, 40).map(c => { let klaar = ''; try{ klaar = st(c).af ? 'klaar' : 'nog open'; }catch(e){} return `<button type="button" class="prodknop zoekrij" data-gast="${esc(c)}"><b>${esc(P.naamVan(c))}</b><br><code>${esc(c)}</code> · ${esc(P.famNaam(P.famVan(c)))} · ${klaar}${bel.has(c) ? '' : ' · niet belangrijk'}${P.isSam(c) ? ' · SAM Europe' : ''}</button>`; }).join('')}</div>${res.length > 40 ? `<p class="tip">${nf(res.length - 40)} meer: typ iets specifiekers.</p>` : ''}`;
+  // hele groep in één keer: de groepen (leverancier + hoofdwoord) van wat gevonden is
+  const grp = {}; res.forEach(c => { const g = P.groepVan(c); if(P.isSam(c)) return; (grp[g.k] = grp[g.k] || { g, n:0 }).n++; });
+  const gknop = Object.values(grp).sort((a, b) => b.n - a.n).slice(0, 6).map(({ g }) => { const n = P.groepLeden(g.k).reduce((t, fk) => t + (WHPD.index().fam[fk] || []).filter(x => bruikbaar(x) && bel.has(x)).length, 0); return `<button type="button" class="chip" data-groep="${esc(g.k)}">Hele groep ${esc(g.naam)} (${nf(n)} belangrijk)</button>`; }).join('');
+  return `${gknop ? `<div class="chips">${gknop}</div>` : ''}<div class="lijst">${res.slice(0, 40).map(c => { let klaar = ''; try{ klaar = st(c).af ? 'klaar' : 'nog open'; }catch(e){} return `<button type="button" class="prodknop zoekrij" data-gast="${esc(c)}"><b>${esc(P.naamVan(c))}</b><br><code>${esc(c)}</code> · ${esc(P.famNaam(P.famVan(c)))} · ${klaar}${bel.has(c) ? '' : ' · niet belangrijk'}${P.isSam(c) ? ' · SAM Europe' : ''}</button>`; }).join('')}</div>${res.length > 40 ? `<p class="tip">${nf(res.length - 40)} meer: typ iets specifiekers.</p>` : ''}`;
 }
 function openGast(c){
   const P = R(), fk = P.famVan(c), bel = new Set(P.belangrijk());
   let cs = P.isSam(c) ? [c] : fam(c).filter(x => bruikbaar(x) && !P.isSam(x) && (bel.has(x) || x === c));
   if(!cs.includes(c)) cs.push(c);
   cs.sort((a, b) => rang(P.abcVan(a)) - rang(P.abcVan(b)) || P.naamVan(a).localeCompare(P.naamVan(b), 'nl', { numeric:true }) || a.localeCompare(b));
-  const kl = ['A', 'B', 'C'].find(k => cs.some(x => P.abcVan(x) === k)) || '–';
-  const f = { fk, naam:P.famNaam(fk), lev:String((WH.D.P[c] || {}).leverancier || ''), kl, cs };
+  const f = famObj(fk, cs);
   if(!S.main) S.main = { pad:S.pad, fams:S.fams, i:S.i, klaar:S.klaar, terugNaar:S.terugNaar };
   S.fams = [f]; S.pad = []; VRAGEN.forEach(t => S.pad.push({ t, f, alle:true })); S.pad.push({ t:'klaar', f });
+  S.i = 0; S.gast = true; S.zoek = null; S.prod = null; S.terugNaar = null; S.klaar = false; reset(); sla(1); teken();
+}
+// hele groep doorlopen: alle families van de groep (belangrijke producten), met alle vragen
+function openGroep(gk){
+  const P = R(), bel = new Set(P.belangrijk());
+  const fams = P.groepLeden(gk).map(fk => famObj(fk, (WHPD.index().fam[fk] || []).filter(x => bruikbaar(x) && !P.isSam(x) && bel.has(x)))).filter(f => f.cs.length);
+  if(!fams.length){ WH.toast('Geen belangrijke producten in deze groep', 3000); return; }
+  if(!S.main) S.main = { pad:S.pad, fams:S.fams, i:S.i, klaar:S.klaar, terugNaar:S.terugNaar };
+  S.fams = volgensGroep(fams); S.pad = []; S.fams.forEach(f => { VRAGEN.forEach(t => S.pad.push({ t, f, alle:true })); S.pad.push({ t:'klaar', f }); });
   S.i = 0; S.gast = true; S.zoek = null; S.prod = null; S.terugNaar = null; S.klaar = false; reset(); sla(1); teken();
 }
 function terugMain(){
@@ -658,6 +673,7 @@ function koppel(){
     if(e.target.closest('#dl-zoeksluit')){ S.zoek = null; teken(); return; }
     if(e.target.closest('#dl-terugmain')){ terugMain(); return; }
     const gast = e.target.closest('[data-gast]'); if(gast){ openGast(gast.dataset.gast); return; }
+    const grp = e.target.closest('[data-groep]'); if(grp){ openGroep(grp.dataset.groep); return; }
     const stap = e.target.closest('[data-stap]'); if(stap){ springStap(+stap.dataset.stap); return; }
     const prodk = e.target.closest('[data-prod]'); if(prodk){ openProd(prodk.dataset.prod); return; }
     const akk = e.target.closest('[data-akkoord]'); if(akk){ bewaarAkkoord(akk.dataset.akkoord); teken(); return; }
@@ -742,5 +758,5 @@ async function render(el, rest){
   }
   teken();
 }
-return { render, S, bouw, teken, afwijkLijn, vergelijkbaar, halA20 };
+return { render, S, bouw, teken, afwijkLijn, vergelijkbaar, halA20, rijenVoor, volPallet, A };
 })();

@@ -29,7 +29,8 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await ev(() => { const S = WHDL.S, j = S.pad.findIndex(x => x.t === 'klaar'); S.i = j; S.sel = null; WHDL.teken(); });
   const ov = await ev(() => ({ afw:[...document.querySelectorAll('.afw')].map(a => a.innerText.replace(/\s+/g, ' ')), rijen:[...document.querySelectorAll('[data-prod]')].map(b => b.dataset.prod) }));
   const a1 = ov.afw.find(t => /PD-M-BLA/.test(t));
-  check('overzicht: oranje regel bij PD-M-BLA met wat afwijkt (kg per stuk, volle pallet)', a1 && /0,38 kg per stuk, PD-L 3 kg/.test(a1) && /volle pallet 76 tegen 495 kg/.test(a1) && /Klopt dat\?/.test(a1), a1);
+  // 09-11 (CLAUDE.md §3, kleurgenoten = zelfde familie én maat): PD-M-BLA wordt alleen met de andere M-maten vergeleken, nooit met de L-maten
+  check('overzicht: oranje regel bij PD-M-BLA met wat afwijkt van de kleurgenoten (zelfde maat), nooit van een andere maat', a1 && /0,38 kg per stuk, kleurgenoten \(zelfde maat\) 2 kg/.test(a1) && !/PD-L/.test(a1) && /Klopt dat\?/.test(a1), a1);
   const hl = await ev(() => ['PD-L-BLA', 'PD-L-WHI', 'PD-M-BLA'].map(c => c + '=' + (WHDL.halA20(c) || '-')).join(' '));
   check('Kattenluik: hoogte-melding alleen bij een product dat op een 20-locatie in hal A staat (' + hl + ')', ov.afw.every(t => !/hoogte/.test(t) || ((t.match(/^⚠ (\S+):/) || [])[1] && new RegExp(((t.match(/^⚠ (\S+):/) || [])[1]) + '=A[A-Z]\\d{2}[A-D]20').test(hl))) && !ov.afw.some(t => /PD-M-BLA: .*hoogte/.test(t)), ov.afw.join(' | ').slice(0, 260));
   check('overzicht: elke productregel is tikbaar', ov.rijen.includes('PD-M-BLA') && ov.rijen.includes('PD-L-WHI'), ov.rijen.join(','));
@@ -41,18 +42,18 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   // VERGELIJKBAAR
   await ev(() => document.querySelector('[data-vergt="gewicht"]').click());
   const vg = await ev(() => [...document.querySelectorAll('.verg .vrij')].map(r => r.innerText.replace(/\s+/g, ' ')));
-  check('Vergelijkbaar: PD-L-WHI en PD-L-BLA met hun gewicht (max 5, kleurgenoten eerst)', vg.length <= 5 && vg.some(t => /PD-L-WHI/.test(t) && /3 kg/.test(t)) && vg.some(t => /PD-L-BLA/.test(t) && /3 kg/.test(t)) && vg.every(t => /bevestigd|voorstel/.test(t)), vg.join(' | '));
+  check('Vergelijkbaar: PD-L-WHI en PD-L-BLA met hun gewicht (max 6, kleurgenoten eerst), met waarom', vg.length <= 6 && vg.some(t => /PD-L-WHI/.test(t) && /3 kg/.test(t) && /andere maat/.test(t)) && vg.some(t => /PD-L-BLA/.test(t) && /3 kg/.test(t)) && vg.every(t => /bevestigd|voorstel/.test(t)), vg.join(' | '));
   check('Vergelijkbaar: eerst kleurgenoten (PD-M-BRO, PD-M-WHI), dan de L-maten', vg.length >= 4 && /PD-M-BRO/.test(vg[0]) && /PD-M-WHI/.test(vg[1]) && /PD-L-/.test(vg[2]), vg.map(t => t.slice(0, 9)).join(' '));
   check('Vergelijkbaar bevat nooit SAM Europe', !(await ev(() => [...document.querySelectorAll('.verg code')].some(c => PD2R.isSam(c.innerText)))));
   // NEEM OVER + Klopt → volle pallet opnieuw
-  await ev(() => document.querySelector('.verg [data-over="PD-M-BLA|gewicht|PD-L-WHI"]').click());
+  await ev(() => document.querySelector('.verg [data-over="PD-M-BLA|gewicht|PD-M-WHI"]').click());
   await wacht(300);
-  const no = await ev(() => ({ chip:document.querySelector('[data-pk="gewicht|vertrouwd"]').className, tekst:document.querySelector('.dl main').innerText, nog:!(PD2R.po('PD-M-BLA') && PD2R.po('PD-M-BLA').gew && PD2R.po('PD-M-BLA').gew.kg === 3) }));
-  check('Neem over zet 3 kg bij PD-M-BLA, zichtbaar zwart, nog niet opgeslagen; volle pallet 495 kg', /\bon\b/.test(no.chip) && /volle pallet 495 kg/.test(no.tekst) && no.nog, no.chip);
+  const no = await ev(() => ({ chip:document.querySelector('[data-pk="gewicht|vertrouwd"]').className, tekst:document.querySelector('.dl main').innerText, nog:!(PD2R.po('PD-M-BLA') && PD2R.po('PD-M-BLA').gew && PD2R.po('PD-M-BLA').gew.kg === 2) }));
+  check('Neem over zet 2 kg (kleurgenoot PD-M-WHI) bij PD-M-BLA, zichtbaar zwart, nog niet opgeslagen; volle pallet 335 kg', /\bon\b/.test(no.chip) && /volle pallet 335 kg/.test(no.tekst) && no.nog, no.chip);
   await ev(() => document.getElementById('dl-klopt').click());
   await wacht(800);
   const na = await ev(() => { const g = PD2R.po('PD-M-BLA') && PD2R.po('PD-M-BLA').gew; return { g, tekst:document.querySelector('.dl main').innerText, afw:[...document.querySelectorAll('.afw')].map(a => a.innerText) }; });
-  check('Klopt → terug naar het overzicht, opnieuw berekend (volle pallet 495 kg), oranje regel weg, opgeslagen als 3 kg', na.g && na.g.kg === 3 && /volle pallet 495 kg/.test(na.tekst) && !na.afw.some(t => /kg per stuk/.test(t)), JSON.stringify(na.g));
+  check('Klopt → terug naar het overzicht, opnieuw berekend (volle pallet 335 kg), oranje regel weg, opgeslagen als 2 kg', na.g && na.g.kg === 2 && /volle pallet 335 kg/.test(na.tekst) && !na.afw.some(t => /PD-M-BLA.*kg per stuk/.test(t)), JSON.stringify(na.g));
   // STAPPEN TIKBAAR + ← naar de vorige vraag met bevestigde waarden
   await ev(() => document.querySelector('[data-stap="2"]').click());
   await wacht(300);
@@ -62,7 +63,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await ev(() => document.querySelector('[data-stap="3"]').click());
   await wacht(300);
   v = await nu();
-  check('tik op 3 Hoeveelheid opent de eerste hoeveelheidsvraag voor alle producten', ['spp', 'maat', 'hoogte', 'maxpick'].includes(v.t), v.t);
+  check('tik op 3 Hoeveelheid opent de eerste hoeveelheidsvraag voor alle producten', ['spp', 'maat', 'hoogte', 'lvl', 'maxpick'].includes(v.t), v.t);
   await ev(() => document.getElementById('dl-terug').click());
   await wacht(300);
   v = await nu();

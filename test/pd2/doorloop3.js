@@ -45,12 +45,13 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await laad('#/todo/later');
   await P.waitForSelector('#later-kaart', { timeout:200000 });
   const kaart = await ev(() => document.getElementById('later-kaart').innerText);
-  const nItems = await ev(() => WHTAAK.later.lijst().length);
-  check('Te doen: kaart "Later · moet nog (' + nItems + ')" met code, naam, vraag en sinds wanneer', new RegExp('Later · moet nog \\(' + nItems + '\\)').test(kaart) && kaart.includes(c) && /sinds \d+-\d+ \d{2}:\d{2}/.test(kaart) && /Hoeveelheid/.test(kaart), kaart.replace(/\n/g, ' | ').slice(0, 220));
+  // 09-11: tellers tellen producten (één product = één punt, alle Later-vragen eronder)
+  const nItems = await ev(() => new Set(WHTAAK.later.lijst().map(x => x.c).concat(WHCP.laterItems().map(x => x.c))).size);
+  check('Te doen: kaart "Later · moet nog (' + nItems + ')" (producten) met code, vraag en sinds wanneer', new RegExp('Later · moet nog \\(' + nItems + '\\)').test(kaart) && kaart.includes(c) && /sinds \d+-\d+ \d{2}:\d{2}/.test(kaart) && /Hoeveelheid/.test(kaart), kaart.replace(/\n/g, ' | ').slice(0, 220));
   const startTel = await ev(() => document.body.innerText.match(/(\d+) van \d+ klaar · (\d+) producten open/));
   check('Te doen: "producten open" telt Later niet mee en is geen "…"', !!startTel);
   // 4. Later-lijst opent het product
-  await ev(() => document.querySelector('#later-kaart a.knop').click());
+  await ev(() => document.querySelector('#later-kaart a[href="#/doorloop/later"]').click());
   await P.waitForSelector('.dl .vraag', { timeout:60000 });
   const ll = await ev(() => ({ eerste:WHDL.S.pad.find(v => v.t !== 'klaar').rows, alle:WHDL.S.pad.filter(v => v.t !== 'klaar').flatMap(v => v.rows) }));
   check('Later-lijst opent met alleen Later-vragen (product erin)', ll.eerste.includes(c) || ll.alle.includes(c), JSON.stringify(ll.eerste));

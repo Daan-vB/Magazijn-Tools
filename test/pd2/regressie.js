@@ -51,4 +51,6 @@ const h = s => crypto.createHash('sha1').update(s).digest('hex').slice(0, 10);
   await b.close();
   // schermvullend.js hoort bij de regressie (SCHERM=1 draait hem erachteraan; hij moet groen zijn vóór elke push)
   if(process.env.SCHERM){ try{ require('child_process').execFileSync('node', [require('path').join(__dirname, 'schermvullend.js')], { stdio:'inherit' }); }catch(e){ console.log('schermvullend.js ROOD'); process.exitCode = 1; } }
+  // daantoets.js (de vaste regels van Daan) hoort bij de regressie en moet groen zijn vóór elke push (CLAUDE.md §9); DAAN=0 slaat hem over
+  if(process.env.DAAN !== '0'){ try{ require('child_process').execFileSync('node', [require('path').join(__dirname, 'daantoets.js')], { stdio:'inherit' }); }catch(e){ console.log('daantoets.js ROOD'); process.exitCode = 1; } }
 })();

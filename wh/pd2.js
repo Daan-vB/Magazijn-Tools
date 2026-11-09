@@ -21,7 +21,7 @@ const TABT = Object.fromEntries(TABS);
 const SEGS = [['open', 'Open'], ['afgerond', 'Afgerond']];
 const STAPPEN = [['soort', '1 Soort'], ['gewicht', '2 Gewicht'], ['hoev', '3 Hoeveelheid']];
 const SCOPES = [['belangrijk', 'Belangrijk'], ['AB', 'A+B'], ['beweegt', 'Alles dat beweegt'], ['binnen', 'Komt binnen'], ['voorraad', 'Alles met voorraad']];
-const UI = { el:null, scope:ls('scope') || 'belangrijk', zoek:'', lev:'', afd:'', hal:'', abc:'', filterOpen:false,
+const UI = { el:null, scope:ls('scope') || 'belangrijk', zoek:'', lev:'', afd:'', hal:'', deel:'', abc:'', filterOpen:false,
   doel:null, doelRest:'', vstap:'', vuit:new Set(), vaan:new Set(), vwijz:{}, fk:null, mk:null, seg:'open', stap:'soort', view:null, wegAlle:null, sel:new Set(), undo:null, n:40, famN:30, lastK:{},
   weegKlaar:new Set(), rolOpen:{}, oefenen:ls('oefenen') === '1', oef:(() => { try{ return JSON.parse(ls('oef') || '') || { set:'pallet', i:0 }; }catch(e){ return { set:'pallet', i:0 }; } })() };
 const now = () => new Date().toISOString();
@@ -49,18 +49,19 @@ function inScope(c, sc){
   }
   return true;
 }
-const zoekTreft = (c, q) => { const p = D.P[c] || {}, t = (c + ' ' + (p.naam || '') + ' ' + (p.locaties_hm || '') + ' ' + (p.leverancier || '')).toLowerCase(); return q.every(w => t.includes(w)); };
+const zoekTreft = (c, q) => { const p = D.P[c] || {}; let g = ''; try{ g = R.groepVan(c).naam; }catch(e){} const t = (c + ' ' + (p.naam || '') + ' ' + (p.locaties_hm || '') + ' ' + (p.leverancier || '') + ' ' + g).toLowerCase(); return q.every(w => t.includes(w)); };
 let BC = { key:null, v:null };
 // producten die de familielijst bepalen (scope of zoeken, plus de filters)
 function basisCodes(zonder){
-  const key = [UI.scope, UI.zoek, zonder === 'lev' ? '' : UI.lev, UI.afd, UI.hal, UI.abc, R.S.dataVer, zonder || ''].join('|');
+  const key = [UI.scope, UI.zoek, zonder === 'lev' ? '' : UI.lev, UI.afd, UI.hal, UI.deel, UI.abc, R.S.dataVer, zonder || ''].join('|');
   if(BC.key === key) return BC.v;
   const q = UI.zoek.trim().toLowerCase().split(/\s+/).filter(Boolean);
   let cs = Object.keys(D.P).filter(R.actief);
   cs = q.length ? cs.filter(c => zoekTreft(c, q)) : cs.filter(c => inScope(c, UI.scope));
   if(UI.lev && zonder !== 'lev') cs = cs.filter(c => String((D.P[R.koppelVan(c) || c] || {}).leverancier || '') === UI.lev);
   if(UI.afd) cs = cs.filter(c => gangVan(c) === UI.afd);
-  if(UI.hal) cs = cs.filter(c => gangVan(c).slice(0, 1) === UI.hal);
+  // drie hallen: A, B, C (C met gedeelte C en D); er is geen hal D
+  if(UI.hal) cs = cs.filter(c => { const h = R.halVan(gangVan(c)); return !!h && h.hal === UI.hal && (!UI.deel || h.deel === UI.deel); });
   if(UI.abc) cs = cs.filter(c => (R.abcVan(R.koppelVan(c) || c) || '–') === UI.abc);
   BC = { key, v:cs };
   return cs;
@@ -282,8 +283,11 @@ function families(){
     const lev = String((D.P[l[0]] || {}).leverancier || fk.split('|')[0] || '');
     return { fk, naam:R.famNaam(fk), lev, n:l.length, maten:new Set(l.map(R.maatVan)).size, af, open:st.reduce((n, s) => n + (s.af ? 0 : s.open.length), 0), aand, score:nA * 3 + nB * 2 + nIn * 2 + aand };
   }).filter(f => f.n).sort((a, b) => b.score - a.score || b.n - a.n || a.naam.localeCompare(b.naam));
-  FC.key = key; FC.v = uit;
-  return uit;
+  // "Volgende familie" volgt de groep (leverancier + hoofdwoord, zoals Te doen en de Doorloop): een hele groep na elkaar, de groep met de hoogste score eerst
+  const grp = new Map(); uit.forEach(f => { const g = R.groepVanFam(f.fk); f.gk = g.k; f.gnaam = g.naam; if(!grp.has(g.k)) grp.set(g.k, []); grp.get(g.k).push(f); });
+  const opGroep = [...grp.values()].flat();
+  FC.key = key; FC.v = opGroep;
+  return opGroep;
 }
 function rolTitel(cs){
   if(!cs.length || !cs.every(R.isRol)) return '';
@@ -512,20 +516,21 @@ function afRij(c){
 }
 
 /* ---------- scherm 1: start ---------- */
-function filterN(){ return [UI.lev, UI.afd, UI.hal, UI.abc].filter(Boolean).length + (UI.scope !== 'belangrijk' ? 1 : 0); }
+function filterN(){ return [UI.lev, UI.afd, UI.hal, UI.deel, UI.abc].filter(Boolean).length + (UI.scope !== 'belangrijk' ? 1 : 0); }
 function filtersHtml(){
   const cs = basisCodes('lev'), levs = [...new Set(cs.map(c => String((D.P[R.koppelVan(c) || c] || {}).leverancier || '')).filter(Boolean))].sort();
-  const all = basisCodes(), gangen = [...new Set(all.map(gangVan).filter(Boolean))].sort(), hallen = [...new Set(gangen.map(g => g.slice(0, 1)))].sort();
+  const all = basisCodes(), gangenAlle = [...new Set(all.map(gangVan).filter(g => R.halVan(g)))].sort(), hallen = [...new Set(gangenAlle.map(g => R.halVan(g).hal))].sort(), gangen = gangenAlle.filter(g => !UI.hal || (R.halVan(g).hal === UI.hal && (!UI.deel || R.halVan(g).deel === UI.deel)));
   return `<div class="pd2-filters"><div class="pd2-seg klein" role="group" aria-label="Welke producten">${SCOPES.map(([k, t]) => `<button data-a="scope" data-v="${k}" class="${UI.scope === k && !UI.zoek ? 'aan' : ''}">${esc(t)}</button>`).join('')}</div>
     <div class="pd2-selrij"><select class="pd2-in" data-f="lev" aria-label="Leverancier"><option value="">Alle leveranciers</option>${levs.concat(UI.lev && !levs.includes(UI.lev) ? [UI.lev] : []).map(l => `<option ${l === UI.lev ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
     <select class="pd2-in" data-f="afd" aria-label="Afdeling"><option value="">Alle afdelingen</option>${gangen.concat(UI.afd && !gangen.includes(UI.afd) ? [UI.afd] : []).map(g => `<option ${g === UI.afd ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select>
-    <select class="pd2-in" data-f="hal" aria-label="Hal"><option value="">Alle hallen</option>${hallen.concat(UI.hal && !hallen.includes(UI.hal) ? [UI.hal] : []).map(h => `<option value="${esc(h)}" ${h === UI.hal ? 'selected' : ''}>Hal ${esc(h)}</option>`).join('')}</select>
+    <select class="pd2-in" data-f="hal" aria-label="Hal"><option value="">Alle hallen</option>${hallen.map(h => `<option value="${esc(h)}" ${h === UI.hal ? 'selected' : ''}>Hal ${esc(h)}</option>`).join('')}</select>
+    ${UI.hal === 'C' ? `<select class="pd2-in" data-f="deel" aria-label="Gedeelte"><option value="">Hal C: beide gedeelten</option>${['C', 'D'].map(d => `<option value="${d}" ${d === UI.deel ? 'selected' : ''}>Gedeelte ${d}</option>`).join('')}</select>` : ''}
     <select class="pd2-in" data-f="abc" aria-label="ABC"><option value="">ABC: alle</option>${['A', 'B', 'C', '–'].map(a => `<option ${a === UI.abc ? 'selected' : ''}>${a}</option>`).join('')}</select></div></div>`;
 }
 function famRijen(){
   const L = families(), toon = L.slice(0, UI.famN);
   if(!L.length) return '<div class="pd2-leeg">Geen families met deze zoekopdracht of filters.</div>';
-  return toon.map(f => `<button class="pd2-fam${f.af === f.n ? ' klaar' : ''}" data-a="fam" data-v="${esc(f.fk)}"><span class="kn"><b>${esc(f.naam)}</b><span class="u">${esc(f.lev)} · ${mv(f.n, 'product', 'producten')} · ${mv(f.maten, 'maat', 'maten')}</span></span><span class="n">${f.af === f.n ? '<span class="v">✓ klaar</span>' : nf(f.open) + ' open'}</span></button>`).join('')
+  return toon.map(f => `<button class="pd2-fam${f.af === f.n ? ' klaar' : ''}" data-a="fam" data-v="${esc(f.fk)}"><span class="kn"><b>${esc(f.naam)}</b><span class="u">${f.gnaam ? 'groep ' + esc(f.gnaam) + ' · ' : esc(f.lev) + ' · '}${mv(f.n, 'product', 'producten')} · ${mv(f.maten, 'maat', 'maten')}</span></span><span class="n">${f.af === f.n ? '<span class="v">✓ klaar</span>' : nf(f.open) + ' open'}</span></button>`).join('')
     + (L.length > toon.length ? `<button class="knop pd2-meer" data-a="fammeer">Meer families (${nf(L.length - toon.length)})</button>` : '');
 }
 function startHtml(){
@@ -610,7 +615,7 @@ function weegGroepen(){
   const cs = [...new Set(weegCodes().concat([...UI.weegKlaar]))].filter(c => D.P[c]);
   const loc = c => { const f = R.info(c).f; return (f.pick[0] || f.bulk[0] || { n:'' }).n; };
   const per = {};
-  cs.forEach(c => { const l = loc(c) || '', hal = /^[A-Z]{2}/i.test(l) ? 'Hal ' + l[0].toUpperCase() : 'Zonder locatie', gang = /^[A-Z]{2}/i.test(l) ? l.slice(0, 2).toUpperCase() : '–'; (((per[hal] = per[hal] || {})[gang] = per[hal][gang] || {})[l || '–'] = per[hal][gang][l || '–'] || []).push(c); });
+  cs.forEach(c => { const l = loc(c) || '', h = R.halVan(l), hal = h ? 'Hal ' + h.hal + (h.deel ? ' · gedeelte ' + h.deel : '') : 'Zonder locatie', gang = h ? h.gang : '–'; (((per[hal] = per[hal] || {})[gang] = per[hal][gang] || {})[l || '–'] = per[hal][gang][l || '–'] || []).push(c); });
   return per;
 }
 function weegWijze(c){ const st = R.status(c), spp = R.nOf(R.waarde(c, 'spp').v); return ['pallet', 'deel', 'bulk'].includes(st.so) && spp > 0 ? { reach:true, spp } : { reach:false }; }
@@ -1131,7 +1136,7 @@ function koppel(){
   });
   document.addEventListener('change', ev => {
     const t = ev.target; if(!t.closest || !t.closest(BINNEN)) return;
-    if(t.dataset.f){ UI[t.dataset.f] = t.value; UI.famN = 30; teken(); return; }
+    if(t.dataset.f){ UI[t.dataset.f] = t.value; if(t.dataset.f === 'hal'){ UI.deel = ''; UI.afd = ''; } UI.famN = 30; teken(); return; }
     if(t.dataset.fb){ R.fbTab(t.closest('[data-tab]').dataset.tab, { [t.dataset.fb]:t.value }); return; }
     const a2 = t.dataset.a2;
     if(a2){

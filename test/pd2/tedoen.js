@@ -8,7 +8,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await P.goto(B + 'ivol.html#/taak/0.4');
   await P.waitForFunction(() => window.WHPD && WHPD.S.klaar && window.PD2R && PD2R.S.klaar && /producten open/.test(document.body.innerText), null, { timeout:300000 });
   const t = await ev(() => {
-    const bel = WHPD.poort().bel, n2 = bel.filter(c => { const s = PD2R.status(c); return !s.kop && s.open.length; }).length;
+    const bel = WHPD.poort().bel, n2 = bel.filter(c => { const s = PD2R.status(c); return !s.kop && s.open.length && (!WHTAAK.openZL || WHTAAK.openZL(c, '').length > 0); }).length;   // Later telt niet mee (08-11)
     const veld = bel.reduce((a, c) => a + (PD2R.status(c).kop ? 0 : PD2R.status(c).open.length), 0);
     const kgst = bel.filter(c => WHPD.openStappen(c).some(k => k === 'kgst' || k === 'maxlig')).length;
     const bw = bel.filter(c => ['bulk', 'weg'].includes(PD2R.status(c).so) && WHPD.openStappen(c).some(k => ['maxpick', 'lvl', 'pick', 'met'].includes(k))).length;

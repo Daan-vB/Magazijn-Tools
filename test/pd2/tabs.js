@@ -10,73 +10,84 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   const laad = async tab => { await P.goto(B + 'ivol.html#/todo/' + tab); await P.reload(); await P.waitForFunction(() => window.WHCP && WHCP.tel && WHCP.tel() && document.querySelector('.cp-tabs'), null, { timeout:280000 }); await wacht(500); };
   const tekst = () => ev(() => document.querySelector('#native').innerText);
   const heeft = (tab, c) => ev(([t, c]) => (WHCP.cats()[t] || []).some(x => x.c === c), [tab, c]);
+  // alleen deze producten aangevinkt in hun groep (de rest uitgevinkt), dan de groepsknop
+  const alleen = (tab, codes) => ev(([tab, codes]) => { const gk = WHCP.cats()[tab].find(x => x.c === codes[0]).gk, el = document.querySelector('.cp-grp[data-gk="' + CSS.escape(gk) + '"]');
+    el.querySelectorAll('[data-cp-sel]').forEach(i => { const c = i.dataset.cpSel.slice(tab.length + 1), aan = codes.includes(c); if(i.checked !== aan){ i.checked = aan; i.dispatchEvent(new Event('change', { bubbles:true })); } }); return gk; }, [tab, codes]);
+  const groepKnop = (gk, actie, v) => ev(([gk, a, v]) => document.querySelector('.cp-grp[data-gk="' + CSS.escape(gk) + '"] [data-cp="' + a + '"]' + (v ? '[data-v="' + v + '"]' : '')).click(), [gk, actie, v || '']);
   // 1 Overzicht
   await laad('overzicht');
   let t = await tekst();
   const tabs = await ev(() => [...document.querySelectorAll('.cp-tab')].map(a => a.innerText.replace(/\s+/g, ' ').trim()));
-  check('tabs met teller, Overzicht eerst; tab weg bij 0 (Later is leeg)', /^Overzicht/.test(tabs[0]) && tabs.some(x => /^Picklocaties \d+/.test(x)) && tabs.some(x => /^Aantal per pallet \d+/.test(x)) && !tabs.some(x => /^Later/.test(x)), tabs.join(' | '));
-  check('Overzicht = Claudes analyse: per categorie aantal, uitleg en voorbeelden; Wat klopt; Jouw reactie', /3 Picklocaties · \d+/.test(t) && /Bijvoorbeeld/.test(t) && /Wat klopt/.test(t) && /549 \/ 551 \/ 574/.test(t) && /Jouw reactie/.test(t), '');
+  const nLater = await ev(() => WHCP.tel().later);
+  check('tabs met teller, Overzicht eerst; tab weg bij 0', /^Overzicht/.test(tabs[0]) && tabs.some(x => /^Picklocaties \d+/.test(x)) && tabs.some(x => /^Aantal per pallet \d+/.test(x)) && (nLater > 0) === tabs.some(x => /^Later/.test(x)), tabs.join(' | '));
+  check('Overzicht = Claudes analyse: per categorie aantal producten en groepen, uitleg en voorbeelden; Wat klopt; Jouw reactie', /3 Picklocaties · \d+ producten? in \d+ groep/.test(t) && /Bijvoorbeeld/.test(t) && /Wat klopt/.test(t) && /549 \/ 551 \/ 574/.test(t) && /Jouw reactie/.test(t), '');
   check('Overzicht: "Productdata in gebruik: 3.0 en Containers"', /Productdata in gebruik: 3\.0 en Containers/.test(t));
-  check('Te doen: geen losse kaarten "Te controleren" of "Wacht op jouw tik" of "Later · moet nog" meer; wel taakkaart Stap 0.4', !/Wacht op jouw tik/.test(t) && !/producten met een schatting/i.test(t) && !/Later · moet nog/.test(t) && /0\.4/.test(t), '');
+  check('Te doen: geen losse kaarten "Te controleren" of "Wacht op jouw tik" meer; wel taakkaart Stap 0.4', !/Wacht op jouw tik/.test(t) && !/producten met een schatting/i.test(t) && /0\.4/.test(t), '');
   await P.fill('#cp-reactie', 'Test: dit klopt niet'); await ev(() => document.querySelector('[data-cp="reactie"]').click()); await wacht(800);
   check('Jouw reactie wordt bewaard (met datum)', T.mock['wh-controle-reacties'] && T.mock['wh-controle-reacties'].lijst.some(r => /dit klopt niet/.test(r.tekst) && r.op), '');
-  // 3 Picklocaties
+  // 3 Picklocaties: per groep "Pick nodig in hal · gedeelte · gang"
   await laad('picklocaties');
-  check('Picklocaties: KOKOS100BLK-24 en DT140-711', await heeft('picklocaties', 'KOKOS100BLK-24') && await heeft('picklocaties', 'DT140-711'));
-  await ev(() => { const k = document.querySelector('.cp-item[data-c="DT140-711"]'); k.querySelector('[data-cp-hal]').value = 'C'; k.querySelector('[data-cp-gang]').value = 'DD'; k.querySelector('[data-cp-opm]').value = 'nieuwe pick naast de ingang'; k.querySelector('[data-cp="wens"]').click(); });
-  await wacht(1500);
+  check('Picklocaties: KOKOS100BLK-24 (open of klaar voor Picqer) en DT140-711', (await heeft('picklocaties', 'KOKOS100BLK-24') || await heeft('pickklaar', 'KOKOS100BLK-24')) && await heeft('picklocaties', 'DT140-711'));
+  let gk = await alleen('picklocaties', ['DT140-711']); await wacht(600);
+  const kies = async (veld, w) => { await ev(([gk, veld, w]) => { const s = document.querySelector('.cp-grp[data-gk="' + CSS.escape(gk) + '"] [data-cp-k$="|' + veld + '"]'); s.value = w; s.dispatchEvent(new Event('change', { bubbles:true })); }, [gk, veld, w]); await wacht(500); };
+  await kies('hal', 'C'); await kies('deel', 'D'); await kies('gang', 'DD'); await kies('opm', 'nieuwe pick naast de ingang');
+  await groepKnop(gk, 'g-pick'); await wacht(2000);
   const wens = T.pdWrites.find(r => r.productcode === 'DT140-711' && r.data && r.data.pickwens);
-  check('pickwens {hal, gang, opm} bewaard in productdata (bron pd2) met kopie -8', wens && wens.data.pickwens.hal === 'C' && wens.data.pickwens.gang === 'DD' && wens.meta.pickwens.bron === 'pd2' && Object.keys(T.mock).some(k => /^wh-kopie-productdata-\d{4}-\d{2}-\d{2}-8$/.test(k)), JSON.stringify(wens && wens.data.pickwens));
-  await ev(() => { document.querySelector('[data-cp-f="hal"]').value = 'C'; document.querySelector('[data-cp-f="hal"]').dispatchEvent(new Event('change', { bubbles:true })); });
-  await wacht(600);
-  await ev(() => { const g = document.querySelector('[data-cp-f="gang"]'); g.value = 'DD'; g.dispatchEvent(new Event('change', { bubbles:true })); });
-  await wacht(600);
-  const werk = await ev(() => ({ lijst:(document.querySelector('.cp-werk') || {}).innerText || '', kaarten:[...document.querySelectorAll('.cp-item')].map(e => e.dataset.c) }));
-  check('filter op hal C en gang DD geeft de werklijst met DT140-711', /DT140-711/.test(werk.lijst) && werk.kaarten.includes('DT140-711'), werk.lijst);
+  check('pickwens {hal, gedeelte, gang, opm} bewaard in productdata (bron pd2) met kopie -8', wens && wens.data.pickwens.hal === 'C' && wens.data.pickwens.deel === 'D' && wens.data.pickwens.gang === 'DD' && /ingang/.test(wens.data.pickwens.opm) && wens.meta.pickwens.bron === 'pd2' && Object.keys(T.mock).some(k => /^wh-kopie-productdata-\d{4}-\d{2}-\d{2}-8$/.test(k)), JSON.stringify(wens && wens.data.pickwens));
+  check('na Pick nodig: DT140-711 uit de open lijst, de rest van de groep blijft staan', !(await heeft('picklocaties', 'DT140-711')) && await heeft('pickklaar', 'DT140-711') && await heeft('picklocaties', 'DT140-747'));
+  await ev(() => { const f = document.querySelector('[data-cp-f="hal"]'); f.value = 'C'; f.dispatchEvent(new Event('change', { bubbles:true })); }); await wacht(600);
+  await ev(() => { const f = document.querySelector('[data-cp-f="deel"]'); f.value = 'D'; f.dispatchEvent(new Event('change', { bubbles:true })); }); await wacht(600);
+  await ev(() => { const g = document.querySelector('[data-cp-f="gang"]'); g.value = 'DD'; g.dispatchEvent(new Event('change', { bubbles:true })); }); await wacht(600);
+  const werk = await ev(() => (document.getElementById('cp-klaar') || {}).innerText || '');
+  check('filter hal C → gedeelte D → gang DD: werklijst "Klaar voor Picqer" met DT140-711 onder Hal C · gedeelte D · gang DD', /DT140-711/.test(werk) && /Hal C · gedeelte D · gang DD/.test(werk), werk.slice(0, 200));
   // 4 Bulklocaties
   await laad('bulklocaties');
   const bg = await ev(() => (WHCP.cats().bulklocaties.find(x => x.c === 'BGB100150-BLA') || {}).reden);
   check('Bulklocaties: BGB100150-BLA met picklocatie BB03D00', /BB03D00/.test(bg || ''), bg);
-  await ev(() => document.querySelector('.cp-item[data-c="BGB100150-BLA"] [data-cp="bulk-ok"]').click()); await wacht(1200);
+  gk = await alleen('bulklocaties', ['BGB100150-BLA']); await wacht(500); await groepKnop(gk, 'g-bulkok'); await wacht(1500);
   const eraf = await ev(() => ({ lijst:WHCP.cats().bulkeraf.map(x => x.c), meer:WHCP.cats().bulklocaties.some(x => x.c === 'BGB100150-BLA') }));
-  check('"Klopt, alleen bulk" zet het op de lijst "Picklocatie eraf in Picqer" (met locatie)', eraf.lijst.includes('BGB100150-BLA') && !eraf.meer, JSON.stringify(eraf.lijst));
+  check('"Alleen bulk (picklocatie eraf)" zet het op de werklijst "Klaar voor Picqer" (met locatie)', eraf.lijst.includes('BGB100150-BLA') && !eraf.meer, JSON.stringify(eraf.lijst));
   // 5 Hercontrole
   await laad('hercontrole');
   const her = await ev(() => Object.fromEntries(['TRAILER10', 'E400560-10KG', 'KOKOS200NAT', 'SM90X120CM'].map(c => [c, (WHCP.cats().hercontrole.find(x => x.c === c) || {})])));
   check('Hercontrole: TRAILER10 met voorstel Deel', her.TRAILER10.voorstel && her.TRAILER10.voorstel.soort === 'deel', her.TRAILER10.reden);
-  check('Hercontrole: E400560-10KG, KOKOS200NAT en SM90X120CM staan erin', !!her['E400560-10KG'].c && !!her.KOKOS200NAT.c && !!her.SM90X120CM.c && /1\.955/.test(her.SM90X120CM.reden || ''), [her['E400560-10KG'].reden, her.KOKOS200NAT.reden, her.SM90X120CM.reden].join(' || '));
+  check('Hercontrole: E400560-10KG, KOKOS200NAT en SM90X120CM staan erin, elk met Claudes visie', !!her['E400560-10KG'].c && !!her.KOKOS200NAT.c && !!her.SM90X120CM.c && /1\.955/.test(her.SM90X120CM.reden || '') && [her['E400560-10KG'], her.KOKOS200NAT, her.SM90X120CM].every(x => x.redenen.every(r => r.visie)), [her['E400560-10KG'].reden, her.KOKOS200NAT.reden, her.SM90X120CM.reden].join(' || '));
   check('549-1-135-reeks staat niet in Hercontrole (alleen bij "Wat klopt")', !(await ev(() => WHCP.cats().hercontrole.some(x => /^549-1-135/.test(x.c)))));
-  await ev(() => document.querySelector('.cp-item[data-c="TRAILER10"] [data-cp="neem"]').click()); await wacht(1500);
-  const tr = await ev(() => ({ so:PD2R.po('TRAILER10') && PD2R.po('TRAILER10').so, nog:WHCP.cats().hercontrole.some(x => x.c === 'TRAILER10' && x.voorstel && x.voorstel.soort) }));
-  check('Neem voorstel over: TRAILER10 wordt Deel (aangepast, door Daan), kopie gemaakt, verdwijnt uit de tab', tr.so && tr.so.v === 'deel' && tr.so.st === 'aangepast' && !tr.nog, JSON.stringify(tr.so));
+  gk = await alleen('hercontrole', ['TRAILER10']); await wacht(500); await groepKnop(gk, 'g-neem'); await wacht(1800);
+  const tr = await ev(() => ({ so:PD2R.po('TRAILER10') && PD2R.po('TRAILER10').so, nog:WHCP.cats().hercontrole.some(x => x.c === 'TRAILER10') }));
+  check('Voorstel overnemen: TRAILER10 wordt Deel (aangepast, door Daan), kopie gemaakt, verdwijnt uit de tab', tr.so && tr.so.v === 'deel' && tr.so.st === 'aangepast' && !tr.nog, JSON.stringify(tr.so));
   // 6 Gewicht controleren
   await laad('gewicht');
   const gw = await ev(() => Object.fromEntries(['1711-white-set', '3028-4'].map(c => [c, (WHCP.cats().gewicht.find(x => x.c === c) || {})])));
-  check('Gewicht controleren: 1711-white-set met voorstel 0,045 kg', gw['1711-white-set'].voorstel && /0,045/.test(gw['1711-white-set'].voorstel.tekst), gw['1711-white-set'].voorstel && gw['1711-white-set'].voorstel.tekst);
-  check('Gewicht controleren: 3028-4 (Picqer leeg) staat erin met voorstel', !!gw['3028-4'].c && !!gw['3028-4'].voorstel, gw['3028-4'].reden);
-  await ev(() => document.querySelector('.cp-item[data-c="3028-4"] [data-cp="tewegen"]').click()); await wacht(1500);
+  check('Gewicht controleren: 1711-white-set met voorstel 0,045 kg (kleurgenoten, zelfde maat)', gw['1711-white-set'].voorstel && /0,045/.test(gw['1711-white-set'].voorstel.tekst), gw['1711-white-set'].voorstel && gw['1711-white-set'].voorstel.tekst);
+  check('Gewicht controleren: 3028-4 (Picqer leeg, andere maat dan 3028-3/-5) staat erin zonder voorstel: Naar Te wegen', !!gw['3028-4'].c && !gw['3028-4'].voorstel, gw['3028-4'].reden);
+  gk = await alleen('gewicht', ['3028-4']); await wacht(500); await groepKnop(gk, 'g-tewegen'); await wacht(1800);
   check('Naar Te wegen: gewicht op te wegen, product in de tab Te wegen', (await ev(() => PD2R.po('3028-4').gew)).st === 'tewegen' && await heeft('tewegen', '3028-4'));
-  // 7 Te wegen: gesorteerd op locatie
+  // 7 Te wegen: per groep en familie, binnen de familie op locatie (looproute)
   await laad('tewegen');
-  const route = await ev(() => WHCP.cats().tewegen.filter(x => x.loc).map(x => x.loc.slice(0, 2)));
-  check('Te wegen: gesorteerd op hal/gang (looproute)', route.length > 3 && route.every((g, i) => i === 0 || route[i - 1] <= g), route.slice(0, 8).join(' '));
+  await ev(() => document.querySelectorAll('.cp-det').forEach(d => { d.open = true; })); await wacht(300);
+  const route = await ev(() => [...document.querySelectorAll('.cp-famblok')].map(f => [...f.querySelectorAll('.cp-item')].map(i => (WHCP.cats().tewegen.find(x => x.c === i.dataset.c) || {}).loc || 'ZZZ')));
+  check('Te wegen: binnen elke familie gesorteerd op locatie (looproute)', route.length > 3 && route.every(l => l.every((g, i) => i === 0 || l[i - 1] <= g)), JSON.stringify(route.slice(0, 3)));
   const c0 = await ev(() => document.querySelector('.cp-item[data-cat="tewegen"]').dataset.c);
-  await P.fill(`.cp-item[data-c="${c0}"] [data-cp-kg]`, '2,5'); await ev(c => document.querySelector(`.cp-item[data-c="${c}"] [data-cp="gewogen"]`).click(), c0); await wacht(1500);
+  await P.fill(`[data-cp-kg="${c0}"]`, '2,5'); await wacht(200);
+  gk = await alleen('tewegen', [c0]); await wacht(500); await groepKnop(gk, 'g-gewogen'); await wacht(1800);
   check('gewogen gewicht invullen: status gewogen met kg', (await ev(c => PD2R.po(c).gew, c0)).st === 'gewogen' && (await ev(c => PD2R.po(c).gew.kg, c0)) === 2.5);
   // 8 Aantal per pallet + Klopt zo blijft weg na herladen
   await laad('aantal');
   check('Aantal per pallet: 100030-969 en PBVF-100x150-GREY', await heeft('aantal', '100030-969') && await heeft('aantal', 'PBVF-100x150-GREY'));
-  await ev(() => document.querySelector('.cp-item[data-c="100030-969"] [data-cp="klopt"]').click()); await wacht(1200);
-  check('"Klopt zo, verschil is terecht" haalt het weg en wordt bewaard (met kopie vooraf bij herhaling)', !(await heeft('aantal', '100030-969')) && T.mock['wh-controle-klopt'] && T.mock['wh-controle-klopt'].items['aantal|100030-969'], '');
+  gk = await alleen('aantal', ['100030-969']); await wacht(500); await groepKnop(gk, 'g-klopt'); await wacht(1500);
+  check('"Klopt zo (verschil is terecht)" haalt het weg en wordt bewaard', !(await heeft('aantal', '100030-969')) && T.mock['wh-controle-klopt'] && T.mock['wh-controle-klopt'].items['aantal|100030-969'], '');
   await laad('aantal');
   check('na herladen blijft "Klopt zo" weg', !(await heeft('aantal', '100030-969')));
-  // groep in één klik met vinkjes
+  // groep in één klik met vinkjes (uitvinken kan)
   await laad('hercontrole');
   const voor = await ev(() => WHCP.cats().hercontrole.length);
-  await ev(() => { const sec = [...document.querySelectorAll('.cp-fam')].find(f => f.querySelectorAll('.cp-item').length >= 2) || document.querySelector('.cp-fam'); const cb = sec.querySelector('[data-cp-sel]'); cb.checked = false; sec.querySelector('[data-cp="groep-klopt"]').click(); });
+  await ev(() => { const sec = [...document.querySelectorAll('.cp-grp')].find(f => f.querySelectorAll('[data-cp-sel]').length >= 2); const cb = sec.querySelector('[data-cp-sel]'); cb.checked = false; cb.dispatchEvent(new Event('change', { bubbles:true })); });
+  await wacht(600);
+  await ev(() => { const sec = [...document.querySelectorAll('.cp-grp')].find(f => /uitgevinkt/.test(f.innerText)); sec.querySelector('[data-cp="g-klopt"]').click(); });
   await wacht(2500);
   const na = await ev(() => WHCP.cats().hercontrole.length);
-  check('groep in één klik met vinkjes (uitvinken kan): één product bleef over', na < voor && na >= 1, voor + ' → ' + na);
+  check('groep in één klik met vinkjes (uitvinken kan): de uitgevinkte bleef over', na < voor && na >= 1, voor + ' → ' + na);
   // 14 Steekproef
   await laad('overzicht');
   await ev(() => document.querySelector('[data-cp="steekmaken"]').click()); await wacht(2000);
