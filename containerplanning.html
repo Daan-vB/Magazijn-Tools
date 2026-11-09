@@ -599,7 +599,7 @@ function feiten(code){
   return {
     hm, vst:num(p.voorraad_vst) || 0,
     vrij: leeg(p.vrij_hm) ? hm - b.open : num(p.vrij_hm),
-    rate: v ? num(v.per_maand) : null, verkoop:v,
+    ...(() => { const l = vkLive(code); return l ? { rate:l.m6, rate28:l.d28, vkBron:'bestellingen' } : { rate:v ? num(v.per_maand) : null, rate28:null, vkBron:'import' }; })(), verkoop:v,
     bo:b.open, boRegels:b.regels, abc:p.abc || ''
   };
 }
@@ -1697,6 +1697,84 @@ function boLiveRegel(){
   const l = blLaatst(), ex = BO.map(b => b.geimporteerd_op).filter(Boolean).sort().pop(), stand = [l && l.t, ex].filter(Boolean).sort().pop();
   return `<div class="card" style="border-left:4px solid var(--bad)"><b>Backorders niet live${BL.fout ? ': ' + esc(BL.fout) : ' (nog niet opgehaald)'}.</b> Laatste stand: ${stand ? esc(fdt(stand)) : 'geen'}.</div>`;
 }
+/* ---------- verkoop live (alleen lezen): bestelde aantallen uit de Picqer-orders, ook als ze nog op backorder staan ----------
+   Daan 09-11: "Verkoop" = bestellingen (zoals de grafiek Bestellingen in Picqer), niet alleen wat verzonden is (de import Magazijnverkopen
+   gaf KOKOS100BLK-24 en KOKOS100NAT-24 0/mnd omdat alles op backorder stond). Actie "bestellingen" van het tussenstation: per dag en
+   productcode. Bewaard op dit apparaat (cp-verkoop-live) en daarna alleen de laatste dagen bijgehaald. Gemiddeld per maand over 6 maanden
+   (som ÷ 6), met de laatste 28 dagen ernaast. */
+const VKL = { p:null, t:0, tot:'', fout:'', bezig:null, probeer:0 };
+const VKL_DAGEN = 183, VKL_SLEUTEL = 'cp-verkoop-live';
+const dagTxt = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const momentTxt = d => dagTxt(d) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
+const dagMin = (n, van) => { const d = new Date(van || Date.now()); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - n); return d; };
+(function(){ try{ const x = JSON.parse(localStorage.getItem(VKL_SLEUTEL) || 'null'); if(x && x.v === 1 && x.p && x.tot){ VKL.p = x.p; VKL.t = x.t; VKL.tot = x.tot; } }catch(e){} })();
+// verkoop per product: { m6: gemiddeld per maand over 6 maanden, d28: laatste 28 dagen } of null als de bestellingen (nog) niet live zijn
+function vkLive(code){
+  if(!VKL.p) return null;
+  const d = VKL.p[String(code || '').toLowerCase()] || {}, grens6 = dagTxt(dagMin(VKL_DAGEN - 1)), grens28 = dagTxt(dagMin(27));
+  let s6 = 0, s28 = 0;
+  Object.keys(d).forEach(k => { const a = num(d[k]) || 0; if(k >= grens6) s6 += a; if(k >= grens28) s28 += a; });
+  return { m6:s6 / 6, d28:s28, totaal:s6 };
+}
+// één venster [sinds, tot] helemaal ophalen (de functie geeft max. 10 pagina's per aanroep)
+async function vkVenster(sinds, tot, som){
+  let off = 0;
+  for(let n = 0; n < 60 && off !== null; n++){
+    let r;
+    for(let poging = 1; ; poging++){
+      try{ r = await lvVraag('bestellingen', { sinds, tot, offset:off, paginas:10 }); break; }
+      catch(e){ if(poging >= 4 || e.soort === 'code') throw e; await new Promise(z => setTimeout(z, 1000 * Math.min(30, e.wacht || 5 * poging))); }
+    }
+    (r.rijen || []).forEach(([dag, code, a]) => { const k = String(code || '').toLowerCase(); if(!k || !dag) return; const x = som[k] = som[k] || {}; x[dag] = (x[dag] || 0) + (num(a) || 0); });
+    if(r.wachtSec) await new Promise(z => setTimeout(z, 1000 * Math.min(30, r.wachtSec)));
+    off = r.volgende === undefined ? null : r.volgende;
+  }
+  if(off !== null) throw new Error('te veel bestellingen in één venster');
+}
+function liveVerkoop(vers){
+  if(VKL.bezig) return VKL.bezig;
+  if(!vers && VKL.p && Date.now() - VKL.t < 6 * 3600e3) return Promise.resolve(true);   // vers genoeg (6 uur)
+  if(!vers && Date.now() - VKL.probeer < 5 * 60e3) return Promise.resolve(!VKL.fout);
+  VKL.probeer = Date.now();
+  const p = (async () => {
+    try{
+      if(!lvCode()) throw new Error('geen koppelcode op dit apparaat');
+      const nu = new Date(), eind = momentTxt(nu), oudste = dagMin(VKL_DAGEN);
+      // eerder opgehaald: alleen vanaf 3 dagen vóór de vorige keer opnieuw (statussen en late wijzigingen), anders 6 maanden
+      let van = oudste;
+      if(VKL.p && VKL.tot){ const v = dagMin(3, new Date(VKL.tot.replace(' ', 'T'))); if(v > van) van = v; }
+      const vensters = [];
+      for(let d = new Date(van); d < nu; ){ const e = new Date(d); e.setDate(e.getDate() + 14); const laatste = e >= nu; vensters.push([momentTxt(d), laatste ? eind : momentTxt(new Date(e.getTime() - 1000))]); d = e; }
+      const som = {};
+      let i = 0;
+      await Promise.all([0, 1].map(async () => { while(i < vensters.length){ const [a, b] = vensters[i++]; await vkVenster(a, b, som); } }));
+      const vanDag = dagTxt(van), grens = dagTxt(oudste), oud = VKL.p || {}, uit = {};
+      Object.keys(oud).forEach(k => { const x = {}; Object.keys(oud[k]).forEach(d => { if(d >= grens && d < vanDag) x[d] = oud[k][d]; }); if(Object.keys(x).length) uit[k] = x; });
+      Object.keys(som).forEach(k => { const x = uit[k] = uit[k] || {}; Object.keys(som[k]).forEach(d => { if(d >= grens) x[d] = som[k][d]; }); });
+      VKL.p = uit; VKL.t = Date.now(); VKL.tot = eind; VKL.fout = '';
+      try{ localStorage.setItem(VKL_SLEUTEL, JSON.stringify({ v:1, t:VKL.t, tot:eind, p:uit })); }catch(e){}
+      PLAN = wisCache();
+      return true;
+    }catch(e){ VKL.fout = e.message || 'geen antwoord'; return false; }
+  })();
+  VKL.bezig = p; p.then(() => { if(VKL.bezig === p) VKL.bezig = null; });
+  return p;
+}
+function liveVerkoopOpen(){
+  const sig = () => VKL.t + '|' + VKL.fout;
+  const was = sig();
+  liveVerkoop().then(() => { if(sig() !== was && cur && /^#\/c\//.test(location.hash)) rerender(); });
+}
+// "Verkoop: x/mnd (6 mnd) · y laatste 28 dgn" (zonder live bestellingen: de import van verzonden verkoop, met die uitleg)
+function vkTekst(f, kort){
+  if(f.vkBron === 'bestellingen') return (kort ? '' : 'Verkoop: ') + '<b>' + nf(f.rate) + '/mnd</b> (6 mnd) · <b>' + nf(f.rate28) + '</b> laatste 28 dgn';
+  return (kort ? '' : 'Verkoop: ') + '<b>' + (f.rate === null ? 'onbekend' : nf(f.rate) + '/mnd') + '</b> <span class="muted">(alleen verzonden, import' + (VKL.fout ? '; bestellingen niet live: ' + esc(VKL.fout) : '; bestellingen nog niet opgehaald') + ')</span>';
+}
+function vkLiveRegel(){
+  if(VKL.p && !VKL.fout) return `<div class="card" style="border-left:4px solid var(--ok)"><b>Verkoop live · bestellingen uit Picqer (ook backorders) · ${esc(tijdTxt(VKL.t))}</b></div>`;
+  if(VKL.p) return `<div class="card" style="border-left:4px solid var(--warn, #e0a100)"><b>Verkoop: bestellingen uit Picqer van ${esc(fdt(new Date(VKL.t).toISOString()))}</b> — nu niet bij te werken: ${esc(VKL.fout)}.</div>`;
+  return `<div class="card" style="border-left:4px solid var(--bad)"><b>Verkoop niet live${VKL.fout ? ': ' + esc(VKL.fout) : VKL.bezig ? ' (bestellingen worden opgehaald…)' : ' (nog niet opgehaald)'}.</b> Het advies rekent nu met de import van verzonden verkoop.</div>`;
+}
 async function regelKoppel(c, r, v){
   const canon = PLOW[String(v || '').trim().toLowerCase()] || await liveZoek(v);
   if(!canon){ toast(onbekendCode(v), 7000); return; }
@@ -1896,7 +1974,9 @@ function adviesKern(c, pool, eerder){
   if(R.hand) return teBepalen('buiten de automatische regels — nog te bepalen, verdeel zelf');
   // geen gecontroleerde data = geen automatisch advies: pallet onbekend (onb), of geen verkoophistorie zonder bekende pallet en zonder vaste regel
   if(qtySoort((geh1(code) || {}).qty) === 'onb') return teBepalen('stuks per pallet onbekend — nog te bepalen, verdeel zelf');
-  if(!f.rate && !pallets.length && !sppVan(code) && !(R.losdest || R.pickmax || R.restdest || R.bulk || R.maxpal)) return teBepalen('geen verkoophistorie en geen bekende pallet — nog te bepalen, verdeel zelf');
+  // "geen verkoophistorie" alleen als er in 6 maanden echt geen enkele bestelling is (bestellingen live); zonder live bestellingen zegt het dat
+  const geenVk = f.vkBron === 'bestellingen' ? 'geen verkoophistorie (6 mnd geen bestelling)' : 'geen verzonden verkoop in de import (bestellingen niet live)';
+  if(!f.rate && !pallets.length && !sppVan(code) && !(R.losdest || R.pickmax || R.restdest || R.bulk || R.maxpal)) return teBepalen(geenVk + ' en geen bekende pallet — nog te bepalen, verdeel zelf');
   // soort Bulk (productdata): pallet alleen op bulk, nooit naar pick; zonder bekende stuks per pallet blijft het bij lossen bepalen
   const PDd = window.PDBRON && PDBRON.cp ? PDBRON.cp(code) : null;   // productdata: soort, stuks per pallet, max op pick, aanvullen bij (bevestigd of vastgelegd)
   if((window.PDBRON && PDBRON.leesLos(code, 'opslag') === 'bulk') || (PDd && PDd.soort === 'bulk')){
@@ -1953,11 +2033,11 @@ function adviesKern(c, pool, eerder){
   let need;
   if(!f.rate){
     need = Math.max(0, -vrij) + (psize || pool.losU || 0);
-    uitleg.push('geen verkoophistorie: backorders + 1 pallet extra');
+    uitleg.push(geenVk + ': backorders + 1 pallet extra');
   } else {
     const doel = f.rate * maanden;
     need = Math.max(0, doel - vrij);
-    uitleg.push('doel ' + nf(doel) + ' (' + nf(maanden, 1) + ' mnd × ' + nf(f.rate) + '/mnd), vrij ' + nf(vrij));
+    uitleg.push('doel ' + nf(doel) + ' (' + nf(maanden, 1) + ' mnd × ' + nf(f.rate) + '/mnd ' + (f.vkBron === 'bestellingen' ? 'bestellingen' : 'verzonden') + '), vrij ' + nf(vrij));
   }
   // 3. los -> eerst hier aanvullen tot het doel, rest naar VST
   if(pool.losU > 0){
@@ -2095,7 +2175,7 @@ function punten(c, pl){
       else if(Math.abs(pq / 1000 - perU) / perU > 0.25) add('gw-' + code, 'let', code + ': Picqer-gewicht ' + nf(pq / 1000, 2) + ' kg, pakbon zegt ' + nf(perU, 2) + ' kg per ' + per_ + '. Aanpassen in Picqer (belangrijk voor orderpickers).', code, null, 'gw', code + ' ' + nf(pq / 1000, 2) + ' → ' + nf(perU, 2) + ' kg/' + per_);
     }
     const f = feiten(code);
-    if(!f.rate && f.hm === 0) add('nieuw-' + code, 'info', code + ': geen verkoophistorie — nieuw product? Verdeling zelf beoordelen.', code, 'verdeling', 'nieuw', code);
+    if(!f.rate && f.hm === 0) add('nieuw-' + code, 'info', code + ': ' + (f.vkBron === 'bestellingen' ? 'geen verkoophistorie (6 mnd geen bestelling)' : 'geen verzonden verkoop in de import') + ' — nieuw product? Verdeling zelf beoordelen.', code, 'verdeling', 'nieuw', code);
     const v = c.data.verdeling[code];
     if(v && v.porties && v.porties.length && !restVan(pool, v.porties).ok) add('vd-' + code, 'fout', code + ': verdeling telt niet op.', code, 'verdeling', 'vd', code);
     if(perRol(eenheidVan(code)) && factorVan(c, code) === 1)
@@ -2123,7 +2203,7 @@ async function route(){
   if(window.WHM && !WHM.magHier('cp:' + nu)){ if(!h.startsWith('#/c/')){ if(dirty) await flushSave(); cur = null; setSaved(''); } app.innerHTML = WHM.nietHier({ producten:'Producten', vloernamen:'Vloernamen', vooruit:'Vooruit' }[nu]); return; }
   if(!h.startsWith('#/c/')){ if(dirty) await flushSave(); cur = null; setSaved(''); }
   if(['containers', 'pakbon_alias', 'verkoop', 'backorders'].some(t => MISSING.includes(t))) return viewSetup();
-  if((m = h.match(/^#\/c\/(\d+)(?:\/(\w+))?/))){ liveBackordersOpen(); return viewContainer(+m[1], m[2] || 'pakbon'); }
+  if((m = h.match(/^#\/c\/(\d+)(?:\/(\w+))?/))){ liveBackordersOpen(); liveVerkoopOpen(); return viewContainer(+m[1], m[2] || 'pakbon'); }
   if(h.startsWith('#/voordaan')) return viewVoorDaan();
   if(h.startsWith('#/gegevens')) return viewGegevens();
   if(h.startsWith('#/vooruit')) return viewVooruit();
@@ -3302,7 +3382,8 @@ function productKaart(c, pool){
     ${rij('Picqer telt', esc(ve.tekst) + (ve.bron ? ' <span class="muted">(' + esc(ve.bron) + ')</span>' : ''))}
     ${rij('Binnen', '<b>' + nf(pool.totaalU) + ' ' + ve.mv + '</b> · ' + binnenTekst(c, pool))}
     ${rij('Picqer', [p.ean ? 'EAN ' + esc(p.ean) : '', !leeg(p.gewicht_product_g) ? nf(num(p.gewicht_product_g) / 1000, 2) + ' kg per ' + (ve.set ? 'set' : ve.e === 'st.' ? 'stuk' : ve.e) : '<span class="muted">geen gewicht</span>', afm].filter(Boolean).join(' · '))}
-    ${rij('Voorraad', 'hier <b>' + nf(f.hm) + '</b> · VST <b>' + nf(f.vst) + '</b> · verkoop <b>' + (f.rate === null ? 'onbekend' : nf(f.rate) + '/mnd') + '</b> · backorders <b>' + nf(f.bo) + '</b>')}
+    ${rij('Voorraad', 'hier <b>' + nf(f.hm) + '</b> · VST <b>' + nf(f.vst) + '</b> · backorders <b>' + nf(f.bo) + '</b>')}
+    ${rij('Verkoop', vkTekst(f, true))}
     ${vnNu || sppNu || isAanvul(code) ? rij('Productgeheugen', [vnNu ? 'label: ' + esc(vnNu) : '', sppNu ? 'per pallet: ' + esc(sppNu) : '', isAanvul(code) ? '<b>aanvulpallet</b>' : ''].filter(Boolean).join(' · ')) : ''}
     ${pd ? rij('Palletdata', pd) : ''}
     ${(() => { const iv = ivolInfo(code); if(!iv) return ''; const af = ivolAfwijking(code, ve);
@@ -4133,7 +4214,7 @@ function viewVooruit(){
         <td class="n">${nf(x.adv.proj)}</td><td class="n"><b>${nf(na)}</b></td><td class="n">${dek(na)}</td></tr>`;
     }).join('');
     return `<tr class="prod"><td><span class="code">${esc(code)}</span></td><td class="small">${esc(naamVan(code))}</td>
-      <td class="small" colspan="2">hier <b>${nf(f.hm)}</b> · VST <b>${nf(f.vst)}</b> · BO <b>${nf(f.bo)}</b> · verkoop <b>${f.rate === null ? '?' : nf(f.rate) + '/mnd'}</b> <span class="muted">(${eh(code)})</span></td>
+      <td class="small" colspan="2">hier <b>${nf(f.hm)}</b> · VST <b>${nf(f.vst)}</b> · BO <b>${nf(f.bo)}</b> · ${vkTekst(f)} <span class="muted">(${eh(code)})</span></td>
       <td></td><td class="n">${nf(f.vrij)}</td><td class="n">${dek(f.vrij)}</td></tr>${regels}`;
   }).join('');
   app.innerHTML = `
@@ -4232,6 +4313,7 @@ function tabVerdeling(c, g){
       <button class="btn ok" data-act="akkalles">Alles akkoord</button>
       <span class="small muted">Advies = eerst backorders (hele pallets), dan hier aanvullen tot de gekozen maanden verkoop, rest naar VST. Losse stuks blijven hier.</span>
     </div></div>
+  ${vkLiveRegel()}
   ${lossenBlok(c)}
   <div class="vgrid">${pl.order.map(code => verdeelKaart(c, pl.map[code])).join('')}</div>`;
 }
@@ -4261,6 +4343,7 @@ function verdeelKaart(c, pool){
   if(heeft && v.bevestigd && rest.ok && !UI.open['v-' + code]){
     return `<div class="vcard okk" id="v-${esc(code)}" data-code="${esc(code)}"><div class="row between wrap">
       <div class="grow"><span class="code" style="font-size:14px">${esc(code)}</span> <span class="small muted">${esc(naamVan(code))}</span>
+      <div class="small">${vkTekst(f)}</div>
       <div class="chips mt8">${(v.porties || []).filter(x => portieU(x) > 0).sort((a, b) => DEST_ORDER.indexOf(a.dest) - DEST_ORDER.indexOf(b.dest)).map(x => `<span class="badge d-${x.dest}">${x.soort === 'pallet' ? x.n + '× ' + eenhTekst(c, code, x.per) : losPortie(c, code, x.n)} → ${DEST[x.dest].nl}${x.note ? ', ' + esc(x.note) : ''}</span>`).join('')}</div></div>
       <span class="badge b-ok">akkoord</span><button class="btn ghost sm" data-act="vopen">details / wijzigen</button></div></div>`;
   }
@@ -4271,7 +4354,7 @@ function verdeelKaart(c, pool){
     <div class="facts">
       <span>Voorraad hier <b>${nf(f.hm)}</b>${f.vrij !== f.hm ? ` <span class="muted">(vrij ${nf(f.vrij)})</span>` : ''}</span>
       <span>VST <b>${nf(f.vst)}</b></span>
-      <span>Verkoop <b>${f.rate === null ? 'onbekend' : nf(f.rate) + '/mnd'}</b></span>
+      <span>${vkTekst(f)}</span>
       <span>Backorders <b>${nf(f.bo)}</b>${boTop ? ' <span class="muted">(' + boTop + ')</span>' : ''}</span>
       ${f.rate ? `<span>Hier na levering <b>${nf(na)}</b> ≈ <b>${nf(na / f.rate, 1)} mnd</b></span>` : ''}
     </div>
@@ -4558,6 +4641,7 @@ function tabUitvoer(c, g){
   pools(c).order.forEach(code => { const v = c.data.verdeling[code]; (v && v.porties || []).forEach(x => { if(x.soort === 'pallet' && DEST[x.dest].label) alleDest[x.dest] = (alleDest[x.dest] || 0) + (num(x.n) || 0); }); });
   return `${open ? `<div class="card" style="border-left:4px solid var(--bad)"><b>Let op:</b> er staan nog ${open} open punten. Je kunt alles al maken, maar controleer die eerst.</div>` : ''}
   ${boLiveRegel()}
+  ${vkLiveRegel()}
   <div class="card out"><div class="row between wrap"><div><h3>PDF voor de losdag</h3><p class="small muted mt8">Eerst de pakbon${c.data.pakbon_bestand ? '' : ' (nog niet bewaard bij deze container)'}, dan de samenvatting, de werkbon voor het magazijn (taal van de werkbon hieronder) en de Stockmove-lijst: welke pallet, welk product, hoeveel. Maak hem als alles is ingevuld: dan staat hij ook in IVOL Junior (Sala, Kate).${c.data.magazijn_pdf ? ' <b>In Junior sinds ' + esc(fdt(c.data.magazijn_pdf.op)) + '</b>; opnieuw maken vervangt hem.' : ''}</p></div>
     <button class="btn pri" data-act="pdfall">PDF maken</button></div></div>
   ${voorboekKaart(c)}

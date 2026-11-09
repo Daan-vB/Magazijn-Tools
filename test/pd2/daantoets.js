@@ -304,6 +304,28 @@ function check(d, regel, waar, x){
     }
     if(doe('D38')) check('D38', '§7 Containers: Deel nooit een hele pallet naar pick (pick krijgt hele dozen of niets)', !deelFout.length, deelFout.join(','));
   }
+  /* ---------- Containers: verkoop = bestellingen (situatie in het geheugen: eigen browser met nagebootst tussenstation) ---------- */
+  if(doe('D43')){
+    const T2 = await start(), P2 = T2.p;
+    const perDag = { 'KOKOS100NAT-24':35, 'KOKOS100BLK-24':22 };
+    await P2.route(/supabase\.co\/functions\/v1\/picqer/, r => {
+      const u = new URL(r.request().url()), cors = { 'access-control-allow-origin':'*', 'access-control-allow-headers':'*' };
+      if(r.request().method() === 'OPTIONS') return r.fulfill({ status:204, headers:cors });
+      if(u.searchParams.get('actie') !== 'bestellingen' || r.request().method() !== 'GET') return r.fulfill({ status:404, headers:cors, body:'{}' });
+      const rijen = [], d = new Date(u.searchParams.get('sinds').slice(0, 10) + 'T12:00:00'), e = (u.searchParams.get('tot') || '9999').slice(0, 10);
+      for(; d.toISOString().slice(0, 10) <= e; d.setDate(d.getDate() + 1)) Object.entries(perDag).forEach(([c, a]) => rijen.push([d.toISOString().slice(0, 10), c, a]));
+      return r.fulfill({ status:200, contentType:'application/json', headers:cors, body:JSON.stringify({ rijen, volgende:null }) });
+    });
+    await P2.goto(B + 'containerplanning.html'); await P2.waitForTimeout(3000);
+    const id = await P2.evaluate(async () => { try{ const r = await (await fetch('https://jarbgetbwkjtxwtcfwmq.supabase.co/rest/v1/containers?select=id&pakbon_ref=eq.NL-300', { headers:{ apikey:'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA' } })).json(); return r[0].id; }catch(e){ return 0; } });
+    await P2.evaluate(() => { localStorage.setItem('ivol-koppelcode', 'test'); localStorage.removeItem('cp-verkoop-live'); });
+    await P2.goto(B + 'containerplanning.html#/c/' + id + '/verdeling');
+    await P2.waitForFunction(() => /Verkoop live · bestellingen/.test(document.body.innerText), null, { timeout:90000 }).catch(() => {}); await P2.waitForTimeout(1500);
+    const k = await P2.evaluate(() => ['KOKOS100BLK-24', 'KOKOS100NAT-24'].map(c => { const e = document.getElementById('v-' + c); return e ? e.innerText.replace(/\s+/g, ' ') : ''; }));
+    const goed = k.every(t => { const m = t.match(/Verkoop: ([\d.]+)\/mnd \(6 mnd\) · [\d.]+ laatste 28 dgn/); return m && +m[1].replace(/\./g, '') > 0 && !/geen verkoophistorie/.test(t); });
+    check('D43', '§7 Verkoop in Containers = bestellingen uit Picqer (ook backorders): KOKOS100BLK-24 en KOKOS100NAT-24 (NL-300) verkoop > 0, advies nooit "geen verkoophistorie"', id && goed && T2.blocked.length === 0, k.map(t => t.slice(0, 220)).join(' || '));
+    await T2.b.close();
+  }
   /* ---------- repo ---------- */
   const root = path.join(__dirname, '..', '..');
   if(doe('D6')){

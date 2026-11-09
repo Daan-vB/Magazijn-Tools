@@ -79,6 +79,7 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Geen gecontroleerde data = geen automatisch advies: "bij lossen bepalen" en op de invullijst lossen; Daan voert het daarna één keer in, dan is het product voor elke volgende container bekend.
 - Pakbonregel zonder Picqer-product (verpakking zoals WASHER PUMP BOX) = "geen voorraad", gaat naar Karin en Kate, geen fout.
 - Onbekend of nieuw = info, nooit een fout. Geen meldingen die Daan niets laten doen.
+- Verkoop in Containers = bestellingen uit Picqer (ook backorders), niet alleen verzonden.
 
 ## 8. Backorders
 - Alleen backorders die door aanvullen/verplaatsen of door inkomende goederen komen, zijn magazijnwerk. Echte backorders (wachten op inkoop) niet als probleem tonen.

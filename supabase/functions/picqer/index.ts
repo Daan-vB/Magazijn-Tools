@@ -25,7 +25,10 @@
 //                              tot gaat als untildate en idproduct als idproduct mee naar Picqer (beide optioneel)
 //    idindex     ?soort=producten|locaties|gebruikers&offset=0&paginas=N → [id, code/naam], max. 10 pagina's per aanroep
 //    historietest één pagina location-stock-history (laatste 24 uur) → { ok, picqerStatus, ms, aantal, retryAfter }, voor diagnose
-//  De drie geschiedenis-acties: 20 s per Picqer-aanvraag, de hele aanroep stopt zelf na 45 s; elk antwoord (ook een fout) is JSON
+//    bestellingen ?sinds=…&tot=…&offset=0&paginas=N → bestelde aantallen per dag en productcode uit de orders (ook als ze nog op backorder
+//                              staan; zonder geannuleerde orders en concepten, min geannuleerde aantallen), max. 10 pagina's van 100 orders
+//                              per aanroep; alleen [dag, productcode, aantal], geen klantgegevens. De app vraagt door tot volgende = null.
+//  De geschiedenis-acties (ook bestellingen): 20 s per Picqer-aanvraag, de hele aanroep stopt zelf na 45 s; elk antwoord (ook een fout) is JSON
 //  met CORS en diag { picqerStatus, ms, paginas, retryAfter }; bij een fout ook { fout, status, wacht } en bij 429 wachtSec.
 // =====================================================================
 
@@ -566,6 +569,50 @@ async function historieLicht(sindsTxt: string, totTxt: string, paginasTxt: strin
   };
 }
 
+// bestelde aantallen (zoals de grafiek Bestellingen in Picqer): per dag en productcode, alleen lezen, geen klantgegevens.
+// sinds/tot gaan als sincedate/untildate mee (aanmaakmoment van de order). Lukt een volgende pagina niet, dan komt wat er is terug met volgende.
+async function bestellingen(sindsTxt: string, totTxt: string, paginasTxt: string | null, offsetTxt: string | null, rd: Ronde) {
+  if (!MOMENT.test(sindsTxt || "")) throw new Fout("Ongeldig moment (sinds)", 400);
+  if (totTxt && !MOMENT.test(totTxt)) throw new Fout("Ongeldig moment (tot)", 400);
+  const sinds = volMoment(sindsTxt), tot = totTxt ? volMoment(totTxt) : null, n = aantalPaginas(paginasTxt, 10);
+  const startOff = Math.max(0, Math.floor((parseInt(offsetTxt || "0", 10) || 0) / 100) * 100);
+  const pad = "orders?sincedate=" + encodeURIComponent(sinds) + (tot ? "&untildate=" + encodeURIComponent(tot) : "");
+  const som = new Map<string, number>();
+  let gedaan = 0, orders = 0, klaar = false, onderbroken = "", wachtSec: number | null = null;
+  for (let p = 0; p < n && !klaar; p++) {
+    if (p > 0 && !tijdVoorPagina(rd)) { onderbroken = "tijd op na " + p + " pagina's"; break; }
+    let pagina: any;
+    try { pagina = await pqLicht(pad + "&offset=" + (startOff + p * 100), rd); }
+    catch (e) {
+      if (p === 0 || !(e instanceof LichtFout)) throw e;
+      onderbroken = e.message; wachtSec = e.wachtSec; break;
+    }
+    if (!Array.isArray(pagina) || !pagina.length) { klaar = true; break; }
+    for (const o of pagina) {
+      const st = String(o.status || "").toLowerCase();
+      if (st === "cancelled" || st === "concept") continue;
+      const dag = String(o.created || o.created_at || "").slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dag)) continue;
+      orders++;
+      for (const r of (Array.isArray(o.products) ? o.products : [])) {
+        if (r.partof_idorder_product) continue;   // onderdeel van een samengesteld product: telt via het hoofdproduct
+        const code = String(r.productcode || "").trim(), a = (Number(r.amount) || 0) - (Number(r.amount_cancelled) || 0);
+        if (!code || !(a > 0)) continue;
+        const k = dag + "\t" + code;
+        som.set(k, (som.get(k) || 0) + a);
+      }
+    }
+    gedaan++;
+    if (pagina.length < 100) klaar = true;
+  }
+  return {
+    bron: "picqer-bestellingen", versie: 1, sinds, tot, opgehaald: new Date().toISOString(), orders,
+    rijen: [...som].map(([k, a]) => { const [d, c] = k.split("\t"); return [d, c, a]; }),
+    volgende: klaar ? null : startOff + gedaan * 100,
+    ...(onderbroken ? { onderbroken } : {}), ...(wachtSec ? { wachtSec } : {}), diag: diagNu(rd),
+  };
+}
+
 // id → code/naam, een paar pagina's per aanroep (de app vraagt door tot volgende = null)
 async function idIndex(soort: string, offsetTxt: string, paginasTxt: string | null, rd: Ronde) {
   const pad: Record<string, string> = { producten: "products", locaties: "locations", gebruikers: "users" };
@@ -613,6 +660,7 @@ async function licht(actie: string, url: URL, origin: string | null): Promise<Re
   try {
     const werk = actie === "historietest" ? historieTest(rd)
       : actie === "historielicht" ? historieLicht(q("sinds") || "", q("tot") || "", q("paginas"), q("idproduct"), rd, q("offset"))
+      : actie === "bestellingen" ? bestellingen(q("sinds") || "", q("tot") || "", q("paginas"), q("offset"), rd)
       : idIndex(q("soort") || "", q("offset") || "0", q("paginas"), rd);
     const rem = new Promise<never>((_, nee) => {
       noodrem = setTimeout(() => nee(new LichtFout("Tijd op: de functie stopt zelf na " + LICHT_BUDGET_MS / 1000 + " s", 503, true)), LICHT_BUDGET_MS + 2000);
@@ -650,7 +698,7 @@ Deno.serve(async (req: Request) => {
     if (actie === "keten") return antwoord(await keten(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "ontvangstenlijst") return antwoord(await ontvangstenLijst(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "verplaatsingen") return antwoord(await verplaatsingen(url.searchParams.get("sinds") || "", url.searchParams.get("tot") || ""), 200, origin);
-    if (actie === "historielicht" || actie === "idindex" || actie === "historietest") return await licht(actie, url, origin);
+    if (actie === "historielicht" || actie === "idindex" || actie === "historietest" || actie === "bestellingen") return await licht(actie, url, origin);
     if (actie === "mutaties") return antwoord(await mutaties(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "locatielijst") return antwoord(await locatielijst(url.searchParams.get("van") || "0"), 200, origin);
     if (actie === "niveaus") return antwoord(await niveaus(url.searchParams.get("ids") || ""), 200, origin);

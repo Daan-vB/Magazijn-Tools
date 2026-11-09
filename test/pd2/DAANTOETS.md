@@ -54,5 +54,6 @@ Draaien: `node test/pd2/daantoets.js` (repo op poort 8811). Moet groen zijn vó�
 | 10 | Vaste woorden (Productgeheugen, Soort, Kleurgenoten, Klaar voor Picqer, Later · moet nog) | TD | woorden komen voor zoals afgesproken | D40 |
 | 9 | Oude pagina's blijven werken | Warehouse, Junior, Palletlabels, Containers | `regressie.js` (main ↔ tak); Warehouse, Junior en Palletlabels ongewijzigd (schakelaar `wh-pd-bron` niet omgezet) | D41 |
 | 5 | Aanvullen bij / max op pick (Claudes keuze 09-11): Deel en Pallet met picklocatie krijgen ze alleen als ze ontbreken | DL, PD2 | vraag `lvl` (en bij Deel `maxpick`) alleen bij een vaste picklocatie en alleen als leeg | D42 |
+| 7 | Verkoop in Containers = bestellingen uit Picqer (ook backorders), niet alleen verzonden; "geen verkoophistorie" alleen bij 6 maanden zonder bestelling | CT | situatie in het geheugen (nagebootst tussenstation, actie `bestellingen`): container NL-300, KOKOS100BLK-24 en KOKOS100NAT-24 tonen "Verkoop: x/mnd (6 mnd) · y laatste 28 dgn" met x > 0 en het advies zegt niet "geen verkoophistorie" | D43 |
 
 Handmatig (niet automatisch te toetsen): §6 regels per leverancier (Kokos, ribbelmat, wandrekken) zitten in de voorstelregels van Productdata 2.0 en hebben hun eigen tests (`week1.js`, `rolcheck.js`, `bronnen.js`); §8 backorders (`containerbo.js`).
