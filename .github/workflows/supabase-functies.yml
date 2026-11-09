@@ -19,7 +19,7 @@ jobs:
       PROJECT: jarbgetbwkjtxwtcfwmq   # Palletlabels
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 2 }
+        with: { fetch-depth: 0 }   # hele geschiedenis: een push kan meerdere commits bevatten
       - uses: supabase/setup-cli@v1
         with: { version: latest }
       - name: Welke functies?
@@ -27,7 +27,11 @@ jobs:
         run: |
           if [ -n "${{ github.event.inputs.functie }}" ]; then echo "lijst=${{ github.event.inputs.functie }}" >> $GITHUB_OUTPUT
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "lijst=$(ls supabase/functions | grep -v db-setup | tr '\n' ' ')" >> $GITHUB_OUTPUT
-          else echo "lijst=$(git diff --name-only HEAD~1 HEAD -- supabase/functions | cut -d/ -f3 | sort -u | grep -v db-setup | tr '\n' ' ')" >> $GITHUB_OUTPUT; fi
+          else
+            # alle commits van deze push (niet alleen de laatste), anders mist een functie die eerder in de push veranderde
+            VAN="${{ github.event.before }}"
+            git cat-file -e "$VAN^{commit}" 2>/dev/null || VAN=HEAD~1
+            echo "lijst=$(git diff --name-only "$VAN" HEAD -- supabase/functions | cut -d/ -f3 | sort -u | grep -v db-setup | tr '\n' ' ')" >> $GITHUB_OUTPUT; fi
       - name: Live zetten (Verify JWT uit, koppelcode beschermt)
         run: |
           for f in ${{ steps.welke.outputs.lijst }}; do
