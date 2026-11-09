@@ -250,9 +250,9 @@ function tabLater(){
   const l = window.WHTAAK && WHTAAK.later ? WHTAAK.later.lijst() : [], lt = laterTabs();
   if(!l.length && !lt.length) return '<p class="muted">Niets op Later.</p>';
   const T = { soort:'Soort', gewicht:'Gewicht', spp:'Hoeveelheid: stuks per pallet', maat:'Hoeveelheid: palletmaat', hoogte:'Hoeveelheid: hoogte', maxpick:'Hoeveelheid: max op pick', rl:'Hoeveelheid: lengte volle rol', rmax:'Hoeveelheid: max rollen per pallet' };
-  return `<p class="muted klein">Wat je bewust hebt uitgesteld, oudste eerst. Telt niet mee voor het afronden; een antwoord (waar dan ook) haalt het van de lijst.</p><div class="cp-rij"><a class="cp-b hoofd" href="#/doorloop/later" data-taak="0.4">Doorlopen →</a></div>
+  return `<div id="later-kaart"><h2>Later · moet nog (${nf(l.length + lt.length)})</h2><p class="muted klein">Wat je bewust hebt uitgesteld, oudste eerst. Telt niet mee voor het afronden; een antwoord (waar dan ook) haalt het van de lijst.</p><div class="cp-rij"><a class="cp-b hoofd knop" href="#/doorloop/later" data-taak="0.4">Doorlopen →</a></div>
     ${l.map(x => `<div class="cp-item"><div class="cp-m"><div class="cp-t"><b>${esc(x.c)}</b> ${esc(naam(x.c))}</div><div class="cp-r">${esc(T[x.t] || x.t)} · sinds ${esc(dt(x.op))}${x.opm ? ' · ' + esc(x.opm) : ''}</div></div></div>`).join('')}
-    ${lt.map(x => `<div class="cp-item"><div class="cp-m"><div class="cp-t"><b>${esc(x.c)}</b> ${esc(naam(x.c))}</div><div class="cp-r">${esc(x.opm || 'Later')} · sinds ${esc(dt(x.op))}</div><div class="cp-kn">${knop('terug-later', 'Weer op de lijst', x.c, x.cat)}</div></div></div>`).join('')}`;
+    ${lt.map(x => `<div class="cp-item"><div class="cp-m"><div class="cp-t"><b>${esc(x.c)}</b> ${esc(naam(x.c))}</div><div class="cp-r">${esc(x.opm || 'Later')} · sinds ${esc(dt(x.op))}</div><div class="cp-kn">${knop('terug-later', 'Weer op de lijst', x.c, x.cat)}</div></div></div>`).join('')}</div>`;
 }
 
 /* Overzicht = Claudes analyse */

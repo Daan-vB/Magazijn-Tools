@@ -42,7 +42,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   const hoev1 = await ev(() => +document.body.innerText.match(/Hoeveelheid: (\d+) open/)[1]);
   check('Taak 0.4: Hoeveelheid telt het Later-product niet meer mee (' + hoev0 + ' → ' + hoev1 + ')', hoev1 === hoev0 - 1, hoev0 + ' → ' + hoev1);
   // 3. Te doen: kaart Later · moet nog
-  await laad('#/todo');
+  await laad('#/todo/later');
   await P.waitForSelector('#later-kaart', { timeout:200000 });
   const kaart = await ev(() => document.getElementById('later-kaart').innerText);
   const nItems = await ev(() => WHTAAK.later.lijst().length);
