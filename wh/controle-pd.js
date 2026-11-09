@@ -13,7 +13,7 @@ const { esc, nf, num } = WH;
 const R = () => window.PD2R;
 const KL = 'wh-controle-klopt', RE = 'wh-controle-reacties', SP = 'wh-controle-steekproef';
 const TABS = [['overzicht', 'Overzicht'], ['later', 'Later'], ['picklocaties', 'Picklocaties'], ['bulklocaties', 'Bulklocaties'], ['hercontrole', 'Hercontrole'], ['gewicht', 'Gewicht controleren'], ['tewegen', 'Te wegen'], ['aantal', 'Aantal per pallet']];
-const S = { klopt:{}, reacties:[], steek:null, klaar:false, p:null, memo:null, memoKey:'', hal:'', gang:'', q:Promise.resolve(), open:null };
+const S = { klopt:{}, reacties:[], steek:null, klaar:false, p:null, memo:null, memoKey:'', hal:'', ged:'', gang:'', uit:{}, keuze:{}, q:Promise.resolve(), open:null };
 const SOORTT = { pallet:'Pallet', deel:'Deel', bulk:'Bulk', pick:'Pick', mix:'Mix', weg:'Weg' };
 const nu = () => new Date().toISOString();
 const dt = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.getDate() + '-' + (d.getMonth() + 1) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
@@ -45,6 +45,10 @@ function zetKlopt(cat, c, opm, sig, extra){
 }
 // Later vanuit een tab: verborgen tot de data verandert, en zichtbaar in de tab Later
 const laterTabs = () => Object.entries(S.klopt).filter(([, v]) => v.later).map(([k, v]) => { const i = k.indexOf('|'); return { cat:k.slice(0, i), c:k.slice(i + 1), op:v.op, opm:v.opm }; });
+function zetKloptMeer(cat, lijst, opm, extra){
+  const t = nu(); lijst.forEach(x => { S.klopt[cat + '|' + x.c] = Object.assign({ op:t, opm:opm || '', sig:x.sig || '' }, extra || {}); }); S.memo = null;
+  return schrijfRij(KL, null, d => { d.items = d.items || {}; lijst.forEach(x => { d.items[cat + '|' + x.c] = Object.assign({ op:t, opm:opm || '', sig:x.sig || '' }, extra || {}); }); return d; });
+}
 function weesKlopt(cat, c){ delete S.klopt[cat + '|' + c]; S.memo = null; return schrijfRij(KL, null, d => { d.items = d.items || {}; delete d.items[cat + '|' + c]; return d; }); }
 const isKlopt = (cat, c, sig) => { const k = S.klopt[cat + '|' + c]; return !!k && k.sig === (sig || ''); };
 
@@ -59,7 +63,21 @@ const basis = c => { const d = String(naam(c)).toLowerCase().split(' - '); retur
 const soortVan = c => { try{ const s = R().status(c); return s.stap.soort ? s.so : ''; }catch(e){ return ''; } };
 const vastePick = c => { try{ return (R().locInfo(c).pick || []).filter(x => !x.tijd).map(x => x.n); }catch(e){ return []; } };
 const bulkLocs = c => { try{ return (R().locInfo(c).bulk || []).filter(x => x.v > 0).map(x => x.n); }catch(e){ return []; } };
-const halGang = n => { const m = String(n || '').match(/^([A-Z])([A-Z])/i); return m ? { hal:m[1].toUpperCase(), gang:(m[1] + m[2]).toUpperCase() } : { hal:'', gang:'' }; };
+/* hallen: er zijn er drie, A, B en C. Hal C heeft twee stellingdelen: gedeelte C (gangen C..) en gedeelte D (gangen D..). Geen hal D. */
+const HALLEN = ['A', 'B', 'C'];
+const halGang = n => { const m = String(n || '').match(/^([A-Z])([A-Z])/i); if(!m) return { hal:'', ged:'', gang:'' }; const l = m[1].toUpperCase(); return { hal:l === 'D' ? 'C' : l, ged:l === 'C' || l === 'D' ? l : '', gang:(m[1] + m[2]).toUpperCase() }; };
+let GC = null;
+function gangenLijst(){ const loc = WH.D.LOC || {}; if(GC && GC.van === loc) return GC.l; const set = new Set(); Object.keys(loc).forEach(n => { if(/^[A-Z]{2}\d{2}[A-D]\d{2}$/.test(n)) set.add(n.slice(0, 2)); }); const l = [...set].sort().map(g => halGang(g)).filter(x => HALLEN.includes(x.hal)); GC = { van:loc, l }; return l; }
+// een eerder bewaarde pickwens lezen in de nieuwe vorm: hal D bestaat niet meer (= hal C, gedeelte D); er wordt niets herschreven
+const wensN = w => { const g = halGang(w.gang || ''), hal = w.hal === 'D' ? 'C' : (w.hal || g.hal); return { hal, ged:hal === 'C' ? (w.ged || (w.hal === 'D' ? 'D' : g.ged)) : '', gang:String(w.gang || '').toUpperCase(), opm:w.opm || '' }; };
+const wensHg = w => { const n = wensN(w); return { hal:n.hal, ged:n.ged, gang:n.gang }; };
+// voorstel voor een familie: de gang waar de familie of de kleurgenoten nu al pick, bulk of een pickwens hebben
+function gangVoorstel(items){
+  const tel = {}, cod = new Set(); items.forEach(x => fam(x.c).forEach(y => cod.add(y)));
+  cod.forEach(y => { if(!bruikbaar(y)) return; vastePick(y).concat(bulkLocs(y)).forEach(n => { const g = halGang(n); if(g.gang) tel[g.gang] = (tel[g.gang] || 0) + 1; }); const w = pickwens(y); if(w){ const g = wensN(w); if(g.gang) tel[g.gang] = (tel[g.gang] || 0) + 1; } });
+  const top = Object.entries(tel).sort((a, b) => b[1] - a[1])[0]; if(!top) return null;
+  const g = halGang(top[0]); return { hal:g.hal, ged:g.ged, gang:g.gang, reden:'Voorstel: ' + hgTekst(g) + ' — daar hebben ' + top[1] + ' producten van deze familie al pick, bulk of een pickwens' };
+}
 const eigen = (c, k) => { const w = R().waarde(c, k, R().info(c)); return w && w.v !== '' && w.v !== undefined && ['bevestigd', 'aangepast', 'vastgelegd'].includes(w.st) ? w.v : null; };
 const kg = c => { try{ const g = R().gewicht(c); return g.kg > 0 ? g.kg : g.pq > 0 ? g.pq : null; }catch(e){ return null; } };
 const pdRij = c => { try{ return WHPD.S.pd[c] || {}; }catch(e){ return {}; } };
@@ -68,7 +86,7 @@ const moetPick = c => { const d = pdRij(c).data || {}; if(/moet/i.test(String(d.
 
 /* ---------- de categorieën ---------- */
 function berekenen(){
-  const P = R(), uit = { picklocaties:[], bulklocaties:[], bulkeraf:[], hercontrole:[], gewicht:[], tewegen:[], aantal:[] };
+  const P = R(), uit = { picklocaties:[], pickklaar:[], bulklocaties:[], bulkeraf:[], hercontrole:[], gewicht:[], tewegen:[], aantal:[] };
   const codes = Object.keys(WH.D.P).filter(c => bruikbaar(c) && soortVan(c));
   codes.forEach(c => {
     const so = soortVan(c), a = abc(c), item = (cat, extra) => Object.assign({ c, cat, naam:naam(c), fam:P.famNaam(P.famVan(c)), abc:a, so }, extra);
@@ -76,7 +94,8 @@ function berekenen(){
     // 3 Picklocaties: Pallet of Deel zonder picklocatie in Picqer, en alles met "moet pick krijgen"
     if(!pick.length && (['pallet', 'deel'].includes(so) || moetPick(c))){
       const w = pickwens(c);
-      uit.picklocaties.push(item('picklocaties', { reden:moetPick(c) ? 'Keuze "moet pick krijgen", nog geen picklocatie in Picqer' : SOORTT[so] + ' zonder picklocatie in Picqer', wens:w, sig:'p', loc:bulkLocs(c)[0] || '' }));
+      // beslist (pickwens bewaard) = weg uit de open lijst; het product staat dan op de werklijst "Klaar voor Picqer" tot Picqer klopt
+      uit[w ? 'pickklaar' : 'picklocaties'].push(item(w ? 'pickklaar' : 'picklocaties', { reden:moetPick(c) ? 'Keuze "moet pick krijgen", nog geen picklocatie in Picqer' : SOORTT[so] + ' zonder picklocatie in Picqer', wens:w, sig:'p', loc:bulkLocs(c)[0] || '' }));
     }
     // 4 Bulklocaties: soort Bulk maar met een picklocatie in Picqer
     if(so === 'bulk' && pick.length){
@@ -124,7 +143,7 @@ function berekenen(){
   const sorteer = l => l.sort((x, y) => rang(x.abc) - rang(y.abc) || x.fam.localeCompare(y.fam, 'nl', { numeric:true }) || x.c.localeCompare(y.c));
   Object.keys(uit).forEach(k => sorteer(uit[k]));
   // "Klopt zo" onthouden: alleen terug als de data verandert (sig verandert)
-  Object.keys(uit).forEach(k => { if(k !== 'bulkeraf') uit[k] = uit[k].filter(x => !isKlopt(k, x.c, x.sig)); });
+  Object.keys(uit).forEach(k => { if(k !== 'bulkeraf' && k !== 'pickklaar') uit[k] = uit[k].filter(x => !isKlopt(k, x.c, x.sig)); });
   uit.tewegen.sort((x, y) => (halGang(x.loc).gang || 'ZZ').localeCompare(halGang(y.loc).gang || 'ZZ') || String(x.loc).localeCompare(String(y.loc)));
   return uit;
 }
@@ -151,101 +170,152 @@ const meeMetLengte = c => /\b\d+\s*(m|cm|mm)\b|\bx\s*\d+|rol|per meter|\d+x\d+/i
 
 function cats(){
   const R_ = R(); if(!R_ || !R_.S.klaar || !S.klaar) return null;
-  const key = R_.S.ver + '|' + R_.S.dataVer + '|' + Object.keys(S.klopt).length + '|' + (window.WHTAAK && WHTAAK.later ? Object.keys(WHTAAK.later.items()).length : 0);
+  const key = R_.S.ver + '|' + R_.S.dataVer + '|' + Object.keys(S.klopt).length + '|' + Object.values(WHPD.S.pd || {}).filter(r => r && r.data && r.data.pickwens).length + '|' + (window.WHTAAK && WHTAAK.later ? Object.keys(WHTAAK.later.items()).length : 0);
   if(S.memo && S.memoKey === key) return S.memo;
   S.memo = berekenen(); S.memoKey = key; return S.memo;
 }
 function tel(){
   const c = cats(); if(!c) return null;
   const l = window.WHTAAK && WHTAAK.later ? WHTAAK.later.lijst().length : 0;
-  return { overzicht:1, later:l + laterTabs().length, picklocaties:c.picklocaties.length, bulklocaties:c.bulklocaties.length + c.bulkeraf.length, hercontrole:c.hercontrole.length, gewicht:c.gewicht.length, tewegen:c.tewegen.length, aantal:c.aantal.length };
+  return { overzicht:1, later:l + laterTabs().length, picklocaties:c.picklocaties.length, bulklocaties:c.bulklocaties.length, klaar:{ picklocaties:c.pickklaar.length, bulklocaties:c.bulkeraf.length }, hercontrole:c.hercontrole.length, gewicht:c.gewicht.length, tewegen:c.tewegen.length, aantal:c.aantal.length };
 }
 
 /* ---------- acties (alleen voorstellen; Daan beslist met één tik; kopie vooraf) ---------- */
 async function kopie(codes){ try{ return await R().kopieProductdata(codes, 8); }catch(e){ WH.toast('Kopie van productdata maken lukte niet: niets vastgelegd (' + (e.message || e) + ')', 6000); return null; } }
-async function neemOver(it){
-  const P = R(), c = it.c, v = it.voorstel || {}; if(!(await kopie([c]))) return false;
+async function neemOver(it){ return neemOverMeer([it]); }
+async function neemOverMeer(lijst){
+  const P = R(); if(!lijst.length || !(await kopie(lijst.map(x => x.c)))) return false;
   const t = nu();
-  if(v.soort){ const voor = P.soortWaarde(c, P.info(c)).v; P.poZet(c, p => { delete p.heropend; p.so = { v:v.soort, st:'aangepast', voor, t, door:'Daan' }; if(v.soort !== 'weg') delete p.weg; }); }
-  else if(v.veld){ const voor = String(P.waarde(c, v.veld, P.info(c)).v || ''); P.poZet(c, p => { delete p.heropend; p.f[v.veld] = { v:String(v.waarde), st:'aangepast', voor, t, door:'Daan' }; }); }
-  else if(v.kg){ P.poZet(c, p => { delete p.heropend; p.gew = { st:'vertrouwd', kg:v.kg, t, door:'Daan', via:'controle' }; }); }
+  lijst.forEach(it => { const c = it.c, v = it.voorstel || {};
+    if(v.soort){ const voor = P.soortWaarde(c, P.info(c)).v; P.poZet(c, p => { delete p.heropend; p.so = { v:v.soort, st:'aangepast', voor, t, door:'Daan' }; if(v.soort !== 'weg') delete p.weg; }); }
+    else if(v.veld){ const voor = String(P.waarde(c, v.veld, P.info(c)).v || ''); P.poZet(c, p => { delete p.heropend; p.f[v.veld] = { v:String(v.waarde), st:'aangepast', voor, t, door:'Daan' }; }); }
+    else if(v.kg){ P.poZet(c, p => { delete p.heropend; p.gew = { st:'vertrouwd', kg:v.kg, t, door:'Daan', via:'controle' }; }); } });
   try{ P.flush && P.flush(); }catch(e){}
   S.memo = null; return true;
 }
-async function naarTeWegen(c){ if(!(await kopie([c]))) return; R().poZet(c, p => { delete p.heropend; p.gew = { st:'tewegen', t:nu(), door:'Daan' }; }); try{ R().flush(); }catch(e){} S.memo = null; }
+// soort kiezen voor de aangevinkte producten ("Andere soort" / "Fout, wordt"); Weg krijgt zijn keuze mee
+async function zetSoort(codes, so, weg){
+  const P = R(); if(!codes.length || !(await kopie(codes))) return false; const t = nu();
+  codes.forEach(c => { const voor = P.soortWaarde(c, P.info(c)).v; P.poZet(c, p => { delete p.heropend; p.so = { v:so, st:'aangepast', voor, t, door:'Daan' }; if(so === 'weg') p.weg = { v:weg || 'uitlopend', st:'aangepast', voor:'', t }; else delete p.weg; }); });
+  try{ P.flush && P.flush(); }catch(e){}
+  S.memo = null; return true;
+}
+async function naarTeWegen(c){ const l = [].concat(c); if(!(await kopie(l))) return; l.forEach(x => R().poZet(x, p => { delete p.heropend; p.gew = { st:'tewegen', t:nu(), door:'Daan' }; })); try{ R().flush(); }catch(e){} S.memo = null; }
 async function gewogen(c, kgw){ if(!(await kopie([c]))) return; R().poZet(c, p => { delete p.heropend; p.gew = { st:'gewogen', kg:kgw, t:nu(), door:'Daan' }; }); try{ R().flush(); }catch(e){} S.memo = null; }
-async function bewaarPickwens(c, hal, gang, opm){
-  if(!(await kopie([c]))) return false;
-  const t = nu(), vers = await WH.api('GET', 'productdata?productcode=eq.' + encodeURIComponent(c) + '&select=productcode,data,meta');
-  const rij = (vers && vers[0]) || { productcode:c, data:{}, meta:{} };
-  rij.data = Object.assign({}, rij.data, { pickwens:{ hal, gang, opm:opm || '' } }); rij.meta = Object.assign({}, rij.meta, { pickwens:{ op:t, bron:'pd2', uit:'Te doen · Picklocaties' } });
-  await WH.upsert('productdata', [{ productcode:c, data:rij.data, meta:rij.meta, updated_at:t }], 'productcode');
-  try{ WHPD.S.pd[c] = { data:rij.data, meta:rij.meta, t }; }catch(e){}
+async function bewaarPickwens(codes, w){
+  codes = [].concat(codes); if(!(await kopie(codes))) return false;
+  const t = nu(), rijen = [];
+  for(const c of codes){
+    const vers = await WH.api('GET', 'productdata?productcode=eq.' + encodeURIComponent(c) + '&select=productcode,data,meta');
+    const rij = (vers && vers[0]) || { productcode:c, data:{}, meta:{} };
+    const data = Object.assign({}, rij.data), meta = Object.assign({}, rij.meta);
+    if(w){ data.pickwens = { hal:w.hal, ged:w.hal === 'C' ? w.ged : '', gang:w.gang, opm:w.opm || '' }; meta.pickwens = { op:t, bron:'pd2', uit:'Te doen · Picklocaties' }; } else { delete data.pickwens; delete meta.pickwens; }
+    rijen.push({ productcode:c, data, meta, updated_at:t });
+  }
+  await WH.upsert('productdata', rijen, 'productcode');
+  rijen.forEach(r => { try{ WHPD.S.pd[r.productcode] = { data:r.data, meta:r.meta, t }; }catch(e){} });
   S.memo = null; return true;
 }
 
-/* ---------- weergave ---------- */
+/* ---------- weergave: per familie (en maat) één kaart, alles aangevinkt, één vraag, "Selectie is: …" ---------- */
 const alle = () => cats();
-function groepen(lijst){ const per = {}; lijst.forEach(x => { (per[x.fam] = per[x.fam] || []).push(x); }); return Object.entries(per); }
+const maatLabel = c => { try{ return R().maatVan(c) || ''; }catch(e){ return ''; } };
+const gKey = (x, metMaat) => x.fam + (metMaat !== false && maatLabel(x.c) ? ' · ' + maatLabel(x.c) : '');
+function groepen(lijst, metMaat){ const per = new Map(); lijst.forEach(x => { const k = gKey(x, metMaat); if(!per.has(k)) per.set(k, []); per.get(k).push(x); }); return [...per.entries()]; }
+const uitgevinkt = x => !!S.uit[x.cat + '|' + x.c];
+const gekozenVan = items => items.filter(x => !uitgevinkt(x));
 const locTekst = x => x.loc ? ' · <code>' + esc(x.loc) + '</code>' : '';
-function filterBalk(lijst, soort){
-  const hals = [...new Set(lijst.map(x => halGang(x.loc).hal).filter(Boolean))].sort(), gangen = [...new Set(lijst.filter(x => !S.hal || halGang(x.loc).hal === S.hal).map(x => halGang(x.loc).gang).filter(Boolean))].sort();
-  if(!hals.length) return '';
-  return `<div class="cp-filter"><label>Hal <select data-cp-f="hal"><option value="">alle</option>${hals.map(h => `<option${S.hal === h ? ' selected' : ''}>${esc(h)}</option>`).join('')}</select></label>
-    <label>Gang <select data-cp-f="gang"><option value="">alle</option>${gangen.map(g => `<option${S.gang === g ? ' selected' : ''}>${esc(g)}</option>`).join('')}</select></label></div>`;
+const hgTekst = k => 'hal ' + (k.hal || '…') + (k.hal === 'C' ? ' · gedeelte ' + (k.ged || '…') : '') + ' · gang ' + (k.gang || '…');
+const selOpt = (waarden, huidig, leeg) => (leeg ? '<option value="">' + esc(leeg) + '</option>' : '') + waarden.map(v => `<option${String(huidig) === String(v) ? ' selected' : ''}>${esc(v)}</option>`).join('');
+
+// filters bovenaan: hal → (bij C) gedeelte → gang, alleen gangen die echt bestaan
+function filterBalk(){
+  const g = gangenLijst().filter(x => (!S.hal || x.hal === S.hal) && (!S.ged || x.ged === S.ged));
+  return `<div class="cp-filter"><label>Hal <select data-cp-f="hal">${selOpt(HALLEN, S.hal, 'alle')}</select></label>
+    ${S.hal === 'C' ? `<label>Gedeelte <select data-cp-f="ged">${selOpt(['C', 'D'], S.ged, 'alle')}</select></label>` : ''}
+    <label>Gang <select data-cp-f="gang">${selOpt(g.map(x => x.gang), S.gang, 'alle')}</select></label></div>`;
 }
-const filt = l => l.filter(x => (!S.hal || halGang(x.loc).hal === S.hal) && (!S.gang || halGang(x.loc).gang === S.gang));
-function kaart(x, knoppen, extra){
-  return `<div class="cp-item" data-c="${esc(x.c)}" data-cat="${esc(x.cat)}"><label class="cp-v"><input type="checkbox" data-cp-sel checked aria-label="${esc(x.c)}"></label>
+const pastFilter = hg => (!S.hal || hg.hal === S.hal) && (!S.ged || hg.ged === S.ged) && (!S.gang || hg.gang === S.gang);
+const filt = l => (S.hal || S.ged || S.gang) ? l.filter(x => pastFilter(halGang(x.loc))) : l;
+
+function itemRij(x, extra){
+  return `<div class="cp-item" data-c="${esc(x.c)}" data-cat="${esc(x.cat)}"><label class="cp-v"><input type="checkbox" data-cp-sel${uitgevinkt(x) ? '' : ' checked'} aria-label="${esc(x.c)}"></label>
     <div class="cp-m"><div class="cp-t"><b>${esc(x.c)}</b> ${esc(x.naam)} <span class="cp-k">${esc(x.abc || '')}${x.so ? ' · ' + esc(SOORTT[x.so] || x.so) : ''}${locTekst(x)}</span></div>
-      <div class="cp-r">${esc(x.reden)}</div>${x.voorstel && x.voorstel.tekst ? `<div class="cp-vs">${esc(x.voorstel.tekst)}</div>` : x.tekstVoorstel ? `<div class="cp-vs">${esc(x.tekstVoorstel)}</div>` : ''}${extra || ''}
-      <div class="cp-kn">${knoppen}</div></div></div>`;
+      <div class="cp-r">${esc(x.reden)}</div>${x.voorstel && x.voorstel.tekst ? `<div class="cp-vs">${esc(x.voorstel.tekst)}</div>` : x.tekstVoorstel ? `<div class="cp-vs">${esc(x.tekstVoorstel)}</div>` : ''}${extra || ''}</div></div>`;
 }
 const knop = (a, t, c, cat, ex) => `<button type="button" class="cp-b${ex ? ' ' + ex : ''}" data-cp="${a}" data-c="${esc(c)}" data-cat="${esc(cat)}">${esc(t)}</button>`;
-const aanpas = (c, cat) => `<a class="cp-b" href="#/doorloop/p/${encodeURIComponent(c)}/${cat}" data-taak="0.4">Aanpassen</a>`;
-function blok(lijst, maak, groepKnoppen){
-  if(!lijst.length) return '<p class="muted">Niets meer in deze tab.</p>';
-  return groepen(lijst).map(([f, items]) => `<section class="cp-fam" data-fam="${esc(f)}"><h3>${esc(f)} <span class="muted klein">${items.length}</span></h3>${groepKnoppen ? `<div class="cp-groep">${groepKnoppen(items)}</div>` : ''}${items.map(maak).join('')}</section>`).join('');
+const gknop = (a, t, ex, data) => `<button type="button" class="cp-b${ex ? ' ' + ex : ''}" data-cp="${a}"${data || ''}>${t}</button>`;
+const aanpas = (c, cat) => `<a class="cp-b klein" href="#/doorloop/p/${encodeURIComponent(c)}/${cat}" data-taak="0.4">Aanpassen</a>`;
+// de kaart van één familie: kop met aantal, "Selectie is: …", knoppen, en de producten met vinkjes
+function famKaart(cat, key, items, vraag){
+  const n = items.length, g = gekozenVan(items).length;
+  return `<section class="cp-fam" data-fam="${esc(key)}" data-cat="${esc(cat)}"><h3>${esc(key)} <span class="muted klein">${nf(n)} producten</span></h3>
+    <div class="cp-groep"><div class="cp-sel"><b>Selectie is:</b> ${vraag}<span class="muted klein"> · geldt voor ${nf(g)} van ${nf(n)} aangevinkte producten; uitvinken voor uitzonderingen, die blijven staan voor een volgende keuze.</span></div></div>
+    ${items.map(x => itemRij(x, cat === 'hercontrole' || cat === 'gewicht' || cat === 'aantal' ? `<div class="cp-kn">${aanpas(x.c, cat)}</div>` : cat === 'bulklocaties' ? `<div class="cp-kn"><a class="cp-b klein" href="#/doorloop/p/${encodeURIComponent(x.c)}/bulklocaties" data-taak="0.4">Aanpassen</a></div>` : '')).join('')}</section>`;
 }
-const grpKnoppen = (items, cat) => `<button type="button" class="cp-b hoofd" data-cp="groep-neem" data-cat="${esc(cat)}" data-fam="${esc(items[0].fam)}">Klopt, neem voorstel over (geselecteerd)</button><button type="button" class="cp-b" data-cp="groep-klopt" data-cat="${esc(cat)}" data-fam="${esc(items[0].fam)}">Klopt zo (geselecteerd)</button>`;
+const leegTab = t => `<p class="muted">${t || 'Niets meer in deze tab.'}</p>`;
 
+/* 3 Picklocaties */
+function keuzeVan(key, items){
+  if(!S.keuze[key]){
+    const v = gangVoorstel(items), w = items.map(x => x.wens && wensN(x.wens)).find(Boolean);
+    S.keuze[key] = Object.assign({ hal:'', ged:'', gang:'', opm:'', reden:'' }, v || {}, w && !v ? w : {});
+  }
+  return S.keuze[key];
+}
+function pickKaart(key, items){
+  const k = keuzeVan(key, items), kd = encodeURIComponent(key);
+  const gl = gangenLijst().filter(x => x.hal === k.hal && (k.hal !== 'C' || !k.ged || x.ged === k.ged));
+  const sel = `<span class="cp-wens" data-key="${esc(kd)}"><label>hal <select data-cp-k="hal">${selOpt(HALLEN, k.hal, 'kies')}</select></label>
+    ${k.hal === 'C' ? `<label>gedeelte <select data-cp-k="ged">${selOpt(['C', 'D'], k.ged, 'kies')}</select></label>` : ''}
+    <label>gang <select data-cp-k="gang">${selOpt(gl.map(x => x.gang), k.gang, 'kies')}</select></label>
+    <label>opmerking <input data-cp-k="opm" value="${esc(k.opm)}" aria-label="opmerking"></label></span>`;
+  const soorten = [['bulk', 'Bulk'], ['pallet', 'Pallet'], ['deel', 'Deel'], ['pick', 'Pick'], ['mix', 'Mix'], ['weg|uitlopend', 'Weg · Uitlopend'], ['weg|backorder', 'Weg · Backorder'], ['weg|archief', 'Weg · Archief']];
+  const vraag = `<b>Pick nodig in ${esc(hgTekst(k))}</b>${k.reden ? `<div class="cp-vs">${esc(k.reden)}</div>` : ''}${sel}
+    <div class="cp-rij">${gknop('g-wens', 'Pick nodig in ' + esc(hgTekst(k)), 'hoofd', ` data-key="${esc(kd)}"`)}${gknop('g-later', 'Later')}</div>
+    <div class="cp-rij"><span class="muted klein">Andere soort:</span>${soorten.map(([s, t]) => gknop('g-soort', t, '', ` data-so="${s}"`)).join('')}</div>`;
+  return famKaart('picklocaties', key, items, vraag);
+}
+// "Klaar voor Picqer": de werklijst per hal → gedeelte → gang
+function klaarBlok(lijst, soort){
+  const l = lijst.filter(x => pastFilter(x.hg)); if(!lijst.length) return '';
+  const per = new Map(); l.forEach(x => { const k = hgTekst(x.hg); if(!per.has(k)) per.set(k, { hg:x.hg, items:[] }); per.get(k).items.push(x); });
+  const delen = [...per.entries()].sort((a, b) => (a[1].hg.hal + a[1].hg.ged + a[1].hg.gang).localeCompare(b[1].hg.hal + b[1].hg.ged + b[1].hg.gang));
+  const wat = soort === 'pick' ? 'pick aanmaken' : 'picklocatie eraf';
+  return `<section class="cp-klaar" id="cp-klaar-${soort}"><h3>Klaar voor Picqer <span class="muted klein">${nf(lijst.length)}</span></h3><p class="muted klein">Werklijst voor Picqer (${wat}): jij koppelt of ontkoppelt zelf. Het product verdwijnt hier vanzelf zodra Picqer klopt.</p>
+    ${delen.length ? delen.map(([t, d]) => `<div class="cp-werk" data-gang="${esc(d.hg.gang)}"><b>${esc(t.charAt(0).toUpperCase() + t.slice(1))}</b> <span class="muted klein">${nf(d.items.length)}</span><div class="cp-route">${d.items.map(x => `<div class="cp-item" data-c="${esc(x.c)}" data-cat="${soort === 'pick' ? 'pickklaar' : 'bulkeraf'}"><div class="cp-m"><div class="cp-t"><b>${esc(x.c)}</b> ${esc(x.naam)} <span class="cp-k">${esc(x.abc || '')}${x.loc && soort !== 'pick' ? ' · picklocatie <code>' + esc(x.loc) + '</code>' : ''}</span></div>${x.opm ? `<div class="cp-r">${esc(x.opm)}</div>` : ''}<div class="cp-kn"><button type="button" class="cp-b" data-cp="wijzig" data-c="${esc(x.c)}" data-cat="${soort === 'pick' ? 'pickklaar' : 'bulkeraf'}">Wijzig</button></div></div></div>`).join('')}</div></div>`).join('') : '<p class="muted">Niets in deze hal/gang.</p>'}</section>`;
+}
 function tabPick(c){
-  const lijst = c.picklocaties;
-  const bal = filterBalk(lijst.concat(lijst.map(x => x)), 'pick');
-  const hierBlok = x => {
-    const w = x.wens, hal = w ? w.hal : (halGang(x.loc).hal || ''), gang = w ? w.gang : (halGang(x.loc).gang || '');
-    return kaart(x, `<span class="cp-wens"><label>Pick nodig in hal <select data-cp-hal>${['A', 'B', 'C', 'D'].map(h => `<option${hal === h ? ' selected' : ''}>${h}</option>`).join('')}</select></label>
-      <label>gang <input data-cp-gang value="${esc(gang)}" size="3" maxlength="3" aria-label="gang"></label><label>opmerking <input data-cp-opm value="${esc(w ? w.opm : '')}" aria-label="opmerking"></label>
-      ${knop('wens', w ? 'Wens bijwerken' : 'Pick nodig', x.c, 'picklocaties', 'hoofd')}</span>${knop('later', 'Later', x.c, 'picklocaties')}<a class="cp-b" href="#/doorloop/p/${encodeURIComponent(x.c)}/picklocaties" data-taak="0.4">Andere soort</a>`, w ? `<div class="cp-vs">Pickwens: hal ${esc(w.hal)}, gang ${esc(w.gang)}${w.opm ? ' · ' + esc(w.opm) : ''}</div>` : '');
-  };
-  // werklijst per afdeling: alleen met een wens, gefilterd op hal en gang
-  const wensen = lijst.filter(x => x.wens);
-  const f = x => (!S.hal || (x.wens ? x.wens.hal : halGang(x.loc).hal) === S.hal) && (!S.gang || (x.wens ? x.wens.gang : halGang(x.loc).gang) === S.gang);
-  const hals = ['A', 'B', 'C', 'D'], gangen = [...new Set(wensen.map(x => x.wens.gang).filter(Boolean))].sort();
-  return `<div class="cp-filter"><label>Hal <select data-cp-f="hal"><option value="">alle</option>${hals.map(h => `<option${S.hal === h ? ' selected' : ''}>${h}</option>`).join('')}</select></label>
-    <label>Gang <select data-cp-f="gang"><option value="">alle</option>${gangen.map(g => `<option${S.gang === g ? ' selected' : ''}>${esc(g)}</option>`).join('')}</select></label></div>
-    <p class="muted klein">Pallet of Deel zonder picklocatie in Picqer, en alles met "moet pick krijgen". Kies waar de pick moet komen: de app maakt de werklijst, Picqer koppelen doe je zelf. Komt er een picklocatie in Picqer, dan verdwijnt het product vanzelf.</p>
-    ${S.hal || S.gang ? `<div class="cp-werk"><b>Werklijst${S.hal ? ' hal ' + esc(S.hal) : ''}${S.gang ? ' gang ' + esc(S.gang) : ''}</b>: ${wensen.filter(f).map(x => `<code>${esc(x.c)}</code>`).join(' ') || 'geen wensen'}</div>` : ''}
-    ${blok(lijst.filter(x => !S.hal && !S.gang ? true : f(x)), hierBlok)}`;
+  const open = filt(c.picklocaties), klaar = c.pickklaar.map(x => Object.assign({ hg:wensHg(x.wens), opm:x.wens.opm }, x));
+  return `${filterBalk()}<p class="muted klein">Pallet of Deel zonder picklocatie in Picqer, en alles met "moet pick krijgen". Per familie één keuze voor alle aangevinkte producten; de app maakt de werklijst, Picqer koppelen doe je zelf.</p>
+    ${open.length ? groepen(open, false).map(([k, items]) => pickKaart(k, items)).join('') : leegTab(c.picklocaties.length ? 'Niets in deze hal of gang.' : 'Alles is beslist. Zie hieronder wat nog in Picqer moet.')}
+    ${klaarBlok(klaar, 'pick')}`;
 }
+/* 4 Bulklocaties */
 function tabBulk(c){
-  const eraf = c.bulkeraf.filter(x => !S.hal || halGang(x.loc).hal === S.hal);
-  return `${filterBalk(c.bulklocaties.concat(c.bulkeraf))}<p class="muted klein">Soort Bulk, maar Picqer heeft nog een picklocatie. "Klopt, alleen bulk" zet het op de lijst waar de picklocatie in Picqer af moet.</p>
-    ${eraf.length ? `<section class="cp-fam"><h3>Picklocatie eraf in Picqer <span class="muted klein">${eraf.length}</span></h3>${eraf.map(x => `<div class="cp-item" data-c="${esc(x.c)}"><div class="cp-m"><div class="cp-t"><b>${esc(x.c)}</b> ${esc(x.naam)} · locatie <code>${esc(x.loc)}</code></div><div class="cp-kn">${knop('terug-eraf', 'Toch niet', x.c, 'bulkeraf')}</div></div></div>`).join('')}</section>` : ''}
-    ${blok(filt(c.bulklocaties), x => kaart(x, `${knop('bulk-ok', 'Klopt, alleen bulk', x.c, 'bulklocaties', 'hoofd')}<a class="cp-b" href="#/doorloop/p/${encodeURIComponent(x.c)}/bulklocaties" data-taak="0.4">Fout: andere soort</a>${knop('later', 'Later', x.c, 'bulklocaties')}`))}`;
+  const open = filt(c.bulklocaties), klaar = c.bulkeraf.map(x => Object.assign({ hg:halGang(x.loc) }, x));
+  const vraag = (key, items) => `<b>alleen bulk (picklocatie eraf in Picqer)</b><div class="cp-rij">${gknop('g-bulk', 'Klopt, alleen bulk', 'hoofd')}${gknop('g-later', 'Later')}</div>
+    <div class="cp-rij"><span class="muted klein">Fout, wordt:</span>${gknop('g-soort', 'Deel', '', ' data-so="deel"')}${gknop('g-soort', 'Pallet', '', ' data-so="pallet"')}</div>`;
+  return `${filterBalk()}<p class="muted klein">Soort Bulk, maar Picqer heeft nog een picklocatie. Per familie in één keer "alleen bulk"; daarna staat de picklocatie op de werklijst waar jij hem in Picqer afhaalt.</p>
+    ${open.length ? groepen(open, false).map(([k, items]) => famKaart('bulklocaties', k, items, vraag(k, items))).join('') : leegTab(c.bulklocaties.length ? 'Niets in deze hal of gang.' : 'Alles is beslist. Zie hieronder wat nog in Picqer moet.')}
+    ${klaarBlok(klaar, 'bulk')}`;
 }
-function tabMetVoorstel(lijst, cat, extraKnoppen){
-  return blok(lijst, x => kaart(x, `${x.voorstel && (x.voorstel.soort || x.voorstel.veld || x.voorstel.kg) ? knop('neem', 'Neem voorstel over', x.c, cat, 'hoofd') : ''}${aanpas(x.c, cat)}${extraKnoppen ? extraKnoppen(x) : ''}${knop('klopt', cat === 'aantal' ? 'Klopt zo, verschil is terecht' : 'Klopt zo', x.c, cat)}${knop('later', 'Later', x.c, cat)}`), items => grpKnoppen(items, cat));
+/* 5 Hercontrole · 6 Gewicht controleren · 8 Aantal per pallet */
+function tabMetVoorstel(lijst, cat){
+  if(!lijst.length) return leegTab();
+  const heeft = items => items.some(x => x.voorstel && (x.voorstel.soort || x.voorstel.veld || x.voorstel.kg));
+  return groepen(lijst).map(([k, items]) => famKaart(cat, k, items, `<b>${heeft(items) ? 'voorstel overnemen' : 'geen voorstel: kijk per product'}</b><div class="cp-rij">${heeft(items) ? gknop('g-neem', 'Voorstel overnemen', 'hoofd') : ''}${gknop('g-klopt', cat === 'aantal' ? 'Klopt zo, verschil is terecht' : 'Klopt zo', heeft(items) ? '' : 'hoofd')}${cat === 'gewicht' ? gknop('g-tewegen', 'Naar Te wegen') : ''}${gknop('g-later', 'Later')}</div>`)).join('');
 }
-function tabGewicht(c){
-  return blok(c.gewicht, x => kaart(x, `${knop('neem', 'Klopt (vertrouwd met dit gewicht)', x.c, 'gewicht', 'hoofd')}${aanpas(x.c, 'gewicht')}${knop('tewegen', 'Naar Te wegen', x.c, 'gewicht')}${knop('later', 'Later', x.c, 'gewicht')}`), items => grpKnoppen(items, 'gewicht').replace('Klopt zo (geselecteerd)', 'Naar Te wegen (geselecteerd)').replace('groep-klopt', 'groep-tewegen'));
-}
+const tabGewicht = c => tabMetVoorstel(c.gewicht, 'gewicht');
+/* 7 Te wegen: per familie, binnen de familie op locatie */
 function tabTeWegen(c){
-  const l = c.tewegen;
-  return `${filterBalk(l)}<p class="muted klein">Alleen wat echt gewogen moet worden, gesorteerd op locatie (looproute). Typ het gewogen gewicht per stuk: het wordt "gewogen".</p>
-    ${filt(l).length ? `<div class="cp-route">${filt(l).map(x => `<div class="cp-item" data-c="${esc(x.c)}" data-cat="tewegen"><div class="cp-m"><div class="cp-t"><code>${esc(x.loc || 'geen locatie')}</code> <b>${esc(x.c)}</b> ${esc(x.naam)} <span class="cp-k">${esc(x.abc || '')}</span></div>
-      <div class="cp-kn"><label>kg per stuk <input data-cp-kg inputmode="decimal" size="6" aria-label="gewogen kg ${esc(x.c)}"></label>${knop('gewogen', 'Gewogen', x.c, 'tewegen', 'hoofd')}</div></div></div>`).join('')}</div>` : '<p class="muted">Niets te wegen.</p>'}`;
+  const l = filt(c.tewegen);
+  return `${filterBalk()}<p class="muted klein">Alleen wat echt gewogen moet worden, per familie en binnen de familie op locatie (looproute). Typ het gewogen gewicht per stuk: het wordt "gewogen".</p>
+    ${l.length ? groepen(l, false).map(([k, items]) => `<section class="cp-fam" data-fam="${esc(k)}" data-cat="tewegen"><h3>${esc(k)} <span class="muted klein">${nf(items.length)} producten</span></h3>
+      ${items.slice().sort((a, b) => String(a.loc || 'ZZ').localeCompare(String(b.loc || 'ZZ'))).map(x => `<div class="cp-item" data-c="${esc(x.c)}" data-cat="tewegen"><div class="cp-m"><div class="cp-t"><code>${esc(x.loc || 'geen locatie')}</code> <b>${esc(x.c)}</b> ${esc(x.naam)} <span class="cp-k">${esc(x.abc || '')}</span></div>
+      <div class="cp-kn"><label>kg per stuk <input data-cp-kg inputmode="decimal" size="6" aria-label="gewogen kg ${esc(x.c)}"></label>${gknop('gewogen', 'Gewogen', 'hoofd', ` data-c="${esc(x.c)}" data-cat="tewegen"`)}</div></div></div>`).join('')}</section>`).join('') : '<p class="muted">Niets te wegen.</p>'}`;
 }
+
 function tabLater(){
   const l = window.WHTAAK && WHTAAK.later ? WHTAAK.later.lijst() : [], lt = laterTabs();
   if(!l.length && !lt.length) return '<p class="muted">Niets op Later.</p>';
@@ -271,7 +341,7 @@ function watKlopt(){
 }
 function overzicht(c, t){
   const voorb = (l, n) => l.slice(0, n).map(x => `<code>${esc(x.c)}</code>`).join(' ');
-  const rij = (k, titel, lijst) => `<div class="cp-ov"><div><b>${esc(titel)} · ${nf(lijst.length)}</b><div class="muted klein">${esc(UITLEG[k])}</div>${lijst.length ? `<div class="klein">Bijvoorbeeld ${voorb(lijst, 5)}</div>` : ''}</div><a class="cp-b${lijst.length ? ' hoofd' : ''}" href="#/todo/${k}">${lijst.length ? 'Naar de tab →' : 'Leeg'}</a></div>`;
+  const rij = (k, titel, lijst, klaar) => `<div class="cp-ov"><div><b>${esc(titel)} · ${nf(lijst.length)}</b>${klaar ? ` <span class="muted klein">· ${nf(klaar)} klaar voor Picqer</span>` : ''}<div class="muted klein">${esc(UITLEG[k])}</div>${lijst.length ? `<div class="klein">Bijvoorbeeld ${voorb(lijst, 5)}</div>` : ''}</div><a class="cp-b${lijst.length ? ' hoofd' : ''}" href="#/todo/${k}">${lijst.length ? 'Naar de tab →' : klaar ? 'Naar de werklijst →' : 'Leeg'}</a></div>`;
   const nl = t ? t.later : 0;
   const st = S.steek;
   const reactie = `<div class="cp-reactie"><b>Jouw reactie</b><div class="muted klein">Wat is fout of wat mis je in deze analyse? Kort is genoeg; het wordt bewaard met datum.</div><textarea id="cp-reactie" rows="3" placeholder="Bijv. 549-1-135 klopt gewoon, en ik mis …"></textarea><button type="button" class="cp-b hoofd" data-cp="reactie">Bewaar</button>
@@ -279,7 +349,7 @@ function overzicht(c, t){
   const steek = st && st.codes ? `<div class="cp-steek"><b>Steekproef (${st.codes.length})</b>${st.codes.map(x => `<div class="cp-item" data-c="${esc(x.c)}"><div class="cp-m"><div class="cp-t"><code>${esc(x.loc || '–')}</code> <b>${esc(x.c)}</b> ${esc(naam(x.c))}</div><div class="cp-r">Controleer op de vloer: ${esc(x.wat)}</div><div class="cp-kn">${st.uit && st.uit[x.c] === 'klopt' ? '<span class="ok">klopt</span>' : st.uit && st.uit[x.c] === 'fout' ? '<span class="fout">fout</span>' : ''}${knop('sp-klopt', 'Klopt', x.c, 'sp')}${knop('sp-fout', 'Fout', x.c, 'sp')}</div></div></div>`).join('')}
     <div class="${steekGroen() ? 'ok' : 'muted'}"><b>${nf(Object.keys(st.uit || {}).length)} van ${st.codes.length} gecontroleerd · ${nf(Object.values(st.uit || {}).filter(v => v === 'fout').length)} fouten${steekGroen() ? ' · GROEN' : ''}</b></div></div>` : '';
   return `<p class="muted">Claudes analyse van de data, live berekend. Elk punt is een voorstel: jij beslist met één tik. Alleen producten met een bevestigde soort, nooit SAM Europe.</p>
-    ${rij('picklocaties', '3 Picklocaties', c.picklocaties)}${rij('bulklocaties', '4 Bulklocaties', c.bulklocaties.concat(c.bulkeraf))}${rij('hercontrole', '5 Hercontrole', c.hercontrole)}${rij('gewicht', '6 Gewicht controleren', c.gewicht)}${rij('tewegen', '7 Te wegen', c.tewegen)}${rij('aantal', '8 Aantal per pallet', c.aantal)}
+    ${rij('picklocaties', '3 Picklocaties', c.picklocaties, c.pickklaar.length)}${rij('bulklocaties', '4 Bulklocaties', c.bulklocaties, c.bulkeraf.length)}${rij('hercontrole', '5 Hercontrole', c.hercontrole)}${rij('gewicht', '6 Gewicht controleren', c.gewicht)}${rij('tewegen', '7 Te wegen', c.tewegen)}${rij('aantal', '8 Aantal per pallet', c.aantal)}
     <div class="cp-ov"><div><b>2 Later · ${nf(nl)}</b><div class="muted klein">Bewust uitgesteld; telt niet mee voor het afronden.</div></div><a class="cp-b${nl ? ' hoofd' : ''}" href="#/todo/later">${nl ? 'Naar de tab →' : 'Leeg'}</a></div>
     <h3>Wat klopt</h3><ul class="cp-wat">${watKlopt() || '<li class="muted">Geen herkende patronen in deze data.</li>'}<li>Productdata in gebruik: <b>3.0 en Containers</b> · Warehouse, Junior en Palletlabels pas na de steekproef.</li></ul>
     <h3>Steekproef voor Poort 0.4</h3><p class="muted klein">20 producten uit tab 3–8 (A/B eerst) als vloerlijst. 20 gecontroleerd met 0 fouten = groen.</p><button type="button" class="cp-b hoofd" data-cp="steekmaken">Steekproef maken</button>${steek}
@@ -310,7 +380,7 @@ function stijl(){
 .cp-b.hoofd{background:#ef8a4a;border-color:#ef8a4a;color:#1b1205}.cp-wens{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}.cp-wens input,.cp-wens select,.cp-filter select,.cp-kn input{font:inherit;padding:.3rem .4rem;border:1px solid var(--lijn,#d6dce4);border-radius:.4rem;background:var(--vlak,#fff);color:inherit}
 .cp-ov{display:flex;gap:.8rem;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;background:var(--vlak,#fff);border:1px solid var(--lijn,#d6dce4);border-radius:.75rem;padding:.8rem}.cp-ov>div{min-width:0;flex:1 1 20rem;overflow-wrap:anywhere}
 .cp-reactie textarea{width:100%;font:inherit;border:1px solid var(--lijn,#d6dce4);border-radius:.5rem;padding:.5rem;background:var(--vlak,#fff);color:inherit;margin:.4rem 0}.cp-route{display:grid;gap:.4rem;grid-template-columns:repeat(auto-fill,minmax(min(100%,24rem),1fr))}
-.cp-wat li{margin:.3rem 0}.cp-steek .ok,.cp-reactie .ok{color:#2e7d4f}.fout{color:#c0392b;font-weight:700}code{overflow-wrap:anywhere}`;
+.cp-sel{display:grid;gap:.4rem;width:100%}.cp-b.klein{padding:.25rem .55rem;font-size:.82rem}.cp-klaar{display:grid;gap:.6rem;margin-top:1.2rem;border-top:2px solid var(--lijn,#d6dce4);padding-top:.8rem}.cp-werk{display:grid;gap:.4rem}.cp-wat li{margin:.3rem 0}.cp-steek .ok,.cp-reactie .ok{color:#2e7d4f}.fout{color:#c0392b;font-weight:700}code{overflow-wrap:anywhere}`;
   document.head.appendChild(s);
 }
 function tabHtml(tab){
@@ -332,7 +402,7 @@ function html(tab){
   stijl();
   const t = tel();
   tab = TABS.some(x => x[0] === tab) ? tab : 'overzicht';
-  const nav = TABS.filter(([k]) => k === 'overzicht' || !t || t[k] > 0 || k === tab).map(([k, n]) => `<a class="cp-tab${tab === k ? ' aan' : ''}" href="#/todo/${k}">${esc(n)}${t && k !== 'overzicht' && t[k] ? ` <i>${nf(t[k])}</i>` : ''}</a>`).join('');
+  const nav = TABS.filter(([k]) => k === 'overzicht' || !t || t[k] > 0 || (t.klaar && t.klaar[k] > 0) || k === tab).map(([k, n]) => `<a class="cp-tab${tab === k ? ' aan' : ''}" href="#/todo/${k}">${esc(n)}${t && k !== 'overzicht' && t[k] ? ` <i>${nf(t[k])}</i>` : ''}</a>`).join('');
   return `<nav class="cp-tabs" aria-label="Te doen">${nav}</nav><div class="cp-inh" id="cp-inh">${tabHtml(tab)}</div>`;
 }
 
@@ -342,31 +412,47 @@ const vind = (cat, c) => { const l = cats(); return l && (l[cat] || []).find(x =
 function koppel(){
   if(gekoppeld) return; gekoppeld = true;
   const herteken = () => { try{ WHTAAK.herteken(); }catch(e){} };
+  const inNative = el => { const n = document.getElementById('native'); return !!n && n.contains(el); };
   document.addEventListener('change', ev => {
-    const f = ev.target.closest && ev.target.closest('[data-cp-f]'); if(!f) return;
-    S[f.dataset.cpF] = f.value; if(f.dataset.cpF === 'hal') S.gang = ''; herteken();
+    const t = ev.target; if(!t.closest || !inNative(t)) return;
+    const f = t.closest('[data-cp-f]');
+    if(f){ S[f.dataset.cpF] = f.value; if(f.dataset.cpF === 'hal'){ S.ged = ''; S.gang = ''; } if(f.dataset.cpF === 'ged') S.gang = ''; herteken(); return; }
+    const sel = t.closest('[data-cp-sel]');
+    if(sel){ const it = sel.closest('.cp-item'), k = it.dataset.cat + '|' + it.dataset.c; if(sel.checked) delete S.uit[k]; else S.uit[k] = true; herteken(); return; }
+    const kz = t.closest('[data-cp-k]');
+    if(kz){ const w = kz.closest('[data-key]'), key = decodeURIComponent(w.dataset.key), k = S.keuze[key]; if(!k) return; k[kz.dataset.cpK] = kz.value; if(kz.dataset.cpK === 'hal'){ k.ged = ''; k.gang = ''; } if(kz.dataset.cpK === 'ged') k.gang = ''; k.reden = ''; herteken(); }
   });
+  document.addEventListener('input', ev => { const kz = ev.target.closest && ev.target.closest('[data-cp-k="opm"]'); if(!kz || !inNative(kz)) return; const w = kz.closest('[data-key]'), k = S.keuze[decodeURIComponent(w.dataset.key)]; if(k) k.opm = kz.value; });
   document.addEventListener('click', async ev => {
-    const b = ev.target.closest && ev.target.closest('[data-cp]'); if(!b || !document.getElementById('native') || !document.getElementById('native').contains(b)) return;
-    const a = b.dataset.cp, c = b.dataset.c, cat = b.dataset.cat, it = c ? vind(cat, c) : null;
+    const b = ev.target.closest && ev.target.closest('[data-cp]'); if(!b || !inNative(b)) return;
+    const a = b.dataset.cp, c = b.dataset.c, cat = b.dataset.cat, sec = b.closest('.cp-fam');
+    const gek = () => sec ? [...sec.querySelectorAll('.cp-item')].filter(e => e.querySelector('[data-cp-sel]') && e.querySelector('[data-cp-sel]').checked).map(e => vind(sec.dataset.cat, e.dataset.c)).filter(Boolean) : [];
     b.disabled = true;
     try{
-      if(a === 'neem' && it){ await neemOver(it); }
-      else if(a === 'klopt' && it){ await zetKlopt(cat, c, '', it.sig); }
-      else if(a === 'later' && it){ await zetKlopt(cat, c, 'Later · tab ' + cat, it.sig, { later:true }); }
-      else if(a === 'tewegen'){ await naarTeWegen(c); }
+      if(a.startsWith('g-')){
+        const l = gek(); if(!l.length){ WH.toast('Vink minstens één product aan', 3000); b.disabled = false; return; }
+        const kat = sec.dataset.cat, codes = l.map(x => x.c);
+        if(a === 'g-neem'){ await neemOverMeer(l.filter(x => x.voorstel)); }
+        else if(a === 'g-klopt'){ await zetKloptMeer(kat, l); }
+        else if(a === 'g-later'){ await zetKloptMeer(kat, l, 'Later · tab ' + kat, { later:true }); }
+        else if(a === 'g-tewegen'){ await naarTeWegen(codes); }
+        else if(a === 'g-bulk'){ await zetKloptMeer('bulkeraf', l); }
+        else if(a === 'g-soort'){ const [so, weg] = String(b.dataset.so).split('|'); if(await zetSoort(codes, so, weg)) await zetKloptMeer(kat, l, 'Andere soort: ' + SOORTT[so] + (weg ? ' · ' + weg : '')); }
+        else if(a === 'g-wens'){
+          const k = S.keuze[decodeURIComponent(b.dataset.key)] || {};
+          if(!k.hal || (k.hal === 'C' && !k.ged) || !k.gang){ WH.toast('Kies hal' + (k.hal === 'C' ? ', gedeelte' : '') + ' en gang', 3500); b.disabled = false; return; }
+          if(await bewaarPickwens(codes, { hal:k.hal, ged:k.ged, gang:k.gang, opm:k.opm })) WH.toast('Pick nodig bewaard voor ' + codes.length + ' producten: ' + hgTekst(k), 3500);
+        }
+      }
+      else if(a === 'wijzig'){
+        if(cat === 'bulkeraf') await weesKlopt('bulkeraf', c);
+        else { const x = vind('pickklaar', c); if(x && x.wens){ const n = wensN(x.wens), key = gKey(x); S.keuze[key] = Object.assign({}, n, { reden:'Eerdere keuze' }); } await bewaarPickwens([c], null); }
+      }
       else if(a === 'gewogen'){ const inp = b.closest('.cp-kn').querySelector('[data-cp-kg]'), v = num(String(inp.value).replace(',', '.')); if(!(v > 0)){ WH.toast('Typ het gewogen gewicht per stuk in kg', 3500); b.disabled = false; return; } await gewogen(c, v); }
-      else if(a === 'wens'){ const w = b.closest('.cp-m'), hal = w.querySelector('[data-cp-hal]').value, gang = w.querySelector('[data-cp-gang]').value.trim().toUpperCase(), opm = w.querySelector('[data-cp-opm]').value.trim(); if(!gang){ WH.toast('Typ de gang (bijv. DD)', 3500); b.disabled = false; return; } if(await bewaarPickwens(c, hal, gang, opm)) WH.toast('Pickwens bewaard: hal ' + hal + ', gang ' + gang, 3500); }
-      else if(a === 'bulk-ok' && it){ await zetKlopt('bulkeraf', c, '', it.sig); }
-      else if(a === 'terug-eraf'){ await weesKlopt('bulkeraf', c); }
       else if(a === 'terug-later'){ await weesKlopt(cat, c); }
       else if(a === 'reactie'){ const t = (document.getElementById('cp-reactie') || {}).value || ''; if(t.trim()){ S.reacties.push({ op:nu(), tekst:t.trim() }); await schrijfRij(RE, null, d => { d.lijst = (d.lijst || []).concat([{ op:nu(), tekst:t.trim() }]); return d; }); } }
       else if(a === 'steekmaken'){ steekMaken(); }
       else if(a === 'sp-klopt' || a === 'sp-fout'){ S.steek.uit = S.steek.uit || {}; S.steek.uit[c] = a === 'sp-klopt' ? 'klopt' : 'fout'; await schrijfRij(SP, null, () => S.steek); }
-      else if(a === 'groep-neem' || a === 'groep-klopt' || a === 'groep-tewegen'){
-        const sec = b.closest('.cp-fam'), gek = [...sec.querySelectorAll('.cp-item')].filter(e => e.querySelector('[data-cp-sel]') && e.querySelector('[data-cp-sel]').checked);
-        for(const e of gek){ const x = vind(e.dataset.cat, e.dataset.c); if(!x) continue; if(a === 'groep-neem' && x.voorstel) await neemOver(x); else if(a === 'groep-klopt') await zetKlopt(x.cat, x.c, '', x.sig); else if(a === 'groep-tewegen') await naarTeWegen(x.c); }
-      }
     }catch(e){ console.error(e); WH.toast('Mislukt: ' + (e.message || e), 5000); }
     S.memo = null; herteken();
   });
