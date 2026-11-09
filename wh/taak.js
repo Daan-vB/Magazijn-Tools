@@ -126,6 +126,7 @@ function data04(){
   P.bel.forEach(c => { const v = pd2Klaar() ? openZL(c, '') : WHPD.openStappen(c); if(v.length) open.push({ c, v }); });
   // Soort · Gewicht · Hoeveelheid zonder Later (een stap is klaar als alles behalve Later is ingevuld)
   if(pd2Klaar()) PD2STAP.forEach((stap, n) => { const x = P.items[3 + n]; if(!x || !x.pd2) return; const v = telStapZL(P.bel, stap); x.ok = v.tot > 0 && v.vol === v.tot; x.u = nf(v.vol) + ' van ' + nf(v.tot) + ' compleet · ' + nf(v.velden) + ' velden open'; });
+  if(window.WHCP){ const sp = WHCP.poortSteek(), x = P.items.find(y => y.steek); if(x){ x.ok = sp.groen; x.u = sp.n ? sp.gedaan + ' van ' + sp.n + ' gecontroleerd · ' + sp.fouten + ' fouten' : 'nog niet gemaakt: Te doen → Overzicht → Steekproef maken'; x.kan = true; x.a = '#/todo/overzicht'; } }
   if(pd2Klaar()){ P.groen = P.items.every(x => x.ok); if(P.groen && !P.code) try{ P.code = WHPD.poortCode(P.bel.length); }catch(e){} }
   const d = { P, open, voorlopig:!pd2Klaar() };
   PD.cache = { op:Date.now(), d, sleutel };
@@ -166,7 +167,7 @@ function nodig04(id){
   const it = d.P.items;
   const nGroen = it.filter(x => x.ok).length;
   // alles gaat naar Productdata 2.0 (31-10); alleen de steekproef woont nog op de oude poortpagina, de vloernaam in Vloernamen
-  const link = (x, i) => i === 2 ? dubbelLink() : x.steek ? '#/productdata/poort' : x.pd2 && i >= 3 && i < 6 ? '#/doorloop/' + PD2STAP[i - 3] : '#/pd2/open';
+  const link = (x, i) => i === 2 ? dubbelLink() : x.steek ? '#/todo/overzicht' : x.pd2 && i >= 3 && i < 6 ? '#/doorloop/' + PD2STAP[i - 3] : '#/pd2/open';
   const knopT = (x, i) => i === 1 ? 'Overzetten' : i === 2 ? 'Kiezen' : x.laag || x.pd2 ? 'Invullen' : x.steek ? 'Steekproef' : 'Bekijken';
   const regels = it.map((x, i) => x.ok ? '' : `<li><span class="nt"><b>${esc(x.t)}</b><span class="muted klein">${esc(x.u || '')}</span></span>${i === 1 ? `<button class="knop" data-a="pd-overzet">${esc((x.u || '').match(/\d+/) ? 'Zet ' + (x.u.match(/\d+/) || [''])[0] + ' waarden over' : 'Overzetten')}</button>` : x.steek && !x.kan ? '<span class="knop" aria-disabled="true" style="opacity:.55;cursor:not-allowed">Kan als laag 1–3 klaar zijn</span>' : knop(id, link(x, i), knopT(x, i))}</li>`).join('');
   return `<p class="kern"><b>${nf(nGroen)}</b> van ${nf(it.length)} groen in Poort 0.4 · ${nf(d.P.bel.length)} belangrijke producten · <b>${nf(d.open.length)}</b> producten open</p>
@@ -392,13 +393,25 @@ function blokLaterKaart(){
     <ul class="nog">${l.slice(0, 8).map(x => `<li><span class="nt"><b>${esc(x.c)} · ${esc((WH.D.P[x.c] || {}).naam || '')}</b><span class="muted klein">${esc(LNAAM[x.t] || x.t)} · sinds ${esc(dagTijd(x.op))}${x.opm ? ' · ' + esc(x.opm) : ''}</span></span></li>`).join('')}${l.length > 8 ? `<li><span class="nt muted klein">+ ${nf(l.length - 8)} meer</span></li>` : ''}</ul>
     <div class="rij"><a class="knop pri groot" href="#/doorloop/later" data-taak="0.4">Later-lijst →</a></div></section>`;
 }
-function viewTodo(){
+// de controleronde (wh/controle-pd.js) wordt geladen als Te doen opent
+let cpP = null;
+function laadCp(){
+  if(window.WHCP) return Promise.resolve();
+  if(!cpP) cpP = fetch('wh/controle-pd.js', { cache:'no-cache' }).then(r => { if(!r.ok) throw new Error('status ' + r.status); return r.text(); })
+    .then(t => { const s = document.createElement('script'); s.textContent = t + '\n//# sourceURL=wh/controle-pd.js'; document.body.appendChild(s); WHCP.koppel(); return WHCP.laad(); })
+    .then(() => herteken()).catch(e => { cpP = null; console.error(e); });
+  return cpP;
+}
+function viewTodo(rest){
   parkeer11();
+  if(!pdKlaar() && !PD.fout) pdLaden();
+  laadCp();
+  const tab = String(rest || '').split('/')[0] || 'overzicht';
+  const tabs = window.WHCP && pd2Klaar() && LATER.klaar ? WHCP.html(tab) : '<p class="muted klein">De controleronde wordt berekend…</p>';
   return `<div class="pagina">
     <div class="bouwtekening"><a class="knop" href="https://claude.ai/artifact/8mvbCuxpKQLhz9hKG6SnVS" target="_blank" rel="noopener">Bouwtekening ↗</a><span class="muted klein">de pilaren en wat deze week gebouwd wordt</span></div>
     <h1>Te doen</h1>
-    ${blokLaterKaart()}
-    ${blokTik()}
+    <div class="cpwrap">${tabs}</div>
     ${blokNu()}
     <h2 class="bt">Vandaag</h2>${blokVandaag()}
     <h2 class="bt">Later</h2><p class="muted klein">Hoort bij een latere stap van het bouwplan. Nu niet aan beginnen.</p>${blokLater()}
@@ -424,7 +437,7 @@ function huidigeRoute(){ const m = location.hash.match(/^#\/([\w-]+)(?:\/(.+))?$
 function render(native, rest){
   const nat = $('native'); if(!nat) return;
   const y = nat.scrollTop, open = [...nat.querySelectorAll('details[open] summary b')].map(b => b.textContent);
-  nat.innerHTML = native === 'todo' ? viewTodo() : native === 'taak' ? viewTaak(decodeURIComponent(rest || (BP.huidig() || {}).id || '')) : BP.view(rest);
+  nat.innerHTML = native === 'todo' ? viewTodo(rest) : native === 'taak' ? viewTaak(decodeURIComponent(rest || (BP.huidig() || {}).id || '')) : BP.view(rest);
   nat.querySelectorAll('details summary b').forEach(b => { if(open.includes(b.textContent)) b.closest('details').open = true; });
   nat.scrollTop = y;
 }

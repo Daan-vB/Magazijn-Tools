@@ -599,6 +599,7 @@ function prodKlopt(){
   ts.forEach(t => bewaarIndien(t, c));
   try{ R().flush && R().flush(); }catch(e){}
   S.prod = null; S.prodSnap = null; S.i = S.terugNaar != null ? S.terugNaar : S.i; S.terugNaar = null; reset(); teken();
+  if(S.viaTab){ const t = S.viaTab; S.viaTab = ''; location.hash = '#/todo/' + t; }   // vanuit een tab van Te doen: terug naar die tab
 }
 
 /* ---------- zoeken: elk product (ook beantwoord), de familie opent in de Doorloop met alle vragen ---------- */
@@ -720,7 +721,7 @@ function koppel(){
 /* ---------- route: #/doorloop/<soort|gewicht|hoev> ---------- */
 async function render(el, rest){
   stijl(); koppel(); S.el = el;
-  const eerste = String(rest || '').split('/')[0], stap = STAPVAN[eerste] || '';
+  const eerste = String(rest || '').split('/')[0], stap = STAPVAN[eerste] || '';   // later = Later-lijst · p/<code> = één product
   S.laterModus = eerste === 'later';
   if(!R() || !R().S.klaar){
     teken();
@@ -732,7 +733,13 @@ async function render(el, rest){
   try{ WHPD.zetLaterMee(false); }catch(e){}
   if(S.el !== el || !mag()) return;
   const sleutel = (S.laterModus ? 'later' : stap) + '|' + (location.hash || '');
-  if(S.sleutel !== sleutel || !S.pad.length){ S.sleutel = sleutel; S.stap = stap; bouw(stap); sla(1); }
+  if(S.sleutel !== sleutel || !S.pad.length){ S.sleutel = sleutel; S.stap = stap; S.gast = false; S.main = null; S.prod = null; bouw(stap); sla(1); }
+  // #/doorloop/p/<code>: één product met al zijn velden (vanuit de tabs van Te doen: Aanpassen)
+  if(eerste === 'p'){
+    const delen = String(rest).split('/'), code = decodeURIComponent(delen[1] || ''); S.viaTab = delen[2] || 'overzicht';
+    const echt = Object.keys(WH.D.P).find(c => c.toLowerCase() === code.toLowerCase());
+    if(echt && S.prod !== echt){ openGast(echt); openProd(echt); return; }
+  }
   teken();
 }
 return { render, S, bouw, teken, afwijkLijn, vergelijkbaar, halA20 };

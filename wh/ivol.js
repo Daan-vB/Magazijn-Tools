@@ -181,7 +181,7 @@ function toon(){
   WHTAAK.balk();
   if(m.native){
     fr.hidden = true; nat.hidden = false;
-    if(['todo', 'taak', 'bouwplan'].includes(m.native)){ nat.scrollTop = 0; WHTAAK.render(m.native, UI.rest); nat.scrollTop = 0; if(m.native === 'todo' && window.WHX) WHX.banner(nat); }
+    if(['todo', 'taak', 'bouwplan'].includes(m.native)){ nat.scrollTop = 0; WHTAAK.render(m.native, UI.rest); nat.scrollTop = 0; }
     else if(m.native === 'kennisbank' && window.WHKB){ WHKB.render(nat); nat.scrollTop = 0; return; }
     else if(m.native === 'ryan' && window.WHKB){ WHKB.renderRyan(nat); nat.scrollTop = 0; return; }
     else if(m.native === 'pd2' && window.WHPD2){ WHPD2.render(nat, UI.rest); nat.scrollTop = 0; return; }
