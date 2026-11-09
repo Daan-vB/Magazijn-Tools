@@ -1577,17 +1577,36 @@ const lvCode = () => { try{ return localStorage.getItem('ivol-koppelcode') || ''
 const lvUrl = () => { let u = ''; try{ u = localStorage.getItem('ivol-fn') || ''; }catch(e){} return u || URL_ + '/functions/v1/picqer'; };
 const LV = { idx:null, idxP:null, gevraagd:new Map() };
 let lvIdxKlaar = false;
+// de geschiedenis-acties (bestellingen, idindex …) mogen in de functie 45 s duren (+2 s noodrem): de app wacht daarom 60 s, anders breekt
+// de app een goed lopende aanroep af en vraagt dezelfde pagina steeds opnieuw (NL-300 bleef zo op "worden opgehaald…" staan)
+const LV_LANG = new Set(['bestellingen', 'idindex', 'historielicht', 'historietest']);
+// elke fout krijgt een reden die Daan begrijpt: geen koppelcode · koppelcode klopt niet · time-out · geen verbinding · functie kent de actie niet
+// · Picqer weigert · Picqer druk · te traag (soort: code, tijd, net, actie, weigert, druk, traag)
 async function lvVraag(actie, params){
-  const qs = new URLSearchParams(Object.assign({ actie }, params || {})).toString(), ac = new AbortController(), t = setTimeout(() => ac.abort(), 30000);
-  let r;
-  try{ r = await fetch(lvUrl() + '?' + qs, { headers:{ apikey:KEY, 'x-ivol-code':lvCode() }, cache:'no-store', signal:ac.signal }); }
-  catch(e){ throw Object.assign(new Error('Geen antwoord van het tussenstation'), { soort:'net' }); }
-  finally{ clearTimeout(t); }
-  const tx = await r.text(); let j = null; try{ j = JSON.parse(tx); }catch(e){}
-  if(!r.ok){
-    if(j && j.code === 'koppelcode'){ try{ localStorage.removeItem('ivol-koppelcode'); }catch(e){} throw Object.assign(new Error('Koppelcode klopt niet'), { soort:'code' }); }
-    throw Object.assign(new Error((j && j.fout) || ('Tussenstation gaf status ' + r.status)), { soort:'net', wacht:j && j.wachtSec, status:r.status });
+  const ms = LV_LANG.has(actie) ? 60000 : 30000;
+  const qs = new URLSearchParams(Object.assign({ actie }, params || {})).toString(), ac = new AbortController(); let afgebroken = false;
+  const t = setTimeout(() => { afgebroken = true; ac.abort(); }, ms);
+  let r, tx;
+  try{ r = await fetch(lvUrl() + '?' + qs, { headers:{ apikey:KEY, 'x-ivol-code':lvCode() }, cache:'no-store', signal:ac.signal }); tx = await r.text(); }
+  catch(e){
+    if(afgebroken) throw Object.assign(new Error('time-out: het tussenstation gaf binnen ' + ms / 1000 + ' s geen antwoord'), { soort:'tijd' });
+    throw Object.assign(new Error('geen verbinding met het tussenstation (internet weg, scherm op slot, of Supabase brak de functie af)'), { soort:'net' });
   }
+  finally{ clearTimeout(t); }
+  let j = null; try{ j = JSON.parse(tx); }catch(e){}
+  if(!r.ok){
+    const fx = String((j && j.fout) || ''), so = (j && j.soort) || '';
+    if(j && j.code === 'koppelcode'){ try{ localStorage.removeItem('ivol-koppelcode'); }catch(e){} throw Object.assign(new Error('koppelcode klopt niet (opnieuw koppelen)'), { soort:'code', status:r.status }); }
+    const fo = (m, soort) => Object.assign(new Error(m), { soort, wacht:j && j.wachtSec, status:r.status });
+    if(so === 'onbekende-actie' || /^Onbekende actie/.test(fx)) throw fo('de functie op Supabase kent de actie "' + actie + '" niet (oude versie live)', 'actie');
+    if(r.status === 404) throw fo('functie "picqer" niet gevonden op Supabase', 'actie');
+    if(so === 'picqer-druk' || r.status === 429) throw fo('Picqer weigert: te veel verzoeken' + (j && j.wachtSec ? ', over ' + j.wachtSec + ' s opnieuw' : ''), 'druk');
+    if(so === 'picqer-weigert') throw fo(/^Picqer weigert/.test(fx) ? fx : 'Picqer weigert: ' + fx, 'weigert');
+    if(so === 'tijd-op' || so === 'picqer-traag') throw fo('te traag: ' + fx, 'traag');
+    if(r.status === 546 || r.status === 504) throw fo('te traag of te zwaar: Supabase brak de functie af (status ' + r.status + ')', 'traag');
+    throw fo(fx || ('tussenstation gaf status ' + r.status), 'net');
+  }
+  if(!j) throw Object.assign(new Error('tussenstation gaf geen leesbaar antwoord'), { soort:'net', status:r.status });
   return j;
 }
 // id per productcode: eerst de bewaarde index (wh-hist-index, alleen lezen), anders de idindex-pagina's van Picqer
@@ -1716,20 +1735,31 @@ function vkLive(code){
   Object.keys(d).forEach(k => { const a = num(d[k]) || 0; if(k >= grens6) s6 += a; if(k >= grens28) s28 += a; });
   return { m6:s6 / 6, d28:s28, totaal:s6 };
 }
-// één venster [sinds, tot] helemaal ophalen (de functie geeft max. 10 pagina's per aanroep)
+// één venster [sinds, tot] helemaal ophalen (de functie geeft max. 10 pagina's per aanroep); pas als het hele venster binnen is telt het mee
+// (een half venster zou bij het hervatten dubbel tellen)
 async function vkVenster(sinds, tot, som){
-  let off = 0;
+  let off = 0; const deel = {};
   for(let n = 0; n < 60 && off !== null; n++){
     let r;
     for(let poging = 1; ; poging++){
       try{ r = await lvVraag('bestellingen', { sinds, tot, offset:off, paginas:10 }); break; }
-      catch(e){ if(poging >= 4 || e.soort === 'code' || (e.status && e.status < 500 && e.status !== 429)) throw e; await new Promise(z => setTimeout(z, 1000 * Math.min(30, e.wacht || 5 * poging))); }   // 4xx (behalve 429): niet opnieuw
+      catch(e){ if(poging >= 3 || ['code', 'actie', 'weigert'].includes(e.soort) || (e.status && e.status < 500 && e.status !== 429)) throw e; await new Promise(z => setTimeout(z, 1000 * Math.min(30, e.wacht || 5 * poging))); }   // 4xx (behalve 429): niet opnieuw
     }
-    (r.rijen || []).forEach(([dag, code, a]) => { const k = String(code || '').toLowerCase(); if(!k || !dag) return; const x = som[k] = som[k] || {}; x[dag] = (x[dag] || 0) + (num(a) || 0); });
+    (r.rijen || []).forEach(([dag, code, a]) => { const k = String(code || '').toLowerCase(); if(!k || !dag) return; const x = deel[k] = deel[k] || {}; x[dag] = (x[dag] || 0) + (num(a) || 0); });
     if(r.wachtSec) await new Promise(z => setTimeout(z, 1000 * Math.min(30, r.wachtSec)));
     off = r.volgende === undefined ? null : r.volgende;
   }
-  if(off !== null) throw new Error('te veel bestellingen in één venster');
+  if(off !== null) throw Object.assign(new Error('te traag: meer dan 600 pagina\'s orders in 14 dagen (' + sinds.slice(0, 10) + ')'), { soort:'traag' });
+  Object.keys(deel).forEach(k => { const x = som[k] = som[k] || {}; Object.keys(deel[k]).forEach(d => { x[d] = (x[d] || 0) + deel[k][d]; }); });
+}
+// eerste keer 6 maanden: vensters van 14 dagen op een vaste kalender (vanaf maandag 1-1-2024), zodat een afgebroken ophaalronde
+// (herladen, iPhone op slot) bij de volgende keer verder gaat met de vensters die nog ontbreken (cp-verkoop-deel, 2 dagen geldig)
+const VKL_DEEL = 'cp-verkoop-deel', VKL_NUL = new Date(2024, 0, 1);
+function vkDeelLees(){ try{ const x = JSON.parse(localStorage.getItem(VKL_DEEL) || 'null'); return x && x.v === 1 && Date.now() - x.t < 2 * 864e5 ? x : null; }catch(e){ return null; } }
+function vkDeelBewaar(x){ try{ localStorage.setItem(VKL_DEEL, JSON.stringify(x)); }catch(e){} }
+function vkVoortgang(){
+  const e = document.getElementById('vk-voortgang'); if(!e) return;
+  e.textContent = VKL.stap ? VKL.stap.klaar + ' van ' + VKL.stap.totaal + ' blokken van 14 dagen' : '';
 }
 function liveVerkoop(vers){
   if(VKL.bezig) return VKL.bezig;
@@ -1742,20 +1772,27 @@ function liveVerkoop(vers){
       const nu = new Date(), eind = momentTxt(nu), oudste = dagMin(VKL_DAGEN);
       // eerder opgehaald: alleen vanaf 3 dagen vóór de vorige keer opnieuw (statussen en late wijzigingen), anders 6 maanden
       let van = oudste;
-      if(VKL.p && VKL.tot){ const v = dagMin(3, new Date(VKL.tot.replace(' ', 'T'))); if(v > van) van = v; }
+      const bij = !!(VKL.p && VKL.tot);
+      if(bij){ const v = dagMin(3, new Date(VKL.tot.replace(' ', 'T'))); if(v > van) van = v; }
+      else{ const d = new Date(VKL_NUL); while(true){ const e = new Date(d); e.setDate(e.getDate() + 14); if(e > van) break; d.setTime(e.getTime()); } van = d; }
       const vensters = [];
-      for(let d = new Date(van); d < nu; ){ const e = new Date(d); e.setDate(e.getDate() + 14); const laatste = e >= nu; vensters.push([momentTxt(d), laatste ? eind : momentTxt(new Date(e.getTime() - 1000))]); d = e; }
-      const som = {};
+      for(let d = new Date(van); d < nu; ){ const e = new Date(d); e.setDate(e.getDate() + 14); const laatste = e >= nu; vensters.push([momentTxt(d), laatste ? eind : momentTxt(new Date(e.getTime() - 1000)), !laatste]); d = e; }
+      // eerder opgehaalde vensters van een afgebroken eerste ronde overslaan; het lopende venster (tot nu) gaat nooit in het bewaarde deel
+      const deel = bij ? null : (vkDeelLees() || { v:1, t:Date.now(), klaar:{}, som:{} });
+      const som = deel ? deel.som : {}, somOpen = {}, open = vensters.filter(([a, b]) => !(deel && deel.klaar[a + '|' + b]));
+      VKL.stap = { klaar:vensters.length - open.length, totaal:vensters.length }; vkVoortgang();
       let i = 0;
-      await Promise.all([0, 1].map(async () => { while(i < vensters.length){ const [a, b] = vensters[i++]; await vkVenster(a, b, som); } }));
+      await Promise.all([0, 1].map(async () => { while(i < open.length){ const [a, b, dicht] = open[i++]; await vkVenster(a, b, dicht ? som : somOpen); VKL.stap.klaar++; vkVoortgang(); if(deel && dicht){ deel.klaar[a + '|' + b] = 1; deel.t = Date.now(); vkDeelBewaar(deel); } } }));
+      Object.keys(somOpen).forEach(k => { const x = som[k] = som[k] || {}; Object.keys(somOpen[k]).forEach(d => { x[d] = (x[d] || 0) + somOpen[k][d]; }); });
       const vanDag = dagTxt(van), grens = dagTxt(oudste), oud = VKL.p || {}, uit = {};
       Object.keys(oud).forEach(k => { const x = {}; Object.keys(oud[k]).forEach(d => { if(d >= grens && d < vanDag) x[d] = oud[k][d]; }); if(Object.keys(x).length) uit[k] = x; });
       Object.keys(som).forEach(k => { const x = uit[k] = uit[k] || {}; Object.keys(som[k]).forEach(d => { if(d >= grens) x[d] = som[k][d]; }); });
       VKL.p = uit; VKL.t = Date.now(); VKL.tot = eind; VKL.fout = '';
-      try{ localStorage.setItem(VKL_SLEUTEL, JSON.stringify({ v:1, t:VKL.t, tot:eind, p:uit })); }catch(e){}
+      try{ localStorage.removeItem(VKL_DEEL); localStorage.setItem(VKL_SLEUTEL, JSON.stringify({ v:1, t:VKL.t, tot:eind, p:uit })); }catch(e){}
       PLAN = wisCache();
       return true;
     }catch(e){ VKL.fout = e.message || 'geen antwoord'; return false; }
+    finally{ VKL.stap = null; }
   })();
   VKL.bezig = p; p.then(() => { if(VKL.bezig === p) VKL.bezig = null; });
   return p;
@@ -1763,7 +1800,8 @@ function liveVerkoop(vers){
 function liveVerkoopOpen(){
   const sig = () => VKL.t + '|' + VKL.fout;
   const was = sig();
-  liveVerkoop().then(() => { if(sig() !== was && cur && /^#\/c\//.test(location.hash)) rerender(); });
+  // ook opnieuw tekenen als het scherm nog "worden opgehaald…" toont (dezelfde fout als eerder veranderde de stand niet)
+  liveVerkoop().then(() => { if((sig() !== was || document.getElementById('vk-voortgang')) && cur && /^#\/c\//.test(location.hash)) rerender(); });
 }
 // "Verkoop: x/mnd (6 mnd) · y laatste 28 dgn" (zonder live bestellingen: de import van verzonden verkoop, met die uitleg)
 function vkTekst(f, kort){
@@ -1773,7 +1811,8 @@ function vkTekst(f, kort){
 function vkLiveRegel(){
   if(VKL.p && !VKL.fout) return `<div class="card" style="border-left:4px solid var(--ok)"><b>Verkoop live · bestellingen uit Picqer (ook backorders) · ${esc(tijdTxt(VKL.t))}</b></div>`;
   if(VKL.p) return `<div class="card" style="border-left:4px solid var(--warn, #e0a100)"><b>Verkoop: bestellingen uit Picqer van ${esc(fdt(new Date(VKL.t).toISOString()))}</b> — nu niet bij te werken: ${esc(VKL.fout)}.</div>`;
-  return `<div class="card" style="border-left:4px solid var(--bad)"><b>Verkoop niet live${VKL.fout ? ': ' + esc(VKL.fout) : VKL.bezig ? ' (bestellingen worden opgehaald…)' : ' (nog niet opgehaald)'}.</b> Het advies rekent nu met de import van verzonden verkoop.</div>`;
+  if(VKL.bezig) return `<div class="card" style="border-left:4px solid var(--warn, #e0a100)"><b>Verkoop: bestellingen worden opgehaald… <span id="vk-voortgang">${VKL.stap ? VKL.stap.klaar + ' van ' + VKL.stap.totaal + ' blokken van 14 dagen' : ''}</span></b>${VKL.fout ? ' Vorige poging: ' + esc(VKL.fout) + '.' : ''} Tot het klaar is rekent het advies met de import van verzonden verkoop; wat binnen is blijft bewaard.</div>`;
+  return `<div class="card" style="border-left:4px solid var(--bad)"><b>Verkoop niet live${VKL.fout ? ': ' + esc(VKL.fout) : ' (nog niet opgehaald)'}.</b> Het advies rekent nu met de import van verzonden verkoop.</div>`;
 }
 async function regelKoppel(c, r, v){
   const canon = PLOW[String(v || '').trim().toLowerCase()] || await liveZoek(v);

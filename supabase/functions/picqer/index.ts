@@ -29,7 +29,10 @@
 //                              staan; zonder geannuleerde orders en concepten, min geannuleerde aantallen), max. 10 pagina's van 100 orders
 //                              per aanroep; alleen [dag, productcode, aantal], geen klantgegevens. De app vraagt door tot volgende = null.
 //  De geschiedenis-acties (ook bestellingen): 20 s per Picqer-aanvraag, de hele aanroep stopt zelf na 45 s; elk antwoord (ook een fout) is JSON
-//  met CORS en diag { picqerStatus, ms, paginas, retryAfter }; bij een fout ook { fout, status, wacht } en bij 429 wachtSec.
+//  met CORS en diag { picqerStatus, ms, paginas, retryAfter }; bij een fout ook { fout, status, wacht, soort } en bij 429 wachtSec.
+//  soort = picqer-weigert (sleutel of verzoek geweigerd) · picqer-druk (429) · picqer-traag (geen antwoord op tijd) · picqer-weg (niet bereikbaar)
+//          · tijd-op (functie stopt zelf) · ongeldig (verkeerde vraag van de app)
+//    versie      zonder koppelcode: { versie, acties } — om te zien of de nieuwe versie live staat (geen gegevens uit Picqer)
 // =====================================================================
 
 const DOMEIN = (Deno.env.get("PICQER_DOMAIN") || "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -39,6 +42,9 @@ const MAGAZIJN = Number(Deno.env.get("PICQER_WAREHOUSE") || "3857");
 const BASIS = Deno.env.get("PICQER_BASE") || (DOMEIN ? "https://" + (DOMEIN.includes(".") ? DOMEIN : DOMEIN + ".picqer.com") + "/api/v1" : "");
 const HERKOMST = ["https://daan-vb.github.io"];
 const UA = "IVOL Warehouse (github.com/Daan-vB/Magazijn-Tools)";
+const VERSIE = "2026-11-09.2";   // bij elke wijziging ophogen: actie "versie" laat zien wat er live staat
+const ACTIES = ["status", "vandaag", "producten", "picklijst", "catalogus", "locaties", "ontvangsten", "keten", "ontvangstenlijst", "verplaatsingen",
+  "historielicht", "idindex", "historietest", "bestellingen", "mutaties", "locatielijst", "niveaus", "versie"];
 
 function cors(origin: string | null): Record<string, string> {
   const ok = origin && (HERKOMST.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin));
@@ -58,7 +64,8 @@ function antwoord(data: unknown, status: number, origin: string | null): Respons
 }
 class Fout extends Error {
   status: number;
-  constructor(bericht: string, status = 502) { super(bericht); this.status = status; }
+  soort: string;
+  constructor(bericht: string, status = 502, soort = "") { super(bericht); this.status = status; this.soort = soort || (status === 400 ? "ongeldig" : ""); }
 }
 const wacht = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -468,7 +475,7 @@ const diagNu = (rd: Ronde): Diag => ({ ...rd.diag, ms: Date.now() - rd.t0 });
 class LichtFout extends Fout {
   wacht: boolean;
   wachtSec: number | null;
-  constructor(bericht: string, status: number, wacht: boolean, wachtSec: number | null = null) { super(bericht, status); this.wacht = wacht; this.wachtSec = wachtSec; }
+  constructor(bericht: string, status: number, wacht: boolean, wachtSec: number | null = null, soort = "") { super(bericht, status, soort); this.wacht = wacht; this.wachtSec = wachtSec; }
 }
 // Retry-After van Picqer in seconden (getal of HTTP-datum), null als hij ontbreekt
 function retryAfter(r: Response): number | null {
@@ -482,7 +489,7 @@ async function pqLicht(pad: string, rd: Ronde, pogingen = 3): Promise<any> {
   const naam = pad.split("?")[0];
   for (let poging = 1; ; poging++) {
     const rest = rd.einde - Date.now();
-    if (rest < 3000) throw new LichtFout("Tijd op: de functie stopt zelf na " + LICHT_BUDGET_MS / 1000 + " s (" + naam + ")", 503, true);
+    if (rest < 3000) throw new LichtFout("Tijd op: de functie stopt zelf na " + LICHT_BUDGET_MS / 1000 + " s (" + naam + ")", 503, true, null, "tijd-op");
     const ac = new AbortController();
     const klok = setTimeout(() => ac.abort(), Math.min(PQ_TIMEOUT_MS, rest - 1000));
     let r: Response, t: string;
@@ -496,28 +503,28 @@ async function pqLicht(pad: string, rd: Ronde, pogingen = 3): Promise<any> {
       rd.diag.picqerStatus = r.status;
       t = await r.text();
     } catch (_e) {
-      if (ac.signal.aborted) throw new LichtFout("Picqer antwoordde niet binnen " + Math.round(Math.min(PQ_TIMEOUT_MS, rest - 1000) / 1000) + " s (" + naam + ")", 503, true);
+      if (ac.signal.aborted) throw new LichtFout("Picqer antwoordde niet binnen " + Math.round(Math.min(PQ_TIMEOUT_MS, rest - 1000) / 1000) + " s (" + naam + ")", 503, true, null, "picqer-traag");
       if (poging < pogingen && Date.now() + 1000 * poging + 3000 < rd.einde) { await wacht(1000 * poging); continue; }
-      throw new LichtFout("Picqer niet bereikbaar (" + naam + ")", 502, true);
+      throw new LichtFout("Picqer niet bereikbaar (" + naam + ")", 502, true, null, "picqer-weg");
     } finally { clearTimeout(klok); }
     if (r.status === 429) {
       const ra = retryAfter(r);
       rd.diag.retryAfter = ra;
       const sec = ra ?? 15;
       if (poging < pogingen && sec <= 10 && Date.now() + sec * 1000 + 5000 < rd.einde) { await wacht(sec * 1000); continue; }
-      throw new LichtFout("Picqer gaf status 429 op " + naam + ": te veel verzoeken" + (ra ? ", Picqer vraagt " + ra + " s te wachten" : " (geen Retry-After)"), 429, true, sec);
+      throw new LichtFout("Picqer gaf status 429 op " + naam + ": te veel verzoeken" + (ra ? ", Picqer vraagt " + ra + " s te wachten" : " (geen Retry-After)"), 429, true, sec, "picqer-druk");
     }
     if (r.status >= 500) {
       if (poging < pogingen && Date.now() + 2000 * poging + 5000 < rd.einde) { await wacht(2000 * poging); continue; }
-      throw new LichtFout("Picqer gaf status " + r.status + " op " + naam, 502, true);
+      throw new LichtFout("Picqer gaf status " + r.status + " op " + naam, 502, true, null, "picqer-weg");
     }
-    if (r.status === 401 || r.status === 403) throw new LichtFout("Picqer weigert de API-sleutel (status " + r.status + ")", 502, false);
+    if (r.status === 401 || r.status === 403) throw new LichtFout("Picqer weigert de API-sleutel (status " + r.status + ")", 502, false, null, "picqer-weigert");
     if (!r.ok) {
       let m = ""; try { m = JSON.parse(t).error_message || ""; } catch (_e) { /* geen json */ }
-      throw new LichtFout("Picqer gaf status " + r.status + " op " + naam + (m ? ": " + m : ""), 502, false);
+      throw new LichtFout("Picqer weigert het verzoek: status " + r.status + " op " + naam + (m ? ": " + m : ""), 502, false, null, "picqer-weigert");
     }
     let j: any;
-    try { j = JSON.parse(t); } catch (_e) { throw new LichtFout("Picqer gaf geen geldige gegevens (" + naam + ")", 502, true); }
+    try { j = JSON.parse(t); } catch (_e) { throw new LichtFout("Picqer gaf geen geldige gegevens (" + naam + ")", 502, true, null, "picqer-weg"); }
     rd.diag.paginas++;
     return j;
   }
@@ -578,7 +585,7 @@ async function bestellingen(sindsTxt: string, totTxt: string, paginasTxt: string
   const startOff = Math.max(0, Math.floor((parseInt(offsetTxt || "0", 10) || 0) / 100) * 100);
   const pad = "orders?sincedate=" + encodeURIComponent(sinds) + (tot ? "&untildate=" + encodeURIComponent(tot) : "");
   const som = new Map<string, number>();
-  let gedaan = 0, orders = 0, klaar = false, onderbroken = "", wachtSec: number | null = null;
+  let gedaan = 0, orders = 0, buiten = 0, klaar = false, onderbroken = "", wachtSec: number | null = null;
   for (let p = 0; p < n && !klaar; p++) {
     if (p > 0 && !tijdVoorPagina(rd)) { onderbroken = "tijd op na " + p + " pagina's"; break; }
     let pagina: any;
@@ -588,11 +595,14 @@ async function bestellingen(sindsTxt: string, totTxt: string, paginasTxt: string
       onderbroken = e.message; wachtSec = e.wachtSec; break;
     }
     if (!Array.isArray(pagina) || !pagina.length) { klaar = true; break; }
+    let ouder = 0;
     for (const o of pagina) {
       const st = String(o.status || "").toLowerCase();
-      if (st === "cancelled" || st === "concept") continue;
-      const dag = String(o.created || o.created_at || "").slice(0, 10);
+      const moment = String(o.created || o.created_at || "").replace("T", " ").slice(0, 19), dag = moment.slice(0, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dag)) continue;
+      // buiten het gevraagde venster (als Picqer sincedate/untildate negeert): niet tellen, anders telt een order in twee vensters
+      if (moment < sinds || (tot && moment > tot)) { buiten++; if (moment < sinds) ouder++; continue; }
+      if (st === "cancelled" || st === "concept") continue;
       orders++;
       for (const r of (Array.isArray(o.products) ? o.products : [])) {
         if (r.partof_idorder_product) continue;   // onderdeel van een samengesteld product: telt via het hoofdproduct
@@ -603,10 +613,12 @@ async function bestellingen(sindsTxt: string, totTxt: string, paginasTxt: string
       }
     }
     gedaan++;
-    if (pagina.length < 100) klaar = true;
+    // nieuwste eerst en de hele pagina ouder dan het venster (Picqer negeert het datumfilter): verder terug heeft geen zin
+    const nieuwsteEerst = Number(pagina[0]?.idorder) > Number(pagina[pagina.length - 1]?.idorder);
+    if (pagina.length < 100 || (nieuwsteEerst && ouder === pagina.length)) klaar = true;
   }
   return {
-    bron: "picqer-bestellingen", versie: 1, sinds, tot, opgehaald: new Date().toISOString(), orders,
+    bron: "picqer-bestellingen", versie: 1, sinds, tot, opgehaald: new Date().toISOString(), orders, buiten,
     rijen: [...som].map(([k, a]) => { const [d, c] = k.split("\t"); return [d, c, a]; }),
     volgende: klaar ? null : startOff + gedaan * 100,
     ...(onderbroken ? { onderbroken } : {}), ...(wachtSec ? { wachtSec } : {}), diag: diagNu(rd),
@@ -669,7 +681,7 @@ async function licht(actie: string, url: URL, origin: string | null): Promise<Re
   } catch (e) {
     const f = e instanceof Fout ? e : new Fout(String((e as Error)?.message || e));
     const lf = e instanceof LichtFout ? e : null;
-    return antwoord({ fout: f.message, status: f.status, wacht: lf ? lf.wacht : f.status !== 400, ...(lf && lf.wachtSec ? { wachtSec: lf.wachtSec } : {}), diag: diagNu(rd) }, f.status, origin);
+    return antwoord({ fout: f.message, status: f.status, soort: f.soort || "", wacht: lf ? lf.wacht : f.status !== 400, ...(lf && lf.wachtSec ? { wachtSec: lf.wachtSec } : {}), diag: diagNu(rd) }, f.status, origin);
   } finally { clearTimeout(noodrem); }
 }
 
@@ -678,6 +690,8 @@ Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors(origin) });
   if (req.method !== "GET") return antwoord({ fout: "Alleen lezen: deze functie accepteert alleen GET." }, 405, origin);
+  // versie: zonder koppelcode en zonder Picqer, alleen welke versie en welke acties live staan
+  if (new URL(req.url).searchParams.get("actie") === "versie") return antwoord({ versie: VERSIE, acties: ACTIES }, 200, origin);
   if (!BASIS || !SLEUTEL) return antwoord({ fout: "PICQER_DOMAIN of PICQER_KEY ontbreekt bij de Secrets in Supabase." }, 500, origin);
   if (!CODE) return antwoord({ fout: "IVOL_CODE ontbreekt bij de Secrets in Supabase." }, 500, origin);
   if ((req.headers.get("x-ivol-code") || "").trim() !== CODE) return antwoord({ fout: "Koppelcode klopt niet.", code: "koppelcode" }, 401, origin);
@@ -702,9 +716,9 @@ Deno.serve(async (req: Request) => {
     if (actie === "mutaties") return antwoord(await mutaties(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "locatielijst") return antwoord(await locatielijst(url.searchParams.get("van") || "0"), 200, origin);
     if (actie === "niveaus") return antwoord(await niveaus(url.searchParams.get("ids") || ""), 200, origin);
-    return antwoord({ fout: "Onbekende actie: " + actie }, 400, origin);
+    return antwoord({ fout: "Onbekende actie: " + actie, soort: "onbekende-actie", versie: VERSIE }, 400, origin);
   } catch (e) {
     const f = e instanceof Fout ? e : new Fout(String((e as Error)?.message || e));
-    return antwoord({ fout: f.message }, f.status, origin);
+    return antwoord({ fout: f.message, ...(f.soort ? { soort: f.soort } : {}) }, f.status, origin);
   }
 });

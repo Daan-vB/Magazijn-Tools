@@ -326,6 +326,23 @@ function check(d, regel, waar, x){
     check('D43', '§7 Verkoop in Containers = bestellingen uit Picqer (ook backorders): KOKOS100BLK-24 en KOKOS100NAT-24 (NL-300) verkoop > 0, advies nooit "geen verkoophistorie"', id && goed && T2.blocked.length === 0, k.map(t => t.slice(0, 220)).join(' || '));
     await T2.b.close();
   }
+  /* ---------- Containers: "Verkoop niet live" noemt de echte reden (Daan 09-11) ---------- */
+  if(doe('D48')){
+    const T3 = await start(), P3 = T3.p; let antw = null;
+    await P3.route(/supabase\.co\/functions\/v1\/picqer/, r => {
+      const cors = { 'access-control-allow-origin':'*', 'access-control-allow-headers':'*' };
+      if(r.request().method() === 'OPTIONS') return r.fulfill({ status:204, headers:cors });
+      return r.fulfill({ status:antw[0], contentType:'application/json', headers:cors, body:JSON.stringify(antw[1]) });
+    });
+    await P3.goto(B + 'containerplanning.html'); await P3.waitForTimeout(3000);
+    const id = await P3.evaluate(async () => { try{ const r = await (await fetch('https://jarbgetbwkjtxwtcfwmq.supabase.co/rest/v1/containers?select=id&pakbon_ref=eq.NL-300', { headers:{ apikey:'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA' } })).json(); return r[0].id; }catch(e){ return 0; } });
+    const reden = async a => { antw = a; await P3.evaluate(() => { localStorage.setItem('ivol-koppelcode', 'test'); localStorage.removeItem('cp-verkoop-live'); localStorage.removeItem('cp-verkoop-deel'); }); await P3.goto('about:blank'); await P3.goto(B + 'containerplanning.html#/c/' + id + '/verdeling');
+      await P3.waitForFunction(() => /Verkoop niet live:/.test(document.body.innerText), null, { timeout:90000 }).catch(() => {}); return P3.evaluate(() => (document.body.innerText.match(/Verkoop niet live[^\n]*/) || [''])[0]); };
+    const r = [await reden([400, { fout:'Onbekende actie: bestellingen' }]), await reden([429, { fout:'te veel', soort:'picqer-druk' }]), await reden([502, { fout:'Picqer weigert de API-sleutel (status 401)', soort:'picqer-weigert' }]), await reden([503, { fout:'Tijd op', soort:'tijd-op' }])];
+    const fn = fs.readFileSync(path.join(__dirname, '..', '..', 'supabase', 'functions', 'picqer', 'index.ts'), 'utf8');
+    check('D48', '§7 "Verkoop niet live" noemt de echte reden (functie kent de actie niet · Picqer weigert · te traag) en de functie heeft de actie versie (zonder koppelcode)', /kent de actie "bestellingen" niet/.test(r[0]) && /Picqer weigert: te veel verzoeken/.test(r[1]) && /Picqer weigert de API-sleutel/.test(r[2]) && /te traag/.test(r[3]) && /actie"\) === "versie"/.test(fn) && T3.blocked.length === 0, r.join(' || '));
+    await T3.b.close();
+  }
   /* ---------- repo ---------- */
   const root = path.join(__dirname, '..', '..');
   if(doe('D6')){
