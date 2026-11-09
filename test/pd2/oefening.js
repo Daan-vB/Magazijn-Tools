@@ -44,7 +44,7 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
   check('Groepsbalk alleen zichtbaar als er iets is aangevinkt', !(await P.isVisible('#pd2-actie .pd2-actie')));
   check('Onderaan de stap: "Alle voorstellen kloppen"', await P.isVisible('#pd2-stapacties [data-a="stapklopt"]'));
   await P.check('.pd2-alle input[data-a="selalle"]'); await wacht();
-  check('Na aanvinken: groepsbalk met Selectie is (6 soorten) en Selectie klopt', await P.isVisible('#pd2-actie [data-a="selklopt"]') && await ev(() => document.querySelectorAll('#pd2-actie [data-a="selsoort"]').length === 6));
+  check('Na aanvinken: groepsbalk met Selectie is (8 soorten, blauwdruk §8) en Selectie klopt', await P.isVisible('#pd2-actie [data-a="selklopt"]') && await ev(() => document.querySelectorAll('#pd2-actie [data-a="selsoort"]').length === 8));
   await P.click('#pd2-actie [data-a="selklopt"]'); await wacht(300);
   check('Opdracht p1 (Selectie klopt) vinkt zichzelf af', await done('pallet', 'p1'));
   const naKlopt = await Promise.all(rijen.map(st));
@@ -72,7 +72,7 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
   check('Klik op het voorgestelde knopje slaat de soort op (bevestigd)', (await st(ant)).soSt === 'bevestigd');
   await stap('hoev');
   const ks = await ev(c => [...document.querySelectorAll(`article.pd2-kaart[data-c="${c}"] .pd2-velden > .pd2-f`)].map(x => x.dataset.kc).join(), ant);
-  check('Stap 3 bij Deel: alleen stuks per pallet, palletmaat en hoogte', ks === 'spp,maat,hoogte', ks);
+  check('Stap 3 bij Deel: stuks per pallet, palletmaat en hoogte; aanvullen bij en max op pick alleen als ze ontbreken (CLAUDE.md §5)', /^spp,maat,hoogte(,lvl)?(,maxpick)?$/.test(ks), ks);
   const oudSpp = await ev(c => PD2R.waarde(c, 'spp').v, ant);
   await vul(ant, 'spp', (parseInt(oudSpp) || 40) + 7);
   check('Stuks per pallet aangepast; opdracht d2 gedaan', (await ev(c => PD2R.waarde(c, 'spp').st, ant)) === 'aangepast' && await done('deel', 'd2'));
@@ -81,7 +81,7 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
   await kaart(ant).locator('select[data-k="maat"]').selectOption('__anders'); await wacht();
   await P.fill('#pd2-maatin', '100 x 130'); await modalOk();
   check('Palletmaat "anders…": eigen maat typen', (await ev(c => PD2R.waarde(c, 'maat').v, ant)) === '100x130');
-  check('Product is pas afgerond als alle drie de stappen klaar zijn (gewicht nog open)', await ev(c => !PD2R.status(c).af && PD2R.status(c).stap.hoev && !PD2R.status(c).stap.gewicht, ant));
+  check('Product is pas afgerond als alle drie de stappen klaar zijn', await ev(c => { const s = PD2R.status(c); return s.af === !!(s.stap.soort && s.stap.gewicht && s.stap.hoev); }, ant));
   // pick: alleen max op pick
   const pk = await ev(() => Object.keys(WH.D.P).find(c => PD2R.actief(c) && !PD2R.isKoppel(c) && !PD2R.isSam(c) && WHPD2.segVan(c) === 'pick' && PD2R.info(c).f.pick.length && PD2R.info(c).ink && !PD2R.rolKand(c) && !PD2R.po(c)));
   await naarFam(pk, 'hoev');
@@ -97,8 +97,8 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
   rijen = await kaarten();
   check('Waterhog zonder voorraad staat in de maat, stap Soort', rijen.length > 1 && await ev(c => /waterhog/i.test(PD2R.naamVan(c)), rijen[0]), rijen.length + ' kaarten');
   await kaart(rijen[0]).locator('[data-a="soortkies"][data-v="weg"]').click(); await wacht(250);
-  check('Weg: alleen één keuzemenu Uitlopend / Backorder / Archief', await kaart(rijen[0]).locator('select[data-k="wegkeuze"] option:not([value=""])').count() === 3 && await kaart(rijen[0]).locator('.pd2-velden').count() === 0);
-  await kies(rijen[0], 'wegkeuze', 'backorder');
+  check('Weg: alleen één keuzemenu Uitlopend / Archief (Backorder is een eigen soort)', await kaart(rijen[0]).locator('select[data-k="wegkeuze"] option:not([value=""])').count() === 2 && await kaart(rijen[0]).locator('.pd2-velden').count() === 0);
+  await kaart(rijen[0]).locator('[data-a="soortkies"][data-v="backorder"]').click(); await wacht(250);
   check('Opdracht w1 (Backorder) gedaan', await done('weg', 'w1'));
   await kaart(rijen[1]).locator('[data-a="soortkies"][data-v="weg"]').click(); await wacht(250);
   await kies(rijen[1], 'wegkeuze', 'archief');
