@@ -242,7 +242,7 @@ function check(d, regel, waar, x){
   const root = path.join(__dirname, '..', '..');
   if(doe('D6')){
     const files = execSync('git ls-files', { cwd:root }).toString().split('\n').filter(Boolean);
-    const geheim = files.filter(f => !/\.(png|jpg|ico)$/.test(f) && f !== 'test/pd2/daantoets.js').filter(f => { try{ const s = fs.readFileSync(path.join(root, f), 'utf8'); return /service_role|sb_secret_[A-Za-z0-9]/.test(s); }catch(e){ return false; } });
+    const geheim = files.filter(f => !/\.(png|jpg|ico)$/.test(f) && !['test/pd2/daantoets.js', 'test/pd2/DAANTOETS.md'].includes(f)).filter(f => { try{ const s = fs.readFileSync(path.join(root, f), 'utf8'); return /service_role|sb_secret_[A-Za-z0-9]/.test(s); }catch(e){ return false; } });
     const exp = files.filter(f => /\.(xlsx|xls|csv)$/i.test(f));
     check('D6', '§1 Geen API-sleutels of bedrijfsdata-exports in de repo', !geheim.length && !exp.length, geheim.concat(exp).join(','));
   }

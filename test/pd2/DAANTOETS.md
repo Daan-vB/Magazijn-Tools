@@ -14,7 +14,7 @@ Draaien: `node test/pd2/daantoets.js` (repo op poort 8811). Moet groen zijn vó�
 | 1 | Alles live; nooit om een export, screenshot of bestand vragen | TD, DL, PD2 | geen tekst "exporteer", "upload een export", "stuur een screenshot" in de schermen | D3 |
 | 1 | Productcode is heilig | alle | elke geschreven productdata-rij heeft precies de productcode uit Picqer | D4 |
 | 1 | Nooit stil wijzigen wat Daan bevestigde | TD, DL, PD2 | alle tabs, Doorloop en Productdata 2.0 openen zonder tik = 0 schrijfacties | D5 |
-| 1 | Geen API-sleutels of bedrijfsdata in de repo | repo | geen `service_role`, `sb_secret`, koppelcode-waarde of `.xlsx/.csv`-export in de repo | D6 |
+| 1 | Geen API-sleutels of bedrijfsdata in de repo | repo | geen geheime Supabase-sleutel (service- of secret-sleutel), koppelcode-waarde of `.xlsx/.csv`-export in de repo | D6 |
 | 2 | Eén vraag tegelijk, rustig scherm, geen tabellen met horizontaal scrollen | DL, TD | Doorloop: precies één `.vraag`; Te doen: geen `<table>`; 390 en 1440 px zonder horizontaal scrollen | D7, D8 |
 | 2 | Schermvullend (390/1440/2560, zoom 50%/200%) | alle | `schermvullend.js` (hoort bij de regressie); daantoets meet Te doen op 390, 1440 en 2560 px | D8 |
 | 2 | Samenvoegen: elke lijst en tab per familie (groep → familie → product), alles aangevinkt, één vraag, "Selectie is: …", uitvinken voor uitzonderingen | TD, DL, PD2 | elke tab met punten toont groepen met "Selectie is:", alles aangevinkt, per familie een vinkje; uitvinken → blijft staan na het besluit | D9, D10 |
