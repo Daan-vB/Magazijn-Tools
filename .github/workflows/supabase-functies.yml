@@ -36,5 +36,5 @@ jobs:
         run: |
           for f in ${{ steps.welke.outputs.lijst }}; do
             [ -d "supabase/functions/$f" ] || continue
-            echo "→ $f"; supabase functions deploy "$f" --project-ref "$PROJECT" --no-verify-jwt
+            echo "→ $f"; supabase functions deploy "$f" --project-ref "$PROJECT" --no-verify-jwt --yes
           done
