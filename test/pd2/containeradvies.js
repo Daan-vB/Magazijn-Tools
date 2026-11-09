@@ -1,13 +1,15 @@
 // Containerplanning advies: hele aantallen, losse goederen in hele dozen, geen advies zonder gecontroleerde data.
 // Echte database alleen lezen; opslaan (PATCH) wordt onderschept en nooit verstuurd.
-const { start } = require('./opzet.js');
+const { start, containerVoorBesluit } = require('./opzet.js');
 const ok = [], fout = [];
 const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' : 'FOUT ') + n + (x ? ' — ' + x : '')); };
 (async () => {
   const T = await start(); const P = T.p, onderschept = [];
-  await P.route(/supabase\.co\/rest\/v1\/containers\?/, r => { if(r.request().method() === 'GET') return r.continue(); onderschept.push(r.request().method()); return r.fulfill({ status:200, contentType:'application/json', body:'[]' }); });
+  await P.route(/supabase\.co\/rest\/v1\/containers\?/, r => { if(r.request().method() === 'GET') return r.fallback(); onderschept.push(r.request().method()); return r.fulfill({ status:200, contentType:'application/json', body:'[]' }); });
+  // Daan werkt live verder (container 13 is afgerond): de stand van vóór zijn verdeling alleen bij het lezen nagebootst
+  await containerVoorBesluit(P, 13, ['Snowbag', 'SWB-165-BLA', '42x22rub100']);
   const url = (h) => (process.env.PD2_URL || 'http://localhost:8811/') + 'containerplanning.html' + h;
-  await P.goto(url('#/c/13/verdeling')); await P.waitForTimeout(9000);
+  await P.goto(url('#/c/13/verdeling')); await P.waitForSelector('#v-Snowbag', { timeout:60000 }).catch(() => {}); await P.waitForTimeout(3000);
   const tekst = c => P.evaluate(c => { const k = document.getElementById('v-' + c); return k ? k.innerText : ''; }, c);   // de verdeelkaart (niet het invulblok)
   for(const c of ['Snowbag', 'SWB-165-BLA']){ const t = await tekst(c); check(c + ': advies "nog te bepalen — verdeel zelf"', /nog te bepalen, verdeel zelf/.test(t), t.replace(/\n+/g, ' | ').slice(0, 120)); }
   // Per 20 / Per 15: 42x22rub100 gaat deels naar pick: veelvoud van "Per"

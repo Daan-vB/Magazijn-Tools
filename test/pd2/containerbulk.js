@@ -1,6 +1,6 @@
 // Soort Bulk: opslaan zet ook pick = nee (Te controleren, "Selectie is: Bulk"); containers: Bulk met stuks per pallet = "pallets à n → Bulk (up)"; keuzelijst ook op de productkaart (Verdeling).
 // Echte database alleen lezen; alle schrijfacties onderschept.
-const { start } = require('./opzet.js');
+const { start, containerVoorBesluit } = require('./opzet.js');
 const ok = [], fout = [];
 const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' : 'FOUT ') + n + (x ? ' — ' + x : '')); };
 const KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
@@ -9,7 +9,9 @@ const KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
   const base = process.env.PD2_URL || 'http://localhost:8811/';
   // 1. Te controleren: Selectie is: Bulk voor Sprinttrack
   await P.goto(base + 'ivol.html#/nakijken');
-  await P.waitForFunction(() => window.WHX && WHX.S.pd && window.PD2R && PD2R.S.klaar && document.querySelector('.x-vraag'), null, { timeout:240000 });
+  await P.waitForFunction(() => window.WHX && WHX.S.pd && window.PD2R && PD2R.S.klaar && !PD2R.S.uitSnap && document.querySelector('.x-vraag'), null, { timeout:240000 });
+  // Daan werkt live verder (Sprinttrack staat al op Bulk): de soort van de Sprinttrack-familie alleen in het geheugen weer open, zoals vóór zijn besluit
+  await P.evaluate(() => { Object.keys(WH.D.P).filter(c => /sprinttrack/i.test(PD2R.naamVan(c))).forEach(c => { const x = PD2R.S.o.p[c]; if(x){ const y = JSON.parse(JSON.stringify(x)); delete y.so; delete y.weg; PD2R.S.o.p[c] = y; } const r = WHPD.S.pd[c]; if(r && r.data){ const d = Object.assign({}, r.data); delete d.opslag; delete d.pick; delete d.uitlopend; WHPD.S.pd[c] = Object.assign({}, r, { data:d }); } PD2R.ongeldig(c); }); PD2R.dataVers(); try{ WHX.herteken(); }catch(e){} });
   const q = await P.evaluate(() => { const L = WHX.vraagLijst(), q = L.find(y => y.k === 'soort' && /sprinttrack/i.test(PD2R.naamVan(y.c))); if(!q) return null; L.filter(y => !(y.fam === q.fam && y.k === 'soort')).forEach(y => WHX.S.later.add(y.c + '|' + y.k)); WHX.herteken(); return { c:q.c, fam:q.fam, n:L.filter(y => y.fam === q.fam && y.k === 'soort').length }; });
   check('Sprinttrack-familie staat open in Te controleren', !!q, JSON.stringify(q));
   if(q){
@@ -29,8 +31,9 @@ const KEY = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
     check('wisselen van Bulk naar Pick laat pick = nee staan', na.every(x => x.data.pick === undefined || x.data.pick === 'nee') && na.every(x => x.data.opslag === 'pick'), JSON.stringify(na.map(x => x.data)));
   }
   // 2 en 3. containers
-  await P.route(/supabase\.co\/rest\/v1\/(containers|catalog)\?/, r => { const qq = r.request(); if(qq.method() === 'GET') return r.continue(); onder.push({ m:qq.method(), u:qq.url(), b:qq.postData() || '' }); return r.fulfill({ status:200, contentType:'application/json', body:qq.method() === 'PATCH' ? JSON.stringify([{ id:13, updated_at:new Date().toISOString() }]) : '[]' }); });
-  await P.goto(base + 'containerplanning.html#/c/13/verdeling'); await P.waitForSelector('#tabbody', { timeout:90000 }); await P.waitForTimeout(3000);
+  await P.route(/supabase\.co\/rest\/v1\/(containers|catalog)\?/, r => { const qq = r.request(); if(qq.method() === 'GET') return r.fallback(); onder.push({ m:qq.method(), u:qq.url(), b:qq.postData() || '' }); return r.fulfill({ status:200, contentType:'application/json', body:qq.method() === 'PATCH' ? JSON.stringify([{ id:13, updated_at:new Date().toISOString() }]) : '[]' }); });
+  await containerVoorBesluit(P, 13, ['Snowbag', 'SWB-165-BLA', '42x22rub100']);   // container 13 is intussen afgerond: de stand van vóór Daans verdeling bij het lezen
+  await P.goto(base + 'containerplanning.html#/c/13/verdeling'); await P.waitForSelector('#v-Snowbag', { timeout:90000 }).catch(() => {}); await P.waitForTimeout(3000);
   const kaart = () => P.evaluate(() => { const k = document.querySelector('#v-Snowbag'); return k ? { sel:!!k.querySelector('[data-llkeuze="Snowbag"]'), txt:k.innerText.replace(/\s+/g, ' ') } : null; });
   let k = await kaart();
   check('Snowbag-kaart (bij lossen bepalen) heeft zelf de keuzelijst', k && k.sel && !/kies bij "Na het lossen"/.test(k.txt), k && k.txt.slice(-120));

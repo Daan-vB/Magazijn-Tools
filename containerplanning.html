@@ -1965,7 +1965,7 @@ function adviesKern(c, pool, eerder){
       porties.push({ soort:'los', n:pool.losU, dest:R.losdest });
       uitleg.push('alles los naar ' + DEST[R.losdest].nl + (R.verplaats ? ', per ' + nf(R.verplaats) + ' naar pick verplaatsen' : ''));
     } else if(R.pickmax || R.restdest || R.bulk || R.maxpal){
-      const room = R.pickmax ? Math.max(0, R.pickmax - Math.max(0, vrij)) : pool.losU;
+      const room = R.pickmax ? Math.max(0, R.pickmax - Math.max(0, vrij - Math.min(Math.max(0, vrij), geenPlek(code)))) : pool.losU;   // voorraad op geen specifieke locatie telt niet als pick-voorraad (CLAUDE.md §7)
       const hierU = R.bulk || R.maxpal ? pool.losU : Math.min(pool.losU, naarDozen(room, false));
       if(hierU > 0) porties.push({ soort:'los', n:hierU, dest:'PICK' });
       if(pool.losU - hierU > 0) porties.push({ soort:'los', n:pool.losU - hierU, dest:R.restdest || 'VST' });
@@ -2009,7 +2009,7 @@ function adviesKern(c, pool, eerder){
   }
   if(PDa) uitleg.push('productdata: ' + SN[PDa.soort] + ', max op pick ' + nf(PDa.max) + (PDa.lvl !== null ? ', bij ' + nf(PDa.lvl) : '') + ', pick nu ' + nf(PDa.stock) + (PDa.zonder > 0 ? ' (' + nf(PDa.zonder) + ' op geen specifieke locatie telt niet mee)' : '') + (PDa.soort === 'deel' ? (PDa.pickU ? ' → ' + nf(PDa.pickU) + ' naar pick, rest Bulk (up)' : ' → alles naar Bulk (up) of VST, pick is vol genoeg') : PDa.soort === 'pallet' ? ' → hele pallet naar pick alleen als pick ≤ aanvullen bij en er past een hele pallet bij' : ' → tot max op pick, rest Bulk/VST'));
   if(PDa && ['deel', 'pallet', 'pick', 'mix'].includes(PDa.soort) && !String((P[code] || {}).locaties_hm || '').split(',').some(l => /^[A-Z]{2}\d{2}[A-D]0\d$/.test(l.trim()) || /^AH\d{2}[A-D]\d{2}$/.test(l.trim()))) uitleg.push('picklocatie nog aanmaken in Picqer (' + code + ' staat in Te doen → Picklocaties)');
-  else if(PDd && PDd.soort) uitleg.push('(oude regel: productdata mist ' + (PDd.maxpick > 0 ? 'de soort' : 'max op pick') + ')');
+  else if(!PDa && PDd && PDd.soort) uitleg.push('(oude regel: productdata mist ' + (PDd.maxpick > 0 ? 'de soort' : 'max op pick') + ')');
   else uitleg.push('(oude regel)');
   porties.forEach(x => { x.n = Math.round(x.n); });   // nooit decimalen in een verdeling
   return { porties, uitleg:uitleg.join(' · '), feiten:f, eerder, proj, verbruik, uitVst, mnd };

@@ -7,6 +7,9 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   const T = await start(); const P = T.p;
   await P.goto((process.env.PD2_URL || 'http://localhost:8811/') + 'ivol.html#/nakijken');
   await P.waitForFunction(() => window.WHX && WHX.S.pd && window.PD2R && PD2R.S.klaar && document.querySelector('.x-vraag'), null, { timeout:240000 });
+  // Daan werkt live verder: ST110-GREY staat nu zonder voorraad (dan stelt de data Backorder voor). De uitgangssituatie van deze test — een paar
+  // stuks op pick, geen palletbewijs — alleen in het geheugen nagebootst (niets geschreven)
+  await P.evaluate(() => { const c = 'ST110-GREY', p = WH.D.P[c]; if(p && !(+p.voorraad_hm > 0)){ p.voorraad_hm = 3; PD2R.dataVers(); } });
   const r = await P.evaluate(() => { const L = WHX.vraagLijst({}), so = L.filter(q => q.k === 'soort');
     return { n:L.length, so:so.map(q => ({ c:q.c, v:q.v, uit:q.uit, bewijs:PD2R.info(q.c).bewijs || '' })),
       st:['ST105-GREY', 'ST110-GREY'].map(c => ({ c, bewijs:PD2R.info(c).bewijs || '', v:(PD2R.info(c).vsSo || {}).v, why:(PD2R.info(c).vsSo || {}).why || '', vraag:(so.find(q => q.c === c) || {}).uit || '' })) }; });

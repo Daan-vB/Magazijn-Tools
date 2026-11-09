@@ -1,12 +1,14 @@
 // Wacht op jouw tik: waarden aanpasbaar en compact (06-11). Echte data (ook Daans antwoorden) alleen lezen; schrijven gaat naar een kopie in het geheugen.
-const { start } = require('./opzet.js');
+const { start, voorBesluit } = require('./opzet.js');
 const ok = [], fout = [];
 const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' : 'FOUT ') + n + (x ? ' — ' + x : '')); };
 (async () => {
   const T = await start({ echt:true }); const P = T.p, B = process.env.PD2_URL || 'http://localhost:8811/';
   const ev = (f, a) => P.evaluate(f, a);
   const num = t => +String(t).replace(/\D/g, '');
-  const open = async (stap, vp) => { await P.setViewportSize(vp); await P.goto(B + 'ivol.html#/pd2/voorstel/' + stap); await P.reload(); await P.waitForSelector('.pd2[data-scherm="voorstel"] .vr', { timeout:280000 }); await P.waitForTimeout(500); };
+  // onafhankelijk van Daans live besluiten: na het laden de situatie vóór zijn besluit in het geheugen (voorBesluit), dan pas het voorstelscherm
+  const open = async (stap, vp) => { await P.setViewportSize(vp); await P.goto(B + 'ivol.html#/pd2'); await P.reload(); await P.waitForFunction(() => window.PD2R && PD2R.S.klaar && document.querySelector('.pd2[data-scherm]:not([data-scherm="laden"])'), null, { timeout:280000 }); await voorBesluit(P, 60);
+    await P.evaluate(s => { location.hash = '#/pd2/voorstel/' + s; }, stap); await P.waitForSelector('.pd2[data-scherm="voorstel"] .vr', { timeout:120000 }); await P.waitForTimeout(500); };
   const overflow = () => ev(() => { const r = document.querySelector('.pd2').getBoundingClientRect(); const buiten = [...document.querySelectorAll('.pd2 .vr *')].filter(e => { const b = e.getBoundingClientRect(); return b.width > 0 && b.right > innerWidth + 1; }).length; return { hs:document.documentElement.scrollWidth > innerWidth + 1 || document.querySelector('.pd2').scrollWidth > innerWidth + 1, buiten }; });
   // 3 breedtes, 3 stappen: geen horizontale overflow, tekst breekt af
   for(const [w, h] of [[1440, 900], [1024, 800], [390, 844]]){

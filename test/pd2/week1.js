@@ -18,7 +18,8 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await ev(() => { WHPD2.UI.view = 'labels'; WHPD2.teken(); });
   check('Scherm "Palletlabels om te verbeteren" toont het label', await ev(() => /100200WM/.test(document.querySelector('.pd2').textContent)));
   // 1 + 2: Alles klopt slaat ook een vastgelegde soort op; vertrouwd legt de Picqer-kg vast
-  const c = await ev(() => { const c = Object.keys(WH.D.P).find(c => PD2R.actief(c) && !PD2R.isKoppel(c) && !PD2R.isSam(c) && PD2R.soortWaarde(c).st === 'vastgelegd' && PD2R.soortWaarde(c).v !== 'weg' && PD2R.kgPq(c) > 0 && !PD2R.po(c)); WHPD2.UI.view = null; WHPD2.openFam(PD2R.famVan(c), PD2R.maatVan(c)); return c; });
+  // (onafhankelijk van Daans live besluiten: een product dat nog open staat, met soort vastgelegd en gewicht nog niet gecontroleerd)
+  const c = await ev(() => { const c = Object.keys(WH.D.P).find(c => PD2R.actief(c) && !PD2R.isKoppel(c) && !PD2R.isSam(c) && PD2R.soortWaarde(c).st === 'vastgelegd' && !PD2R.ZONDERVRAGEN.has(PD2R.soortWaarde(c).v) && PD2R.kgPq(c) > 0 && !PD2R.po(c) && PD2R.gewicht(c).st === 'niet' && !PD2R.status(c).af); WHPD2.UI.view = null; WHPD2.openFam(PD2R.famVan(c), PD2R.maatVan(c)); return c; });
   await P.check(`article.pd2-kaart[data-c="${c}"] [data-a="sel"]`); await P.click('#pd2-actie [data-a="selklopt"]');
   await P.waitForTimeout(300);
   const so = await ev(c => PD2R.po(c) && PD2R.po(c).so, c);
