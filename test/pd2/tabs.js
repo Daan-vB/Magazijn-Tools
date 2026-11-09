@@ -27,19 +27,23 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('Jouw reactie wordt bewaard (met datum)', T.mock['wh-controle-reacties'] && T.mock['wh-controle-reacties'].lijst.some(r => /dit klopt niet/.test(r.tekst) && r.op), '');
   // 3 Picklocaties: per groep "Pick nodig in hal · gedeelte · gang"
   await laad('picklocaties');
-  check('Picklocaties: KOKOS100BLK-24 (open of klaar voor Picqer) en DT140-711', (await heeft('picklocaties', 'KOKOS100BLK-24') || await heeft('pickklaar', 'KOKOS100BLK-24')) && await heeft('picklocaties', 'DT140-711'));
-  let gk = await alleen('picklocaties', ['DT140-711']); await wacht(600);
+  // Daan beslist live verder (DT140 is inmiddels Bulk): een open groep met minstens 2 producten uit de echte data; de eerste krijgt een pickwens, de rest blijft staan
+  const pg = await ev(() => { const l = WHCP.cats().picklocaties.filter(x => !x.uitz), per = {}; l.forEach(x => (per[x.gk] = per[x.gk] || []).push(x.c)); const e = Object.entries(per).find(([, cs]) => cs.length >= 2); return e ? { gk:e[0], doel:e[1][0], ander:e[1][1] } : null; });
+  const doel = pg ? pg.doel : '', ander = pg ? pg.ander : '';
+  console.log('groep', JSON.stringify(pg));
+  check('Picklocaties: KOKOS100BLK-24 (open of klaar voor Picqer) en een open groep met minstens 2 producten', (await heeft('picklocaties', 'KOKOS100BLK-24') || await heeft('pickklaar', 'KOKOS100BLK-24')) && !!pg && await heeft('picklocaties', doel), JSON.stringify(pg));
+  let gk = await alleen('picklocaties', [doel]); await wacht(600);
   const kies = async (veld, w) => { await ev(([gk, veld, w]) => { const s = document.querySelector('.cp-grp[data-gk="' + CSS.escape(gk) + '"] [data-cp-k$="|' + veld + '"]'); s.value = w; s.dispatchEvent(new Event('change', { bubbles:true })); }, [gk, veld, w]); await wacht(500); };
   // kiezen = opslaan (09-11): hal → gedeelte → gang; het kiezen van de gang bewaart meteen (geen knop "Pick nodig")
   await kies('opm', 'nieuwe pick naast de ingang'); await kies('hal', 'C'); await kies('deel', 'D'); await kies('gang', 'DD'); await wacht(2000);
-  const wens = T.pdWrites.find(r => r.productcode === 'DT140-711' && r.data && r.data.pickwens);
+  const wens = T.pdWrites.find(r => r.productcode === doel && r.data && r.data.pickwens);
   check('pickwens {hal, gedeelte, gang, opm} bewaard in productdata (bron pd2) met kopie -8', wens && wens.data.pickwens.hal === 'C' && wens.data.pickwens.ged === 'D' && wens.data.pickwens.gang === 'DD' && /ingang/.test(wens.data.pickwens.opm) && wens.meta.pickwens.bron === 'pd2' && Object.keys(T.mock).some(k => /^wh-kopie-productdata-\d{4}-\d{2}-\d{2}-8$/.test(k)), JSON.stringify(wens && wens.data.pickwens));
-  check('na Pick nodig: DT140-711 uit de open lijst, de rest van de groep blijft staan', !(await heeft('picklocaties', 'DT140-711')) && await heeft('pickklaar', 'DT140-711') && await heeft('picklocaties', 'DT140-747'));
+  check('na het kiezen van de gang: ' + doel + ' uit de open lijst, de rest van de groep (' + ander + ') blijft staan', !(await heeft('picklocaties', doel)) && await heeft('pickklaar', doel) && await heeft('picklocaties', ander));
   await ev(() => { const f = document.querySelector('[data-cp-f="hal"]'); f.value = 'C'; f.dispatchEvent(new Event('change', { bubbles:true })); }); await wacht(600);
   await ev(() => { const f = document.querySelector('[data-cp-f="deel"]'); f.value = 'D'; f.dispatchEvent(new Event('change', { bubbles:true })); }); await wacht(600);
   await ev(() => { const g = document.querySelector('[data-cp-f="gang"]'); g.value = 'DD'; g.dispatchEvent(new Event('change', { bubbles:true })); }); await wacht(600);
   const werk = await ev(() => (document.getElementById('cp-klaar') || {}).innerText || '');
-  check('filter hal C → gedeelte D → gang DD: werklijst "Klaar voor Picqer" met DT140-711 onder Hal C · gedeelte D · gang DD', /DT140-711/.test(werk) && /Hal C · gedeelte D · gang DD/.test(werk), werk.slice(0, 200));
+  check('filter hal C → gedeelte D → gang DD: werklijst "Klaar voor Picqer" met ' + doel + ' onder Hal C · gedeelte D · gang DD', werk.includes(doel) && /Hal C · gedeelte D · gang DD/.test(werk), werk.slice(0, 200));
   // 4 Bulklocaties (Daan beslist live verder: zijn eerdere "alleen bulk" alleen in het geheugen weggehaald, zodat er weer open punten zijn)
   await laad('bulklocaties');
   await ev(() => { Object.keys(WHCP.S.klopt).filter(k => /^bulkeraf\|/.test(k)).forEach(k => delete WHCP.S.klopt[k]); WHCP.S.memo = null; WHTAAK.herteken(); }); await wacht(500);

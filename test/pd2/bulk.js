@@ -7,7 +7,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await P.goto((process.env.PD2_URL || 'http://localhost:8811/') + 'ivol.html#/nakijken');
   await P.waitForFunction(() => window.WHX && WHX.S.pd && window.PD2R && PD2R.S.klaar && document.querySelector('.x-vraag'), null, { timeout:240000 });
   const ev = (f, a) => P.evaluate(f, a);
-  check('Soorten: Pallet · Deel · Bulk · Pick · Mix · Weg', await ev(() => PD2R.SOORTEN.map(x => x[0]).join() === 'pallet,deel,bulk,pick,mix,weg'));
+  check('Soorten: Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder (blauwdruk §8)', await ev(() => PD2R.SOORTEN.map(x => x[0]).join() === 'pick,bulk,deel,pallet,mix,twijfel,weg,backorder'));
   const sp = await ev(() => Object.keys(WH.D.P).filter(c => /sprinttrack/i.test(PD2R.naamVan(c)) && PD2R.actief(c) && !PD2R.isKoppel(c)).map(c => { const I = PD2R.info(c); return { c, bulk:PD2R.som(I.f.bulk), pick:I.f.pick.length, vs:(I.vsSo || {}).v, so:PD2R.status(c).so }; }));
   const kand = sp.filter(x => x.bulk > 0 && !x.pick);
   check('Sprinttrack kunstgras met bulk en zonder picklocatie: voorstel Bulk', kand.length > 0 && kand.every(x => x.vs === 'bulk' || (x.vs === 'weg')), JSON.stringify(sp.slice(0, 8)));
@@ -16,7 +16,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   const b = await ev(() => { const c = Object.keys(WH.D.P).find(c => PD2R.actief(c) && !PD2R.isKoppel(c) && PD2R.status(c).so === 'bulk'); if(!c) return null; const I = PD2R.info(c); return { c, max:I.vs.maxpick, lvl:I.vs.lvl, vragen:WHX.vraagLijst().filter(q => q.c === c).map(q => q.k).join() }; });
   check('Bulk-product: geen voorstel voor max op pick of aanvullen bij, geen vraag max op pick', b && !b.max && !b.lvl && !/maxpick/.test(b.vragen), JSON.stringify(b));
   const kn = await ev(() => [...document.querySelectorAll('.x-vraag [data-x="vsoort"]')].map(x => x.dataset.v).filter(v => !/:/.test(v)).join());
-  check('Te controleren: soortknoppen met Bulk', !kn || /^pallet,deel,bulk,pick,mix,weg$/.test(kn), kn);
+  check('Te controleren: soortknoppen met Bulk', !kn || /^pick,bulk,deel,pallet,mix,twijfel,weg,backorder$/.test(kn), kn);
   await ev(() => PD2R.flush()); await P.waitForTimeout(800);
   check('0 geblokkeerde schrijfpogingen', T.blocked.length === 0, JSON.stringify(T.blocked.slice(0, 2)));
   console.log('ERRORS', T.errors.filter(e => !/Failed to load resource/.test(e)).join('\n'));

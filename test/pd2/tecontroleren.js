@@ -12,7 +12,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     await P.waitForFunction(() => window.WHX && WHX.S.pd && window.PD2R && PD2R.S.klaar && document.querySelector('.x-vraag'), null, { timeout:240000 });
     const ev = (f, a) => P.evaluate(f, a);
     // onafhankelijk van Daans live besluiten: de situatie vóór zijn besluit in het geheugen (voorBesluit)
-    if(W === 1440) console.log('voorBesluit', JSON.stringify(await voorBesluit(P, 120)));
+    console.log('voorBesluit', JSON.stringify(await voorBesluit(P, 120)));
     await ev(() => WHX.herteken()); await P.waitForTimeout(500);
     const v = await ev(() => { const stat = {}, L = WHX.vraagLijst(stat); return { stat, keys:[...new Set(L.map(q => q.k))], n:L.length }; });
     check(W + ' px: alleen vragen die 2.0 stelt; nooit stuks per doos, picklocatie, aanvullen bij, vloernaam, rol zonder keuze', v.n > 0 && v.keys.every(k => ['soort', 'kgst', 'spp', 'maat', 'hoogte', 'maxpick', 'rl', 'rmax'].includes(k)), v.keys.join());
