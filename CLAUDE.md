@@ -1,6 +1,6 @@
 # CLAUDE.md — vaste regels van Daan (IVOL Warehouse)
 
-Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet hiermee kloppen. Botst een opdracht met een regel hieronder: volg de regel en meld het in het rapport. Daan heeft deze regels vaak herhaald; hij wil ze nooit meer hoeven te herhalen. Nieuwe regels van Daan komen hier bij (kort, één regel per afspraak).
+Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 16 basispunten: de rode lijn van alles) en test/pd2/DAANTOETS.md. Alles wat je bouwt of voorstelt moet hiermee kloppen. Botst een opdracht met een regel hieronder: volg de regel en meld het in het rapport. Daan heeft deze regels vaak herhaald; hij wil ze nooit meer hoeven te herhalen. Nieuwe regels van Daan komen hier bij (kort, één regel per afspraak).
 
 ## 1. Systeem en data
 - Picqer alleen lezen. Nooit schrijven naar Picqer (pas na akkoord van Maxime). Schrijven alleen in eigen opslag (Supabase), en altijd eerst een kopie van wat je overschrijft.
