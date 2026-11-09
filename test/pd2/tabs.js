@@ -30,8 +30,8 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('Picklocaties: KOKOS100BLK-24 (open of klaar voor Picqer) en DT140-711', (await heeft('picklocaties', 'KOKOS100BLK-24') || await heeft('pickklaar', 'KOKOS100BLK-24')) && await heeft('picklocaties', 'DT140-711'));
   let gk = await alleen('picklocaties', ['DT140-711']); await wacht(600);
   const kies = async (veld, w) => { await ev(([gk, veld, w]) => { const s = document.querySelector('.cp-grp[data-gk="' + CSS.escape(gk) + '"] [data-cp-k$="|' + veld + '"]'); s.value = w; s.dispatchEvent(new Event('change', { bubbles:true })); }, [gk, veld, w]); await wacht(500); };
-  await kies('hal', 'C'); await kies('deel', 'D'); await kies('gang', 'DD'); await kies('opm', 'nieuwe pick naast de ingang');
-  await groepKnop(gk, 'g-pick'); await wacht(2000);
+  // kiezen = opslaan (09-11): hal → gedeelte → gang; het kiezen van de gang bewaart meteen (geen knop "Pick nodig")
+  await kies('opm', 'nieuwe pick naast de ingang'); await kies('hal', 'C'); await kies('deel', 'D'); await kies('gang', 'DD'); await wacht(2000);
   const wens = T.pdWrites.find(r => r.productcode === 'DT140-711' && r.data && r.data.pickwens);
   check('pickwens {hal, gedeelte, gang, opm} bewaard in productdata (bron pd2) met kopie -8', wens && wens.data.pickwens.hal === 'C' && wens.data.pickwens.ged === 'D' && wens.data.pickwens.gang === 'DD' && /ingang/.test(wens.data.pickwens.opm) && wens.meta.pickwens.bron === 'pd2' && Object.keys(T.mock).some(k => /^wh-kopie-productdata-\d{4}-\d{2}-\d{2}-8$/.test(k)), JSON.stringify(wens && wens.data.pickwens));
   check('na Pick nodig: DT140-711 uit de open lijst, de rest van de groep blijft staan', !(await heeft('picklocaties', 'DT140-711')) && await heeft('pickklaar', 'DT140-711') && await heeft('picklocaties', 'DT140-747'));

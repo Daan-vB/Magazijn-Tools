@@ -25,7 +25,10 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await P.goto(B + 'ivol.html#/productdata/dubbel');
   const fr = async () => { await P.waitForSelector('#frame:not([hidden])', { timeout:240000 }).catch(() => {}); return P.frames().find(f => /productdata|test/.test(f.url()) && f !== P.mainFrame()) || P.mainFrame(); };
   await P.goto(B + 'warehouse.html#/productdata/dubbel');
-  await P.waitForFunction(() => window.WHPD && WHPD.S.klaar && document.querySelector('[data-pd="save"][data-ks]'), null, { timeout:300000 });
+  // Daan werkt live verder (de dubbele waarden van deze twee zijn al gekozen): zijn keuze alleen in het geheugen weg, zoals vóór zijn besluit
+  await P.waitForFunction(() => window.WHPD && WHPD.S.klaar, null, { timeout:300000 });
+  await ev(() => { ['FTP-106106010', 'chrglck24-kp-Schweiz'].forEach(c => { const r = WHPD.S.pd[c]; if(r && r.data){ const d = Object.assign({}, r.data), m = Object.assign({}, r.meta || {}); ['spp', 'vn'].forEach(k => { delete d[k]; delete m[k]; }); WHPD.S.pd[c] = Object.assign({}, r, { data:d, meta:m }); } }); WHPD.S.idx = null; location.hash = '#/productdata'; setTimeout(() => { location.hash = '#/productdata/dubbel'; }, 300); });
+  await P.waitForFunction(() => window.WHPD && WHPD.S.klaar && document.querySelector('[data-pd="save"][data-ks]'), null, { timeout:120000 });
   for(const code of ['FTP-106106010', 'chrglck24-kp-Schweiz']){
     const r = await ev(c => { const k = document.querySelector('[data-pd="save"][data-code="' + c + '"]'); if(!k) return null; const kaart = k.closest('.card'); return { inv:[...kaart.querySelectorAll('input[data-pdk],button[data-pdk]')].map(e => e.dataset.pdk), nvt:!!kaart.querySelector('.pd-rij.nvt') }; }, code);
     check(code + ': bewerkbaar veld, niet n.v.t.', r && r.inv.length > 0 && !r.nvt, JSON.stringify(r));

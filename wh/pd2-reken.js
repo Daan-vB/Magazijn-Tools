@@ -397,7 +397,7 @@ function maatNaam(naam, code){
   s = s.replace(/(\d+[.,]?\d*)\s*[x×]\s*(\d+[.,]?\d*)(?:\s*[x×]\s*(\d+[.,]?\d*))?\s*(cm|mm|m)?/g, () => { dims = true; return ' '; }).replace(/(\d+[.,]?\d*)\s*(mm|cm|m2|m²|kv)(?![a-z0-9])/g, ' ');
   s = s.replace(/(\d+[.,]?\d*)\s*(?:m|mtr|meter|meters)(?![a-z0-9²])/g, (m0, a) => { uit.push(getalN(a) + ' m'); return ' '; });
   s = s.replace(/(\d+[.,]?\d*)\s*(kg|kilo|gram|gr|g)(?![a-z0-9])/g, (m0, a, u) => { uit.push(getalN(a) + (u === 'kg' || u === 'kilo' ? ' kg' : ' g')); return ' '; });
-  s = s.replace(/(\d+)\s*-?\s*(treden|trede|paar|stuks|stuk|st|delig|delen|planken|plankjes|plank|haken|lades|deuren|wielen|laags|lagen|vaks|vakken|zits|persoons|liter|ltr|l)(?![a-z0-9])/g, (m0, a, u) => { uit.push(getalN(a) + ' ' + TELW[u]); return ' '; });
+  s = s.replace(/(\d+)\s*-?\s*(?:(?:houten|metalen|stalen|losse|grote|kleine|extra)\s+)?(treden|trede|paar|stuks|stuk|st|delig|delen|planken|plankjes|plank|haken|lades|deuren|wielen|laags|lagen|vaks|vakken|zits|persoons|liter|ltr|l)(?![a-z0-9])/g, (m0, a, u) => { uit.push(getalN(a) + ' ' + TELW[u]); return ' '; });   // ook "4 houten plankjes"
   s.replace(/(^|[^a-z0-9.,])(\d{2,})(?![a-z0-9]|[.,]\d)/g, (m0, v, a) => { uit.push('nr ' + a); return ''; });
   // kledingmaat als los woord: S, M, L, XL (Kattenluik M / L, halswarmer M / L); "per m" is geen maat
   s.replace(/\bper\s+(m|l|st)\b/g, ' ').replace(/(^|[\s\-–(\/])(xxs|xs|s|m|l|xl|xxl|xxxl|2xl|3xl)(?=$|[\s\-–)\/,.!])/g, (m0, v, a) => { uit.push('maat ' + a.toUpperCase()); return ''; });

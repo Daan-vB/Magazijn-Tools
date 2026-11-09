@@ -1,6 +1,6 @@
 // Te controleren (3.0) volgens CLAUDE.md: regels eerst, soort eerst (familiekaart), daarna alleen wat per product open blijft.
 // Echte database alleen lezen; schrijven naar een kopie in het geheugen. Schrijft een verslag naar UIT_MAP (niet in de repo).
-const { start } = require('./opzet.js');
+const { start, voorBesluit } = require('./opzet.js');
 const fs = require('fs');
 const UIT = process.env.UIT_MAP || '.';
 const ok = [], fout = [];
@@ -11,6 +11,9 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     await P.goto((process.env.PD2_URL || 'http://localhost:8811/') + 'ivol.html#/nakijken');
     await P.waitForFunction(() => window.WHX && WHX.S.pd && window.PD2R && PD2R.S.klaar && document.querySelector('.x-vraag'), null, { timeout:240000 });
     const ev = (f, a) => P.evaluate(f, a);
+    // onafhankelijk van Daans live besluiten: de situatie vóór zijn besluit in het geheugen (voorBesluit)
+    if(W === 1440) console.log('voorBesluit', JSON.stringify(await voorBesluit(P, 120)));
+    await ev(() => WHX.herteken()); await P.waitForTimeout(500);
     const v = await ev(() => { const stat = {}, L = WHX.vraagLijst(stat); return { stat, keys:[...new Set(L.map(q => q.k))], n:L.length }; });
     check(W + ' px: alleen vragen die 2.0 stelt; nooit stuks per doos, picklocatie, aanvullen bij, vloernaam, rol zonder keuze', v.n > 0 && v.keys.every(k => ['soort', 'kgst', 'spp', 'maat', 'hoogte', 'maxpick', 'rl', 'rmax'].includes(k)), v.keys.join());
     if(W === 1440){
@@ -25,9 +28,11 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
       fs.writeFileSync(UIT + '/tecontroleren-verslag.txt', tekst.join('\n'));
       console.log('VERSLAG', UIT + '/tecontroleren-verslag.txt', '· over', r.over, '· wacht op soort', r.wacht, JSON.stringify(r.stat));
     }
-    // soort eerst: de eerste kaart is een familiekaart met per product de voorgestelde soort en vinkjes
+    // soort eerst: per familie komt de soort vóór gewicht en hoeveelheid; de soortvraag is een familiekaart met per product de voorgestelde soort en vinkjes
+    check(W + ' px: per familie staat de soort vóór de andere vragen', await ev(() => { const L = WHX.vraagLijst(); return L.some(q => q.k === 'soort') && L.every((q, i) => q.k !== 'soort' || !L.slice(0, i).some(y => y.fam === q.fam && y.k !== 'soort')); }));
+    await ev(() => { const L = WHX.vraagLijst(), i = L.findIndex(q => q.k === 'soort'); L.slice(0, i).forEach(y => WHX.S.later.add(y.c + '|' + y.k)); WHX.herteken(); }); await P.waitForTimeout(300);
     const k1 = await ev(() => { const L = WHX.vraagLijst(), q = L[0], k = document.querySelector('.x-vraag'); return { soort:q.k === 'soort', fam:!!k.dataset.famkaart, rijen:k.querySelectorAll('.x-famrij').length, n:L.filter(y => y.fam === q.fam && y.k === 'soort').length, sel:[...k.querySelectorAll('[data-x="vsoort"]')].map(b => b.dataset.v).join() }; });
-    check(W + ' px: eerste kaart = familiekaart (soort) met vinkjes, Selectie klopt en Selectie is: Pallet · Deel · Bulk · Pick · Mix · Weg', k1.soort && k1.fam && k1.rijen === k1.n && k1.sel === 'pallet,deel,bulk,pick,mix,weg', JSON.stringify(k1));
+    check(W + ' px: eerste kaart = familiekaart (soort) met vinkjes, Selectie klopt en Selectie is: Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder', k1.soort && k1.fam && k1.rijen === k1.n && k1.sel === 'pick,bulk,deel,pallet,mix,twijfel,weg,backorder', JSON.stringify(k1));
     const n0 = await ev(() => WHX.vraagLijst().length);
     await P.click('.x-vraag [data-x="famklopt"]'); await P.waitForTimeout(2000);
     const n1 = await ev(() => WHX.vraagLijst().length);

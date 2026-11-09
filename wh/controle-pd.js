@@ -297,6 +297,15 @@ function berekenen(){
   Object.values(uit).forEach(l => l.forEach(it => { it.sig = it.sigs.join('§'); it.reden = it.redenen.map(r => r.t).join(' · '); it.voorstel = it.voorstellen[0] || null; }));
   // "Klopt zo" en "Later" onthouden: alleen terug als de data verandert (sig verandert)
   ['picklocaties', 'bulklocaties', 'hercontrole', 'gewicht', 'tewegen', 'aantal'].forEach(k => { uit[k] = uit[k].filter(x => !isKlopt(k, x.c, x.sig)); });
+  // staan in een groep alleen nog uitzonderingen open, dan wordt hun eigen voorstel het groepsvoorstel (niets meer uitgevinkt)
+  const pg = {}; uit.picklocaties.forEach(x => (pg[x.gk] = pg[x.gk] || []).push(x));
+  Object.entries(pg).forEach(([gk, l]) => {
+    if(!l.every(x => x.uitz)) return;
+    const t = {}; l.forEach(x => { if(x.pv && x.pv.gang) t[x.pv.gang] = (t[x.pv.gang] || 0) + 1; });
+    const top = Object.entries(t).sort((a, b) => b[1] - a[1])[0]; if(!top) return;
+    GV.m[gk] = { h:halVan(top[0]), n:top[1], nu:[], reden:l.find(x => x.pv && x.pv.gang === top[0]).pv.reden };
+    l.forEach(x => { x.uitz = !!(x.pv && x.pv.gang !== top[0]); });
+  });
   const sorteer = l => l.sort((x, y) => rang(x.abc) - rang(y.abc) || x.fam.localeCompare(y.fam, 'nl', { numeric:true }) || x.c.localeCompare(y.c));
   Object.keys(uit).forEach(k => sorteer(uit[k]));
   return uit;
@@ -423,6 +432,8 @@ function werklijstHtml(titel, items, wat, wijzigActie){
 
 /* ---------- de tabs: kiezen = meteen opslaan (met kopie), 3 seconden "Bewaard · ongedaan maken" ---------- */
 const SOORTKNOP = (cat, gk, zonder) => `<span class="cp-ks">Andere soort:</span>${SOORTK.filter(k => k !== zonder).map(k => knop('g-soort', SOORTT[k], cat, gk, '', k)).join('')}${S.wegOpen.has(cat + '|' + gk) ? `<span class="cp-ks">Weg, welke?</span>${Object.entries(WEGT).map(([k, t]) => knop('g-weg', 'Weg · ' + t, cat, gk, 'hoofd', k)).join('')}` : ''}`;
+// minder knoppen in beeld: de hoofdkeuze staat open, andere plek of soort achter "Anders…" (blijft open na herladen)
+const anders = (cat, gk, inhoud) => `<details class="cp-anders" data-open="${esc('anders|' + cat + '|' + gk)}"${S.open.has('anders|' + cat + '|' + gk) || S.wegOpen.has(cat + '|' + gk) || S.keuze[cat + '|' + gk] ? ' open' : ''}><summary>Anders…</summary><div class="cp-sel">${inhoud}</div></details>`;
 // andere plek kiezen: hal → gedeelte (bij C) → gang; het kiezen van de gang bewaart meteen
 function plekKeuze(cat, gk){
   const k = S.keuze[cat + '|' + gk] || {}, G = R().gangen(), gangen = G.filter(h => (!k.hal || h.hal === k.hal) && (k.hal !== 'C' || !k.deel || h.deel === k.deel)), sk_ = x => esc(cat + '|' + gk + '|' + x);
@@ -435,7 +446,7 @@ function tabPick(c){
   const open = c.picklocaties, klaar = c.pickklaar;
   const o = {
     uitleg:(gr) => { const gv = groepVoorstel(gr.k), u = gr.items.filter(x => x.uitz).length; return gv && gv.h ? `Claudes voorstel voor de groep: <b>${esc(R().halTekst(gv.h))}</b> — ${esc(gv.reden)}.${u ? ' ' + mv(u, 'product staat', 'producten staan') + ' duidelijk ergens anders: uitgevinkt, met een eigen voorstel bij het product.' : ''}` : 'Geen plek in de groep: kies hal, gedeelte en gang.'; },
-    keuzes:(gr) => { const gv = groepVoorstel(gr.k); return `${gv && gv.h ? knop('g-pick', 'Pick in ' + R().halTekst(gv.h, true), 'picklocaties', gr.k, 'hoofd', gv.h.gang) : ''}${knop('g-later', 'Later', 'picklocaties', gr.k)}${plekKeuze('picklocaties', gr.k)}<span class="cp-soort">${SOORTKNOP('picklocaties', gr.k)}</span>`; },
+    keuzes:(gr) => { const gv = groepVoorstel(gr.k); return `${gv && gv.h ? knop('g-pick', 'Pick in ' + R().halTekst(gv.h, true), 'picklocaties', gr.k, 'hoofd', gv.h.gang) : ''}${knop('g-later', 'Later', 'picklocaties', gr.k)}${anders('picklocaties', gr.k, plekKeuze('picklocaties', gr.k) + `<span class="cp-soort">${SOORTKNOP('picklocaties', gr.k)}</span>`)}`; },
     rijKnop:x => x.pv ? rknop('g-pick', 'Pick in ' + R().halTekst(x.pv, true), 'picklocaties', x.c, x.uitz ? 'hoofd' : '', x.pv.gang) : ''
   };
   return `${filterBalk(open.concat(klaar))}<p class="muted klein">Pallet of Deel zonder picklocatie in Picqer, en alles met "moet pick krijgen". Eén tik bewaart de pickwens; daarna staat het onderaan op de werklijst per hal → gedeelte → gang. Picqer koppelen doe je zelf.</p>
@@ -452,7 +463,7 @@ function tabBulk(c){
 function tabMetVoorstel(lijst, cat, extra, rijExtraKnop){
   const o = {
     uitleg:(gr, sel) => { const n = sel.filter(heeftVoorstel).length; return n ? `${mv(n, 'product heeft', 'producten hebben')} een voorstel van Claude (staat bij elk product, uit zijn eigen data).` : 'Geen voorstel van Claude: Klopt zo, Later of Aanpassen.'; },
-    keuzes:(gr, sel) => { const n = sel.filter(heeftVoorstel).length; return `${n ? knop('g-neem', 'Voorstel overnemen' + (n < sel.length ? ' (' + n + ')' : ''), cat, gr.k, 'hoofd') : ''}${extra ? extra(gr, sel) : ''}${knop('g-klopt', cat === 'aantal' ? 'Klopt zo (verschil is terecht)' : 'Klopt zo', cat, gr.k)}${knop('g-later', 'Later', cat, gr.k)}`; },
+    keuzes:(gr, sel) => { const n = sel.filter(heeftVoorstel).length; return `${n ? knop('g-neem', 'Voorstel overnemen' + (n < sel.length ? ' (' + n + ')' : ''), cat, gr.k, 'hoofd') : ''}${extra ? extra(gr, sel) : ''}${knop('g-klopt', cat === 'aantal' ? 'Klopt zo (verschil is terecht)' : 'Klopt zo', cat, gr.k)}${knop('g-later', 'Later', cat, gr.k)}${cat === 'hercontrole' ? anders(cat, gr.k, `<span class="cp-soort">${SOORTKNOP(cat, gr.k)}</span>`) : ''}`; },
     rijKnop:x => `${heeftVoorstel(x) ? rknop('g-neem', 'Voorstel overnemen', cat, x.c, 'hoofd') : ''}${rijExtraKnop ? rijExtraKnop(x) : ''}${rknop('g-klopt', 'Klopt zo', cat, x.c)}`
   };
   return lijstHtml(cat, lijst, o);
@@ -542,6 +553,7 @@ function stijl(){
 .cp-reactie textarea{width:100%;font:inherit;border:1px solid var(--lijn,#d6dce4);border-radius:.5rem;padding:.5rem;background:var(--vlak,#fff);color:inherit;margin:.4rem 0}
 .cp-feit{font-size:.82rem;color:#3c4653;overflow-wrap:anywhere}.cp-gt{font-size:.85rem;color:#3c4653;overflow-wrap:anywhere}.cp-uitz{font-size:.85rem;font-weight:600;color:#8a4b00}.cp-item.uitz{border-style:dashed}.cp-b.klein{padding:.3rem .55rem;font-size:.82rem}
 #cp-bewaard{position:fixed;left:50%;bottom:calc(1rem + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:70;display:flex;gap:.75rem;align-items:center;background:#10151c;color:#fff;border-radius:.6rem;padding:.6rem .9rem;box-shadow:0 .25rem 1rem rgba(0,0,0,.25);font-size:.95rem;width:max-content;max-width:calc(100% - 2rem)}#cp-bewaard[hidden]{display:none}#cp-bewaard button{background:#ef8a4a;color:#1b1205;border:0;border-radius:.4rem;padding:.35rem .6rem;font:700 .9rem inherit;cursor:pointer}
+.cp-anders>summary{cursor:pointer;font-weight:600;font-size:.9rem;color:#3c4653;padding:.2rem 0}.cp-anders{flex-basis:100%}
 .cp-wat li{margin:.3rem 0}.cp-later{margin:.3rem 0 0;padding-left:1.1rem;font-size:.9rem}.cp-later li{overflow-wrap:anywhere}.cp-steek .ok,.cp-reactie .ok{color:#2e7d4f}.fout{color:#c0392b;font-weight:700}code{overflow-wrap:anywhere}`;
   document.head.appendChild(s);
 }

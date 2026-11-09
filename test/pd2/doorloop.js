@@ -105,7 +105,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     await naar('soort', fam2.fk);
     await ev(() => document.querySelector('.dl [data-keus="weg"]').click());
     await klopt(); v = await nu();
-    check('Weg zonder keuze: melding "Kies bij Weg", niet door', v.t === 'soort' && /Kies bij Weg: Uitlopend, Backorder of Archief/.test(v.melding), v.melding);
+    check('Weg zonder keuze: melding "Kies bij Weg", niet door', v.t === 'soort' && /Kies bij Weg: Uitlopend of Archief/.test(v.melding), v.melding);
     // één product uitvinken: blijft open (Later), de rest Weg → Archief
     await ev(c => document.querySelector(`.dl [data-sel="${CSS.escape(c)}"]`).click(), fam2.cs[0]);
     await ev(() => document.querySelector('.dl [data-weg="archief"]').click());

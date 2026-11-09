@@ -125,8 +125,10 @@ function twLijst(){
 const PD2VRAAG = { soort:'Soort', opslag:'Soort', kgst:'Gewicht per stuk (kg)', spp:'Stuks per pallet', maat:'Palletmaat', hoogte:'Hoogte incl. pallet (cm)', maxpick:'Max op pick', rol:'Is dit een rol?', rl:'Lengte volle rol (m)', rmax:'Max rollen per pallet' };
 const PD2EIGEN = new Set(['soort', 'rol', 'rl', 'rmax']);
 const PALLETVRAAG = new Set(['spp', 'maat', 'hoogte', 'gewicht', 'plaatsen', 'maxlig', 'rmax']);   // vaste regel: alleen met bewijs voor pallets
-const SOORTT = { pallet:'Pallet', deel:'Deel', bulk:'Bulk', pick:'Pick', mix:'Mix', weg:'Weg' }, WEGT = { uitlopend:'Uitlopend', backorder:'Backorder', archief:'Archief' };
-const soortTekst = v => { const [a, b] = String(v || '').split(':'); return (SOORTT[a] || a) + (b ? ' → ' + (WEGT[b] || b) : ''); };
+// soort volgens de blauwdruk (§8): Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg (Uitlopend / Archief) · Backorder; oude Weg → Backorder = Backorder
+const SOORTT = { pick:'Pick', bulk:'Bulk', deel:'Deel', pallet:'Pallet', mix:'Mix', twijfel:'Twijfel', weg:'Weg', backorder:'Backorder' }, WEGT = { uitlopend:'Uitlopend', archief:'Archief' };
+const ZONDERVR = new Set(['weg', 'backorder', 'twijfel']);
+const soortTekst = v => { const [a, b] = String(v || '').split(':'); if(a === 'weg' && b === 'backorder') return 'Backorder'; return (SOORTT[a] || a) + (b ? ' → ' + (WEGT[b] || b) : ''); };
 const zonderPallet = c => { try{ return pd2Klaar() && !PD2R.info(c).bewijs; }catch(e){ return false; } };   // alleen in de opslag van Productdata 2.0 (niet in productdata)
 const PD2SOORT = { spp:['pallet', 'deel', 'bulk'], maat:['pallet', 'deel', 'bulk'], hoogte:['pallet', 'deel', 'bulk'], maxpick:['pick', 'mix'] };
 const pd2Klaar = () => !!(window.PD2R && PD2R.S && PD2R.S.klaar);
@@ -159,7 +161,7 @@ function vraagLijst(stat){
       if(!PD2VRAAG[f.k]) return tel('nietin2');
       if(f.k === 'opslag' && pk) return;   // de soort vraagt 2.0 zelf (hieronder), met zijn eigen voorstel
       if(sam(x.c) && f.k !== 'maxpick') return tel('sam');
-      if(sd.so === 'weg') return tel(sd.weg === 'uitlopend' ? 'uitlopend' : sd.weg === 'backorder' ? 'backorder' : 'weg');
+      if(ZONDERVR.has(sd.so)) return tel(sd.so === 'weg' ? (sd.weg === 'uitlopend' ? 'uitlopend' : 'weg') : sd.so);   // Weg, Backorder en Twijfel: geen vragen
       if(PALLETVRAAG.has(f.k) && zonderPallet(x.c)) return tel('pallet');
       if(PD2SOORT[f.k] && !PD2SOORT[f.k].includes(sd.so)) return tel('soortnietbij');
       if(!sd.ok && !sam(x.c)) return tel('soorteerst');
@@ -178,12 +180,13 @@ function vraagLijst(stat){
       if(!st.stap.soort){
         const w = PD2R.soortWaarde(c), ww = w.v === 'weg' ? PD2R.wegWaarde(c) : null;
         if(ww && ww.v === 'uitlopend') return tel('uitlopend');
-        if(ww && ww.v === 'backorder') return tel('backorder');
+        if(w.v === 'backorder' || (ww && ww.v === 'backorder')) return tel('backorder');
+        if(st.so === 'twijfel') return tel('twijfel');   // Twijfel staat in Te doen onder Later, niet hier
         if(S.later.has(c + '|soort')) return tel('later');
         L.push({ c, k:'soort', v:w.v ? w.v + (ww && ww.v ? ':' + ww.v : '') : '', uit:w.why || '', fam, ab:ab(c) });
         return;
       }
-      if(sd.so === 'weg') return;
+      if(ZONDERVR.has(sd.so)) return;
       ['rl', 'rmax'].forEach(k => { if(!st.open.includes(k)) return; if(k === 'rmax' && zonderPallet(c)) return tel('pallet'); if(S.later.has(c + '|' + k)) return tel('later'); const w = PD2R.waarde(c, k); L.push({ c, k, v:w.v || '', uit:w.why || '', fam, ab:ab(c) }); });
     }catch(e){}
   });
@@ -198,7 +201,8 @@ async function pd2Zet(items){
     eigen.forEach(({ c, k, v }) => PD2R.poZet(c, p => {
       if(k === 'rol') p.rol = { v:/^(ja|j|1|true)$/i.test(String(v).trim()), st:'bevestigd', t:nu };
       else if(k === 'soort'){   // zelfde opslag als de soortknop in 2.0; Weg met reden (weg:backorder)
-        const [so, wg] = String(v).trim().toLowerCase().split(':'), I = PD2R.info(c), nuSo = PD2R.soortWaarde(c, I), voor = nuSo.st === 'vastgelegd' ? nuSo.v : I.vsSo ? I.vsSo.v : '';
+        let [so, wg] = String(v).trim().toLowerCase().split(':'); if(so === 'weg' && wg === 'backorder'){ so = 'backorder'; wg = ''; }
+        const I = PD2R.info(c), nuSo = PD2R.soortWaarde(c, I), voor = nuSo.st === 'vastgelegd' ? nuSo.v : I.vsSo ? I.vsSo.v : '';
         if(!SOORTT[so]) return;
         p.so = { v:so, st:voor === so ? 'bevestigd' : 'aangepast', voor, t:nu };
         if(so === 'weg' && WEGT[wg]){ const vw = I.vsWeg; p.weg = { v:wg, st:vw && vw.v === wg ? 'bevestigd' : 'aangepast', voor:vw ? vw.v : '', t:nu }; }
@@ -242,8 +246,8 @@ function famLijst(q, fam){
     <div class="x-acties"><button class="x-btn ok" data-x="famklopt">Klopt voor selectie (${nf(n)})</button>${S.famAanpas ? '' : `<button class="x-btn" data-x="famaanpas">Aanpassen voor selectie</button>`}</div>
   </div>`;
 }
-const soortOpties = huidig => `<option value="">${esc(huidig ? soortTekst(huidig) : '–')} ▾</option>` + ['pallet', 'deel', 'bulk', 'pick', 'mix'].map(k => `<option value="${k}">${SOORTT[k]}</option>`).join('') + Object.keys(WEGT).map(k => `<option value="weg:${k}">Weg → ${WEGT[k]}</option>`).join('');
-// soortvraag: Pallet · Deel · Bulk · Pick · Mix · Weg met het voorstel; bij Weg alleen het Weg-menu
+const soortOpties = huidig => `<option value="">${esc(huidig ? soortTekst(huidig) : '–')} ▾</option>` + Object.keys(SOORTT).filter(k => k !== 'weg').map(k => `<option value="${k}">${SOORTT[k]}</option>`).join('') + Object.keys(WEGT).map(k => `<option value="weg:${k}">Weg → ${WEGT[k]}</option>`).join('');
+// soortvraag: Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder met het voorstel; bij Weg alleen het Weg-menu (Uitlopend / Archief)
 function soortKnoppen(q){
   const [vs, vw] = String(q.v || '').split(':');
   return `<div class="x-acties x-soorten">${Object.keys(SOORTT).map(k => `<button class="x-btn${vs === k ? ' vs' : ''}" data-x="vsoort" data-v="${k}">${SOORTT[k]}${vs === k ? ' (voorstel)' : ''}</button>`).join('')}</div>
