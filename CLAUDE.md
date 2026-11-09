@@ -19,6 +19,8 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Groepsacties: vinkje per product; "Selectie is: Pallet · Deel · Bulk · Pick · Mix · Weg"; een familieknop laat altijd zien welke producten eronder vallen en laat uitvinken.
 - Samenvoegen gaat per groep → familie → product. Groep = leverancier + hoofdwoord ("Rubberselect · loper"), nooit SAM Europe. Ook "Volgende familie" en zoeken (Doorloop, Productdata 2.0) volgen de groep.
 - Eén product = één punt per tab (alle redenen eronder); tellers tellen producten. Beslist = weg: na een besluit verdwijnt het product uit de open lijst en telt de tab af.
+- Elk beslisscherm toont bij elk product en elke groep de feiten om te kiezen (voorraad per plek, verkoop, inkoop, backorders). Kiezen = meteen opslaan, met ongedaan maken.
+- Picklocaties: de groep krijgt één voorstel (de gang waar de meeste producten van de groep nu staan); wat duidelijk ergens anders staat, staat als uitzondering al uitgevinkt met een eigen voorstel.
 - Picklocaties en Bulklocaties: na het besluit staat het onder "Klaar voor Picqer" (werklijst per hal → gedeelte → gang, met Wijzig); het verdwijnt zodra Picqer het laat zien.
 - Soort eerst. Pas na een door Daan bevestigde soort komen gewicht en hoeveelheid.
 - Elk invulscherm: altijd terug kunnen naar een eerdere vraag, elke bevestigde waarde aanpasbaar, zoeken op code/naam/familie, en bij aanpassen vergelijkbare producten (kleurgenoten → familie → zelfde hoofdwoord bij dezelfde leverancier) met "Neem over". Afwijkende waarden in een familie melden (nooit zelf wijzigen).
@@ -33,10 +35,12 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Bulk = pallet staat alleen op bulk, geen picklocatie. Alleen als het besteld wordt: 1 stuk naar geen specifieke locatie verplaatsen en de backorder verwerken, zodat het op de picklijst komt. Nooit aanvuladvies naar pick. Vragen: gewicht en de palletvragen (per pallet, palletmaat, hoogte); geen max op pick. Voorbeeld: alle Sprinttrack kunstgras.
 - Pick = kleine hoeveelheden, geen bulk. Enige vraag: max op pick.
 - Mix = pallet met meerdere producten, met een deel naar pick.
-- Weg = keuzemenu Uitlopend (geen data meer nodig) / Backorder (alleen voor backorders ingekocht; voorlopig wegfilteren) / Archief.
+- Soort volgens de blauwdruk (§8): Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder.
+- Weg = keuzemenu Uitlopend (geen data meer nodig) / Archief. Backorder = eigen soort: alleen voor backorders ingekocht (oude Weg · Backorder telt als Backorder). Containers: alleen de backorders, rest VST.
+- Twijfel = "weet ik nog niet": telt niet als afgerond, geen gewicht- of hoeveelheidsvragen, staat in Te doen onder Later ("Twijfel (n)"). Containers: bij lossen bepalen.
 - Hercontrole: "Weg met voorraad" alleen bij Archief (en Backorder met meer voorraad dan backorders); Uitlopend met voorraad is normaal. Andere soort bij kleurgenoten niet melden als één van beide Weg is. Elk punt met Claudes visie (1–2 zinnen) en een voorstel.
 - Pallet, Deel en Bulk: stuks per pallet, palletmaat, hoogte incl. pallet. Gewicht volle pallet nooit vragen (zie §4). Stuks per doos, doosmaat en inkoopverpakking niet vragen (later).
-- VASTE REGEL palletvragen: palletvragen (per pallet, palletmaat, hoogte, gewicht volle pallet, plaatsen, max per ligger) alleen voor producten waarvan de data bewijst dat ze per pallet komen of liggen: bulk- of VST-voorraad, palletlabels, pallet-verplaatsingen naar pick, of inkoop van minstens één volle pallet. Producten met voorraad 0 of minimaal, alleen voor backorders ingekocht, of per enkele stuks of rollen binnen: voorstel Pick (of Weg → Backorder) en nooit palletvragen.
+- VASTE REGEL palletvragen: palletvragen (per pallet, palletmaat, hoogte, gewicht volle pallet, plaatsen, max per ligger) alleen voor producten waarvan de data bewijst dat ze per pallet komen of liggen: bulk- of VST-voorraad, palletlabels, pallet-verplaatsingen naar pick, of inkoop van minstens één volle pallet. Producten met voorraad 0 of minimaal, alleen voor backorders ingekocht, of per enkele stuks of rollen binnen: voorstel Pick (of Backorder) en nooit palletvragen.
 - Per familie invullen, maar waarden per product uit de eigen data van dat product (inkoop, gewicht, verkoop), nooit één getal voor alles.
 - Volgorde van bronnen voor een voorstel: 1) eigen data van het product (palletbewijs-regel gaat altijd voor), 2) kleurgenoten of dezelfde familie en maat, 3) dezelfde familie. Nooit "meerderheid bij de leverancier": één leverancier levert heel verschillende producten (lockers zijn geen whiteboards).
 
@@ -44,6 +48,7 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Status: gewogen (echt gewogen) · vertrouwd (Daan vertrouwt de Picqer-waarde) · te wegen (nu zeker fout; komt op de Weeglijst, kg niet verplicht).
 - Picqer-gewichten zijn bij bijna elke leverancier deels fout. Losse producten op de weegschaal.
 - Gewicht controleren: voorstel alleen uit kleurgenoten; een andere maat alleen naar verhouding met een rekensom (per meter, per m², kg in de naam), anders geen voorstel maar "Naar Te wegen".
+- Twee tegen elkaar (of een gelijke stand in een grotere groep): niet te zeggen welke klopt, geen voorstel, alle Naar Te wegen. Nooit elkaars waarde voorstellen.
 - Gewicht volle pallet = gewicht per stuk × stuks per pallet + 15 kg pallet. Altijd berekend, nooit een vraag. Alleen met gewicht vertrouwd of gewogen; staat het op te wegen, dan wacht de berekening op het gewogen gewicht.
 
 ## 5. Hoeveelheden, pallets en locaties
@@ -88,7 +93,7 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 
 ## 10. Woorden (vaste namen, nooit andere gebruiken)
 - Productgeheugen = Supabase catalog-rij catalog-ean (palletlabels, vloernaam, stuks per pallet, palletregels). Productdata = Supabase-tabel productdata (Daans waarheid per product).
-- Soort = Pallet · Deel · Bulk · Pick · Mix · Weg (Uitlopend / Backorder / Archief). Palletbewijs = bulk- of VST-voorraad, palletlabel, pallet-verplaatsing naar pick of inkoop van een volle pallet.
+- Soort = Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg (Uitlopend / Archief) · Backorder. Palletbewijs = bulk- of VST-voorraad, palletlabel, pallet-verplaatsing naar pick of inkoop van een volle pallet.
 - Gewicht-status = gewogen · vertrouwd · te wegen. Max op pick = aanvullen bij + aanvullen met.
 - Bulk = 10/20/30-plek boven pick (tijdelijk). Pick = vaste picklocatie (nooit tijdelijk). VST = externe opslag Van Spreuwel. Geen specifieke locatie = voorraad zonder plek.
 - Familie → maat → kleurgenoten (zelfde familie en maat). Maat ook uit de naam: afmetingen, lengte (3 m, 4,5 m), gewicht (4 kg), aantal (3 treden), dikte; andere maat = geen kleurgenoot. A/B/C = verkoopklasse.

@@ -2,7 +2,7 @@
 
 Elke regel uit `CLAUDE.md` → welke schermen hij raakt → hoe hij automatisch getoetst wordt.
 `test/pd2/daantoets.js` voert elke toets met een nummer (D-nr) uit; een rode controle noemt de regel (§ en nummer).
-Lees dit vóór elke opdracht. Nieuwe regel van Daan = nieuwe rij hier én een nieuwe controle in `daantoets.js`.
+Lees dit vóór elke opdracht, samen met `docs/BLAUWDRUK.md` (Daans 16 basispunten). Nieuwe regel van Daan = nieuwe rij hier én een nieuwe controle in `daantoets.js`.
 
 Schermen: **DL** = Doorloop (`#/doorloop/...`) · **PD2** = Productdata 2.0 (`#/pd2`) · **TD** = Te doen-tabs (`#/todo/<tab>`) · **CT** = Containers / Containerdag (`containerplanning.html`) · **alle** = elke route uit het menu.
 
@@ -27,11 +27,11 @@ Draaien: `node test/pd2/daantoets.js` (repo op poort 8811). Moet groen zijn vó�
 | 2 | Beslist = weg: tab telt af | TD | na Pick nodig, Alleen bulk, Voorstel overnemen, Klopt zo of Later verdwijnt het product uit de open lijst | D17, D18, D19 |
 | 2 | Tijden 24-uurs | TD, DL | geen AM/PM in de schermen | D20 |
 | 2 | Nooit decimalen in aantallen | DL, CT, TD | Doorloop weigert 2,5 bij stuks per pallet, aanvullen bij en max op pick; tellers zijn hele getallen | D21 |
-| 3 | Soorten Pallet · Deel · Bulk · Pick · Mix · Weg; Weg = Uitlopend / Backorder / Archief | DL, TD | de soortkeuze en "Andere soort" tonen precies deze zes; Weg vraagt een van de drie | D22 |
+| 3 | Soort = Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder (blauwdruk §8); Weg = Uitlopend / Archief | DL, TD, PD2 | "Andere soort" in de tabs, de soortlijst van 2.0 en de Doorloop tonen precies deze acht; Weg vraagt Uitlopend of Archief | D22, D22b |
 | 3 | Bulk: nooit max op pick of aanvuladvies naar pick | DL, PD2 | geen Bulk-product met max op pick of aanvullen bij als vraag of voorstel | D23 |
 | 3 | Palletvragen alleen met palletbewijs | DL, PD2 | geen product zonder palletbewijs met stuks per pallet, palletmaat of hoogte als vraag | D24 |
 | 3 | Gewicht volle pallet nooit vragen; stuks per doos, doosmaat, inkoopverpakking niet vragen | DL, PD2 | geen vraag `gewpal`, `spd`, `verp` | D25 |
-| 3 | Per familie invullen, waarden per product uit de eigen data | TD | voorstel staat per product; Picklocaties: "ieder zijn voorstel" als de producten verschillen | D26 |
+| 3 | Per familie invullen, waarden per product uit de eigen data | TD | wat duidelijk ergens anders staat (eigen pick/bulk of de familie elders) is een uitzondering: uitgevinkt, met een eigen voorstel en eigen knop | D26 |
 | 3 | Bronnen: eigen data → kleurgenoten → familie; nooit "meerderheid bij de leverancier" | DL | Vergelijkbaar: kleurgenoten → familie → groep (leverancier + hoofdwoord), nooit andere hoofdwoorden | D27 |
 | 3/10 | Kleurgenoten = zelfde familie én zelfde maat (maat ook uit de naam: afmetingen, lengte, kg, aantal, dikte) | TD, DL, PD2 | nooit een kleurgenoot met een andere maat (MM 10x120 ↔ 4x120, 3028-3/-4/-5, KB-…-4kg/-12kg, Ring-roll 3 m/6 m) | D28 |
 | 4 | Gewicht: voorstel alleen uit kleurgenoten; andere maat alleen met rekensom; anders Naar Te wegen | TD | geen gewichtsvoorstel uit een andere maat zonder rekensom (KB-blkred-4kg nooit 12 kg, Ring-roll 3 m ≠ 6 m, 3028 nooit allemaal 8 kg); 1711-white-set → 0,045 kg | D29 |
@@ -43,9 +43,14 @@ Draaien: `node test/pd2/daantoets.js` (repo op poort 8811). Moet groen zijn vó�
 | 5 | Drie hallen A, B, C; hal C met gedeelte C en D; geen hal D; alleen bestaande gangen | TD, PD2 | nergens "hal D"; keuze hal → gedeelte → gang; gangen alleen uit de locaties | D35 |
 | 6 | SAM Europe: nooit combineren of vergelijken | TD, DL | geen SAM in de tabs of in Vergelijkbaar; SAM staat in een eigen groep | D36 |
 | 3 | Hercontrole: "Weg met voorraad" alleen bij Archief (en Backorder met meer voorraad dan backorders); Uitlopend met voorraad is normaal; andere soort bij kleurgenoten niet als één van beide Weg is; elk punt met Claudes visie en voorstel | TD | geen Uitlopend in Hercontrole, wel E400560-10KG; geen soortfout met een Weg-kleurgenoot; elk punt heeft een visie | D37 |
-| 2 | Picklocaties/Bulklocaties: werklijst "Klaar voor Picqer" per hal → gedeelte → gang met Wijzig | TD | na "Pick nodig" staan ze onder Klaar voor Picqer bij de gekozen gang (Kokos → C · D · DD) | D17 |
+| 2 | Picklocaties: de groep krijgt één voorstel (gang waar de meeste producten staan); werklijst "Klaar voor Picqer" per hal → gedeelte → gang met Wijzig | TD | Wallace · kokos: kop met voorraad, verkoop en "nu in DD …"; voorstel C · D · DD voor de rollen, matten 80x120 uitgevinkt met eigen voorstel; één tik → Klaar voor Picqer bij DD | D17a, D17b |
 | 7 | Containers: Deel nooit een hele pallet naar pick; pick krijgt hele dozen of niets | CT | geen "pallet(s) à … → Picklocatie" bij Deel | D38 |
 | 7 | Containers: voorraad op "geen specifieke locatie" telt niet als pick-voorraad | CT | KOKOS200NAT niet "pick is vol genoeg" door voorraad zonder plek | D39 |
+| 2 | Feiten om te kiezen (blauwdruk 9–14): bij elk product voorraad per plek, verkoop 28 d en 6 mnd, laatste inkoop, backorders, soort en gewicht-status; in de kop van elke groep en familie het aantal, de voorraad per plek, de verkoop en waar de groep nu staat | TD | elk product heeft "verkoop 28 d" en pick/bulk/VST/geen plek; elke groeps- en familiekop heeft producten · pick · bulk · VST · geen plek · verkoop 28 d · nu in … | D43 |
+| 2 | Kiezen = meteen opslaan (met kopie), 3 seconden "Bewaard · ongedaan maken"; geen aparte knoppen "Pick nodig" / "Wens bijwerken" | TD | één tik bewaart; ongedaan maken schrijft terug zoals het was; kiezen bij één product werkt ook; de balk verdwijnt na 3 s | D44, D44b, D44c |
+| 4 | Twee tegen elkaar (of een gelijke stand): geen voorstel, alle Naar Te wegen met die reden; nooit elkaars waarde | TD | SI60120BR 10 kg ↔ SI60120TP 4 kg: geen voorstel, beide wegen; nooit een voorstel uit één kleurgenoot die het oneens is | D45 |
+| 3 | Twijfel = soort "weet ik nog niet" (niet afgerond, geen gewicht/hoeveelheid, onder Later); Backorder = eigen soort (oude Weg · Backorder telt als Backorder, pas bij de volgende bewaaractie omgezet) | TD, DL, PD2 | Twijfel-product: niet afgerond, alleen "soort" open, geen vragen, in tab Later; elke oude Weg · Backorder leest als Backorder en wordt bij bewaren omgezet | D46 |
+| 3/7 | Containers: Backorder → alleen de backorders, rest VST; Twijfel → bij lossen bepalen | CT | advies voor KOKOS200NAT met soort Backorder en Twijfel (in het geheugen) | D47 |
 | 10 | Vaste woorden (Productgeheugen, Soort, Kleurgenoten, Klaar voor Picqer, Later · moet nog) | TD | woorden komen voor zoals afgesproken | D40 |
 | 9 | Oude pagina's blijven werken | Warehouse, Junior, Palletlabels, Containers | `regressie.js` (main ↔ tak); Warehouse, Junior en Palletlabels ongewijzigd (schakelaar `wh-pd-bron` niet omgezet) | D41 |
 | 5 | Aanvullen bij / max op pick (Claudes keuze 09-11): Deel en Pallet met picklocatie krijgen ze alleen als ze ontbreken | DL, PD2 | vraag `lvl` (en bij Deel `maxpick`) alleen bij een vaste picklocatie en alleen als leeg | D42 |

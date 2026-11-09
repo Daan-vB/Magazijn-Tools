@@ -69,6 +69,23 @@ function check(d, regel, waar, x){
         wegSoort:l.filter(x => x.redenen.some(y => /soort/.test(y.t) && /Kleurgenoten/.test(y.t)) && (x.so === 'weg' || x.voorstellen.some(v => v.soort === 'weg'))).map(x => x.c),
         zonderVisie:l.filter(x => x.redenen.some(y => !y.visie)).map(x => x.c) }; });
     check('D37', '§3 Hercontrole: geen Uitlopend met voorraad, wel E400560-10KG (Archief); nooit soortfout met een Weg-kleurgenoot; elk punt met Claudes visie', !r.uitl.length && r.e4archief && !r.e4uitlopend && !r.wegSoort.length && !r.zonderVisie.length, JSON.stringify(r)); }
+  if(doe('D45')){ const r = await ev(() => { const P = PD2R, g = c => WHCP.gewichtPunt(c), si = ['SI60120BR-2-0', 'SI60120TP-2-0'].map(c => { const x = g(c); return { c, reden:x && x.reden, vs:x && x.voorstel, wegen:x && x.wegen }; });
+      // nooit elkaars waarde: geen voorstel als er maar één kleurgenoot met een gewicht is en die het oneens is
+      const twee = WHCP.cats().gewicht.filter(x => x.voorstel && /kleurgenoten/.test(x.voorstel.tekst) && P.kleurgenoten(x.c).filter(y => P.gewicht(y).kg > 0 || P.gewicht(y).pq > 0).length === 1).map(x => x.c);
+      return { si, twee }; });
+    check('D45', '§4 Twee tegen elkaar (SI60120BR 10 kg ↔ SI60120TP 4 kg) of een gelijke stand: geen voorstel, beide Naar Te wegen met die reden; nooit elkaars waarde', r.si.every(x => !x.vs && x.wegen && /oneens/.test(x.reden || '')) && !r.twee.length, JSON.stringify(r)); }
+  if(doe('D46')){ const r = await ev(() => { const P = PD2R, t = new Date().toISOString(), oudBo = Object.keys(P.S.o.p).filter(c => { const p = P.S.o.p[c]; return p.so && p.so.v === 'weg' && p.weg && p.weg.v === 'backorder'; });
+      const leesBo = oudBo.every(c => P.soortWaarde(c).v === 'backorder' && P.status(c).so === 'backorder');
+      // Twijfel alleen in het geheugen: niet afgerond, geen gewicht- of hoeveelheidsvragen, onder Later, niet in de gewone Doorloop
+      const c = Object.keys(WH.D.P).find(x => P.actief(x) && !P.isSam(x) && !P.isKoppel(x) && P.status(x).so === 'deel' && P.belangrijk().includes(x)), oud = P.S.o.p[c] ? JSON.parse(JSON.stringify(P.S.o.p[c])) : null;
+      P.S.o.p[c] = Object.assign({ f:{} }, oud || {}, { so:{ v:'twijfel', st:'aangepast', t } }); P.ongeldig(c); WHCP.S.memo = null;
+      const st = P.status(c), tw = { af:st.af, open:st.open, nodig:P.nodigVan(c, 'twijfel'), later:WHCP.twijfelItems().some(x => x.c === c), telLater:WHCP.tel().later };
+      if(oud) P.S.o.p[c] = oud; else delete P.S.o.p[c]; P.ongeldig(c); WHCP.S.memo = null;
+      // oude vorm wordt pas bij de volgende bewaaractie omgezet (in het geheugen nagebootst, zonder te schrijven)
+      const b = oudBo[0], ob = b ? JSON.parse(JSON.stringify(P.S.o.p[b])) : null; let omgezet = true;
+      if(b){ const was = P.S.echt; P.S.echt = false; try{ P.poZet(b, p => { p.gew = p.gew || { st:'tewegen', t }; }); omgezet = P.S.o.p[b].so.v === 'backorder' && !P.S.o.p[b].weg; } finally { P.S.echt = was; P.S.o.p[b] = ob; P.ongeldig(b); } }
+      return { n:oudBo.length, leesBo, c, tw, omgezet, kies:P.SOORTEN.map(x => x[0]).includes('twijfel') && P.SOORTEN.map(x => x[0]).includes('backorder') }; });
+    check('D46', '§3 Twijfel en Backorder zijn soorten: Weg · Backorder wordt gelezen als Backorder (pas bij de volgende bewaaractie omgezet); Twijfel telt niet als afgerond, geen gewicht/hoeveelheid, staat onder Later', r.kies && r.leesBo && r.omgezet && !r.tw.af && r.tw.open.join() === 'soort' && !r.tw.nodig.length && r.tw.later, JSON.stringify(r)); }
   if(doe('D35')){ const r = await ev(() => { const g = PD2R.gangen(); return { g:g.map(h => h.gang), hal:[...new Set(g.map(h => h.hal))], dDeel:g.filter(h => h.gang[0] === 'D').every(h => h.hal === 'C' && h.deel === 'D'), cDeel:g.filter(h => h.gang[0] === 'C').every(h => h.hal === 'C' && h.deel === 'C'), oud:PD2R.wensNorm({ hal:'D', gang:'DD' }) }; });
     check('D35', '§5 Keuze hal → gedeelte → gang: gangen D.. = hal C gedeelte D, alleen bestaande gangen; oude pickwens "D" leest als C/D', r.hal.every(h => ['A', 'B', 'C'].includes(h)) && r.dDeel && r.cDeel && r.oud.hal === 'C' && r.oud.deel === 'D', JSON.stringify(r).slice(0, 300)); }
   if(doe('D23') || doe('D24') || doe('D25') || doe('D42')){
@@ -94,37 +111,69 @@ function check(d, regel, waar, x){
     for(const t of ['later', 'picklocaties', 'bulklocaties', 'hercontrole', 'gewicht', 'tewegen', 'aantal']){
       await naarTab(t);
       per[t] = await ev(() => { const g = [...document.querySelectorAll('.cp-grp')], n = (WHCP.tel() || {})[location.hash.split('/')[2]] || 0;
-        return { n, g:g.length, sel:g.every(x => /Selectie is:/.test(x.innerText)), geldt:g.every(x => /Geldt voor/.test(x.innerText) && x.querySelector('.cp-geldt code')), aan:[...document.querySelectorAll('[data-cp-sel]')].every(i => i.checked), fam:g.every(x => x.querySelector('[data-cp-fam]')),
+        return { n, g:g.length, sel:g.every(x => /Selectie is:/.test(x.innerText)), geldt:g.every(x => /Geldt voor/.test(x.innerText) && x.querySelector('.cp-geldt code')), aan:[...document.querySelectorAll('[data-cp-sel]')].every(i => { const k = i.dataset.cpSel, j = k.indexOf('|'), cat = k.slice(0, j), c = k.slice(j + 1), l = cat === 'later' ? WHCP.laterItems() : (WHCP.cats()[cat] || []), x = l.find(y => y.c === c); return i.checked === !(x && x.uitz); }), feit:[...document.querySelectorAll('.cp-item')].every(i => /verkoop 28 d \d/.test(i.innerHTML) && /(pick |bulk |VST |geen plek |geen voorraad)/.test(i.innerHTML)), kop:g.every(x => /(product|producten) · pick [\d.]+ · bulk [\d.]+ · VST [\d.]+ · geen plek [\d.]+ · verkoop 28 d [\d.]+ · (nu in|staat nog nergens)/.test(x.querySelector('.cp-gt').textContent)), famkop:[...document.querySelectorAll('.cp-famblok .cp-gt')].every(x => /verkoop 28 d/.test(x.textContent)), fam:g.every(x => x.querySelector('[data-cp-fam]')),
           aanpas:[...document.querySelectorAll('.cp-item')].every(i => i.querySelector('a[href^="#/doorloop/p/"]')), table:!!document.querySelector('#cp-inh table') }; });
     }
     const slecht = Object.entries(per).filter(([, x]) => x.n > 0 && !(x.g > 0 && x.sel && x.geldt && x.aan && x.fam)).map(([k]) => k);
     if(doe('D9')) check('D9', '§2 VASTE REGEL samenvoegen: elke tab groep → familie → product, alles aangevinkt, één vraag "Selectie is: …", "Geldt voor" met de codes', !slecht.length, slecht.join(',') + ' ' + JSON.stringify(per).slice(0, 300));
     if(doe('D13')) check('D13', '§2 Elk punt aanpasbaar: per product "Aanpassen" (opent de Doorloop)', Object.values(per).every(x => !x.n || x.aanpas), '');
     if(doe('D7')) check('D7', '§2 Rustig scherm: geen tabellen in Te doen', Object.values(per).every(x => !x.table), '');
+    if(doe('D43')) check('D43', '§2 Feiten om te kiezen: bij elk product voorraad per plek (pick/bulk/VST/geen plek) en verkoop 28 d en 6 mnd; in de kop van elke groep en familie producten, voorraad per plek, verkoop en waar de groep nu staat', Object.values(per).every(x => !x.n || (x.feit && x.kop && x.famkop)), JSON.stringify(Object.fromEntries(Object.entries(per).map(([k, x]) => [k, [x.feit, x.kop, x.famkop]]))));
   }
   if(doe('D22')){
     await naarTab('picklocaties');
-    const r = await ev(async () => { const g = document.querySelector('.cp-grp'); if(!g) return null; const k = [...g.querySelectorAll('[data-cp="g-soort"]')].map(b => b.innerText); const w = g.querySelector('[data-cp="g-soort"][data-v="weg"]'); w.click(); await new Promise(r => setTimeout(r, 900)); const g2 = document.querySelector('.cp-grp[data-gk="' + CSS.escape(g.dataset.gk) + '"]'); return { k, weg:[...g2.querySelectorAll('[data-cp="g-weg"]')].map(b => b.innerText) }; });
-    check('D22', '§3 Soort = Pallet · Deel · Bulk · Pick · Mix · Weg; Weg = Uitlopend / Backorder / Archief', r && r.k.join(',') === 'Pallet,Deel,Bulk,Pick,Mix,Weg' && r.weg.join(',') === 'Weg · Uitlopend,Weg · Backorder,Weg · Archief', JSON.stringify(r));
+    const r = await ev(async () => { const g = document.querySelector('.cp-grp'); if(!g) return null; const k = [...g.querySelectorAll('[data-cp="g-soort"]')].map(b => b.innerText); const w = g.querySelector('[data-cp="g-soort"][data-v="weg"]'); w.click(); await new Promise(r => setTimeout(r, 900)); const g2 = document.querySelector('.cp-grp[data-gk="' + CSS.escape(g.dataset.gk) + '"]'); return { k, weg:[...g2.querySelectorAll('[data-cp="g-weg"]')].map(b => b.innerText), r:PD2R.SOORTEN.map(x => x[1]).join(','), rw:PD2R.WEG.map(x => x[1]).join(',') }; });
+    check('D22', '§3 Soort = Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder (blauwdruk §8); Weg = Uitlopend / Archief', r && r.k.join(',') === 'Pick,Bulk,Deel,Pallet,Mix,Twijfel,Weg,Backorder' && r.weg.join(',') === 'Weg · Uitlopend,Weg · Archief' && r.r === 'Pick,Bulk,Deel,Pallet,Mix,Twijfel,Weg,Backorder' && r.rw === 'Uitlopend,Archief', JSON.stringify(r));
   }
-  if(doe('D26')){ const r = await ev(() => { const gr = WHCP.groepeer(WHCP.cats().picklocaties).find(g => new Set(g.items.map(x => x.pv ? x.pv.gang : '-')).size > 1); if(!gr) return { geen:true }; const el = document.querySelector('.cp-grp[data-gk="' + CSS.escape(gr.k) + '"]'); return { gk:gr.k, ster:!!(el && el.querySelector('option[value="*"]')), perProduct:gr.items.filter(x => x.pv).every(x => x.voorstellen.length) }; });
-    check('D26', '§3 Per familie invullen, waarden per product uit de eigen data: Picklocaties "ieder zijn voorstel" als de producten verschillen', r.geen || (r.ster && r.perProduct), JSON.stringify(r)); }
+  if(doe('D26')){ const r = await ev(() => { const l = WHCP.cats().picklocaties, u = l.filter(x => x.uitz); return { n:u.length, goed:u.every(x => x.pv && document.querySelector('[data-cp="g-pick"][data-een="' + CSS.escape(x.c) + '"][data-v="' + x.pv.gang + '"]') && x.voorstellen.length), uit:u.every(x => { const i = document.querySelector('[data-cp-sel="picklocaties|' + CSS.escape(x.c) + '"]'); return i && !i.checked; }) }; });
+    check('D26', '§3 Waarden per product uit de eigen data: wat duidelijk ergens anders staat is een uitzondering, uitgevinkt, met een eigen voorstel en eigen knop', r.n === 0 || (r.goed && r.uit), JSON.stringify(r)); }
 
-  /* ---------- D17 Picklocaties: Wallace · kokos → Pick nodig → Klaar voor Picqer bij DD ---------- */
-  if(doe('D17')){
+  /* ---------- D17 Picklocaties: Wallace · kokos → één tik → Klaar voor Picqer bij DD, ongedaan maken ---------- */
+  if(doe('D17') || doe('D44')){
     // uitgangssituatie vóór het besluit (alleen in het geheugen): de pickwensen van Kokos weg
     await ev(() => { Object.keys(WHPD.S.pd).filter(c => /^KOKOS/i.test(c)).forEach(c => { const r = WHPD.S.pd[c]; if(r && r.data && r.data.pickwens){ r.data = Object.assign({}, r.data); delete r.data.pickwens; } }); WHCP.S.memo = null; });
     await naarTab('picklocaties'); await herteken(); await wacht(500);
     const voor = await ev(() => { const gr = WHCP.groepeer(WHCP.cats().picklocaties).find(g => g.naam === 'Wallace · kokos'); if(!gr) return null; const el = document.querySelector('.cp-grp[data-gk="' + CSS.escape(gr.k) + '"]');
-      return { gk:gr.k, n:gr.items.length, codes:gr.items.map(x => x.c), tel:WHCP.tel().picklocaties, aan:[...el.querySelectorAll('[data-cp-sel]')].every(i => i.checked), alle:/Geldt voor alle/.test(el.innerText), voorstel:(el.querySelector('.cp-gu') || {}).innerText || '', top:(WHCP.groepeer(WHCP.cats().picklocaties).find(g => g.k === gr.k).items.map(x => x.pv && x.pv.gang)) }; });
-    check('D17a', '§2 Samenvoegen: Picklocaties groep "Wallace · kokos" met alles aangevinkt en voorstel C · D · DD', voor && voor.aan && voor.alle && /hal C · gedeelte D · gang DD/.test(voor.voorstel), JSON.stringify(voor).slice(0, 400));
+      const aanV = c => !!el.querySelector('[data-cp-sel="picklocaties|' + CSS.escape(c) + '"]:checked');
+      return { gk:gr.k, n:gr.items.length, tel:WHCP.tel().picklocaties, kop:el.querySelector('.cp-gt').textContent, voorstel:(el.querySelector('.cp-gu') || {}).textContent || '', knop:(el.querySelector('.cp-sel [data-cp="g-pick"]') || {}).dataset,
+        rollen:gr.items.filter(x => /^KOKOS(100|200)/.test(x.c) && !x.uitz).map(x => x.c), rolAan:gr.items.filter(x => /^KOKOS(100|200)/.test(x.c) && !x.uitz).every(x => aanV(x.c) && x.pv.gang === 'DD'),
+        matten:gr.items.filter(x => /^KOKOS80120/.test(x.c)).map(x => x.c + ':' + (x.uitz ? 'uit' : 'AAN') + ':' + (x.pv ? x.pv.gang : '-') + ':' + aanV(x.c)), mattenUit:gr.items.filter(x => /^KOKOS80120/.test(x.c)).every(x => x.uitz && !aanV(x.c) && x.pv && x.pv.gang !== 'DD'),
+        oudeKnop:/Pick nodig|Wens bijwerken/.test(document.querySelector('#cp-inh').innerText) }; });
+    check('D17a', '§2 Picklocaties groep "Wallace · kokos": kop met voorraad, verkoop en "nu in DD …"; voorstel C · D · DD voor de rollen; matten 80x120 uitgevinkt met eigen voorstel', voor && /nu in DD \d+/.test(voor.kop) && /verkoop 28 d [\d.]+/.test(voor.kop) && /hal C · gedeelte D · gang DD/.test(voor.voorstel) && voor.knop && voor.knop.v === 'DD' && voor.rollen.length >= 8 && voor.rolAan && voor.mattenUit, JSON.stringify(voor).slice(0, 600));
     if(voor){
-      await ev(gk => document.querySelector('.cp-grp[data-gk="' + CSS.escape(gk) + '"] [data-cp="g-pick"]').click(), voor.gk); await wacht(3000);
-      const na = await ev(codes => { const c = WHCP.cats(); return { tel:WHCP.tel().picklocaties, open:c.picklocaties.filter(x => codes.includes(x.c)).map(x => x.c), klaar:c.pickklaar.filter(x => codes.includes(x.c)).map(x => x.c + '@' + x.wens.hal + x.wens.deel + x.wens.gang), lijst:(document.getElementById('cp-klaar') || {}).innerText || '' }; }, voor.codes);
-      const rol = na.klaar.filter(x => /^KOKOS(100|200)/.test(x));
-      check('D17b', '§2 Beslist = weg: na "Pick nodig" telt de tab af en staan ze onder "Klaar voor Picqer" bij hal C · gedeelte D · gang DD', na.tel === voor.tel - (voor.n - na.open.length) && na.tel < voor.tel && rol.length > 0 && rol.every(x => /@CDDD$/.test(x)) && /Hal C · gedeelte D · gang DD/.test(na.lijst), voor.tel + ' → ' + na.tel + ' · ' + na.klaar.slice(0, 6).join(' '));
-      const wr = T.pdWrites.filter(r => r.data && r.data.pickwens && /^KOKOS/.test(r.productcode));
-      check('D2', '§1 Schrijven alleen met een kopie vooraf (wh-kopie-productdata) en nooit hal "D" in een nieuwe pickwens', wr.length > 0 && wr.every(r => ['A', 'B', 'C'].includes(r.data.pickwens.hal) && (r.data.pickwens.gang[0] !== 'D' || (r.data.pickwens.hal === 'C' && r.data.pickwens.ged === 'D'))) && T.writes.findIndex(k => /^wh-kopie-productdata-/.test(k)) > -1 && T.writes.findIndex(k => /^wh-kopie-productdata-/.test(k)) < T.writes.indexOf('productdata'), JSON.stringify(wr.slice(0, 3).map(r => r.productcode + ':' + JSON.stringify(r.data.pickwens))) + ' ' + T.writes.slice(0, 6).join(','));
+      const pw0 = T.pdWrites.length;
+      await P.waitForFunction(() => !document.getElementById('cp-bewaard') || document.getElementById('cp-bewaard').hidden, null, { timeout:8000 }).catch(() => {});
+      await ev(gk => document.querySelector('.cp-grp[data-gk="' + CSS.escape(gk) + '"] .cp-sel [data-cp="g-pick"]').click(), voor.gk);
+      await P.waitForFunction(() => document.getElementById('cp-bewaard') && !document.getElementById('cp-bewaard').hidden && /pick in/.test(document.getElementById('cp-bewaard').innerText), null, { timeout:20000 }).catch(() => {}); await wacht(300);
+      const na = await ev(codes => { const c = WHCP.cats(); return { tel:WHCP.tel().picklocaties, open:c.picklocaties.filter(x => codes.includes(x.c)).map(x => x.c), klaar:c.pickklaar.filter(x => codes.includes(x.c)).map(x => x.c + '@' + x.wens.hal + x.wens.deel + x.wens.gang), lijst:(document.getElementById('cp-klaar') || {}).innerText || '', bar:(document.getElementById('cp-bewaard') || {}).innerText || '', zicht:!!(document.getElementById('cp-bewaard') && !document.getElementById('cp-bewaard').hidden) }; }, voor.rollen);
+      check('D17b', '§2 Kiezen = opslaan: één tik bewaart (geen knop "Pick nodig"), de tab telt af, de rollen staan onder "Klaar voor Picqer" bij hal C · gedeelte D · gang DD', !voor.oudeKnop && na.tel === voor.tel - voor.rollen.length && !na.open.length && na.klaar.length === voor.rollen.length && na.klaar.every(x => /@CDDD$/.test(x)) && /Hal C · gedeelte D · gang DD/.test(na.lijst), voor.tel + ' → ' + na.tel + ' · ' + na.klaar.slice(0, 4).join(' '));
+      const wr = T.pdWrites.slice(pw0).filter(r => r.data && r.data.pickwens && /^KOKOS/.test(r.productcode));
+      check('D2', '§1 Schrijven alleen met een kopie vooraf (wh-kopie-productdata) en nooit hal "D" in een nieuwe pickwens', wr.length > 0 && wr.every(r => ['A', 'B', 'C'].includes(r.data.pickwens.hal) && (r.data.pickwens.gang[0] !== 'D' || (r.data.pickwens.hal === 'C' && r.data.pickwens.ged === 'D'))) && T.writes.findIndex(k => /^wh-kopie-productdata-/.test(k)) > -1 && T.writes.findIndex(k => /^wh-kopie-productdata-/.test(k)) < T.writes.indexOf('productdata'), JSON.stringify(wr.slice(0, 2).map(r => r.productcode + ':' + JSON.stringify(r.data.pickwens))));
+      // ongedaan maken: binnen 3 seconden zet het de rijen terug zoals ze in de database stonden (met kopie)
+      const pw1 = T.pdWrites.length;
+      await ev(() => { const b = document.querySelector('#cp-bewaard [data-cp-undo]'); if(b) b.click(); }); await wacht(2500);
+      const terugRijen = T.pdWrites.slice(pw1).filter(r => voor.rollen.includes(r.productcode)).map(r => ({ c:r.productcode, pw:(r.data || {}).pickwens || null }));
+      const db = await ev(async codes => { const q = codes.map(c => '"' + c + '"').join(','); const r = await WH.api('GET', 'productdata?productcode=in.(' + encodeURIComponent(q) + ')&select=productcode,data'); return Object.fromEntries((r || []).map(x => [x.productcode, (x.data || {}).pickwens || null])); }, voor.rollen);
+      const gelijk = terugRijen.length === voor.rollen.length && terugRijen.every(x => JSON.stringify(x.pw) === JSON.stringify(db[x.c] || null));
+      check('D44', '§2 Kiezen = meteen opslaan met 3 s "Bewaard · ongedaan maken"; ongedaan maken schrijft de rijen terug zoals ze in de database stonden', na.zicht && /Bewaard · .*pick in C · D · DD.*ongedaan maken/s.test(na.bar) && gelijk, JSON.stringify({ bar:na.bar, terug:terugRijen.length, gelijk }));
+      // per product kiezen: een uitzondering (mat 80x120) met één tik op zijn eigen voorstel
+      const m = await ev(gk => { const x = WHCP.cats().picklocaties.find(y => y.gk === gk && y.uitz); if(!x) return null; document.querySelector('[data-cp="g-pick"][data-een="' + CSS.escape(x.c) + '"]').click(); return { c:x.c, gang:x.pv.gang }; }, voor.gk); await wacht(2500);
+      const mk = m ? await ev(c => (WHCP.cats().pickklaar.find(x => x.c === c) || {}).wens, m.c) : null;
+      check('D44b', '§2 Kiezen bij één product: de uitzondering bewaart met één tik haar eigen voorstel', m && mk && mk.gang === m.gang, JSON.stringify({ m, mk }));
+    }
+  }
+  if(doe('D44')){
+    await naarTab('hercontrole');
+    const x = await ev(() => { const x = WHCP.cats().hercontrole[0]; return x ? { c:x.c, tel:WHCP.tel().hercontrole } : null; });
+    if(x){
+      await P.waitForFunction(() => !document.getElementById('cp-bewaard') || document.getElementById('cp-bewaard').hidden, null, { timeout:8000 }).catch(() => {});   // de balk van een vorige keuze eerst weg
+      await ev(c => document.querySelector('[data-cp="g-klopt"][data-een="' + CSS.escape(c) + '"]').click(), x.c);
+      await P.waitForFunction(() => document.getElementById('cp-bewaard') && !document.getElementById('cp-bewaard').hidden && /klopt zo/.test(document.getElementById('cp-bewaard').innerText), null, { timeout:15000 }).catch(() => {});
+      const na = await ev(c => ({ tel:WHCP.tel().hercontrole, er:WHCP.cats().hercontrole.some(y => y.c === c) }), x.c);
+      await ev(() => { const b = document.querySelector('#cp-bewaard [data-cp-undo]'); if(b) b.click(); }); await wacht(1800);
+      const terug = await ev(c => ({ tel:WHCP.tel().hercontrole, er:WHCP.cats().hercontrole.some(y => y.c === c) }), x.c);
+      await wacht(3200); const weg = await ev(() => !document.getElementById('cp-bewaard') || document.getElementById('cp-bewaard').hidden);
+      check('D44c', '§2 "Klopt zo" bij één product: meteen weg en de tab telt af; ongedaan maken zet het terug; de balk verdwijnt na 3 seconden', !na.er && na.tel === x.tel - 1 && terug.er && terug.tel === x.tel && weg, JSON.stringify({ x, na, terug, weg }));
     }
   }
   /* ---------- D18 Bulklocaties: PBVF als groep "Alleen bulk" ---------- */
@@ -189,9 +238,10 @@ function check(d, regel, waar, x){
     const licht = await contrast(); await P.emulateMedia({ colorScheme:'dark' }); await wacht(300); const donker = await contrast(); await P.emulateMedia({ colorScheme:'light' });
     if(doe('D12')) check('D12b', '§2 Vergelijkbaar: code leesbaar in licht en donker (contrast ≥ 4,5)', licht >= 4.5 && donker >= 4.5, 'licht ' + (licht && licht.toFixed(1)) + ' · donker ' + (donker && donker.toFixed(1)));
   }
-  if(doe('D21') || doe('D33') || doe('D34') || doe('D30')){
+  if(doe('D21') || doe('D33') || doe('D34') || doe('D30') || doe('D22')){
     const deel = await ev(() => Object.keys(WH.D.P).find(c => PD2R.actief(c) && !PD2R.isSam(c) && !PD2R.isKoppel(c) && PD2R.status(c).so === 'deel' && PD2R.info(c).bewijs && !PD2R.isRol(c) && PD2R.gewicht(c).st !== 'gewogen'));
     await P.goto(B + 'ivol.html#/doorloop/p/' + encodeURIComponent(deel) + '/hercontrole'); await wacht(2500);
+    if(doe('D22')){ const k = await ev(() => [...document.querySelectorAll('[data-pk^="soort|"]')].map(b => b.innerText)); check('D22b', '§3 Doorloop: soortkeuze Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder', k.join(',') === 'Pick,Bulk,Deel,Pallet,Mix,Twijfel,Weg,Backorder', k.join(',')); }
     if(doe('D30')){
       const r = await ev(async c => { const k = [...document.querySelectorAll('[data-pk^="gewicht|"]')].map(b => b.innerText); document.querySelector('[data-pk="gewicht|gewogen"]').click(); await new Promise(r => setTimeout(r, 200)); delete WHDL.A(c).kg; document.getElementById('dl-klopt').click(); await new Promise(r => setTimeout(r, 300)); const m = WHDL.S.melding; WHDL.A(c).gst = undefined; delete WHDL.A(c).gst; return { k, melding:m }; }, deel);
       check('D30', '§4 Gewicht-status gewogen · vertrouwd · te wegen; gewogen zonder kg wordt niet bewaard', r.k.join(',') === 'Vertrouwd,Te wegen,Gewogen' && /Gewogen: typ de kg/.test(r.melding), JSON.stringify(r));
@@ -233,7 +283,7 @@ function check(d, regel, waar, x){
     check('D8', '§2 Schermvullend: Te doen op 390, 1440 en 2560 px zonder horizontaal scrollen (volledig: schermvullend.js)', !fouten.length, fouten.join(','));
   }
   /* ---------- Containers ---------- */
-  if(doe('D38') || doe('D39')){
+  if(doe('D38') || doe('D39') || doe('D47')){
     await P.goto(B + 'containerplanning.html'); await wacht(5000);
     const ids = await ev(async () => { try{ const r = await (await fetch(WH_URL_TEST(), { headers:{ apikey:'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA' } })).json(); return r; }catch(e){ return []; } function WH_URL_TEST(){ return 'https://jarbgetbwkjtxwtcfwmq.supabase.co/rest/v1/containers?select=id,data&order=id.desc&limit=60'; } });
     const metKokos = (ids || []).filter(x => JSON.stringify(x.data || {}).includes('KOKOS200NAT')).map(x => x.id);
@@ -245,6 +295,13 @@ function check(d, regel, waar, x){
       r.filter(x => /productdata: Deel/.test(x.t) && /\d+× [^·→]*→ Picklocatie/.test(x.t)).forEach(x => deelFout.push(id + ':' + x.c));
     }
     if(doe('D39')) check('D39', '§7 Containers: voorraad op "geen specifieke locatie" telt niet als pick-voorraad (KOKOS200NAT nooit "pick is vol genoeg" door voorraad zonder plek)', kok && !/pick is vol genoeg/.test(kok) && /geen specifieke locatie telt niet mee|pick nu \d/.test(kok), kok.slice(0, 400) || 'KOKOS200NAT in geen container');
+    if(doe('D47')){
+      // Backorder → alleen de backorders, rest VST; Twijfel → bij lossen bepalen (productdata in het geheugen nagebootst voor KOKOS200NAT)
+      const r = await ev(() => { try{ const T_ = window.CP_TEST, c = T_.cont().find(x => ((x.data && x.data.regels) || []).some(y => y.productcode === 'KOKOS200NAT')); if(!c) return null; const pool = T_.pools(c).map['KOKOS200NAT'], orig = PDBRON.cp;
+        const met = so => { PDBRON.cp = code => code === 'KOKOS200NAT' ? Object.assign({}, orig(code) || { code }, { soort:so }) : orig(code); try{ return T_.adviesKern(c, pool, T_.leegEerder()); } finally { PDBRON.cp = orig; } };
+        const bo = met('backorder'), tw = met('twijfel'); return { bo:{ uitleg:bo.uitleg, dest:bo.porties.map(x => x.dest + ':' + x.n) }, tw:{ uitleg:tw.uitleg, n:tw.porties.length } }; }catch(e){ return { fout:String(e) }; } });
+      check('D47', '§3/§7 Containers: Backorder → alleen de backorders, rest VST; Twijfel → bij lossen bepalen', r && /Backorder → alleen de backorders/.test(r.bo.uitleg) && r.bo.dest.every(d => /^(BO|VST):/.test(d)) && /Twijfel — bij lossen bepalen/.test(r.tw.uitleg) && r.tw.n === 0, JSON.stringify(r));
+    }
     if(doe('D38')) check('D38', '§7 Containers: Deel nooit een hele pallet naar pick (pick krijgt hele dozen of niets)', !deelFout.length, deelFout.join(','));
   }
   /* ---------- repo ---------- */

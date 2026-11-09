@@ -79,7 +79,7 @@ function cp(code){
   const r = CP.pd[String(code).trim().toLowerCase()]; if(!r) return null;
   const w = veld => { const m = r.meta[veld]; if(m && (m.tw || m.park)) return null; const v = r.data[veld]; const x = v && typeof v === 'object' ? v.v : v; return onb(x) ? null : String(x).trim(); };
   const soort = (w('opslag') || '').toLowerCase();
-  return { code:r.code, soort:['pallet', 'deel', 'bulk', 'pick', 'mix', 'weg'].includes(soort) ? soort : '', uitlopend:!!w('uitlopend'), spp:getal(w('spp')), maxpick:getal(w('maxpick')), lvl:getal(w('lvl')), pickkeuze:w('pickkeuze') || '', pick:w('pick') || '' };
+  return { code:r.code, soort:['pallet', 'deel', 'bulk', 'pick', 'mix', 'weg', 'backorder', 'twijfel'].includes(soort) ? soort : '', uitlopend:!!w('uitlopend'), spp:getal(w('spp')), maxpick:getal(w('maxpick')), lvl:getal(w('lvl')), pickkeuze:w('pickkeuze') || '', pick:w('pick') || '' };
 }
 // zoals D.PD in core.js verwacht: alleen wat andere apps mogen lezen (geen onnagekeken schattingen)
 const rijen = () => Object.keys(S.pd).map(c => { const r = S.pd[c], d = {}; Object.keys(r.data).forEach(k => { if(!(r.meta[k] && r.meta[k].tw)) d[k] = r.data[k]; }); return { productcode:c, data:d }; });

@@ -13,8 +13,10 @@ window.WHDL = (function(){
 'use strict';
 const { esc, nf, num } = WH;
 const R = () => window.PD2R;
-const SOORTEN = [['pallet', 'Pallet'], ['deel', 'Deel'], ['bulk', 'Bulk'], ['pick', 'Pick'], ['mix', 'Mix'], ['weg', 'Weg']];
-const WEG = [['uitlopend', 'Uitlopend'], ['backorder', 'Backorder'], ['archief', 'Archief']];
+// soort volgens de blauwdruk (§8): Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder; Weg = Uitlopend of Archief (09-11)
+const SOORTEN = [['pick', 'Pick'], ['bulk', 'Bulk'], ['deel', 'Deel'], ['pallet', 'Pallet'], ['mix', 'Mix'], ['twijfel', 'Twijfel'], ['weg', 'Weg'], ['backorder', 'Backorder']];
+const ZONDER = new Set(['weg', 'backorder', 'twijfel']);   // geen gewicht- of hoeveelheidsvragen
+const WEG = [['uitlopend', 'Uitlopend'], ['archief', 'Archief']];
 const GEWST = [['vertrouwd', 'Vertrouwd'], ['tewegen', 'Te wegen'], ['gewogen', 'Gewogen']];
 const PAL = ['pallet', 'deel', 'bulk'];
 const VRAGEN = ['soort', 'gewicht', 'spp', 'maat', 'hoogte', 'lvl', 'maxpick', 'rl', 'rmax'];
@@ -165,7 +167,8 @@ function volgensGroep(fams){
 }
 // Later-lijst: alleen de vragen die op Later staan, oudste eerst, per familie
 function bouwLater(){
-  const P = R(), items = LT() ? LT().lijst() : [], fams = [], perFam = {};
+  const P = R(), fams = [], perFam = {};
+  const items = (LT() ? LT().lijst() : []).concat(P.belangrijk().filter(c => { try{ return st(c).so === 'twijfel' && !(LT() && LT().is(c, 'soort')); }catch(e){ return false; } }).map(c => ({ c, t:'soort', op:'', twijfel:true })));
   items.forEach(x => { const fk = P.famVan(x.c); if(!perFam[fk]){ perFam[fk] = { fk, items:[] }; fams.push(perFam[fk]); } perFam[fk].items.push(x); });
   S.fams = fams.map(g => Object.assign(famObj(g.fk, [...new Set(g.items.map(x => x.c))]), { items:g.items }));
   S.pad = []; S.fams.forEach(f => { VRAGEN.forEach(t => { const rows = [...new Set(f.items.filter(x => x.t === t).map(x => x.c))]; if(rows.length) S.pad.push({ t, f, rows, laterlijst:true }); }); S.pad.push({ t:'klaar', f }); });
@@ -176,17 +179,18 @@ function bouwLater(){
 /* ---------- rijen per vraag: live uit dezelfde status als Productdata 2.0 (één keer vastgezet zodra de vraag in beeld komt) ---------- */
 function rijenNu(v){
   const P = R();
-  if(v.t === 'soort') return v.f.cs.filter(c => !st(c).stap.soort && !lat(c, 'soort'));
+  // Twijfel staat in de Later-lijst (Te doen → Later): nooit weer vooraan in de gewone Doorloop
+  if(v.t === 'soort') return v.f.cs.filter(c => !st(c).stap.soort && !lat(c, 'soort') && st(c).so !== 'twijfel');
   // soort eerst: gewicht en hoeveelheid pas na een bevestigde soort; Weg heeft verder geen vragen
-  if(v.t === 'gewicht') return v.f.cs.filter(c => { const s = st(c); return s.stap.soort && s.so !== 'weg' && !P.isSam(c) && !s.stap.gewicht && !lat(c, 'gewicht'); });
-  return v.f.cs.filter(c => { const s = st(c); return s.stap.soort && s.so !== 'weg' && s.open.includes(v.t) && !lat(c, v.t); });
+  if(v.t === 'gewicht') return v.f.cs.filter(c => { const s = st(c); return s.stap.soort && !ZONDER.has(s.so) && !P.isSam(c) && !s.stap.gewicht && !lat(c, 'gewicht'); });
+  return v.f.cs.filter(c => { const s = st(c); return s.stap.soort && !ZONDER.has(s.so) && s.open.includes(v.t) && !lat(c, v.t); });
 }
 // alle producten van de familie voor deze vraag, ook al bevestigde (voor ←, de stap-knoppen, zoeken): alleen wat bij de soort hoort (NODIG)
 function alleRijen(v){
   const P = R(), leden = v.f.cs.filter(c => !P.isKoppel(c));
   if(v.t === 'soort') return leden;
-  if(v.t === 'gewicht') return leden.filter(c => soortNu(c) && soortNu(c) !== 'weg' && !P.isSam(c));
-  return leden.filter(c => { const so = soortNu(c); if(!so || so === 'weg') return false; try{ return P.nodigVan(c, so, P.info(c)).includes(v.t); }catch(e){ return false; } });
+  if(v.t === 'gewicht') return leden.filter(c => soortNu(c) && !ZONDER.has(soortNu(c)) && !P.isSam(c));
+  return leden.filter(c => { const so = soortNu(c); if(!so || ZONDER.has(so)) return false; try{ return P.nodigVan(c, so, P.info(c)).includes(v.t); }catch(e){ return false; } });
 }
 const rijenVoor = v => v.alle ? alleRijen(v) : (v.rows || rijenNu(v));
 
@@ -345,8 +349,8 @@ function klaarHtml(f){
   const r = f.cs.map(c => {
     const s = st(c), I = P.info(c), d = [], open = [];
     const so = P.soortWaarde(c, I);
-    if(s.stap.soort) d.push(naamSoort(so.v) + (so.v === 'weg' ? ' · ' + naamWeg(P.wegWaarde(c, I).v) : '')); else open.push('soort');
-    if(so.v !== 'weg' && s.stap.soort){
+    if(s.stap.soort) d.push(naamSoort(so.v) + (so.v === 'weg' ? ' · ' + naamWeg(P.wegWaarde(c, I).v) : '')); else open.push(so.v === 'twijfel' ? 'soort (Twijfel, staat onder Later)' : 'soort');
+    if(!ZONDER.has(so.v) && s.stap.soort){
       const g = P.gewicht(c);
       if(!P.isSam(c)){ if(s.stap.gewicht) d.push('gewicht ' + naamGew(g.st).toLowerCase() + (g.st === 'gewogen' && g.kg ? ' ' + fmt(g.kg) + ' kg' : '')); else open.push('gewicht'); }
       ['spp', 'maat', 'hoogte', 'lvl', 'maxpick', 'rl', 'rmax'].forEach(k => { const w = P.waarde(c, k, I); if(s.open.includes(k)) open.push(NAAM[k]); else if(OK.includes(w.st) && w.v) d.push(NAAM[k] + ' ' + w.v + (k === 'hoogte' ? ' cm' : '')); });
@@ -391,7 +395,7 @@ function controleRijen(t, rijen){
   const v = { t };
   if(v.t === 'soort'){
     const g = rijen.filter(c => !waarde(v, c).v); if(g.length) return 'Kies een soort bij ' + g.join(', ') + ', of vink uit en tik Later.';
-    const w = rijen.filter(c => waarde(v, c).v === 'weg' && !A(c).weg); if(w.length) return 'Kies bij Weg: Uitlopend, Backorder of Archief (' + w.join(', ') + ').';
+    const w = rijen.filter(c => waarde(v, c).v === 'weg' && !A(c).weg); if(w.length) return 'Kies bij Weg: Uitlopend of Archief (' + w.join(', ') + ').';
   }
   if(v.t === 'gewicht'){ const g = rijen.filter(c => waarde(v, c).v === 'gewogen' && !(num(A(c).kg) > 0 || (R().gewicht(c).st === 'gewogen' && R().gewicht(c).kg > 0))); if(g.length) return 'Gewogen: typ de kg bij ' + g.join(', ') + ', of kies Te wegen.'; }
   if(GETAL.includes(v.t) || v.t === 'maat'){
@@ -512,7 +516,7 @@ function afwijkLijn(c){
   const P = R();
   try{
     if(P.isSam(c)) return null;
-    const so = soortNu(c); if(!so || so === 'weg') return null;
+    const so = soortNu(c); if(!so || ZONDER.has(so)) return null;
     // alleen vergelijken met kleurgenoten (zelfde familie én maat): een andere maat weegt en stapelt anders (CLAUDE.md §3, 09-11)
     const kg = effKg(c), delen = [], kl = P.kleurgenoten(c).filter(x => bruikbaar(x) && !P.isSam(x));
     const metKg = kl.map(x => ({ c:x, kg:effKg(x) })).filter(x => x.kg > 0);
@@ -574,7 +578,7 @@ function neemOver(c, t, x){
 /* ---------- één product: alle velden die bij zijn soort horen (vanuit het overzicht of een afwijking) ---------- */
 function veldenVan(c){
   const P = R(), so = soortNu(c), l = ['soort'];
-  if(so && so !== 'weg'){ if(!P.isSam(c)) l.push('gewicht'); try{ const n = P.nodigVan(c, so, P.info(c)); VRAGEN.forEach(k => { if(k !== 'soort' && k !== 'gewicht' && n.includes(k)) l.push(k); }); }catch(e){} }
+  if(so && !ZONDER.has(so)){ if(!P.isSam(c)) l.push('gewicht'); try{ const n = P.nodigVan(c, so, P.info(c)); VRAGEN.forEach(k => { if(k !== 'soort' && k !== 'gewicht' && n.includes(k)) l.push(k); }); }catch(e){} }
   return l;
 }
 function openProd(c){ S.terugNaar = S.terugNaar != null && S.prod ? S.terugNaar : S.i; S.prodSnap = JSON.parse(JSON.stringify(A(c))); S.prod = c; S.vergT = null; reset(); teken(); const nat = document.getElementById('native'); if(nat) nat.scrollTop = 0; }
@@ -731,7 +735,7 @@ function koppel(){
     if(e.target.closest && e.target.closest('input,textarea,select')){ if(e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.closest('.dl')){ e.preventDefault(); e.target.blur(); } return; }
     if(e.key === 'Enter' && e.target.dataset && e.target.dataset.tik){ e.preventDefault(); bewerk(S.pad[S.i], e.target); return; }
     if(e.key === 'Enter'){ e.preventDefault(); klopt(); return; }
-    const n = +e.key; if(n >= 1 && n <= 6 && S.pad[S.i] && S.pad[S.i].t !== 'maat'){ const b = S.el.querySelectorAll('[data-keus]')[n - 1]; if(b) b.click(); }
+    const n = +e.key; if(n >= 1 && n <= 8 && S.pad[S.i] && S.pad[S.i].t !== 'maat'){ const b = S.el.querySelectorAll('[data-keus]')[n - 1]; if(b) b.click(); }
   });
 }
 

@@ -228,6 +228,7 @@ function poZet(c, fn){
   if(!p.f) p.f = {};
   const oud = JSON.parse(JSON.stringify(p));
   fn(p);
+  if(p.so && p.so.v === 'weg' && p.weg && p.weg.v === 'backorder'){ p.so = Object.assign({}, p.so, { v:'backorder' }); delete p.weg; }   // oude vorm Weg · Backorder → Backorder
   maxPallet(c, p, oud);
   const merk = x => { if(!x || typeof x !== 'object') return; if(S.oefenen) x.oef = 1; else delete x.oef; };
   const veranderd = Object.keys(Object.assign({}, p.f, oud.f)).filter(k => !zelfde(p.f[k], oud.f[k])).map(k => 'f.' + k).concat(['so', 'weg', 'gew', 'rol'].filter(k => !zelfde(p[k], oud[k])));
@@ -628,9 +629,12 @@ const VELD = {
   kgm:{ t:'kg per meter', calc:1 },
   kgcm:{ t:'kg per cm', calc:1 }
 };
-const SOORTEN = [['pallet', '1 Pallet'], ['deel', '2 Deel'], ['bulk', '3 Bulk'], ['pick', '4 Pick'], ['mix', '5 Mix'], ['weg', '6 Weg']];
-const SOORTT = { pallet:'Pallet', deel:'Deel', bulk:'Bulk', pick:'Pick', mix:'Mix', weg:'Weg' };
-const WEG = [['uitlopend', 'Uitlopend'], ['backorder', 'Backorder'], ['archief', 'Archief']];
+// soort volgens de blauwdruk (§8): Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder (09-11). Twijfel = "weet ik nog niet": telt niet als
+// afgerond, geen gewicht- of hoeveelheidsvragen, staat in Te doen onder Later. Backorder = alleen ingekocht voor backorders (was Weg · Backorder).
+const SOORTEN = [['pick', 'Pick'], ['bulk', 'Bulk'], ['deel', 'Deel'], ['pallet', 'Pallet'], ['mix', 'Mix'], ['twijfel', 'Twijfel'], ['weg', 'Weg'], ['backorder', 'Backorder']];
+const SOORTT = { pick:'Pick', bulk:'Bulk', deel:'Deel', pallet:'Pallet', mix:'Mix', twijfel:'Twijfel', weg:'Weg', backorder:'Backorder' };
+const ZONDERVRAGEN = new Set(['weg', 'backorder', 'twijfel']);   // geen gewicht- of hoeveelheidsvragen
+const WEG = [['uitlopend', 'Uitlopend'], ['archief', 'Archief']];
 const KOLOMMEN = {
   pallet:['pickc', 'lvl', 'binnen', 'spp', 'maat', 'hoogte', 'vn', 'maxcalc', 'gewpal', 'plaatsen', 'maxlig'],
   deel:['pickc', 'lvl', 'maxpick', 'aanvmet', 'verp', 'binnen', 'spp', 'maat', 'hoogte', 'vn', 'gewpal', 'plaatsen', 'maxlig'],
@@ -756,15 +760,19 @@ function controle(c, k, v, I){
 /* ---------- soort ---------- */
 function soortWaarde(c, I){
   const p = po(c);
+  // oude vorm Weg · Backorder = de soort Backorder (pas bij Daans volgende bewaaractie in de nieuwe vorm opgeslagen, met kopie)
+  if(p && p.so && p.so.v === 'weg' && p.weg && p.weg.v === 'backorder') return { v:'backorder', st:p.so.st || 'aangepast', voor:p.so.voor, oud:true };
   if(p && p.so && p.so.v) return { v:p.so.v, st:p.so.st || 'aangepast', voor:p.so.voor };
   if(X().pdWaarde(c, 'uitlopend')) return { v:'weg', st:'vastgelegd', why:'staat in productdata op uitlopend' };
-  const o = vastPd(c, 'opslag'); const on = o && X().soortVan ? X().soortVan(c) || (soortNormKort(o) === 'bulk' ? 'bulk' : '') : '';   // Bulk kent de oude productdata-pagina niet
+  const o = vastPd(c, 'opslag');
+  if(o && ['twijfel', 'backorder'].includes(String(o).toLowerCase())) return { v:String(o).toLowerCase(), st:'vastgelegd', why:'vastgelegd in productdata (' + SOORTT[String(o).toLowerCase()] + ')' }; const on = o && X().soortVan ? X().soortVan(c) || (soortNormKort(o) === 'bulk' ? 'bulk' : '') : '';   // Bulk kent de oude productdata-pagina niet
   if(on && SOORTT[on]) return { v:on, st:'vastgelegd', why:'vastgelegd in productdata (' + SOORTT[on] + ')' };
   const vs = (I || info(c)).vsSo, sc = vs ? scoreVan(vs.r) : null;
   return vs ? { v:vs.v, st:vs.tw || (sc && sc.p < 0.6) ? 'twijfel' : 'voorstel', why:vs.why, alt:vs.alt, sc, r:vs.r } : { v:'', st:'leeg' };
 }
 function wegWaarde(c, I){
   const p = po(c);
+  if(p && p.weg && p.weg.v === 'backorder') return { v:'', st:'leeg' };
   if(p && p.weg && p.weg.v) return { v:p.weg.v, st:p.weg.st || 'aangepast', voor:p.weg.voor };
   if(X().pdWaarde(c, 'uitlopend')) return { v:'uitlopend', st:'vastgelegd', why:'staat in productdata op uitlopend' };
   const vs = (I || info(c)).vsWeg;
@@ -1123,7 +1131,7 @@ function wegDeel(c, f, ink){
   if(stock <= 0 && !binnen){
     if(!ink && !bo && !v6 && !v28) return { ls, stock, r:'soort:1', weg:t('archief', 'geen voorraad, geen verkoop, geen inkoop in 12 maanden, geen backorders'), so:t('weg', 'geen voorraad, geen verkoop, geen inkoop in 12 maanden, geen backorders') };
     const w = 'geen voorraad' + (ink ? ', wel inkoop (' + ink.n + '×, meestal ' + nf(ink.meestal) + ')' : ', geen inkoop in 12 maanden') + (bo ? ', ' + bo.n + ' backorder' + (bo.n > 1 ? 's' : '') : '') + (v6 ? ', verkoop ' + nf(v6) + ' per maand' : '');
-    return { ls, stock, r:'soort:2', weg:t('backorder', w, { aan:'backord' }), so:t('weg', w, { aan:'backord' }) };
+    return { ls, stock, r:'soort:2', weg:t('backorder', w, { aan:'backord' }), so:t('backorder', w, { aan:'backord' }) };
   }
   const geenInk = inkData() && !ink;
   if(geenInk && !binnen){ const w = 'nog ' + nf(stock) + ' op voorraad, geen inkoop in 12 maanden' + (/uitlopend/i.test(naam) ? ', "uitlopend" in de naam' : '') + (v6 || v28 ? ' (verkoopt nog ' + nf(Math.max(v6, v28)) + ' per maand)' : ''); return { ls, stock, r:'soort:3', weg:t('uitlopend', w, { aan:'uitl' }), so:t('weg', w, { aan:'uitl' }) }; }
@@ -1209,7 +1217,7 @@ function bereken(c){
   if(I.kop) return I;
   I.bewijs = palletBewijs(c, f, ink);
   const s = vsSoort(c, f, ink);
-  I.vsSo = s.so ? Object.assign({ r:s.r }, s.so) : null; I.vsWeg = s.weg || null;
+  I.vsSo = s.so ? Object.assign({ r:s.r }, s.so) : null; I.vsWeg = s.so && s.so.v === 'weg' ? s.weg || null : null;
   if(I.vsSo && I.vsSo.aan) I.aan.add(I.vsSo.aan);
   if(sam && I.vsSo && I.vsSo.v === 'mix') I.vsSo = { v:som(f.bulk) > 0 ? 'deel' : 'pick', why:'SAM Europe: ' + I.vsSo.why };
   const so = soortWaarde(c, I).v;
@@ -1300,7 +1308,7 @@ function hoogteWaarsch(c, h, I){
 /* ---------- open en afgerond ---------- */
 function nodigVan(c, so, I){
   if(isKoppel(c)) return [];
-  if(so === 'weg') return [];
+  if(ZONDERVRAGEN.has(so)) return [];
   let n = isSam(c) ? NODIG.sam.slice() : (NODIG[so] || []).slice();
   if(waarde(c, 'pickc', I).v === 'geenpick') n = n.filter(k => k !== 'lvl' && k !== 'maxpick');
   if(isRol(c) && !isSam(c) && ['pallet', 'deel', 'bulk'].includes(so)) n = ROLNODIG.slice();
@@ -1315,13 +1323,16 @@ const metVastePick = (c, I) => { try{ return ((I || info(c)).f.pick || []).some(
 function status(c){
   const I = info(c);
   if(I.kop) return { kop:I.kop, af:false, open:[], so:'', tab:'' };
-  const so = soortWaarde(c, I), soOk = ['bevestigd', 'aangepast', 'vastgelegd'].includes(so.st);
+  const so = soortWaarde(c, I);
+  // Twijfel: de soort is nog niet beslist (telt niet als afgerond), maar er komen geen gewicht- of hoeveelheidsvragen; staat in Te doen onder Later
+  if(so.v === 'twijfel') return { so:'twijfel', soSt:so.st, open:['soort'], af:false, stap:{ soort:false, gewicht:true, hoev:true }, gew:gewicht(c), tab:'twijfel', twijfel:true };
+  const soOk = ['bevestigd', 'aangepast', 'vastgelegd'].includes(so.st);
   const open = [];
   if(!soOk) open.push('soort');
   if(so.v === 'weg'){ const w = wegWaarde(c, I); if(!['bevestigd', 'aangepast', 'vastgelegd'].includes(w.st)) open.push('weg'); }
   nodigVan(c, so.v, I).forEach(k => { if(!ingevuld(waarde(c, k, I))) open.push(k); });
   const g = gewicht(c);
-  if(so.v !== 'weg' && !isSam(c) && !gewKlaar(g)) open.push('gewicht');
+  if(!ZONDERVRAGEN.has(so.v) && !isSam(c) && !gewKlaar(g)) open.push('gewicht');
   const af = !!so.v && !open.length && !(po(c) && po(c).heropend);
   // drie stappen: 1 Soort · 2 Gewicht · 3 Hoeveelheid; afgerond = alle drie klaar
   const stap = { soort:soOk && !open.includes('weg'), gewicht:!open.includes('gewicht'), hoev:!open.some(k => !['soort', 'weg', 'gewicht'].includes(k)) };
@@ -1684,7 +1695,7 @@ function telling(){
 
 return { S, AANNAMES, KEY_OEFEN, KEY_FB, laad, flush, plan, schrijf, po, poZet, poHerstel, wisAlles, oefDone, fbTab, fbOpm, fbOpmWeg, fbAann, mgPlus,
   koppelVan, isKoppel, koppelTekst, wegLicht, controle, maatRegel, vnRegel, sppUitBronnen, famVan, maatVan, maatNaam, maatGetallen, zelfdeMaat, kleurgenoten, groepVan, groepVanFam, groepLeden, hoofdwoord, levKort, halVan, halTekst, wensNorm, gangen, famNaam, isSam, naamVan, abcVan, actief, kgPq, vk6, vk28, inkoop, backorders, inkomend, locInfo, som, anderOpPlek,
-  VELD, SOORTEN, SOORTT, WEG, KOLOMMEN, NODIG, ROLNODIG, ROLVS, SAMVELD, MATEN, MATEN_WB, EIGEN_MATEN, OPSLAG_MATEN, matenVoor, voegMaatToe, maatSleutel, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
+  VELD, SOORTEN, SOORTT, ZONDERVRAGEN, WEG, KOLOMMEN, NODIG, ROLNODIG, ROLVS, SAMVELD, MATEN, MATEN_WB, EIGEN_MATEN, OPSLAG_MATEN, matenVoor, voegMaatToe, maatSleutel, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
   eenheid, palletBewijs, rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
   naControle, liggerVan, metVastePick, labelsVerbeteren, rolCheck, labelsGoed, verschil, verschilKies, herstel, pdFlush, PDQ,
   vraagLive, liveStatus, meet, meting, zetMeting, scoreVan, telStap, belangrijk, reden, bewezen, wachtOp, gewBewijs, kopieProductdata, STAPNAAM, pd2Overzetten, overzetPlan, overzetToepassen, overzetTerug, overzetEcht, toetsItems, TOETSVELD, SCORE_VOOR, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };

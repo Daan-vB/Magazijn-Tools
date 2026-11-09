@@ -87,7 +87,7 @@ function aandachtVan(c){
 }
 function aandachtReken(c){
   const I = R.info(c), st = R.status(c), uit = [];
-  if(I.kop || st.so === 'weg' || st.af) return uit;
+  if(I.kop || R.ZONDERVRAGEN.has(st.so) || st.af) return uit;
   if(st.gew.st === 'tewegen') uit.push('tewegen');
   else if(st.gew.st === 'niet' && !R.isSam(c) && R.gewAfwijking(c)) uit.push('gewicht');
   if(I.f.geen > 0) uit.push('geenloc');
@@ -127,7 +127,7 @@ const sorteer = cs => cs.slice().sort((a, b) => (('ABC'.indexOf(R.abcVan(a)) + 4
    markeert "aangepast door jou"). Wat de data bewijst staat standaard aan; staat iets uit, dan staat in de regel waarom en is één tik genoeg.
    "Klopt, bevestig geselecteerde" legt vast (vooraf een kopie wh-kopie-productdata-<datum>-7). Claude zet niets definitief: alleen Daans tik. */
 const VSTAPPEN = [['soort', 'Soort'], ['gewicht', 'Gewicht'], ['hoev', 'Hoeveelheid']];
-const VSOORTEN = ['pallet', 'deel', 'bulk', 'pick', 'mix', 'weg'];
+const VSOORTEN = R.SOORTEN.map(x => x[0]);   // Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder (blauwdruk §8)
 const VLAB = { spp:'per pallet', maat:'palletmaat', hoogte:'hoogte cm', maxpick:'max op pick', gewpal:'gewicht pallet kg', plaatsen:'plaatsen', maxlig:'max per ligger', lvl:'aanvullen bij' };
 const vWijz = c => UI.vwijz[c] || null;
 const vAan = b => UI.vaan.has(b.c) || (!UI.vuit.has(b.c) && !(b.zwak && b.zwak.length));
@@ -368,7 +368,7 @@ const OPDR = {
     { id:'m1', t:'Bevestig of pas in stap 3 Hoeveelheid Max op pick aan bij een Mix-product.', toon:{ zoek:VB.spurt }, ev:'veld', als:d => d.tab === 'mix' && d.k === 'maxpick' }
   ],
   weg:[
-    { id:'w1', t:'Zet een product op Backorder (bijv. Waterhog zonder voorraad).', toon:{ zoek:VB.waterhog }, ev:'weg', als:d => d.v === 'backorder' },
+    { id:'w1', t:'Zet een product op Backorder (bijv. Waterhog zonder voorraad).', toon:{ zoek:VB.waterhog }, ev:'soort', als:d => d.naar === 'backorder' },
     { id:'w2', t:'Zet een product op Archief.', ev:'weg', als:d => d.v === 'archief' },
     { id:'w3', t:'Open het tabblad "Afgerond" van de maat en zet een Weg-product terug.', ev:'wegterug' }
   ],
@@ -483,7 +483,7 @@ function wegMenu(c, I){
 /* stap 2: gewicht (kg per stuk, bij rollen per rol) */
 function gewVraag(c, I){
   const so = R.status(c).so;
-  if(I.sam || so === 'weg') return `<div class="pd2-vraag"><div class="u">Geen gewicht nodig${so === 'weg' ? ' bij Weg' : ''}.</div></div>`;
+  if(I.sam || R.ZONDERVRAGEN.has(so)) return `<div class="pd2-vraag"><div class="u">Geen gewicht nodig${R.ZONDERVRAGEN.has(so) ? ' bij ' + esc(R.SOORTT[so]) : ''}.</div></div>`;
   const g = R.gewicht(c), e = R.isRol(c) ? R.eenheid(c).e : '', eh = e === 'm' ? 'per meter' : e === 'cm' ? 'per cm' : R.isRol(c) ? 'per rol' : 'per stuk';
   const kn = (v, t) => `<button class="pd2-mini${g.st === v ? ' aan' : ''}" data-a="gewst" data-v="${v}" aria-pressed="${g.st === v}">${t}</button>`;
   return `<div class="pd2-vraag"><div class="pd2-gw"><label class="pd2-q" for="pd2-kg-${esc(c)}">Gewicht (kg ${eh})</label><span class="kg"><input id="pd2-kg-${esc(c)}" class="pd2-in${g.st === 'gewogen' || g.st === 'vertrouwd' ? ' ok' : g.pq ? ' vsel' : ''}" data-a="gewkg" value="${g.gk ? esc(String(g.gk)) : ''}" placeholder="${g.pq ? esc(nf(g.pq, 3)) : ''}" inputmode="decimal" autocomplete="off" aria-label="Gewicht in kg ${eh}"${g.pq ? ` title="Picqer ${esc(nf(g.pq, 3))} kg"` : ''}></span>
@@ -493,7 +493,7 @@ function gewVraag(c, I){
 /* stap 3: hoeveelheid (Pick en Mix: max op pick; Pallet, Deel en Bulk: stuks per pallet, palletmaat, hoogte; rol: lengte en max rollen) */
 function hoevVraag(c, I){
   const so = R.status(c).so;
-  if(so === 'weg') return '<div class="pd2-vraag"><div class="u">Geen hoeveelheid nodig bij Weg.</div></div>';
+  if(R.ZONDERVRAGEN.has(so)) return '<div class="pd2-vraag"><div class="u">Geen hoeveelheid nodig bij ' + esc(R.SOORTT[so]) + '.</div></div>';
   const ks = R.nodigVan(c, so, I);
   const rol = !I.sam && R.rolVoorstel(c) ? `<div class="pd2-rolvraag"><span>Is dit een rol?</span><button class="pd2-mini" data-a="rol" data-v="1">ja</button><button class="pd2-mini" data-a="rol" data-v="0">nee</button></div>` : '';
   return `<div class="pd2-vraag">${rol}${ks.length ? `<div class="pd2-velden">${ks.map(k => veldHtml(c, k, I)).join('')}</div>` : '<div class="u">Geen pick: hier valt niets in te vullen.</div>'}</div>`;
@@ -512,7 +512,7 @@ function kaartHtml(c){
 function afRij(c){
   const st = R.status(c), w = st.so === 'weg' ? R.wegWaarde(c).v : '';
   return `<div class="pd2-afrij" data-c="${esc(c)}"><span class="v">✓</span><div class="kn"><b>${esc(R.naamVan(c))}</b> <span class="u"><span class="m">${esc(c)}</span> · ${esc(R.SOORTT[st.so] || '')}${w ? ' · ' + esc(w) : ''}${R.isRol(c) ? ' · rol' : ''}${st.gew.st === 'tewegen' ? ' · ⚖ te wegen' : ''}</span></div>
-    <button class="pd2-mini" data-a="${st.so === 'weg' ? 'wegterug' : 'heropen'}">${st.so === 'weg' ? 'terugzetten' : 'heropenen'}</button></div>`;
+    <button class="pd2-mini" data-a="${['weg', 'backorder'].includes(st.so) ? 'wegterug' : 'heropen'}">${['weg', 'backorder'].includes(st.so) ? 'terugzetten' : 'heropenen'}</button></div>`;
 }
 
 /* ---------- scherm 1: start ---------- */
@@ -880,8 +880,8 @@ function bevestigStap(c, stap){
       if(so.v && (['voorstel', 'twijfel'].includes(so.st) || !(p.so && p.so.v))) p.so = { v:so.v, st:'bevestigd', voor:so.v, t:now() };
       if(so.v === 'weg'){ const w = R.wegWaarde(c, I); if(w.v && (w.st === 'voorstel' || !(p.weg && p.weg.v))) p.weg = { v:w.v, st:'bevestigd', voor:w.v, t:now() }; }
     } else if(stap === 'gewicht'){
-      const g = R.gewicht(c); if(!R.isSam(c) && so.v !== 'weg' && g.st === 'niet' && g.pq > 0) p.gew = { st:'vertrouwd', kg:g.pq, t:now() };
-    } else if(so.v && so.v !== 'weg'){
+      const g = R.gewicht(c); if(!R.isSam(c) && !R.ZONDERVRAGEN.has(so.v) && g.st === 'niet' && g.pq > 0) p.gew = { st:'vertrouwd', kg:g.pq, t:now() };
+    } else if(so.v && !R.ZONDERVRAGEN.has(so.v)){
       if(R.rolVoorstel(c)) p.rol = { v:true, st:'bevestigd', t:now() };
       R.nodigVan(c, so.v, I).forEach(k => { if(R.VELD[k] && R.VELD[k].calc) return; const w = R.waarde(c, k, I); if(['voorstel', 'twijfel'].includes(w.st) && !leeg(w.v)) p.f[k] = { v:w.v, st:'bevestigd', voor:w.v, t:now() }; });
     }
@@ -1114,7 +1114,7 @@ function klik(ev){
     case 'heropen': R.poZet(c, p => { p.heropend = now(); }); meld('heropen', {}); WH.toast(R.naamVan(c) + ' staat weer open', 2500); UI.seg = 'open'; verversAlles(); return;
     case 'wegterug': UI.seg = 'open'; groep([c], x => R.poZet(x, p => { delete p.weg; delete p.so; delete p.heropend; }), c + ' teruggezet'); meld('wegterug', {}); return;
     case 'stapklopt': { const cs = kaartCodes(); groep(cs, x => bevestigStap(x, UI.stap), 'Alle voorstellen kloppen (' + STAPT[UI.stap] + '): ' + mv(cs.length, 'product', 'producten')); meld('selklopt', { tab:meerSoort(cs), n:cs.length }); stapVerder(); verversAlles(); return; }
-    case 'gewklopt': { const cs = kaartCodes().filter(x => { const g = R.gewicht(x); return !R.isSam(x) && R.status(x).so !== 'weg' && g.st === 'niet' && g.pq > 0; }); if(!cs.length){ WH.toast('Geen gewichten om te laten kloppen', 2500); return; } groep(cs, x => bevestigStap(x, 'gewicht'), 'Gewichten kloppen: ' + mv(cs.length, 'product', 'producten')); meld('gewklopt', {}); stapVerder(); verversAlles(); return; }
+    case 'gewklopt': { const cs = kaartCodes().filter(x => { const g = R.gewicht(x); return !R.isSam(x) && !R.ZONDERVRAGEN.has(R.status(x).so) && g.st === 'niet' && g.pq > 0; }); if(!cs.length){ WH.toast('Geen gewichten om te laten kloppen', 2500); return; } groep(cs, x => bevestigStap(x, 'gewicht'), 'Gewichten kloppen: ' + mv(cs.length, 'product', 'producten')); meld('gewklopt', {}); stapVerder(); verversAlles(); return; }
     case 'selsoort': if(a.dataset.v === 'weg') wegKeuzeModal(); else selSoort(a.dataset.v); return;
     case 'gewpop': if(!UI.sel.size){ WH.toast('Vink eerst de producten aan', 2500); return; } gewPopModal(); return;
     case 'selklopt': { const cs = selLijst(); groep(cs, x => bevestigStap(x, UI.stap), 'Selectie klopt (' + STAPT[UI.stap] + '): ' + mv(cs.length, 'product', 'producten')); meld('selklopt', { tab:meerSoort(cs), n:cs.length }); UI.sel.clear(); stapVerder(); verversAlles(); return; }
