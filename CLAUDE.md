@@ -15,6 +15,7 @@ Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet
 - Vraag alleen wat de data niet kan beantwoorden. Leid eerst af uit Picqer, palletlabels (± 1000 producten), VST, verplaatsingen, pakbonnen en inkoop.
 - Eén vraag tegelijk, rustig scherm: geen tabellen met horizontaal scrollen, weinig kleur en knoppen, schermvullend, 390 en 1440 px.
 - VASTE REGEL schermvullend: nergens een vaste max-width op pagina, kop, kaart, lijst of knoppenbalk (alleen lopende tekst mag max 70ch). Breed scherm of uitzoomen = meer naast elkaar (kolommen), inzoomen = groter en herschikken. Maten in rem/%, geen px-breedtes. De test schermvullend.js (elke route op 390, 1440 en 2560 px en zoom 50% en 200%: geen lege zijkanten, geen horizontaal scrollen) hoort bij de regressie en moet groen zijn vóór elke push.
+- VASTE REGEL samenvoegen: elke lijst en elke tab werkt per familie (en maat), nooit product voor product. Familie tonen met alle producten aangevinkt, één vraag, "Selectie is: …" voor alles wat aangevinkt is (soort, pickwens hal/gang, alleen bulk, gewicht, aantal per pallet); uitvinken voor de uitzonderingen. Voorstel voor de hele familie uit waar de familie nu al staat.
 - Groepsacties: vinkje per product; "Selectie is: Pallet · Deel · Bulk · Pick · Mix · Weg"; een familieknop laat altijd zien welke producten eronder vallen en laat uitvinken.
 - Soort eerst. Pas na een door Daan bevestigde soort komen gewicht en hoeveelheid.
 - Elk invulscherm: altijd terug kunnen naar een eerdere vraag, elke bevestigde waarde aanpasbaar, zoeken op code/naam/familie, en bij aanpassen vergelijkbare producten (kleurgenoten → familie → zelfde hoofdwoord bij dezelfde leverancier) met "Neem over". Afwijkende waarden in een familie melden (nooit zelf wijzigen).
@@ -45,6 +46,7 @@ Lees dit vóór elke opdracht in deze repo. Alles wat je bouwt of voorstelt moet
 - Pallethoogtes naar boven afronden op 10 cm.
 - Palletmaat kiezen: altijd de hele lijst vaste opslagmaten tonen (niet 3 maten + typen). Een nieuwe maat die Daan typt wordt meteen bewaard en staat daarna overal in de lijst.
 - Elk scherm vóór oplevering zelf doorlopen met alle antwoorden (elke soort, Weg-keuzes, gewogen zonder kg, geen voorstel, uitvinken, Later, terug) tegen deze regels.
+- Drie hallen: A, B en C. Er is geen hal D: hal C heeft twee stellingdelen, gedeelte C (gangen C..) en gedeelte D (gangen D..). Keuze altijd: hal → gedeelte (alleen bij C) → gang, met alleen gangen die echt bestaan.
 - Hal A heeft alleen 3-liggers en een lager dak (20-locatie ± 140 cm). Hal B en C bijna allemaal 4-liggers, behalve begin/eind van een gang. BA en BB hebben 10, 20 en 30.
 - Vloernaam = productcode + " - " + korte omschrijving (bijv. "4560WM - Whiteboard magnetisch 45x60"); bij lopers/matten de dikte erin.
 - Rubber per stuk (ringmat, sportvloer, stalmat), A/B met picklocatie: aanvullen bij 10 met een hele pallet.
