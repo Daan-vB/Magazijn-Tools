@@ -476,10 +476,10 @@ async function load(){
       safe('backorders', T('backorders', 'select=*', ['geimporteerd_op'])),
       safe('pakbon_alias', getAll('pakbon_alias', 'select=*')),
       safe('containers', T('containers', 'select=*&order=id', ['updated_at'])),
-      safe('todos', getAll('todos', 'select=*'))
+      safe('todos', getAll('todos', 'select=*')),
+      laadGeenPlek()   // voorraad op "geen specifieke locatie" (telt niet als pick-voorraad), tegelijk met de rest
     ]);
     if(window.PDBRON && PDBRON.laadCp) await PDBRON.laadCp(true);   // productdata altijd lezen voor het advies (alleen bevestigde waarden), los van de schakelaar
-    await laadGeenPlek();   // voorraad op "geen specifieke locatie" (telt niet als pick-voorraad)
     if(window.PDBRON) await PDBRON.laad(true);   // schakelaar "Andere apps gebruiken productdata" (standaard uit); uit = niets verandert
     indexProducten(prod);
     indexCatalog(cat && cat.length ? cat[0].data : {});

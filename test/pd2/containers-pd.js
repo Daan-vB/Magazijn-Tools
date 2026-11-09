@@ -15,7 +15,8 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   for(const id of alleIds){ if(k2) break; await P.goto(B + 'containerplanning.html#/c/' + id + '/verdeling'); await P.waitForTimeout(5000); k2 = await tk('ST210-Black-17'); }
   await P.goto(B + 'containerplanning.html#/c/' + cid + '/verdeling'); await P.waitForTimeout(8000);
   check('KOKOS100BLK-24: nooit "3.600 → Picklocatie"', k1 && !/3\.600 → Picklocatie/.test(k1), k1.slice(0, 400));
-  check('KOKOS100BLK-24: "daarvan 1.740 naar Picklocatie" en "picklocatie nog aanmaken"', /daarvan 1\.740 naar Picklocatie/.test(k1) && /picklocatie nog aanmaken/i.test(k1), k1.slice(0, 400));
+  // 09-11 (CLAUDE.md §7): voorraad op "geen specifieke locatie" telt niet als pick-voorraad. De 60 van KOKOS100BLK-24 staan zonder plek, dus pick nu 0 → 1.800 (was 1.740)
+  check('KOKOS100BLK-24: "daarvan 1.800 naar Picklocatie" (60 zonder plek tellen niet mee) en "picklocatie nog aanmaken"', /daarvan 1\.800 naar Picklocatie/.test(k1) && /60 op geen specifieke locatie telt niet mee/.test(k1) && /picklocatie nog aanmaken/i.test(k1), k1.slice(0, 600));
   console.log('ST210', k2.slice(0, 700)); check('ST210-Black-17: nooit hele pallet naar pick' + (k2 ? '' : ' (in geen enkele container aanwezig)'), !k2 || !/\d pallets? à [\d.]+ → Picklocatie/i.test(k2), '');
   console.log('IDS', await P.evaluate(() => [...document.querySelectorAll('[id^="v-"]')].map(e => e.id).join(' ')));
   const tot = await P.evaluate(() => [...document.querySelectorAll('[id^="v-"]')].map(e => ({ c:e.id.slice(2), t:e.innerText.replace(/\s+/g, ' ') })));
