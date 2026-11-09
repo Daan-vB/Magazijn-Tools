@@ -24,7 +24,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await P.evaluate(() => localStorage.setItem('ivol-koppelcode', 'testcode'));
   await P.reload(); await P.waitForSelector('#tabbody', { timeout:90000 }); await P.waitForTimeout(4000);
   t = await P.evaluate(() => document.body.innerText);
-  check('Met koppelcode: "Backorders live · hh:mm"', /Backorders live · \d\d:\d\d/.test(t) && !/niet live/.test(t), vragen.join());
+  check('Met koppelcode: "Backorders live · hh:mm"', /Backorders live · \d\d:\d\d/.test(t) && !/Backorders niet live/.test(t), vragen.join());
   // de verdeling telt de live backorders mee (zoals bij de export: open = aantal − beschikbaar)
   await P.evaluate(() => { location.hash = '#/c/13/verdeling'; });
   await P.waitForTimeout(6000); await P.evaluate(() => { const b = document.querySelector('[data-code="80110WM"] [data-act="vopen"]'); if(b) b.click(); }); await P.waitForTimeout(1500);

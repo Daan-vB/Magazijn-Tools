@@ -1586,7 +1586,7 @@ async function lvVraag(actie, params){
   const tx = await r.text(); let j = null; try{ j = JSON.parse(tx); }catch(e){}
   if(!r.ok){
     if(j && j.code === 'koppelcode'){ try{ localStorage.removeItem('ivol-koppelcode'); }catch(e){} throw Object.assign(new Error('Koppelcode klopt niet'), { soort:'code' }); }
-    throw Object.assign(new Error((j && j.fout) || ('Tussenstation gaf status ' + r.status)), { soort:'net', wacht:j && j.wachtSec });
+    throw Object.assign(new Error((j && j.fout) || ('Tussenstation gaf status ' + r.status)), { soort:'net', wacht:j && j.wachtSec, status:r.status });
   }
   return j;
 }
@@ -1723,7 +1723,7 @@ async function vkVenster(sinds, tot, som){
     let r;
     for(let poging = 1; ; poging++){
       try{ r = await lvVraag('bestellingen', { sinds, tot, offset:off, paginas:10 }); break; }
-      catch(e){ if(poging >= 4 || e.soort === 'code') throw e; await new Promise(z => setTimeout(z, 1000 * Math.min(30, e.wacht || 5 * poging))); }
+      catch(e){ if(poging >= 4 || e.soort === 'code' || (e.status && e.status < 500 && e.status !== 429)) throw e; await new Promise(z => setTimeout(z, 1000 * Math.min(30, e.wacht || 5 * poging))); }   // 4xx (behalve 429): niet opnieuw
     }
     (r.rijen || []).forEach(([dag, code, a]) => { const k = String(code || '').toLowerCase(); if(!k || !dag) return; const x = som[k] = som[k] || {}; x[dag] = (x[dag] || 0) + (num(a) || 0); });
     if(r.wachtSec) await new Promise(z => setTimeout(z, 1000 * Math.min(30, r.wachtSec)));
