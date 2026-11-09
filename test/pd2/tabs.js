@@ -40,15 +40,22 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await ev(() => { const g = document.querySelector('[data-cp-f="gang"]'); g.value = 'DD'; g.dispatchEvent(new Event('change', { bubbles:true })); }); await wacht(600);
   const werk = await ev(() => (document.getElementById('cp-klaar') || {}).innerText || '');
   check('filter hal C → gedeelte D → gang DD: werklijst "Klaar voor Picqer" met DT140-711 onder Hal C · gedeelte D · gang DD', /DT140-711/.test(werk) && /Hal C · gedeelte D · gang DD/.test(werk), werk.slice(0, 200));
-  // 4 Bulklocaties
+  // 4 Bulklocaties (Daan beslist live verder: zijn eerdere "alleen bulk" alleen in het geheugen weggehaald, zodat er weer open punten zijn)
   await laad('bulklocaties');
-  const bg = await ev(() => (WHCP.cats().bulklocaties.find(x => x.c === 'BGB100150-BLA') || {}).reden);
-  check('Bulklocaties: BGB100150-BLA met picklocatie BB03D00', /BB03D00/.test(bg || ''), bg);
-  gk = await alleen('bulklocaties', ['BGB100150-BLA']); await wacht(500); await groepKnop(gk, 'g-bulkok'); await wacht(1500);
-  const eraf = await ev(() => ({ lijst:WHCP.cats().bulkeraf.map(x => x.c), meer:WHCP.cats().bulklocaties.some(x => x.c === 'BGB100150-BLA') }));
-  check('"Alleen bulk (picklocatie eraf)" zet het op de werklijst "Klaar voor Picqer" (met locatie)', eraf.lijst.includes('BGB100150-BLA') && !eraf.meer, JSON.stringify(eraf.lijst));
-  // 5 Hercontrole
+  await ev(() => { Object.keys(WHCP.S.klopt).filter(k => /^bulkeraf\|/.test(k)).forEach(k => delete WHCP.S.klopt[k]); WHCP.S.memo = null; WHTAAK.herteken(); }); await wacht(500);
+  const bx = await ev(() => { const x = WHCP.cats().bulklocaties[0]; return x ? { c:x.c, reden:x.reden, loc:x.loc } : null; });
+  check('Bulklocaties: soort Bulk met een picklocatie in Picqer, met die locatie in de reden', bx && /Soort Bulk, maar Picqer heeft picklocatie/.test(bx.reden) && bx.reden.includes(bx.loc), JSON.stringify(bx));
+  if(bx){
+    gk = await alleen('bulklocaties', [bx.c]); await wacht(500); await groepKnop(gk, 'g-bulkok'); await wacht(1500);
+    const eraf = await ev(c => ({ lijst:WHCP.cats().bulkeraf.map(x => x.c), meer:WHCP.cats().bulklocaties.some(x => x.c === c), werk:(document.getElementById('cp-klaar') || {}).innerText || '' }), bx.c);
+    check('"Alleen bulk (picklocatie eraf)" zet het op de werklijst "Klaar voor Picqer" (met locatie)', eraf.lijst.includes(bx.c) && !eraf.meer && eraf.werk.includes(bx.loc), JSON.stringify(eraf.lijst.slice(0, 5)));
+  }
+  // 5 Hercontrole (Daan beslist live verder: E400560-10KG als Weg · Archief en TRAILER10 als Pick alleen in het geheugen nagebootst)
   await laad('hercontrole');
+  await ev(() => { const t = new Date().toISOString(), zet = (c, so) => { PD2R.S.o.p[c] = Object.assign({ f:{} }, PD2R.S.o.p[c] || {}, so); PD2R.ongeldig(c); };
+    if(WH.D.P['E400560-10KG'] && !WHCP.cats().hercontrole.some(x => x.c === 'E400560-10KG')) zet('E400560-10KG', { so:{ v:'weg', st:'aangepast', t }, weg:{ v:'archief', st:'aangepast', t } });
+    if(!WHCP.cats().hercontrole.some(x => x.c === 'TRAILER10')) zet('TRAILER10', { so:{ v:'pick', st:'aangepast', t } });
+    Object.keys(WHCP.S.klopt).filter(k => /^hercontrole\|(TRAILER10|E400560-10KG)$/.test(k)).forEach(k => delete WHCP.S.klopt[k]); WHCP.S.memo = null; WHTAAK.herteken(); }); await wacht(500);
   const her = await ev(() => Object.fromEntries(['TRAILER10', 'E400560-10KG', 'KOKOS200NAT', 'SM90X120CM'].map(c => [c, (WHCP.cats().hercontrole.find(x => x.c === c) || {})])));
   check('Hercontrole: TRAILER10 met voorstel Deel', her.TRAILER10.voorstel && her.TRAILER10.voorstel.soort === 'deel', her.TRAILER10.reden);
   check('Hercontrole: E400560-10KG, KOKOS200NAT en SM90X120CM staan erin, elk met Claudes visie', !!her['E400560-10KG'].c && !!her.KOKOS200NAT.c && !!her.SM90X120CM.c && /1\.955/.test(her.SM90X120CM.reden || '') && [her['E400560-10KG'], her.KOKOS200NAT, her.SM90X120CM].every(x => x.redenen.every(r => r.visie)), [her['E400560-10KG'].reden, her.KOKOS200NAT.reden, her.SM90X120CM.reden].join(' || '));

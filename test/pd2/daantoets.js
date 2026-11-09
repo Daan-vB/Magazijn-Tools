@@ -57,11 +57,18 @@ function check(d, regel, waar, x){
       const zonderBron = c.gewicht.filter(x => x.voorstel && !/kleurgenoten \(zelfde maat\)|andere maat, naar verhouding/.test(x.voorstel.tekst)).map(x => x.c);
       return { kb, r3, r6, t, w, mm, zonderBron, wegen:c.gewicht.filter(x => !x.voorstel).map(x => x.c).slice(0, 8) }; });
     check('D29', '§4 Gewicht controleren: voorstel alleen uit kleurgenoten, andere maat alleen met rekensom, anders Naar Te wegen (KB-blkred-4kg nooit 12 kg; Ring-roll 3 m ≠ 6 m; 3028 nooit allemaal 8 kg; MM 10x120 ↔ 4x120 niet; 1711-white-set → 0,045)', r.kb !== 12 && (r.r3 === null || r.r3 !== r.r6) && !r.t.some(x => x === 8) && !r.mm.length && r.w === 0.045 && !r.zonderBron.length, JSON.stringify(r)); }
-  if(doe('D37')){ const r = await ev(() => { const l = WHCP.cats().hercontrole, wegVan = c => (PD2R.wegWaarde(c) || {}).v || '';
-      return { uitl:l.filter(x => x.so === 'weg' && wegVan(x.c) === 'uitlopend').map(x => x.c), e4:l.some(x => x.c === 'E400560-10KG'),
+  if(doe('D37')){ const r = await ev(() => {
+      // Daan beslist live verder: E400560-10KG als Weg · Archief met voorraad (en daarna als Uitlopend) alleen in het geheugen nagebootst, niets geschreven
+      const P = PD2R, c = 'E400560-10KG', oud = P.S.o.p[c] ? JSON.parse(JSON.stringify(P.S.o.p[c])) : null, t = new Date().toISOString();
+      const zet = w => { P.S.o.p[c] = Object.assign({ f:{} }, oud || {}, { so:{ v:'weg', st:'aangepast', t }, weg:{ v:w, st:'aangepast', t } }); P.ongeldig(c); WHCP.S.memo = null; return WHCP.cats().hercontrole.some(x => x.c === c); };
+      const archief = num(WH.D.P[c] && WH.D.P[c].voorraad_hm) > 0 ? zet('archief') : true, uitlopend = zet('uitlopend');
+      if(oud) P.S.o.p[c] = oud; else delete P.S.o.p[c]; P.ongeldig(c); WHCP.S.memo = null;
+      function num(v){ return +v || 0; }
+      const l = WHCP.cats().hercontrole, wegVan = c => (PD2R.wegWaarde(c) || {}).v || '';
+      return { e4archief:archief, e4uitlopend:uitlopend, uitl:l.filter(x => x.so === 'weg' && wegVan(x.c) === 'uitlopend').map(x => x.c), 
         wegSoort:l.filter(x => x.redenen.some(y => /soort/.test(y.t) && /Kleurgenoten/.test(y.t)) && (x.so === 'weg' || x.voorstellen.some(v => v.soort === 'weg'))).map(x => x.c),
         zonderVisie:l.filter(x => x.redenen.some(y => !y.visie)).map(x => x.c) }; });
-    check('D37', '§3 Hercontrole: geen Uitlopend met voorraad, wel E400560-10KG (Archief); nooit soortfout met een Weg-kleurgenoot; elk punt met Claudes visie', !r.uitl.length && r.e4 && !r.wegSoort.length && !r.zonderVisie.length, JSON.stringify(r)); }
+    check('D37', '§3 Hercontrole: geen Uitlopend met voorraad, wel E400560-10KG (Archief); nooit soortfout met een Weg-kleurgenoot; elk punt met Claudes visie', !r.uitl.length && r.e4archief && !r.e4uitlopend && !r.wegSoort.length && !r.zonderVisie.length, JSON.stringify(r)); }
   if(doe('D35')){ const r = await ev(() => { const g = PD2R.gangen(); return { g:g.map(h => h.gang), hal:[...new Set(g.map(h => h.hal))], dDeel:g.filter(h => h.gang[0] === 'D').every(h => h.hal === 'C' && h.deel === 'D'), cDeel:g.filter(h => h.gang[0] === 'C').every(h => h.hal === 'C' && h.deel === 'C'), oud:PD2R.wensNorm({ hal:'D', gang:'DD' }) }; });
     check('D35', '§5 Keuze hal → gedeelte → gang: gangen D.. = hal C gedeelte D, alleen bestaande gangen; oude pickwens "D" leest als C/D', r.hal.every(h => ['A', 'B', 'C'].includes(h)) && r.dDeel && r.cDeel && r.oud.hal === 'C' && r.oud.deel === 'D', JSON.stringify(r).slice(0, 300)); }
   if(doe('D23') || doe('D24') || doe('D25') || doe('D42')){
@@ -122,7 +129,9 @@ function check(d, regel, waar, x){
   }
   /* ---------- D18 Bulklocaties: PBVF als groep "Alleen bulk" ---------- */
   if(doe('D18')){
-    await naarTab('bulklocaties');
+    // Daan beslist live verder: zijn "alleen bulk" voor de prikborden (PBVF) alleen in het geheugen weggehaald, zodat ze weer open staan
+    await ev(() => { Object.keys(WHCP.S.klopt).filter(k => /^bulkeraf\|PBVF-/.test(k)).forEach(k => { delete WHCP.S.klopt[k]; }); WHCP.S.memo = null; });
+    await naarTab('bulklocaties'); await herteken(); await wacht(500);
     const voor = await ev(() => { const gr = WHCP.groepeer(WHCP.cats().bulklocaties).find(g => g.items.some(x => /^PBVF-/.test(x.c))); return gr ? { gk:gr.k, naam:gr.naam, n:gr.items.length, tel:WHCP.tel().bulklocaties, codes:gr.items.map(x => x.c) } : null; });
     if(voor){ await ev(gk => document.querySelector('.cp-grp[data-gk="' + CSS.escape(gk) + '"] [data-cp="g-bulkok"]').click(), voor.gk); await wacht(2500); }
     const na = voor ? await ev(codes => ({ tel:WHCP.tel().bulklocaties, eraf:WHCP.cats().bulkeraf.filter(x => codes.includes(x.c)).length, lijst:(document.getElementById('cp-klaar') || {}).innerText || '' }), voor.codes) : null;
