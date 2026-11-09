@@ -1956,7 +1956,7 @@ function adviesKern(c, pool, eerder){
   const SN = { deel:'Deel', pallet:'Pallet', pick:'Pick', mix:'Mix' };
   let PDa = null;
   if(PDd && SN[PDd.soort] && PDd.maxpick > 0 && !(R.bulk || R.maxpal)){
-    const stock = Math.max(0, vrij), ruim = PDd.lvl === null ? stock <= 0 : stock <= PDd.lvl;
+    const stock = Math.max(0, f.hm), ruim = PDd.lvl === null ? stock <= 0 : stock <= PDd.lvl;
     PDa = { soort:PDd.soort, max:PDd.maxpick, lvl:PDd.lvl, stock, ruim, room:Math.max(0, naarDozen(PDd.maxpick - stock, false)) };
   }
   pallets.forEach((s, i) => {
@@ -1979,6 +1979,7 @@ function adviesKern(c, pool, eerder){
     PDa.pickU = n;
   }
   if(PDa) uitleg.push('productdata: ' + SN[PDa.soort] + ', max op pick ' + nf(PDa.max) + (PDa.lvl !== null ? ', bij ' + nf(PDa.lvl) : '') + ', pick nu ' + nf(PDa.stock) + (PDa.soort === 'deel' ? (PDa.pickU ? ' → ' + nf(PDa.pickU) + ' naar pick, rest Bulk (up)' : ' → alles naar Bulk (up) of VST, pick is vol genoeg') : PDa.soort === 'pallet' ? ' → hele pallet naar pick alleen als pick ≤ aanvullen bij en er past een hele pallet bij' : ' → tot max op pick, rest Bulk/VST'));
+  if(PDa && ['deel', 'pallet', 'pick', 'mix'].includes(PDa.soort) && !String((P[code] || {}).locaties_hm || '').split(',').some(l => /^[A-Z]{2}\d{2}[A-D]0\d$/.test(l.trim()) || /^AH\d{2}[A-D]\d{2}$/.test(l.trim()))) uitleg.push('picklocatie nog aanmaken in Picqer (' + code + ' staat in Te doen → Picklocaties)');
   else if(PDd && PDd.soort) uitleg.push('(oude regel: productdata mist ' + (PDd.maxpick > 0 ? 'de soort' : 'max op pick') + ')');
   else uitleg.push('(oude regel)');
   porties.forEach(x => { x.n = Math.round(x.n); });   // nooit decimalen in een verdeling
