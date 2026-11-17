@@ -212,6 +212,7 @@ function dubbelParen(containers, opt){
   const uit = [];
   for(let i = 0; i < lijst.length; i++) for(let j = i + 1; j < lijst.length; j++){
     const a = lijst[i], b = lijst[j], redenen = [];
+    if(a.cn && b.cn && a.cn !== b.cn) continue;   // ander containernummer = altijd een andere container
     if(a.cn && a.cn === b.cn) redenen.push('zelfde containernummer ' + a.c.containernummer);
     const gpo = [...a.po].filter(x => b.po.has(x));
     if(gpo.length) redenen.push('zelfde PO ' + gpo.join(', '));

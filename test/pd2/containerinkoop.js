@@ -50,6 +50,24 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('Excel: leverancier uit de kopregels ("Xiamen   Honorchain industry" over twee cellen) tegen de leverancierslijst', /honorchain/i.test(ex.lev || ''), ex.lev);
   check('Excel: leverancier niet gevonden = leeg (melden), nooit de eerste uit de lijst', ex.lev2 === null && ex.lijst0 !== null, ex.lev2 + ' / eerste in lijst: ' + ex.lijst0);
 
+  /* ---------- 1b. Selected-paklijst als tekst-PDF (zelfgemaakt, opbouw: Item NO | Color | QTY PCS | PCS/CTN | CTNS | GW | REMARKS) ---------- */
+  const S3 = '   ', rij = (...c) => c.join(S3);
+  const kopSel = nr => ['Foshan Selected Furniture Company Limited', 'PACKING LIST ' + nr + S3 + 'CI NO: 2354', 'CONTAINER NO: ' + (nr === 2 ? 'ECMU6282357' : 'ECMU6344037') + S3 + 'SEAL NO: ' + (nr === 2 ? 'J2549835' : 'J1546454'), rij('Item NO', 'Color', 'QTY PCS', 'PCS/CTN', 'CTNS', 'GW', 'REMARKS')];
+  const selA = kopSel(2).concat([rij('SL006-Green-351', 'Green', 50, 1, 50, 1250, '50pcs from PO2026-002182'), rij('SL006-Blue-302', 'Dark blue', 50, 1, 50, 1250, '50pcs from PO2026-002258'),
+    rij('SE121H2-BLA', 'Black', 50, 1, 50, 900, '50pcs from PO2026-002354'), rij('SE121V-black', 'Black', 100, 1, 100, 2500, '50pcs from PO2026-002182 /'), '50pcs from PO2026-002258', 'office chair with chromed armrest',
+    rij('SE121V-Cog', 'Cognac', 86, 1, 86, 2150, '36pcs from PO2026-002182 / 50pcs from PO2026-002354'), rij('Total', 336, 336, 8050)]).join('\n');
+  const selB = kopSel(1).concat([rij('SL-001-WHI', 'White', 50, 1, 50, 600, '50pcs from PO2026-002258'), rij('SV615C-BLK', 'Black', 40, 2, 20, 200, '20pcs from PO2026-002258 / 20pcs from PO2026-002354'), rij('SV615C-WHI', 'White', 20, 2, 10, 100, '20pcs from PO2026-002354'),
+    rij('BKBE04', 'Clear', 50, 50, 1, 10, '50pcs from PO2026-002354'), rij('SF286A', 'Black', 125, 1, 125, 3000, '45pcs from PO2026-002258 / 80pcs from PO2026-002354'), rij('SE121M2-WHI', 'White', 50, 1, 50, 1000, '50pcs from PO2026-002182'),
+    rij('SE121H2-WHI', 'White', 50, 1, 50, 900, '50pcs from PO2026-002258'), rij('SE121V-Cog', 'Cognac', 14, 1, 14, 350, '14pcs from PO2026-002182'), rij('SL012G-Roze', 'Pink', 1, 1, 1, 5, 'free sample'), rij('SL013G-Donkerblauw', 'Dark blue', 1, 1, 1, 5, 'free sample'),
+    rij('Total', 401, 322, 9000)]).join('\n');
+  const slx = await P.evaluate(([a, b]) => { const f = t => { const x = CP_TEST.leesPakbonTekst2(t), c = CP_TEST.leesControle(t), g = code => x.regels.find(r => r.pakbon_code === code) || {};
+    return { lev:x.lev, ref:x.ref, cont:x.docs[0].container, n:x.regels.length, stuks:x.regels.reduce((s, r) => s + r.totaal, 0), dozen:x.regels.reduce((s, r) => s + r.aantal, 0), tot:[x.totaal_stuks, x.totaal_eenheden], ctl:[c.ok, c.heeft], verd:g('SE121V-black').po_verdeling, oms:g('SE121V-black').omschrijving,
+      bkbe:[g('BKBE04').per, g('BKBE04').aantal], blk:[g('SV615C-BLK').per, g('SV615C-BLK').aantal, g('SV615C-BLK').totaal], monster:x.regels.filter(r => r.monster).map(r => r.pakbon_code), pl:x.packinglist, zegel:x.zegel, sf:g('SF286A').po_verdeling }; };
+    return { a:f(a), b:f(b) }; }, [selA, selB]);
+  check('Selected tekst-PDF A (Packinglist 2): 5 regels, 336 stuks / 336 dozen, totaal klopt, ref 2354, container en zegel', slx.a.n === 5 && slx.a.stuks === 336 && slx.a.dozen === 336 && slx.a.tot.join() === '336,336' && slx.a.ctl.join() === 'true,true' && slx.a.ref === '2354' && slx.a.cont === 'ECMU6282357' && slx.a.zegel === 'J2549835' && slx.a.pl === '2' && /Selected/.test(slx.a.lev || ''), slx.a);
+  check('Selected tekst-PDF: meerregelige omschrijving en REMARKS bij één regel; verdeling over PO\'s opgeslagen (SE121V-black = 50 uit 002182 + 50 uit 002258)', slx.a.verd && slx.a.verd.length === 2 && slx.a.verd[0].po === 'PO2026-002182' && slx.a.verd[1].aantal === 50 && /office chair/.test(slx.a.oms), [slx.a.verd, slx.a.oms]);
+  check('Selected tekst-PDF B (Packinglist 1): 10 regels, 401 stuks / 322 dozen, totaal klopt; 20 dozen × 2 = 40; 1 doos × 50; "free sample" = monster, telt mee', slx.b.n === 10 && slx.b.stuks === 401 && slx.b.dozen === 322 && slx.b.tot.join() === '401,322' && slx.b.ctl.join() === 'true,true' && slx.b.blk.join() === '2,20,40' && slx.b.bkbe.join() === '50,1' && slx.b.monster.join() === 'SL012G-Roze,SL013G-Donkerblauw' && slx.b.cont === 'ECMU6344037' && slx.b.sf.length === 2, slx.b);
+
   /* ---------- 2. Foto-OCR opschonen ---------- */
   const oc = await P.evaluate(() => {
     const r = (code, oms, t) => ({ pakbon_code:code, omschrijving:oms, totaal:t, aantal:t, per:1, soort:'los' });
@@ -80,24 +98,23 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
       [7002, '2026-11-03', 'purchased', 5, [['ISM80X120', 30, 0, 'Stalmat 80x120']], 'PO2026-009992', 'Testleverancier Co., Ltd.'],
       [7003, '2026-10-01', 'received', 5, [['RP0100', 1, 1, 'x']], 'PO2026-009000', 'Testleverancier Co., Ltd.']]);
     const open = await X.inkoopOpen();
-    const c = X.ensureData({ id:90001, leverancier:null, status:'concept', data:{ regels:[] } });
+    const c = X.ensureData({ id:90001, leverancier:null, pakbon_ref:'REF-1', containernummer:'TSTU9990001', status:'concept', data:{ regels:[] } });
     X.cont().push(c);
-    // pakbon gelezen: RP0100 100 (klopt), RP0200 30 (inkoop zegt 40), ISM80X120 12 (niet in deze inkooporder), alles met zekere code
+    // pakbon gelezen: RP0100 100 (klopt), RP0200 45 (inkoop heeft nog 40), ISM80X120 12 (niet in deze inkooporder); E4005-10KG staat wel in de inkooporder maar niet op de pakbon
     const pb = [{ id:'a', pakbon_code:'RP0100', omschrijving:'RP0100', totaal:100, per:1, aantal:100, soort:'los', factor:1, productcode:'RP0100', match:'exact', bevestigd:true },
-      { id:'b', pakbon_code:'RP0200', omschrijving:'RP0200', totaal:30, per:1, aantal:30, soort:'los', factor:1, productcode:'RP0200', match:'exact', bevestigd:true },
+      { id:'b', pakbon_code:'RP0200', omschrijving:'RP0200', totaal:45, per:1, aantal:45, soort:'los', factor:1, productcode:'RP0200', match:'exact', bevestigd:true },
       { id:'c', pakbon_code:'ISM80X120', omschrijving:'ISM80X120', totaal:12, per:1, aantal:12, soort:'los', factor:1, productcode:'ISM80X120', match:'exact', bevestigd:true }];
     c.data.pakbon_gelezen = { bestand:'test.xlsx', regels:pb }; c.data.po_gevonden = ['PO2026-009991'];
     c.data.regels = pb.map(r => Object.assign({}, r));
     const r = await X.inkoopToepassen(c, [7001]);
-    return { open:open.map(o => o.po), r, regels:c.data.regels.map(x => [x.productcode, x.totaal, x.match, x.bevestigd, x.verschil ? x.verschil.soort + ':' + x.verschil.pakbon + '/' + x.verschil.inkoop : '', x.reden].join('|')), lev:c.leverancier, ref:c.pakbon_ref, po:c.data.po_nrs, bron:c.data.regels_bron, tekst:X.inkoopTekst(r) };
+    return { open:open.map(o => o.po), r, regels:c.data.regels.map(x => [x.productcode, x.totaal, x.match, x.bevestigd, x.verschil ? x.verschil.soort + ':' + x.verschil.pakbon + '/' + x.verschil.inkoop : ''].join('|')), lev:c.leverancier, ref:c.pakbon_ref, cn:c.containernummer, po:c.data.po_nrs, bron:c.data.regels_bron, tekst:X.inkoopTekst(r) };
   });
   check('Inkoop: alleen open orders (ontvangen order telt niet), PO-nummers uit Picqer', JSON.stringify(A.open) === JSON.stringify(['PO2026-009992', 'PO2026-009991']), A.open);
-  check('Inkoop: regels = inkoopregels met nog te ontvangen (al ontvangen regel valt weg), exacte code, bron "inkooporder", direct groen', A.regels.some(x => /^RP0100\|100\|inkooporder\|true\|\|/.test(x)) && !A.regels.some(x => /NIETBESTAAT/.test(x)), A.regels);
-  check('Inkoop: leverancier = leverancier van de inkooporder, PO in ref en po_nrs', /Testleverancier/.test(A.lev) && A.ref === 'PO2026-009991' && A.po[0] === 'PO2026-009991' && A.bron === 'inkooporder', [A.lev, A.ref, A.po]);
-  check('Inkoop: pakbon zegt 30, inkoop zegt 40 → gele regel (niet bevestigd), nooit stil overgenomen', A.regels.some(x => /^RP0200\|40\|inkooporder\|false\|aantal:30\/40/.test(x)), A.regels);
-  check('Inkoop: regel op de pakbon die niet in de inkooporder staat → gele regel "alleen-pakbon"', A.regels.some(x => /^ISM80X120\|12\|inkooporder\|false\|alleen-pakbon:12\/0/.test(x)), A.regels);
-  check('Inkoop: inkoopregel die niet op de (zekere) pakbon staat → gele regel "alleen-inkoop"', A.regels.some(x => /^E4005-10KG\|12\|inkooporder\|false\|alleen-inkoop:0\/12/.test(x)), A.regels);
-  check('Inkoop: melding noemt PO, aantal regels en het aantal gele verschillen', /PO2026-009991/.test(A.tekst) && /3 met verschil/.test(A.tekst), A.tekst);
+  check('Pakbon bepaalt de regels: precies de 3 pakbonregels; E4005-10KG (wel in de inkooporder, niet op de pakbon) komt er NIET bij', A.regels.length === 3 && !A.regels.some(x => /E4005|NIETBESTAAT/.test(x)) && A.regels.some(x => /^RP0100\|100\|(exact|inkooporder)\|true\|$/.test(x)), A.regels);
+  check('Inkoop: leverancier uit de inkooporder (was leeg); pakbon-ref en containernummer blijven zoals ze waren; PO in po_nrs; bron "pakbon"', /Testleverancier/.test(A.lev) && A.ref === 'REF-1' && A.cn === 'TSTU9990001' && A.po[0] === 'PO2026-009991' && A.bron === 'pakbon', [A.lev, A.ref, A.cn, A.po, A.bron]);
+  check('Inkoop-controle: pakbon 45, inkoop nog 40 → gele regel "pakbon zegt 45, inkoop zegt 40" (nooit stil overgenomen)', A.regels.some(x => /^RP0200\|45\|exact\|false\|aantal:45\/40/.test(x)), A.regels);
+  check('Inkoop-controle: pakbonregel die niet in de inkooporder staat → gele regel "alleen-pakbon"', A.regels.some(x => /^ISM80X120\|12\|exact\|false\|alleen-pakbon:12\/0/.test(x)), A.regels);
+  check('Inkoop: melding noemt de PO en het aantal gele verschillen', /PO2026-009991/.test(A.tekst) && /2 met verschil/.test(A.tekst), A.tekst);
   const kopieen = () => schrijf.filter(w => /^wh-kopie-containers-/.test(w.key || ''));
   check('Inkoop: vóór de wijziging een kopie van de containerrij (wh-kopie-containers-<id>-<jjjjmmdd>)', kopieen().some(w => /^wh-kopie-containers-90001-\d{8}$/.test(w.key) && w.data.rij && w.data.rij.id === 90001), kopieen().map(w => w.key));
 
@@ -106,20 +123,46 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await P.waitForSelector('tr.verschil', { timeout:30000 });
   const sc = await P.evaluate(() => ({ n:document.querySelectorAll('tr.verschil').length, knoppen:[...document.querySelectorAll('tr.verschil [data-act]')].map(b => b.textContent.trim()).slice(0, 2), tekst:document.querySelector('tr.verschil').innerText.replace(/\s+/g, ' '),
     bal:(document.querySelector('.statusbalk') || {}).innerText || '', alles:!!document.querySelector('[data-act="allesbev"]'), sx:document.documentElement.scrollWidth <= window.innerWidth + 1 }));
-  check('Scherm: gele regels met "Pakbon klopt" / "Inkoop klopt" en tekst "pakbon zegt X, inkoop zegt Y"', sc.n === 3 && sc.knoppen[0] === 'Pakbon klopt' && sc.knoppen[1] === 'Inkoop klopt' && /pakbon zegt/.test(sc.tekst) && /inkoop zegt/.test(sc.tekst), sc);
+  check('Scherm: gele regels met "Pakbon klopt" / "Inkoop klopt" en tekst "pakbon zegt X, inkoop zegt Y"', sc.n === 2 && sc.knoppen[0] === 'Pakbon klopt' && sc.knoppen[1] === 'Inkoop klopt' && /pakbon zegt/.test(sc.tekst) && /inkoop zegt/.test(sc.tekst), sc);
   check('Scherm: pakbonstap met gele regels zonder horizontaal scrollen (' + (mobiel ? 390 : 1440) + ' px)', sc.sx);
-  check('Scherm: de statusbalk meldt de verschillen; geen "Alles bevestigen" voor gele regels', /3 verschillen tussen pakbon en inkooporder/.test(sc.bal) && !sc.alles, sc.bal.replace(/\s+/g, ' '));
-  check('Scherm: inkoopbox toont de open inkooporders (met koppelcode), PO uit de pakbon aangevinkt', await P.evaluate(() => { const b = document.getElementById('inkoopbox'); return !!b && /Regels uit de inkooporder/.test(b.innerText); }));
+  check('Scherm: de statusbalk meldt de verschillen; geen "Alles bevestigen" voor gele regels', /2 verschillen tussen pakbon en inkooporder/.test(sc.bal) && !sc.alles, sc.bal.replace(/\s+/g, ' '));
+  check('Scherm: inkoopbox toont de open inkooporders (met koppelcode) en legt uit dat de pakbon de regels bepaalt', await P.evaluate(() => { const b = document.getElementById('inkoopbox'); return !!b && /Regels uit de inkooporder/.test(b.innerText) && /pakbon bepaalt/.test(b.innerText); }));
   await P.evaluate(() => { document.querySelector('tr.verschil [data-act="vspakbon"]').click(); });
   await P.waitForTimeout(300);
   const na = await P.evaluate(() => CP_TEST.cont().find(c => c.id === 90001).data.regels.map(x => [x.productcode, x.totaal, x.bevestigd, !!x.verschil].join('|')));
-  check('Pakbon klopt: RP0200 wordt 30 en bevestigd; de andere gele regels blijven staan', na.includes('RP0200|30|true|false') && na.filter(x => x.endsWith('|true')).length === 1 + 1 || na.includes('RP0200|30|true|false'), na);
-  for(const code of ['ISM80X120', 'E4005-10KG']){
-    await P.evaluate(code => { const i = CP_TEST.cont().find(c => c.id === 90001).data.regels.findIndex(x => x.productcode === code); document.querySelector('[data-act="vsinkoop"][data-i="' + i + '"]').click(); }, code);
-    await P.waitForTimeout(200);
-  }
+  check('Pakbon klopt: RP0200 blijft 45 en wordt bevestigd; de andere gele regel blijft staan', na.includes('RP0200|45|true|false') && na.includes('ISM80X120|12|false|true'), na);
+  await P.evaluate(() => { const i = CP_TEST.cont().find(c => c.id === 90001).data.regels.findIndex(x => x.productcode === 'ISM80X120'); document.querySelector('[data-act="vsinkoop"][data-i="' + i + '"]').click(); });
+  await P.waitForTimeout(200);
   const na2 = await P.evaluate(() => CP_TEST.cont().find(c => c.id === 90001).data.regels.map(x => [x.productcode, x.totaal, x.bevestigd, !!x.verschil].join('|')));
-  check('Inkoop klopt: alleen-pakbon valt weg, alleen-inkoop blijft (bevestigd)', !na2.some(x => /^ISM80X120/.test(x)) && na2.includes('E4005-10KG|12|true|false'), na2);
+  check('Inkoop klopt: een pakbonregel die niet in de inkooporder staat valt weg', !na2.some(x => /^ISM80X120/.test(x)) && na2.length === 2, na2);
+
+  // PO verdeeld over containers is normaal: som over alle containers met die PO <= inkoop; alleen bij overschrijding geel. Containernummer is de identiteit.
+  const N = await P.evaluate(async () => {
+    const X = CP_TEST, rg = (code, t) => ({ id:'n' + code + t, pakbon_code:code, omschrijving:code, totaal:t, per:1, aantal:t, soort:'los', factor:1, productcode:code, match:'exact', bevestigd:true });
+    X.zetInkoop([[7201, '2026-11-01', 'purchased', 5, [['RP0100', 100, 0, 'a'], ['RP0200', 90, 0, 'b'], ['E4005-10KG', 20, 0, 'c']], 'PO2026-009201', 'Testleverancier Co., Ltd.']]);
+    const mk = (id, cn, regels) => { const c = X.ensureData({ id, leverancier:'Selected Test BV', pakbon_ref:'2354', containernummer:cn, status:'concept', data:{ regels:[], po_gevonden:['PO2026-009201'] } }); c.data.pakbon_gelezen = { bestand:cn + '.pdf', regels }; c.data.regels = regels.map(r => Object.assign({}, r)); X.cont().push(c); return c; };
+    const x = mk(90070, 'XXXU1111111', [rg('RP0100', 60), rg('RP0200', 30)]), y = mk(90071, 'YYYU2222222', [rg('RP0100', 40), rg('RP0200', 60)]);
+    const naam = c => [c.leverancier, c.pakbon_ref, c.containernummer].join('|');
+    const n0 = [naam(x), naam(y)];
+    const r1 = await X.inkoopToepassen(x, [7201]), r2 = await X.inkoopToepassen(y, [7201]);
+    const s = c => c.data.regels.map(r => r.productcode + ':' + r.totaal + (r.verschil ? '!' + r.verschil.inkoop : '')).join(',');
+    const uit1 = { x:s(x), y:s(y), v:[r1.verschillen, r2.verschillen], zelfde:n0.join() === [naam(x), naam(y)].join() };
+    // te veel: container y vraagt 70 van RP0200 (30 + 70 > 90) → geel, met wat er nog over is (60)
+    y.data.pakbon_gelezen.regels[1].totaal = 70; const r3 = await X.inkoopToepassen(y, [7201]);
+    return Object.assign(uit1, { y2:s(y), v3:r3.verschillen, dubbel:X.dubbelVan(x).length + X.dubbelVan(y).length, magSamen:(() => { try{ return X.samenvoegen(x, y).then(() => 'gelukt', e => e.message); }catch(e){ return Promise.resolve(e.message); } })() }).magSamen.then(m => Object.assign(uit1, { samenMelding:m }));
+  });
+  check('Twee containers, dezelfde PO, ander containernummer: elk alleen zijn eigen pakbonregels (2 regels, geen extra uit de inkooporder), naam en containernummer blijven', N.x === 'RP0100:60,RP0200:30' && N.y === 'RP0100:40,RP0200:60' && N.zelfde, N);
+  check('Inkoopcontrole = som over containers: 60+40 ≤ 100 en 30+60 ≤ 90 geven geen gele regel', N.v[0] === 0 && N.v[1] === 0, N.v);
+  check('Inkoopcontrole: 30 + 70 > 90 → gele regel met nog beschikbaar 60', /RP0200:70!60/.test(N.y2) && N.v3 === 1, N.y2);
+  check('Verschillend containernummer: geen "Mogelijk dubbel" en samenvoegen weigert', N.dubbel === 0 && /verschillend containernummer/.test(N.samenMelding), [N.dubbel, N.samenMelding]);
+
+  // geen leesbare pakbon: alle open inkoopregels, oranje, met melding
+  const G = await P.evaluate(async () => {
+    const X = CP_TEST, c = X.ensureData({ id:90072, leverancier:'Testleverancier Co., Ltd.', status:'concept', data:{ regels:[] } }); X.cont().push(c);
+    const r = await X.inkoopToepassen(c, [7201]);
+    return { tekst:X.inkoopTekst(r), regels:c.data.regels.map(x => [x.productcode, x.totaal, x.bevestigd].join('|')) };
+  });
+  check('Zonder leesbare pakbon: alle open inkoopregels, oranje, met melding "geen pakbon … nakijken"', /^Geen pakbon: alle open inkoopregels/.test(G.tekst) && G.regels.includes('RP0100|100|false') && G.regels.includes('E4005-10KG|20|false') && G.regels.every(x => x.endsWith('|false')), G);
 
   // vaste regels (bevestigd of verdeeld) blijven staan, ook bij opnieuw nemen
   const V = await P.evaluate(async () => {
@@ -127,19 +170,19 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
       { id:'v1', pakbon_code:'RP0100', omschrijving:'RP0100', totaal:77, per:1, aantal:77, soort:'los', factor:1, productcode:'RP0100', match:'handmatig', bevestigd:true, vast:true },
       { id:'v2', pakbon_code:'ZZ', omschrijving:'zz', totaal:5, per:1, aantal:5, soort:'los', factor:1, productcode:'', match:'onbekend', bevestigd:false }], verdeling:{ RP0100:{ porties:[{ soort:'los', n:77, dest:'PICK' }], bevestigd:true } } } });
     X.cont().push(c);
-    const r = await X.inkoopToepassen(c, [7001]);
-    return { r:{ behouden:r.behouden, overgeslagen:r.overgeslagen }, regels:c.data.regels.map(x => [x.productcode, x.totaal, x.match].join('|')), verd:JSON.stringify(c.data.verdeling) };
+    const r = await X.inkoopToepassen(c, [7201]);
+    return { r:{ behouden:r.behouden }, regels:c.data.regels.map(x => [x.productcode, x.totaal, x.match].join('|')), verd:JSON.stringify(c.data.verdeling) };
   });
-  check('Vast: bevestigde/verdeelde regel (RP0100, 77) en zijn akkoord blijven onaangeroerd; niet-bevestigde regel wordt vervangen', V.r.behouden === 1 && V.r.overgeslagen.includes('RP0100') && V.regels[0] === 'RP0100|77|handmatig' && !V.regels.some(x => /^\|/.test(x)) && /bevestigd":true/.test(V.verd), V);
+  check('Vast: bevestigde/verdeelde regel (RP0100, 77) en zijn akkoord blijven onaangeroerd; er komt geen inkoopregel bij', V.r.behouden === 1 && V.regels[0] === 'RP0100|77|handmatig' && V.regels.length === 2 && !V.regels.some(x => /E4005|RP0200/.test(x)) && /bevestigd":true/.test(V.verd), V);
 
   // een inkooporder waar niets meer van te ontvangen is, verandert de container niet
   const L0 = await P.evaluate(async () => {
     const X = CP_TEST; X.zetInkoop([[7101, '2026-11-01', 'purchased', 5, [['RP0100', 5, 5, 'x']], 'PO2026-009100', 'Testleverancier Co., Ltd.']]);
-    const c = X.ensureData({ id:90003, leverancier:'Testleverancier Co., Ltd.', status:'concept', data:{ regels:[{ id:'z1', pakbon_code:'RP0200', omschrijving:'RP0200', totaal:3, per:1, aantal:3, soort:'los', factor:1, productcode:'RP0200', match:'exact', bevestigd:true }] } });
+    const c = X.ensureData({ id:90003, leverancier:'Testleverancier Co., Ltd.', status:'concept', data:{ regels:[] } });
     X.cont().push(c); let fout = ''; try{ await X.inkoopToepassen(c, [7101]); }catch(e){ fout = e.message; }
     return { fout, regels:c.data.regels.map(x => x.productcode + ':' + x.totaal) };
   });
-  check('Inkooporder zonder iets te ontvangen: melding, regels van de container blijven zoals ze waren', /niets meer te ontvangen/.test(L0.fout) && L0.regels.join() === 'RP0200:3', L0);
+  check('Inkooporder zonder iets te ontvangen en zonder pakbon: melding, de container blijft leeg', /niets meer te ontvangen/.test(L0.fout) && L0.regels.length === 0, L0);
   // zonder koppelcode of zonder verbinding: reden, geen crash
   const Z = await P.evaluate(async () => {
     const X = CP_TEST; localStorage.removeItem('ivol-koppelcode');
@@ -161,6 +204,9 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
       poAndereLev:z({ lev:'Ningbo Henri Development Trade Co', po:['PO2026-009977'] }, {}, '', 'x.pdf'), geen:z({ lev:'Testleverancier Co., Ltd.', ref:'NIETS' }, {}, '', 'x.pdf') };
   });
   check('Bijwerken: bestaande container gevonden op containernummer, pakbon-ref of PO + leverancier (andere leverancier = niet)', /^90020:zelfde containernummer/.test(B.cn) && /^90020:zelfde pakbon-ref/.test(B.ref) && /^90020:zelfde PO/.test(B.po) && B.poAndereLev === null && B.geen === null, B);
+  const B2 = await P.evaluate(() => { const X = CP_TEST, z = (res, d) => { const g = X.zoekBestaand(res, d, '', 'x.pdf'); return g ? g.c.id : null; };
+    return { anderCn:z({ lev:'Testleverancier Co., Ltd.', ref:'REF-20' }, { container:'OTHU9999999' }), anderCnPo:z({ lev:'Testleverancier Co., Ltd.', po:['PO2026-009977'] }, { container:'OTHU9999999' }), zelfdeCn:z({ lev:'x' }, { container:'TEST1111111' }) }; });
+  check('Containernummer is de identiteit: zelfde ref of PO maar ander containernummer = nooit bijwerken (andere container)', B2.anderCn === null && B2.anderCnPo === null && B2.zelfdeCn === 90020, B2);
   // een pakbon (tekstbestand) met dat PO-nummer inlezen: standaard bijwerken, of toch nieuw
   const aantalPost = () => schrijf.filter(w => w.m === 'POST' && w.tabel === 'containers').length;
   const bestand = { name:'Testleverancier PO2026-009977.txt', mimeType:'text/plain', buffer:Buffer.from('RP0100\t4\t25\nRP0200\t2\t10\n') };
@@ -190,6 +236,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   await P.evaluate(() => { location.hash = '#/'; }); await P.waitForSelector('.ccard', { timeout:30000 }); await P.waitForTimeout(800);
   const menuOk = await P.evaluate(() => { const w = [...document.querySelectorAll('.cwrap')].find(x => /Wegleverancier/.test(x.innerText)); return !!w && !!w.querySelector('details.kmenu summary') && /Verwijderen/.test(w.textContent) && /Samenvoegen met/.test(w.textContent); });
   check('Containerkaart: ⋯-menu met "Verwijderen" en "Samenvoegen met…"', menuOk);
+  const prul0 = await P.evaluate(() => CP_TEST.prullen().filter(x => new Date(x.tot) > new Date()).length);
   dialogen.length = 0;
   await P.evaluate(() => { const w = [...document.querySelectorAll('.cwrap')].find(x => /Wegleverancier/.test(x.innerText)); w.querySelector('details.kmenu summary').click(); w.querySelector('[data-act="cverwijder"]').click(); });
   await P.waitForFunction(() => !CP_TEST.cont().some(c => c.id === 90030), null, { timeout:20000 });
@@ -199,11 +246,12 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     && schrijf.findIndex(w => w.m === 'DELETE') > schrijf.findIndex(w => w.key === 'wh-prullenbak-containers'), schrijf.map(w => w.key || w.m + ' ' + w.u));
   await P.waitForTimeout(500);
   const tb = await P.evaluate(() => ({ kaart:[...document.querySelectorAll('.ccard')].some(a => /Wegleverancier/.test(a.innerText)), prul:(document.body.innerText.match(/Prullenbak \(\d+\)/) || [''])[0], terug:!!document.querySelector('[data-act="cterug"]') }));
-  check('Prullenbak: kaart weg, "Prullenbak (1)" met "Terugzetten" onderaan het Containers-scherm', !tb.kaart && tb.prul === 'Prullenbak (1)' && tb.terug, tb);
-  await P.evaluate(() => { document.querySelector('[data-act="cterug"]').click(); });
+  check('Prullenbak: kaart weg, "Prullenbak (n+1)" met "Terugzetten" onderaan het Containers-scherm', !tb.kaart && tb.prul === 'Prullenbak (' + (prul0 + 1) + ')' && tb.terug, tb);
+  await P.evaluate(() => { [...document.querySelectorAll('[data-act="cterug"]')].find(b => /Wegleverancier/.test(b.closest('.row').textContent)).click(); });
   await P.waitForFunction(() => CP_TEST.cont().some(c => c.leverancier === 'Wegleverancier BV'), null, { timeout:20000 });
+  await P.waitForTimeout(700);
   const terug = await P.evaluate(() => { const c = CP_TEST.cont().find(c => c.leverancier === 'Wegleverancier BV'); return { regels:c.data.regels.length, akk:Object.values(c.data.verdeling).filter(v => v.bevestigd).length, prul:CP_TEST.prullen().length }; });
-  check('Terugzetten: container met zijn regels en akkoord terug, prullenbak leeg', terug.regels === 2 && terug.akk === 1 && terug.prul === 0, terug);
+  check('Terugzetten: container met zijn regels en akkoord terug, prullenbak weer als vooraf', terug.regels === 2 && terug.akk === 1 && terug.prul === prul0, terug);
 
   const S2 = await P.evaluate(async () => {
     const X = CP_TEST, a = X.cont().find(c => c.id === 90031), b = X.cont().find(c => c.id === 90032);
@@ -226,14 +274,16 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     mk(90045, { leverancier:'Dubbel Vijf BV', data:{ regels:['E1', 'E2', 'E3', 'X9'].map(r) } });
     mk(90046, { leverancier:'Dubbel Zes BV', data:{ regels:['F1', 'F2', 'F3', 'F4', 'F5'].map(r) } });
     mk(90047, { leverancier:'Dubbel Zes BV', data:{ regels:['F1', 'G2', 'G3', 'G4', 'G5'].map(r) } });
+    mk(90050, { leverancier:'Dubbel Acht BV', pakbon_ref:'2354', containernummer:'AAAU1000001', data:{ regels:['K1', 'K2', 'K3'].map(r), po_nrs:['PO2026-009777'] } });
+    mk(90051, { leverancier:'Dubbel Acht BV', pakbon_ref:'2354', containernummer:'BBBU2000002', data:{ regels:['K1', 'K2', 'K3'].map(r), po_nrs:['PO2026-009777'] } });
     mk(90048, { leverancier:'Dubbel Zeven BV', data:{ regels:[r('H1')] } });
     mk(90049, { leverancier:'Dubbel Zeven BV', data:{ regels:[r('H1'), r('H2')] } });
     const d = id => X.dubbelVan(X.cont().find(c => c.id === id)).map(x => x.met.id + ':' + x.redenen.join('+'));
-    return { a:d(90040), b:d(90042), c:d(90044), d:d(90046), e:d(90048) };
+    return { a:d(90040), b:d(90042), c:d(90044), d:d(90046), e:d(90048), f:d(90050) };
   });
   check('Mogelijk dubbel: zelfde containernummer (hoofdletters/kleine letters maakt niet uit)', D.a.length === 1 && /^90041:zelfde containernummer/.test(D.a[0]), D.a);
   check('Mogelijk dubbel: zelfde PO (in ref of in de inkooporder)', D.b.length === 1 && /^90043:zelfde PO PO2026-009555/.test(D.b[0]), D.b);
-  check('Mogelijk dubbel: zelfde leverancier en >= 60% dezelfde productcodes (minstens 2 gedeeld); 20% of één gedeeld product is niet dubbel', D.c.length === 1 && /^90045:.*3 van 4/.test(D.c[0]) && D.d.length === 0 && D.e.length === 0, D);
+  check('Mogelijk dubbel: zelfde leverancier en >= 60% dezelfde productcodes (minstens 2 gedeeld); 20% of één gedeeld product is niet dubbel; zelfde PO + zelfde producten maar ander containernummer is nooit dubbel', D.c.length === 1 && /^90045:.*3 van 4/.test(D.c[0]) && D.d.length === 0 && D.e.length === 0 && D.f.length === 0, D);
   await P.evaluate(() => { location.hash = '#/gegevens'; }); await P.waitForTimeout(200);
   await P.evaluate(() => { location.hash = '#/'; }); await P.waitForSelector('.ccard', { timeout:30000 }); await P.waitForTimeout(800);
   const dk = await P.evaluate(() => ({ badges:[...document.querySelectorAll('.cwrap')].filter(w => w.querySelector('.dubbel-badge')).map(w => w.innerText.match(/Dubbel \w+ BV/)).filter(Boolean).map(x => x[0]) }));
@@ -243,7 +293,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('Containerkop: "Mogelijk dubbel met …" met reden, knop Samenvoegen en Verwijderen', /zelfde PO/.test(kopD.t) && kopD.samen && kopD.verw, kopD);
 
   // leverancier niet herkend: de keuzelijst staat op "kies", niet op de eerste van de lijst
-  await P.evaluate(() => { const X = CP_TEST; const c = X.ensureData({ id:90050, leverancier:null, status:'concept', data:{ regels:[] } }); X.cont().push(c); location.hash = '#/c/90050/pakbon'; });
+  await P.evaluate(() => { const X = CP_TEST; const c = X.ensureData({ id:90059, leverancier:null, status:'concept', data:{ regels:[] } }); X.cont().push(c); location.hash = '#/c/90059/pakbon'; });
   await P.waitForSelector('[data-meta="leverancier"]', { timeout:30000 });
   const sel = await P.evaluate(() => { const s = document.querySelector('[data-meta="leverancier"]'); return { v:s.value, t:s.options[s.selectedIndex].text }; });
   check('Container zonder herkende leverancier: lijst staat op "kies", niet op de eerste van de lijst ("2x3 S.A.")', sel.v === '' && /niet herkend/.test(sel.t), sel);

@@ -980,7 +980,56 @@ function leesRedSun(text, L){
 }
 
 /* Foshan Selected Furniture — paklijst: code | naam | … | stuks | x PCS/CTN | dozen | maat | m3 | kg … */
+// Selected-paklijst als tekst-PDF met kolommen: Item NO | Color | QTY PCS | PCS/CTN | CTNS | GW | REMARKS (geen OCR). Meerregelige omschrijving hoort bij één regel;
+// "Total" = pakbontotaal; REMARKS "50pcs from PO2026-002182 / 50pcs from PO2026-002258" = verdeling over PO's (bij de regel); "free sample" = monster (telt mee)
+function leesSelectedTabel(text, L){
+  const res = kopBasis(text);
+  res.ref = zoek1(text, /CI\s*NO\s*:?\s*([\d\/-]+)/i);
+  res.packinglist = zoek1(text, /Packing\s*list\s*(\d+)/i);
+  res.zegel = zoek1(text, /seal\s*(?:no\.?|number)?\s*:?\s*([A-Z]?\d{6,8})/i);
+  const RX_REM = /\d+\s*pcs\s*from|from\s+PO\s*\d|PO\d{4}-\d+|free\s*sample/i;
+  let begonnen = false, laatste = null, klaar = false;
+  const zetRemarks = (r, t) => {
+    r.remarks = ((r.remarks || '') + ' ' + t).trim();
+    const v = []; let m; const rx = /(\d+)\s*pcs\s*from\s*(PO\s*\d{4}-\d+)/gi;
+    while((m = rx.exec(r.remarks))) v.push({ po:m[2].replace(/\s+/g, '').toUpperCase(), aantal:+m[1] });
+    if(v.length) r.po_verdeling = v;
+    const po = CPLEZER.zoekPO(r.remarks); if(po.length) r.po = po.join(' + ');
+    if(/free\s*sample/i.test(r.remarks)){ r.monster = true; if(!/monster/.test(r.omschrijving)) r.omschrijving += ' (monster)'; }
+  };
+  L.forEach(l => {
+    if(klaar) return;
+    const s = l.s.trim(); if(!s || /^page\s+\d|^\d+\s*\/\s*\d+$/i.test(s)) return;
+    if(/item\s*no/i.test(s)){ begonnen = true; return; }
+    if(!begonnen) return;
+    let k = kolommen(l.s);
+    if(/^total\b/i.test(k[0] || '')){
+      const n = k.slice(1).filter(x => /^[\d.,]+$/.test(x)).map(num);
+      if(n.length >= 2){ res.totaal_stuks = n[0]; res.totaal_eenheden = n[1]; } else if(n.length === 1) res.totaal_stuks = n[0];
+      klaar = true; return;
+    }
+    if(k.length > 4 && /^\d{1,2}$/.test(k[0]) && !/^\d+$/.test(k[1])) k = k.slice(1);   // volgnummer vooraan
+    let j = -1;
+    for(let i = 1; i + 2 < k.length && j < 0; i++){
+      if(/^\d[\d,]*$/.test(k[i]) && /^\d+$/.test(k[i + 1]) && /^\d+$/.test(k[i + 2]) && num(k[i]) === +k[i + 1] * +k[i + 2]) j = i;
+    }
+    if(j < 0){   // vervolgregel: remarks of omschrijving van de regel erboven
+      if(laatste) { if(RX_REM.test(s)) zetRemarks(laatste, s); else laatste.omschrijving = (laatste.omschrijving + ' ' + s).replace(/\s+/g, ' ').trim(); }
+      return;
+    }
+    const qty = num(k[j]), perDoos = +k[j + 1], dozen = +k[j + 2];
+    const code = (k[0].split(/\s+/)[0] || '').trim(), oms = k.slice(0, j).join(' ').replace(/\s+/g, ' ');
+    const gw = /^[\d.,]+$/.test(k[j + 3] || '') ? num(k[j + 3]) : null, rem = k.slice(gw != null ? j + 4 : j + 3).join(' ');
+    const r = pbRegel(code, oms, qty, perDoos, { bruto_per:gw && dozen ? afr(gw / dozen) : null });
+    r.aantal = dozen;
+    if(rem) zetRemarks(r, rem);
+    res.regels.push(r); laatste = r;
+  });
+  return res;
+}
 function leesSelected(text, L){
+  const oudeVorm = L.some(l => kolommen(l.s).some(x => /^\d+\s*PCS?\s*\/\s*CTN$/i.test(x)));
+  if(!oudeVorm && L.some(l => /item\s*no/i.test(l.s)) && /\bCTNS\b/i.test(text)){ const t = leesSelectedTabel(text, L); if(t.regels.length) return t; }
   const res = kopBasis(text);
   res.ref = zoek1(text, /CI\s*NO\s*:?\s*([\d\/-]+)/i);
   const RC = /^[A-Z]{2}\d{3}[\w-]*$/i, vrij = [];
@@ -1495,64 +1544,86 @@ function pakbonZeker(c){
   });
   return { zeker, onzeker, heeft:pb.some(r => !r.ocr) };
 }
-// zet de regels van gekozen inkooporders als pakbonregels (groen, bron "inkooporder"); wat de pakbon zegt komt erbij; verschillen worden gele regels
+// De pakbon bepaalt WELKE producten en HOEVEEL er in deze container zitten; de inkooporder levert alleen de exacte Picqer-code en een controle.
+// Nooit een inkoopregel toevoegen die niet op de pakbon staat. Alleen zonder leesbare pakbon: alle open inkoopregels, oranje om na te kijken.
+function pakbonLeesbaar(c){
+  const snap = c.data.pakbon_gelezen && c.data.pakbon_gelezen.regels;
+  const bron = snap && snap.length ? snap : (c.data.regels || []).filter(r => r.match !== 'inkooporder' && !r.ocr);
+  return bron.filter(r => !r.ocr && !isGeenProduct(r) && !r.geenVoorraad && (num(r.totaal) || 0) > 0);
+}
+// wat andere containers (niet afgerond) met dezelfde PO('s) al van dit product op de pakbon hebben
+function andereContainersMet(c, code, pos){
+  const k = norm(code); let som = 0;
+  CONT.forEach(x => {
+    if(x.id === c.id || x.status === 'afgerond' || !(x.data.po_nrs || []).some(p => pos.includes(p))) return;
+    (x.data.regels || []).forEach(r => { if(!r.geenVoorraad && norm(r.productcode) === k) som += (num(r.totaal) || 0) * (num(r.factor) || 1); });
+  });
+  return som;
+}
 async function inkoopToepassen(c, ids, opt){
   opt = opt || {};
   const alle = await inkoopOpen(), sel = ids.map(id => alle.find(x => x.id === id)).filter(Boolean);
   if(!sel.length) throw new Error('geen inkooporder gekozen');
   for(const ob of sel) await inkoopRegels(ob);
-  const bestond = (c.data.regels || []).length > 0 || Object.keys(c.data.verdeling || {}).length > 0;
-  if(c.id > 0 && bestond) await kopieContainer(c, 'regels uit inkooporder ' + sel.map(o => o.po || o.id).join(' + '));
-  const levs = [...new Set(sel.map(o => o.lev).filter(Boolean))];
-  if(levs.length === 1 && !(c.leverancier && levGelijk(c.leverancier, levs[0]))) c.leverancier = alleLeveranciers().find(l => levGelijk(l, levs[0])) || levs[0];
-  const vast = (c.data.regels || []).filter(r => isVast(c, r)), vastCodes = new Set(vast.map(r => norm(r.productcode)));
-  const perCode = new Map(), overgeslagen = [];
+  const pos = [...new Set(sel.map(o => o.po).filter(Boolean))];
+  const inPo = new Map();
   sel.forEach(ob => inkoopNog(ob).forEach(x => {
     const pc = PLOW[String(x.code).toLowerCase()] || x.code, k = norm(pc);
     if(!P[pc]){ const rij = { productcode:pc, naam:x.naam || '', ean:'', leverancier:null, actief:true, live:true }; LIVEP[pc] = rij; liveToevoegen(rij); }
-    if(vastCodes.has(k)){ if(!overgeslagen.includes(pc)) overgeslagen.push(pc); return; }
-    const e = perCode.get(k) || { code:pc, naam:x.naam || (P[pc] && P[pc].naam) || pc, nog:0, po:[] };
+    const e = inPo.get(k) || { code:pc, naam:x.naam || (P[pc] && P[pc].naam) || pc, nog:0, po:[] };
     e.nog += x.nog; if(ob.po && !e.po.includes(ob.po)) e.po.push(ob.po);
-    perCode.set(k, e);
+    inPo.set(k, e);
   }));
-  if(!perCode.size && !overgeslagen.length) throw new Error('in ' + (sel.map(o => o.po || '#' + o.id).join(' + ')) + ' staat niets meer te ontvangen: de regels van de container zijn niet veranderd');
-  const pbz = pakbonZeker(c), gebruikt = new Set();
-  const nieuw = [...perCode.entries()].map(([k, e]) => {
-    const r = { id:'r' + uid(), pakbon_code:e.code, omschrijving:e.naam, context:'', totaal:e.nog, per:1, aantal:e.nog, soort:'los', bruto_per:null, factor:1, factor_bron:'vast',
-      productcode:e.code, match:'inkooporder', bevestigd:true, reden:'inkooporder ' + e.po.join(' + ') + ': ' + nf(e.nog) + ' te ontvangen', po:e.po.join(' + ') || null };
-    const x = pbz.zeker[k];
-    if(x){
-      gebruikt.add(k);
-      const pb = x.regels[0], een = x.regels.length === 1;
-      const info = { totaal:x.u, per:num(pb.per) || 1, aantal:num(pb.aantal) || 0, soort:pb.soort || 'los', bruto_per:pb.bruto_per ?? null, eenheid:pb.eenheid || null, inhoud_wisselt:!!pb.inhoud_wisselt, pallets:pb.pallets || null };
-      if(Math.abs(x.u - e.nog) < 0.001){ if(een && info.per * info.aantal === x.u / (num(pb.factor) || 1) && (num(pb.factor) || 1) === 1) Object.assign(r, { per:info.per, aantal:info.aantal, soort:info.soort, bruto_per:info.bruto_per, eenheid:info.eenheid, inhoud_wisselt:info.inhoud_wisselt || undefined, pallets:info.pallets || undefined }); r.pakbon = info; }
-      else { r.verschil = { soort:'aantal', pakbon:x.u, inkoop:e.nog }; r.pakbon = info; r.bevestigd = false; }
-    } else if(pbz.heeft && !pbz.onzeker.length && Object.keys(pbz.zeker).length){ r.verschil = { soort:'alleen-inkoop', pakbon:0, inkoop:e.nog }; r.bevestigd = false; }
-    return r;
-  });
-  // op de pakbon (zeker gekoppeld) maar niet in de inkooporder
-  Object.entries(pbz.zeker).forEach(([k, x]) => {
-    if(gebruikt.has(k) || vastCodes.has(k) || perCode.has(k)) return;
-    const pb = x.regels[0];
-    nieuw.push({ id:'r' + uid(), pakbon_code:pb.pakbon_code, omschrijving:pb.omschrijving, context:'', totaal:x.u, per:1, aantal:x.u, soort:'los', bruto_per:null, factor:1, factor_bron:'vast', productcode:x.code, match:'inkooporder', bevestigd:false,
-      reden:'staat op de pakbon, niet in de inkooporder', verschil:{ soort:'alleen-pakbon', pakbon:x.u, inkoop:0 }, pakbon:{ totaal:x.u, per:num(pb.per) || 1, aantal:num(pb.aantal) || 0, soort:pb.soort || 'los' } });
-  });
+  const bron = pakbonLeesbaar(c);
+  if(!bron.length && !inPo.size) throw new Error('in ' + (pos.join(' + ') || 'deze inkooporder') + ' staat niets meer te ontvangen: de regels van de container zijn niet veranderd');
+  const bestond = (c.data.regels || []).length > 0 || Object.keys(c.data.verdeling || {}).length > 0;
+  if(c.id > 0 && bestond) await kopieContainer(c, 'regels met inkooporder ' + pos.join(' + '));
+  const levs = [...new Set(sel.map(o => o.lev).filter(Boolean))];
+  if(levs.length === 1 && !c.leverancier) c.leverancier = alleLeveranciers().find(l => levGelijk(l, levs[0])) || levs[0];   // een bestaande naam blijft staan
+  const vast = (c.data.regels || []).filter(r => isVast(c, r)), vastCodes = new Set(vast.map(r => norm(r.productcode)));
+  const codes = [...inPo.values()].map(e => e.code);
+  let nieuw = [], onzeker = 0;
+  if(bron.length){
+    nieuw = bron.map(src => {
+      const r = JSON.parse(JSON.stringify(src)); r.id = 'r' + uid(); delete r.verschil; delete r.pakbon;
+      let pc = '';
+      if(r.productcode && r.bevestigd && ['alias', 'exact', 'ean', 'inkooporder', 'handmatig'].includes(r.match)) pc = r.productcode;
+      else {
+        const e = inPo.get(norm(r.pakbon_code)); const kk = e ? null : koppelKleur(r, codes);
+        if(e){ pc = e.code; r.reden = 'code gelijk aan de inkooporder'; } else if(kk){ pc = kk.code; r.reden = 'kleur "' + kk.kleur + '" = ' + kk.code.split('-').pop() + ' (inkooporder)'; }
+        if(pc){ r.productcode = pc; r.match = 'inkooporder'; r.bevestigd = true; r.factor = r.factor || 1; }
+      }
+      if(!pc){ onzeker++; r.bevestigd = false; }
+      return r;
+    }).filter(r => !(r.productcode && vastCodes.has(norm(r.productcode))));
+    // controle: som over alle containers met deze PO('s) mag de inkoop niet te boven gaan; alleen dan een gele regel
+    const groepen = new Map();
+    nieuw.forEach(r => { if(!r.productcode) return; const k = norm(r.productcode); (groepen.get(k) || groepen.set(k, []).get(k)).push(r); });
+    groepen.forEach((lijst, k) => {
+      const e = inPo.get(k), dit = lijst.reduce((a, r) => a + (num(r.totaal) || 0) * (num(r.factor) || 1), 0), r0 = lijst[0];
+      const info = { totaal:dit, per:num(r0.per) || 1, aantal:num(r0.aantal) || 0, soort:r0.soort || 'los' };
+      if(!e){ r0.verschil = { soort:'alleen-pakbon', pakbon:dit, inkoop:0 }; r0.pakbon = info; r0.bevestigd = false; return; }
+      const ander = andereContainersMet(c, e.code, pos);
+      if(dit + ander > e.nog + 1e-9){ r0.verschil = { soort:'aantal', pakbon:dit, inkoop:Math.max(0, e.nog - ander) }; r0.pakbon = info; r0.bevestigd = false; }
+    });
+  } else {
+    nieuw = [...inPo.entries()].filter(([k]) => !vastCodes.has(k)).map(([k, e]) => ({ id:'r' + uid(), pakbon_code:e.code, omschrijving:e.naam, context:'', totaal:e.nog, per:1, aantal:e.nog, soort:'los', bruto_per:null, factor:1, factor_bron:'vast',
+      productcode:e.code, match:'inkooporder', bevestigd:false, reden:'geen pakbon: alle open inkoopregels van ' + e.po.join(' + ') + ', nakijken', po:e.po.join(' + ') || null }));
+  }
   c.data.regels = vast.concat(nieuw);
   c.data.regels.forEach((r, i) => { r.sl = i + 1; });
   if(!vast.length) c.data.verdeling = {};
-  const po = [...new Set(sel.map(o => o.po).filter(Boolean))];
-  c.data.po_nrs = po; c.data.regels_bron = 'inkooporder';
-  c.data.inkoop = { op:new Date().toISOString(), orders:sel.map(o => ({ id:o.id, po:o.po, datum:o.datum, lev:o.lev, status:o.status })), onzeker_pakbon:pbz.onzeker.length };
-  if(!c.pakbon_ref && po.length) c.pakbon_ref = po.join(' + ');
+  c.data.po_nrs = pos; c.data.regels_bron = bron.length ? 'pakbon' : 'inkooporder';
+  c.data.inkoop = { op:new Date().toISOString(), orders:sel.map(o => ({ id:o.id, po:o.po, datum:o.datum, lev:o.lev, status:o.status })), zonder_pakbon:!bron.length };
   PLAN = wisCache();
   await bewaarContainer(c);
   if(c === cur) rerender();
-  return { n:nieuw.length, verschillen:nieuw.filter(r => r.verschil).length, behouden:vast.length, overgeslagen, po, onzeker:pbz.onzeker.length, lev:c.leverancier, fotoNegeren:!!(c.data.pakbon && c.data.pakbon.methode === 'ocr') };
+  return { n:nieuw.length, verschillen:nieuw.filter(r => r.verschil).length, behouden:vast.length, po:pos, onzeker, zonderPakbon:!bron.length, lev:c.leverancier };
 }
 function inkoopTekst(r){
-  return 'Regels uit inkooporder ' + r.po.join(' + ') + ': ' + plural(r.n, 'regel', 'regels') + (r.verschillen ? ', waarvan ' + r.verschillen + ' met verschil pakbon ↔ inkoop (geel)' : ', alles groen')
-    + (r.behouden ? '; ' + r.behouden + ' vaste regel(s) niet aangeraakt' : '') + (r.overgeslagen.length ? ' (' + r.overgeslagen.join(', ') + ' stond al vast)' : '')
-    + (r.onzeker ? '; ' + r.onzeker + ' pakbonregel(s) niet zeker te koppelen, leeg gelaten' : '') + (r.fotoNegeren ? '; de foto blijft bijlage' : '') + '.';
+  if(r.zonderPakbon) return 'Geen pakbon: alle open inkoopregels van ' + r.po.join(' + ') + ' (' + plural(r.n, 'regel', 'regels') + '), nakijken: alles staat oranje.';
+  return 'Pakbon bepaalt de regels; inkooporder ' + r.po.join(' + ') + ' gaf de Picqer-codes en de controle: ' + plural(r.n, 'regel', 'regels') + (r.verschillen ? ', ' + r.verschillen + ' met verschil pakbon ↔ inkoop (geel)' : ', alles klopt met de inkoop')
+    + (r.behouden ? '; ' + r.behouden + ' vaste regel(s) niet aangeraakt' : '') + (r.onzeker ? '; ' + r.onzeker + ' regel(s) zonder zekere Picqer-code (oranje)' : '') + '.';
 }
 // na het inlezen van een pakbon: PO-nummers zoeken en de regels uit de inkooporder nemen; geeft een zin voor de melding ('' = niets te melden)
 async function poRoute(c, tekstBron){
@@ -2704,7 +2775,9 @@ async function containerTerugzetten(id){
   }catch(e){ toast('Terugzetten mislukt: ' + e.message, 7000); }
 }
 // twee containers samenvoegen: regels van B in A (zelfde productcode + aantal één keer), B naar de prullenbak; A blijft zoals hij is, alleen lege velden worden aangevuld
+const andereContainer = (a, b) => !!(a.containernummer && b.containernummer && norm(a.containernummer) !== norm(b.containernummer));
 async function samenvoegen(a, b){
+  if(andereContainer(a, b)) throw new Error('verschillend containernummer (' + a.containernummer + ' en ' + b.containernummer + '): dat zijn twee containers, samenvoegen kan niet');
   if(dirty) await flushSave();
   await kopieContainer(a, 'samengevoegd met ' + cNaam(b)); await kopieContainer(b, 'samengevoegd in ' + cNaam(a));
   const sleutel = r => norm(r.productcode || r.pakbon_code) + '|' + (num(r.totaal) || 0) * (num(r.factor) || 1);
@@ -2742,16 +2815,17 @@ function dialoog(o){
     const f = el.querySelector('[data-dk="0"]'); if(f) f.focus();
   });
 }
-// gevonden bij containernummer, pakbon-ref of PO + leverancier
+// gevonden bij containernummer, pakbon-ref of PO + leverancier. Het containernummer is de identiteit: een ander containernummer is altijd een andere container.
 function zoekBestaand(res, d, text, bestandsnaam){
   const lk = levKort(res.lev || ''), zelfdeLev = x => !res.lev || levKort(x.leverancier || '') === lk || !x.leverancier;
   const cn = d.container || (String(bestandsnaam || '').toUpperCase().match(/[A-Z]{3}U\d{7}/) || [])[0];
   let x = cn && CONT.find(k => k.containernummer === cn);
   if(x) return { c:x, reden:'zelfde containernummer ' + cn };
-  x = res.ref && CONT.find(k => k.pakbon_ref === res.ref && zelfdeLev(k));
+  const kan = k => !cn || !k.containernummer;   // dezelfde ref of PO telt alleen als de bestaande container nog geen (ander) nummer heeft
+  x = res.ref && CONT.find(k => k.pakbon_ref === res.ref && zelfdeLev(k) && kan(k));
   if(x) return { c:x, reden:'zelfde pakbon-ref ' + res.ref };
   const po = [...new Set([].concat(res.po || [], CPLEZER.zoekPO(String(text || '') + ' ' + String(bestandsnaam || ''))))];
-  if(po.length){ x = CONT.find(k => zelfdeLev(k) && k.leverancier && [...CPLEZER.posVan(k)].some(p => po.includes(p))); if(x) return { c:x, reden:'zelfde PO ' + po.filter(p => CPLEZER.posVan(x).has(p)).join(', ') }; }
+  if(po.length){ x = CONT.find(k => zelfdeLev(k) && k.leverancier && kan(k) && [...CPLEZER.posVan(k)].some(p => po.includes(p))); if(x) return { c:x, reden:'zelfde PO ' + po.filter(p => CPLEZER.posVan(x).has(p)).join(', ') }; }
   return null;
 }
 async function bijwerkKeuze(c, naam, reden){
@@ -3278,7 +3352,7 @@ function herkoppelRegels(c){
   });
   if(ontdubbel(c.data.regels, c.leverancier)) nieuw.push(null);
   c.data.regels.forEach(r => {
-    if(r.productcode || r.koppel_leeg) return;                  // koppel_leeg: bewust leeg gelaten (Picqer-code onbekend), niet opnieuw voorstellen
+    if(r.productcode || r.koppel_leeg || r.geen_auto) return;   // koppel_leeg: bewust leeg gelaten (Picqer-code onbekend), niet opnieuw voorstellen; geen_auto: leeg tot Daan kiest (kandidaten staan erbij)
     const k = koppel(r, c.leverancier);
     if(k.productcode){ Object.assign(r, k); nieuw.push(r); }
   });
@@ -3568,7 +3642,9 @@ function inkoopBox(c){ return c.status === 'afgerond' ? '' : '<div id="inkoopbox
 function inkoopBoxInner(c){
   const st = (UI.ik[c.id] = UI.ik[c.id] || { st:'idle', keuze:{}, extra:{} }), gevonden = c.data.po_gevonden || [];
   const kop = '<b>Regels uit de inkooporder</b> <span class="small muted">(live uit Picqer, alleen lezen)</span>';
-  const uitleg = '<p class="small muted mt8">De exacte Picqer-codes, namen en aantallen komen uit de inkooporder. Wat de pakbon erbij zegt (dozen, pallets, kg) komt erbij; verschillen worden een gele regel. De foto of PDF blijft bijlage.</p>';
+  const heeftPakbon = pakbonLeesbaar(c).length > 0;
+  const uitleg = heeftPakbon ? '<p class="small muted mt8">De pakbon bepaalt welke producten en hoeveel er in deze container zitten. De inkooporder geeft alleen de exacte Picqer-code en een controle: de som over alle containers met dezelfde PO mag de inkoop niet te boven gaan (anders een gele regel). Er komt nooit een inkoopregel bij die niet op de pakbon staat.</p>'
+    : '<p class="small muted mt8">Er zijn geen leesbare pakbonregels. Je kunt dan alle open inkoopregels van de gekozen inkooporder(s) nemen: ze staan oranje, om na te kijken.</p>';
   const gev = gevonden.length ? `<p class="small mt8">PO-nummer${gevonden.length > 1 ? 's' : ''} in de pakbon gevonden: <b>${esc(gevonden.join(', '))}</b></p>` : '';
   const nu = c.data.inkoop ? `<p class="small mt8"><span class="badge b-ok">nu uit inkooporder</span> ${esc((c.data.po_nrs || []).join(' + '))}</p>` : '';
   let lijst = '';
@@ -3582,7 +3658,7 @@ function inkoopBoxInner(c){
     lijst = `<div class="mt8"><div class="small"><b>Inkooporders van ${esc(c.leverancier || 'de leverancier')}</b> (${eigen.length}):</div>${eigen.length ? eigen.map(rij).join('') : '<p class="small muted">Geen open inkooporders gevonden' + (c.leverancier ? ' voor deze leverancier' : '') + '.</p>'}</div>
       ${rest.length ? `<details class="mt8" data-det="ikrest"><summary class="small">Alle andere open inkooporders (${rest.length})</summary>${rest.map(rij).join('')}</details>` : ''}
       <div class="row wrap mt8"><input id="ik_po" placeholder="of typ een PO-nummer, bijv. PO2026-002539" style="width:min(100%,20rem)"><button class="btn sm" data-act="ikpo">Zoek</button></div>
-      <div class="row wrap mt8"><button class="btn pri" data-act="ikneem" ${Object.values(st.keuze).some(Boolean) ? '' : 'disabled'}>Regels uit gekozen inkooporder(s) nemen</button><button class="btn ghost sm" data-act="ikladen" data-vers="1">Opnieuw ophalen</button></div>`;
+      <div class="row wrap mt8"><button class="btn pri" data-act="ikneem" ${Object.values(st.keuze).some(Boolean) ? '' : 'disabled'}>${heeftPakbon ? 'Gekozen inkooporder(s) gebruiken voor codes en controle' : 'Regels uit gekozen inkooporder(s) nemen'}</button><button class="btn ghost sm" data-act="ikladen" data-vers="1">Opnieuw ophalen</button></div>`;
   }
   return `<div class="pbfile" style="padding:10px 12px"><div class="row between wrap">${kop}</div>${uitleg}${gev}${nu}${lijst}</div>`;
 }
@@ -4257,8 +4333,11 @@ async function pakbonBestand(file){
     const { text, methode, res } = await leesBestand(file, st);
     const doc = res.docs.find(d => d.container && d.container === c.containernummer) || res.docs[0];
     const andere = res.docs.map(d => d.container).filter(x => x && x !== doc.container);
+    if(doc.container && c.containernummer && doc.container !== c.containernummer){
+      st('Deze pakbon is voor container ' + doc.container + ', deze container is ' + c.containernummer + ': een ander containernummer is altijd een andere container. Lees hem in via "Pakbonnen inlezen" op het overzicht; deze container is niet veranderd.', 'err'); return;
+    }
     if(c.id > 0 && (had || Object.keys(c.data.verdeling || {}).length)) await kopieContainer(c, 'pakbon opnieuw ingelezen: ' + file.name);
-    if(res.lev && res.lev !== c.leverancier && (!c.leverancier || !c.data.regels.some(r => isVast(c, r)))) c.leverancier = res.lev;
+    if(res.lev && !c.leverancier) c.leverancier = res.lev;   // een bestaande naam blijft staan
     const vr = vulRegels(c, doc, res, file.name, methode, text);
     const inNaam = (file.name.toUpperCase().match(/[A-Z]{3}U\d{7}/) || [])[0];
     if((!inNaam || inNaam === c.containernummer) && (!c.losdatum || isVerwacht(c))) zetLosMoment(c, losMoment(file.name));
@@ -5577,8 +5656,8 @@ const ACT = {
   cterug: el => containerTerugzetten(+el.dataset.id),
   csamen: async el => {
     const a = CONT.find(x => x.id === +el.dataset.id); if(!a) return;
-    const dub = dubbelVan(a).map(d => d.met.id), rest = CONT.filter(x => x.id !== a.id).sort((x, y) => (dub.includes(y.id) ? 1 : 0) - (dub.includes(x.id) ? 1 : 0) || (y.losdatum || '').localeCompare(x.losdatum || ''));
-    if(!rest.length){ toast('Er is geen andere container om mee samen te voegen.'); return; }
+    const dub = dubbelVan(a).map(d => d.met.id), rest = CONT.filter(x => x.id !== a.id && !andereContainer(a, x)).sort((x, y) => (dub.includes(y.id) ? 1 : 0) - (dub.includes(x.id) ? 1 : 0) || (y.losdatum || '').localeCompare(x.losdatum || ''));
+    if(!rest.length){ toast('Er is geen container om mee samen te voegen (een ander containernummer is altijd een andere container).'); return; }
     const k = await dialoog({ titel:'Samenvoegen met…', html:`De regels van de gekozen container komen in <b>${esc(cNaam(a))}</b> (zelfde productcode en aantal één keer). De gekozen container gaat naar de prullenbak (30 dagen). Wat in ${esc(cNaam(a))} al bevestigd of akkoord is, blijft zoals het is.`,
       opties:rest.map(x => [String(x.id), (dub.includes(x.id) ? 'Mogelijk dubbel · ' : '') + cNaam(x) + ' · ' + plural((x.data.regels || []).length, 'regel', 'regels') + (x.losdatum ? ' · ' + fdate(x.losdatum, { day:'numeric', month:'short' }) : '') + (aantalAkkoord(x) ? ' · ' + aantalAkkoord(x) + ' akkoord' : '')]),
       knoppen:[{ id:'ja', label:'Samenvoegen', cls:'pri' }, { id:'nee', label:'Annuleren' }] });
@@ -5607,7 +5686,7 @@ const ACT = {
   ikneem: async () => {
     const c = cur, st = UI.ik[c.id], ids = Object.keys(st.keuze).filter(k => st.keuze[k]).map(Number);
     if(!ids.length){ toast('Vink eerst een inkooporder aan.'); return; }
-    if(c.data.regels.some(r => !isVast(c, r)) && !confirm('De pakbonregels die je nog niet bevestigde worden vervangen door de regels van de inkooporder(s). Bevestigde en verdeelde regels blijven staan. Doorgaan?')) return;
+    if(c.data.regels.some(r => !isVast(c, r)) && !confirm(pakbonLeesbaar(c).length ? 'De regels komen uit de pakbon; de inkooporder(s) geven alleen de Picqer-codes en de controle. Bevestigde en verdeelde regels blijven staan. Doorgaan?' : 'Er is geen leesbare pakbon: alle open inkoopregels van de gekozen inkooporder(s) komen oranje in de container. Bevestigde en verdeelde regels blijven staan. Doorgaan?')) return;
     toast('Regels uit de inkooporder halen…', 3000);
     try{ const r = await inkoopToepassen(c, ids); toast(inkoopTekst(r), 9000); }
     catch(e){ toast('Inkooporder nemen mislukt: ' + e.message, 7000); }
