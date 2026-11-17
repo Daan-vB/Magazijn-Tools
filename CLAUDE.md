@@ -80,6 +80,10 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Pakbonregel zonder Picqer-product (verpakking zoals WASHER PUMP BOX) = "geen voorraad", gaat naar Karin en Kate, geen fout.
 - Onbekend of nieuw = info, nooit een fout. Geen meldingen die Daan niets laten doen.
 - Verkoop in Containers = bestellingen uit Picqer (ook backorders), niet alleen verzonden.
+- Pakbonregels komen bij voorkeur uit de Picqer-inkooporder (PO-nummer in de pakbon, of gekozen uit de open inkooporders van de leverancier): exacte Picqer-code, naam en aantal, groen, bron "inkooporder". Wat de pakbon erbij zegt (dozen, pallets, kg) komt er alleen bij als het zeker te koppelen is (code, EAN, alias). Verschil pakbon ↔ inkoop = één gele regel met "Pakbon klopt" / "Inkoop klopt", nooit stil overnemen. Foto of PDF blijft bijlage.
+- Foto-OCR is terugval: kop-, adres-, fax-, tel-, bankregels, specificaties (Density, Hardness, …) en regels met totaal 0 worden nooit een productregel (specificatie hoort bij de regel erboven); elke foto-regel blijft oranje "nakijken".
+- Excel lezen op kopteksten (Item NO / Commodity / Model = code, Description = omschrijving, QTY, CTNS, PLT, Gr. Wt.; PO NO = po en nooit de code); packing list gaat voor, een invoice-tabblad met dezelfde regels telt niet mee. Leverancier uit de kopregels tegen de leverancierslijst; niet gevonden = melden en leeg laten, nooit de eerste uit de lijst.
+- Inlezen bij een bestaande container (zelfde containernummer, pakbon-ref of PO + leverancier) = "Bijwerken" (standaard) of "Toch nieuwe container"; bijwerken vervangt alleen niet-bevestigde en niet-verdeelde regels. Verwijderen = prullenbak (30 dagen, Terugzetten onderaan Containers); samenvoegen = regels van B in A, dubbele regels (zelfde productcode + aantal) één keer, B naar de prullenbak. "Mogelijk dubbel" is alleen een label: de app verwijdert nooit zelf. Vóór elke wijziging aan een container een kopie van de rij: wh-kopie-containers-<id>-<jjjjmmdd>.
 
 ## 8. Backorders
 - Alleen backorders die door aanvullen/verplaatsen of door inkomende goederen komen, zijn magazijnwerk. Echte backorders (wachten op inkoop) niet als probleem tonen.

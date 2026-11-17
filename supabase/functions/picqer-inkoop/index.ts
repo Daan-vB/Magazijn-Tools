@@ -9,7 +9,8 @@
 //    lijst   ?sinds=JJJJ-MM-DD → alle inkooporders sinds die datum: id, datum, status,
 //                                leverancier-id en (als Picqer ze meelevert) de regels
 //    detail  ?ids=1,2,3        → regels van max. 60 inkooporders (als de lijst ze niet had)
-//  Regel = [productcode, besteld, ontvangen]
+//  Regel = [productcode, besteld, ontvangen, naam]
+//  Order = [id, datum, status, leverancier-id, regels|null, PO-nummer (PO2026-002539), leveranciersnaam]
 // =====================================================================
 
 const DOMEIN = (Deno.env.get("PICQER_DOMAIN") || "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -82,7 +83,21 @@ const regels = (p: any) => (Array.isArray(p.products) ? p.products : []).map((r:
   tekst(r, ["productcode", "product_code"]),
   getal(r, ["amount", "amount_ordered", "amountordered"]),
   getal(r, ["amountreceived", "amount_received", "received"]),
+  tekst(r, ["name", "productname", "product_name"]),
 ]).filter((r: any[]) => r[0]);
+// PO-nummer zoals Picqer het toont (PO2026-002539) en de naam van de leverancier: alleen lezen, geen klantgegevens
+const poNummer = (p: any) => {
+  const direct = tekst(p, ["purchaseorderid", "purchaseorder_id", "reference"]);
+  if (/PO\d{4}-\d+/i.test(direct)) return (direct.match(/PO\d{4}-\d+/i) as RegExpMatchArray)[0].toUpperCase();
+  for (const k of Object.keys(p || {})) { const v = p[k]; if (typeof v === "string") { const m = v.match(/^PO\d{4}-\d+$/i); if (m) return m[0].toUpperCase(); } }
+  return direct;
+};
+const levNaam = (p: any) => {
+  const s = p && (p.supplier_name ?? p.suppliername ?? p.supplier);
+  if (typeof s === "string") return s.trim();
+  if (s && typeof s === "object" && typeof s.name === "string") return s.name.trim();
+  return "";
+};
 const datum = (p: any) => tekst(p, ["purchased_at", "created_at", "updated_at"]).slice(0, 10);
 
 // alle inkooporders sinds een datum; de lijst van Picqer heeft 100 per pagina
@@ -98,18 +113,18 @@ async function lijst(sinds: string) {
       const d = datum(p);
       if (d && d < sinds) { oudOpRij++; return; }
       oudOpRij = 0;
-      uit.push([p.idpurchaseorder, d, String(p.status || ""), p.idsupplier || null, Array.isArray(p.products) ? regels(p) : null]);
+      uit.push([p.idpurchaseorder, d, String(p.status || ""), p.idsupplier || null, Array.isArray(p.products) ? regels(p) : null, poNummer(p), levNaam(p)]);
     });
     if (r.length < 100) break;
     if (oudOpRij >= 300) break;   // drie pagina's achter elkaar ouder dan gevraagd: klaar (lijst loopt van nieuw naar oud)
   }
-  return { bron: "picqer-purchaseorders", versie: 1, sinds, paginas, opgehaald: new Date().toISOString(), orders: uit };
+  return { bron: "picqer-purchaseorders", versie: 2, sinds, paginas, opgehaald: new Date().toISOString(), orders: uit };
 }
 async function detail(idsTxt: string) {
   const ids = String(idsTxt || "").split(",").map((x) => parseInt(x, 10)).filter((x) => x > 0).slice(0, 60);
   if (!ids.length) throw new Fout("Geen inkooporders gevraagd", 400);
   const r = await perStuk(ids, 3, (id) => pq("purchaseorders/" + id).catch(() => null));
-  return { orders: r.filter(Boolean).map((p: any) => [p.idpurchaseorder, datum(p), String(p.status || ""), p.idsupplier || null, regels(p)]) };
+  return { orders: r.filter(Boolean).map((p: any) => [p.idpurchaseorder, datum(p), String(p.status || ""), p.idsupplier || null, regels(p), poNummer(p), levNaam(p)]) };
 }
 
 // ---------- ingang ----------

@@ -343,6 +343,16 @@ function check(d, regel, waar, x){
     check('D48', '§7 "Verkoop niet live" noemt de echte reden (functie kent de actie niet · Picqer weigert · te traag) en de functie heeft de actie versie (zonder koppelcode)', /kent de actie "bestellingen" niet/.test(r[0]) && /Picqer weigert: te veel verzoeken/.test(r[1]) && /Picqer weigert de API-sleutel/.test(r[2]) && /te traag/.test(r[3]) && /actie"\) === "versie"/.test(fn) && T3.blocked.length === 0, r.join(' || '));
     await T3.b.close();
   }
+  /* ---------- Containers: inkooporder-route, OCR, Excel op koppen, bijwerken, verwijderen/samenvoegen, Mogelijk dubbel (Daan 17-11) ---------- */
+  if(['D49', 'D50', 'D51', 'D52', 'D53', 'D54'].some(doe)){
+    let uit = '';
+    try{ uit = execSync('node containerinkoop.js', { cwd:__dirname, timeout:900000, env:Object.assign({}, process.env, { PD2_URL:B }) }).toString(); }catch(e){ uit = String((e.stdout || '') + (e.stderr || '')); }
+    const regels = uit.split('\n').filter(l => /^(OK|FOUT) /.test(l)), groep = rx => regels.filter(l => rx.test(l)), goed = g => g.length > 0 && g.every(l => /^OK/.test(l));
+    const rood = g => g.filter(l => /^FOUT/.test(l)).map(l => l.slice(5, 90)).join(' | ');
+    const gr = { D49:/^(OK|FOUT) +(Inkoop|Vast|Scherm|Pakbon klopt|Inkoop klopt|Zonder koppelcode|Inkoop niet)/, D50:/^(OK|FOUT) +OCR/, D51:/^(OK|FOUT) +Excel:/, D52:/^(OK|FOUT) +(Bijwerken|"Toch nieuwe)/, D53:/^(OK|FOUT) +(Containerkaart|Verwijderen|Prullenbak|Terugzetten|Samenvoegen)/, D54:/^(OK|FOUT) +(Mogelijk dubbel|Containerkop|Container zonder|Excel bekijken)/ };
+    const tekst = { D49:'§7 Pakbonregels uit de Picqer-inkooporder: exacte code, groen, verschil = gele regel (nooit stil overnemen), vaste regels blijven, kopie vooraf', D50:'§7 Foto-OCR: kop/fax/specificatie/totaal 0 nooit een productregel, alles oranje nakijken', D51:'§7 Excel op kopteksten (PO NO nooit code), packing list gaat voor invoice, leverancier niet gevonden = leeg', D52:'§7 Inlezen bij bestaande container = Bijwerken (standaard) of Toch nieuwe container', D53:'§7 Verwijderen = prullenbak 30 dagen met Terugzetten (kopie vooraf, waarschuwing), samenvoegen', D54:'§7 Mogelijk dubbel alleen als label (nooit zelf verwijderen); Excel-bijlage als tabel' };
+    for(const d of ['D49', 'D50', 'D51', 'D52', 'D53', 'D54']) if(doe(d)){ const g = groep(gr[d]); check(d, tekst[d], goed(g), g.length ? rood(g) : 'geen uitvoer van containerinkoop.js: ' + uit.slice(-200)); }
+  }
   /* ---------- repo ---------- */
   const root = path.join(__dirname, '..', '..');
   if(doe('D6')){

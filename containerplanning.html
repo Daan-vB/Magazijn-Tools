@@ -16,6 +16,7 @@
 <script src="wh/menu.js?v=9"></script>
 <script src="wh/cache.js?v=1"></script>
 <script src="wh/pdbron.js?v=1"></script>
+<script src="wh/cplezer.js?v=1"></script>
 <style>
   :root{--blue:#1d4ea0;--orange:#e8590c;--ink:#10151c;--bg:#eef1f5;--line:#cdd5df;--soft:#f6f8fb;--muted:#5b6673;--ok:#1c7a4a;--warn:#b86e00;--bad:#b3261e}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -116,6 +117,22 @@
   #kijker .kijk-body{flex:1;overflow:auto;display:flex;justify-content:center}
   #kijker iframe{flex:1 1 auto;align-self:stretch;width:100%;min-height:70vh;border:0;background:#fff}
   #kijker img{max-width:100%;height:auto;align-self:flex-start;background:#fff}
+  tr.verschil td{background:#fff7d6;border-top:0}
+  .vsbox{background:#fff7d6;border:1px solid #f0d08a;border-radius:6px;padding:8px 10px;font-size:13px}
+  .cwrap{position:relative}
+  .cwrap>.ccard{height:100%}
+  .kmenu{position:absolute;top:8px;right:8px}
+  .kmenu>summary{list-style:none;cursor:pointer;padding:2px 9px;border-radius:6px;font-weight:800;font-size:17px;line-height:1.1;color:var(--muted);background:#fff}
+  .kmenu>summary::-webkit-details-marker{display:none}
+  .kmenu>summary:hover{background:#eef1f5}
+  .kmenu .kmenu-in{position:absolute;right:0;top:100%;z-index:20;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 18px rgba(15,23,32,.18);padding:6px;display:flex;flex-direction:column;gap:4px;min-width:12rem}
+  .kmenu .kmenu-in .btn{justify-content:flex-start}
+  .dubbel-badge{background:#fde8e6;color:var(--bad)}
+  .xl{border-collapse:collapse;background:#fff;font-size:12.5px}
+  .xl td,.xl th{border:1px solid #d9dfe7;padding:2px 6px;white-space:nowrap;vertical-align:top}
+  .xl th.rn{background:#eef1f5;color:var(--muted);font-weight:600;text-align:right}
+  #kijker .xlbody{align-self:stretch;width:100%;background:#fff;overflow:auto;padding:8px}
+  #kijker .xltabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
   .pbfile{background:#f4f6f9;border-radius:6px;padding:6px 10px}
   .etalijst>.row{padding:6px 0;border-top:1px solid #eef1f4}
   .ontv{border-top:1px solid #e6eaef;padding-top:10px}
@@ -417,7 +434,7 @@ let TODOS = [];
 let MISSING = [];
 let cur = null;      // geopende container
 let tab = 'pakbon';
-const UI = { open:{}, ll:{}, llKeuze:{}, llOpen:undefined, plak:false, labelDest:{ VST:true, UP:true, PICK:true, GROUND:true },
+const UI = { ik:{}, open:{}, ll:{}, llKeuze:{}, llOpen:undefined, plak:false, labelDest:{ VST:true, UP:true, PICK:true, GROUND:true },
              vn:{ wijzig:{}, los:{}, f:{ lev:'', q:'', prob:false } }, pk:{}, pkOpen:{}, pkAlles:{} };
 
 function indexProducten(rows){
@@ -469,7 +486,7 @@ async function load(){
   try{
     // via WHC: alleen ophalen wat sinds de vorige keer veranderd is (scheelt dataverkeer)
     const T = window.WHC ? WHC.tabel : (t, q) => getAll(t, q);
-    const [prod, cat, vk, bo, al, co, td] = await Promise.all([
+    const [prod, cat, vk, bo, al, co, td, prul] = await Promise.all([
       safe('producten', T('producten', 'select=*&order=productcode', ['picqer_datum', 'updated_at'])),
       (window.WHC ? WHC.catalog(['catalog-ean']) : api('GET', 'catalog?key=eq.catalog-ean&select=data')).catch(() => []),
       safe('verkoop', T('verkoop', 'select=*', ['geimporteerd_op'])),
@@ -477,6 +494,7 @@ async function load(){
       safe('pakbon_alias', getAll('pakbon_alias', 'select=*')),
       safe('containers', T('containers', 'select=*&order=id', ['updated_at'])),
       safe('todos', getAll('todos', 'select=*')),
+      api('GET', 'catalog?key=eq.' + PRULLEN_KEY + '&select=data').catch(() => []),
       laadGeenPlek()   // voorraad op "geen specifieke locatie" (telt niet als pick-voorraad), tegelijk met de rest
     ]);
     if(window.PDBRON && PDBRON.laadCp) await PDBRON.laadCp(true);   // productdata altijd lezen voor het advies (alleen bevestigde waarden), los van de schakelaar
@@ -486,6 +504,7 @@ async function load(){
     indexVerkoop(vk);
     indexBackorders(BL.rows && !BL.fout && Date.now() - BL.t < 3e5 ? BL.rows : bo);
     ALIAS = al; CONT = co; TODOS = td;
+    PRULLEN = (prul && prul[0] && prul[0].data && prul[0].data.items) || [];
     CONT.forEach(ensureData); wisCache();
     GELADEN = Date.now();
     await opslagCheck();
@@ -1173,7 +1192,8 @@ function leesPakbonTekst(text, L){
     r.docs = [{ container:null, regels:r.regels, totaal_stuks:r.totaal_stuks, totaal_eenheden:null }];
     return r;
   }
-  const prof = PAKBON_LEV.find(pf => pf.herken.test(text));
+  const tc = String(text).replace(/[ \t]+/g, ' ');   // "Xiamen   Honorchain" (twee cellen) is dezelfde leverancier
+  const prof = PAKBON_LEV.find(pf => pf.herken.test(text) || pf.herken.test(tc));
   let r;
   if(prof){ r = prof.lees(text, L); r.lev = levNaam(prof); r.profiel = prof.id; }
   else {
@@ -1405,13 +1425,147 @@ function koppelInkoopMet(c, orders){
   return nieuw;
 }
 let INKOOPC = null;
+// open inkoop (alleen lezen) via het tussenstation "picqer-inkoop"; elke fout krijgt een reden die Daan begrijpt
+const inkoopUrl = () => lvUrl().replace(/\/picqer(\/?)$/, '/picqer-inkoop$1');
+async function inkoopVraag(qs){
+  if(!lvCode()) throw Object.assign(new Error('geen koppelcode op dit apparaat (koppel Picqer zoals in Warehouse)'), { soort:'code' });
+  let r, tx;
+  try{ r = await fetch(inkoopUrl() + '?' + qs, { headers:{ apikey:KEY, 'x-ivol-code':lvCode() }, cache:'no-store' }); tx = await r.text(); }
+  catch(e){ throw Object.assign(new Error('geen verbinding met het tussenstation (internet weg, of Supabase brak de functie af)'), { soort:'net' }); }
+  let j = null; try{ j = JSON.parse(tx); }catch(e){}
+  if(!r.ok){
+    if(j && j.code === 'koppelcode') throw Object.assign(new Error('koppelcode klopt niet (opnieuw koppelen)'), { soort:'code' });
+    if(r.status === 404) throw Object.assign(new Error('functie "picqer-inkoop" niet gevonden op Supabase'), { soort:'actie' });
+    if(r.status === 546 || r.status === 504) throw Object.assign(new Error('te traag: Supabase brak de functie af (status ' + r.status + ')'), { soort:'traag' });
+    throw Object.assign(new Error((j && j.fout) || ('tussenstation gaf status ' + r.status)), { soort:'net' });
+  }
+  if(!j) throw Object.assign(new Error('tussenstation gaf geen leesbaar antwoord'), { soort:'net' });
+  return j;
+}
 async function lvInkoop(){
   if(INKOOPC && Date.now() - INKOOPC.t < 3e5) return INKOOPC.o;
   const sinds = new Date(Date.now() - 150 * 864e5).toISOString().slice(0, 10);
-  const r = await fetch(lvUrl().replace(/\/picqer(\/?)$/, '/picqer-inkoop$1') + '?stap=lijst&sinds=' + sinds, { headers:{ apikey:KEY, 'x-ivol-code':lvCode() }, cache:'no-store' });
-  if(!r.ok) throw new Error('inkoop ' + r.status);
-  const j = await r.json(); INKOOPC = { t:Date.now(), o:j.orders || [] };
+  const j = await inkoopVraag('stap=lijst&sinds=' + sinds);
+  INKOOPC = { t:Date.now(), o:j.orders || [], ob:null };
   return INKOOPC.o;
+}
+/* ---------- regels uit de Picqer-inkooporder: exacte productcodes, namen en aantallen (hoofdroute) ---------- */
+const inkoopAf = st => /^(completed|cancelled|received|afgerond|geannuleerd)$/i.test(st || '');
+const inkoopObj = o => ({ id:o[0], datum:o[1] || '', status:o[2] || '', levId:o[3], regels:Array.isArray(o[4]) ? o[4].map(x => ({ code:x[0], bes:num(x[1]) || 0, ont:num(x[2]) || 0, naam:x[3] || '' })) : null, po:o[5] || '', lev:o[6] || '' });
+async function inkoopOpen(){
+  const raw = await lvInkoop();
+  if(!INKOOPC.ob) INKOOPC.ob = raw.filter(o => !inkoopAf(o[2])).map(inkoopObj).sort((a, b) => String(b.datum).localeCompare(String(a.datum)) || b.id - a.id);
+  return INKOOPC.ob;
+}
+async function inkoopRegels(ob){
+  if(ob.regels) return ob;
+  const j = await inkoopVraag('stap=detail&ids=' + ob.id), o = (j.orders || []).find(x => x[0] === ob.id);
+  if(!o || !Array.isArray(o[4])) throw new Error('regels van inkooporder ' + (ob.po || '#' + ob.id) + ' niet gelezen');
+  const n = inkoopObj(o); ob.regels = n.regels; if(!ob.po) ob.po = n.po; if(!ob.lev) ob.lev = n.lev;
+  return ob;
+}
+const levGelijk = (a, b) => { const x = norm(CPLEZER.levKern(a)), y = norm(CPLEZER.levKern(b)); return !!x && !!y && (x === y || (x.length >= 6 && y.includes(x)) || (y.length >= 6 && x.includes(y))); };
+const inkoopNog = ob => (ob.regels || []).map(x => ({ code:x.code, naam:x.naam, nog:Math.max(0, x.bes - x.ont) })).filter(x => x.nog > 0);
+// kopie van de containerrij vóór elke wijziging: catalog-rij wh-kopie-containers-<id>-<jjjjmmdd> (op dezelfde dag een volgnummer erbij, nooit overschrijven)
+async function kopieContainer(c, extra){
+  if(!(c && c.id > 0)) return null;
+  const nu = new Date(), p2 = n => String(n).padStart(2, '0'), dag = nu.getFullYear() + p2(nu.getMonth() + 1) + p2(nu.getDate());
+  const basis = 'wh-kopie-containers-' + c.id + '-' + dag;
+  let key = basis;
+  try{ const bestaand = await api('GET', 'catalog?select=key&key=like.' + encodeURIComponent(basis + '*')); const n = (bestaand || []).length; if(n) key = basis + '-' + (n + 1); }catch(e){}
+  const data = { gekopieerd_op:nu.toISOString(), tabel:'containers', reden:extra || '', rij:JSON.parse(JSON.stringify({ id:c.id, leverancier:c.leverancier, pakbon_ref:c.pakbon_ref, containernummer:c.containernummer, losdatum:c.losdatum, lostijd:c.lostijd, transporteur:c.transporteur, status:c.status, data:c.data, created_at:c.created_at, updated_at:c.updated_at })) };
+  const rij = m => [{ key, mode:m, data, updated_at:nu.toISOString() }];
+  try{ await api('POST', 'catalog?on_conflict=key', rij('wh'), { Prefer:'resolution=merge-duplicates,return=minimal' }); }
+  catch(e){
+    if(!/23514|check|mode/i.test(e.body || '')) throw new Error('kopie van de container mislukt: ' + e.message);
+    try{ await api('POST', 'catalog?on_conflict=key', rij('ean'), { Prefer:'resolution=merge-duplicates,return=minimal' }); }
+    catch(e2){ throw new Error('kopie van de container mislukt: ' + e2.message); }
+  }
+  return key;
+}
+// wat de pakbon zegt per Picqer-product: alleen regels die de lezer zeker kan koppelen (code, EAN, alias); foto's tellen niet
+function pakbonZeker(c){
+  const pb = (c.data.pakbon_gelezen && c.data.pakbon_gelezen.regels) || [], zeker = {}, onzeker = [];
+  pb.forEach(r => {
+    if(r.ocr || isGeenProduct(r)) return;
+    if(r.productcode && r.bevestigd && ['alias', 'exact', 'ean'].includes(r.match)){
+      const k = norm(r.productcode), f = num(r.factor) || 1, x = zeker[k] = zeker[k] || { code:r.productcode, u:0, regels:[] };
+      x.u += (num(r.totaal) || 0) * f; x.regels.push(r);
+    } else onzeker.push(r);
+  });
+  return { zeker, onzeker, heeft:pb.some(r => !r.ocr) };
+}
+// zet de regels van gekozen inkooporders als pakbonregels (groen, bron "inkooporder"); wat de pakbon zegt komt erbij; verschillen worden gele regels
+async function inkoopToepassen(c, ids, opt){
+  opt = opt || {};
+  const alle = await inkoopOpen(), sel = ids.map(id => alle.find(x => x.id === id)).filter(Boolean);
+  if(!sel.length) throw new Error('geen inkooporder gekozen');
+  for(const ob of sel) await inkoopRegels(ob);
+  const bestond = (c.data.regels || []).length > 0 || Object.keys(c.data.verdeling || {}).length > 0;
+  if(c.id > 0 && bestond) await kopieContainer(c, 'regels uit inkooporder ' + sel.map(o => o.po || o.id).join(' + '));
+  const levs = [...new Set(sel.map(o => o.lev).filter(Boolean))];
+  if(levs.length === 1 && !(c.leverancier && levGelijk(c.leverancier, levs[0]))) c.leverancier = alleLeveranciers().find(l => levGelijk(l, levs[0])) || levs[0];
+  const vast = (c.data.regels || []).filter(r => isVast(c, r)), vastCodes = new Set(vast.map(r => norm(r.productcode)));
+  const perCode = new Map(), overgeslagen = [];
+  sel.forEach(ob => inkoopNog(ob).forEach(x => {
+    const pc = PLOW[String(x.code).toLowerCase()] || x.code, k = norm(pc);
+    if(!P[pc]){ const rij = { productcode:pc, naam:x.naam || '', ean:'', leverancier:null, actief:true, live:true }; LIVEP[pc] = rij; liveToevoegen(rij); }
+    if(vastCodes.has(k)){ if(!overgeslagen.includes(pc)) overgeslagen.push(pc); return; }
+    const e = perCode.get(k) || { code:pc, naam:x.naam || (P[pc] && P[pc].naam) || pc, nog:0, po:[] };
+    e.nog += x.nog; if(ob.po && !e.po.includes(ob.po)) e.po.push(ob.po);
+    perCode.set(k, e);
+  }));
+  if(!perCode.size && !overgeslagen.length) throw new Error('in ' + (sel.map(o => o.po || '#' + o.id).join(' + ')) + ' staat niets meer te ontvangen: de regels van de container zijn niet veranderd');
+  const pbz = pakbonZeker(c), gebruikt = new Set();
+  const nieuw = [...perCode.entries()].map(([k, e]) => {
+    const r = { id:'r' + uid(), pakbon_code:e.code, omschrijving:e.naam, context:'', totaal:e.nog, per:1, aantal:e.nog, soort:'los', bruto_per:null, factor:1, factor_bron:'vast',
+      productcode:e.code, match:'inkooporder', bevestigd:true, reden:'inkooporder ' + e.po.join(' + ') + ': ' + nf(e.nog) + ' te ontvangen', po:e.po.join(' + ') || null };
+    const x = pbz.zeker[k];
+    if(x){
+      gebruikt.add(k);
+      const pb = x.regels[0], een = x.regels.length === 1;
+      const info = { totaal:x.u, per:num(pb.per) || 1, aantal:num(pb.aantal) || 0, soort:pb.soort || 'los', bruto_per:pb.bruto_per ?? null, eenheid:pb.eenheid || null, inhoud_wisselt:!!pb.inhoud_wisselt, pallets:pb.pallets || null };
+      if(Math.abs(x.u - e.nog) < 0.001){ if(een && info.per * info.aantal === x.u / (num(pb.factor) || 1) && (num(pb.factor) || 1) === 1) Object.assign(r, { per:info.per, aantal:info.aantal, soort:info.soort, bruto_per:info.bruto_per, eenheid:info.eenheid, inhoud_wisselt:info.inhoud_wisselt || undefined, pallets:info.pallets || undefined }); r.pakbon = info; }
+      else { r.verschil = { soort:'aantal', pakbon:x.u, inkoop:e.nog }; r.pakbon = info; r.bevestigd = false; }
+    } else if(pbz.heeft && !pbz.onzeker.length && Object.keys(pbz.zeker).length){ r.verschil = { soort:'alleen-inkoop', pakbon:0, inkoop:e.nog }; r.bevestigd = false; }
+    return r;
+  });
+  // op de pakbon (zeker gekoppeld) maar niet in de inkooporder
+  Object.entries(pbz.zeker).forEach(([k, x]) => {
+    if(gebruikt.has(k) || vastCodes.has(k) || perCode.has(k)) return;
+    const pb = x.regels[0];
+    nieuw.push({ id:'r' + uid(), pakbon_code:pb.pakbon_code, omschrijving:pb.omschrijving, context:'', totaal:x.u, per:1, aantal:x.u, soort:'los', bruto_per:null, factor:1, factor_bron:'vast', productcode:x.code, match:'inkooporder', bevestigd:false,
+      reden:'staat op de pakbon, niet in de inkooporder', verschil:{ soort:'alleen-pakbon', pakbon:x.u, inkoop:0 }, pakbon:{ totaal:x.u, per:num(pb.per) || 1, aantal:num(pb.aantal) || 0, soort:pb.soort || 'los' } });
+  });
+  c.data.regels = vast.concat(nieuw);
+  c.data.regels.forEach((r, i) => { r.sl = i + 1; });
+  if(!vast.length) c.data.verdeling = {};
+  const po = [...new Set(sel.map(o => o.po).filter(Boolean))];
+  c.data.po_nrs = po; c.data.regels_bron = 'inkooporder';
+  c.data.inkoop = { op:new Date().toISOString(), orders:sel.map(o => ({ id:o.id, po:o.po, datum:o.datum, lev:o.lev, status:o.status })), onzeker_pakbon:pbz.onzeker.length };
+  if(!c.pakbon_ref && po.length) c.pakbon_ref = po.join(' + ');
+  PLAN = wisCache();
+  await bewaarContainer(c);
+  if(c === cur) rerender();
+  return { n:nieuw.length, verschillen:nieuw.filter(r => r.verschil).length, behouden:vast.length, overgeslagen, po, onzeker:pbz.onzeker.length, lev:c.leverancier, fotoNegeren:!!(c.data.pakbon && c.data.pakbon.methode === 'ocr') };
+}
+function inkoopTekst(r){
+  return 'Regels uit inkooporder ' + r.po.join(' + ') + ': ' + plural(r.n, 'regel', 'regels') + (r.verschillen ? ', waarvan ' + r.verschillen + ' met verschil pakbon ↔ inkoop (geel)' : ', alles groen')
+    + (r.behouden ? '; ' + r.behouden + ' vaste regel(s) niet aangeraakt' : '') + (r.overgeslagen.length ? ' (' + r.overgeslagen.join(', ') + ' stond al vast)' : '')
+    + (r.onzeker ? '; ' + r.onzeker + ' pakbonregel(s) niet zeker te koppelen, leeg gelaten' : '') + (r.fotoNegeren ? '; de foto blijft bijlage' : '') + '.';
+}
+// na het inlezen van een pakbon: PO-nummers zoeken en de regels uit de inkooporder nemen; geeft een zin voor de melding ('' = niets te melden)
+async function poRoute(c, tekstBron){
+  const gevonden = c.data.po_gevonden || [];
+  if(!gevonden.length) return '';
+  if(!lvCode()) return ' PO-nummer ' + gevonden.join(', ') + ' gevonden, maar Picqer is op dit apparaat niet gekoppeld: de regels uit de inkooporder kun je later nemen met "Regels uit de inkooporder".';
+  try{
+    const alle = await inkoopOpen(), sel = alle.filter(o => o.po && gevonden.includes(o.po));
+    const mis = gevonden.filter(p => !sel.some(o => o.po === p));
+    if(!sel.length) return ' PO-nummer ' + gevonden.join(', ') + ' gevonden, maar niet bij de open inkooporders van Picqer (al ontvangen, of een andere schrijfwijze): kies hem zelf bij "Regels uit de inkooporder".';
+    const r = await inkoopToepassen(c, sel.map(o => o.id));
+    return ' ' + inkoopTekst(r) + (mis.length ? ' PO ' + mis.join(', ') + ' niet gevonden bij de open inkooporders.' : '');
+  }catch(e){ return ' PO-nummer ' + gevonden.join(', ') + ' gevonden; inkoop niet live gelezen: ' + e.message + '.'; }
 }
 // alias leren voor een zekere koppeling die niet letterlijk gelijk is aan de pakboncode (28300501 → 700625, 70198-Brushed → 70198Brushed)
 async function leerZeker(r, lev){
@@ -1479,6 +1633,23 @@ function koppelMaat(r, lev){
   }
   return { codes:k.map(x => x.code), factor:k[0].perMeter && m.l ? m.l : 1, reden };
 }
+const KLEUREN = [['black', 'blk', 'bla', 'zwart', 'zw'], ['white', 'whi', 'wht', 'wit'], ['grey', 'gray', 'gre', 'gry', 'grijs'], ['blue', 'blu', 'blauw'], ['red', 'rood'], ['brown', 'bro', 'bruin'], ['yellow', 'yel', 'geel'], ['natural', 'nat', 'naturel'], ['orange', 'ora', 'oranje'], ['sand', 'zand'], ['beige', 'bei'], ['green', 'groen']];
+function kleurGroep(k){ k = String(k || '').toLowerCase(); const i = KLEUREN.findIndex(g => g.includes(k)); return i; }
+function kleurGelijk(a, b){
+  a = String(a || '').toLowerCase(); b = String(b || '').toLowerCase();
+  if(a.length < 3 || b.length < 3) return false;
+  const ga = kleurGroep(a), gb = kleurGroep(b);
+  if(ga >= 0 && gb >= 0) return ga === gb;
+  return a.startsWith(b) || b.startsWith(a);
+}
+// "SE121V-black" in de pakbontekst, "SE121V-BLA" in Picqer: dezelfde stam, dezelfde kleur, precies één product
+function koppelKleur(r, pool){
+  const delen = s => { const i = s.lastIndexOf('-'); return i > 2 ? [norm(s.slice(0, i)), s.slice(i + 1)] : null; };
+  const toks = String((r.pakbon_code || '') + ' ' + (r.omschrijving || '')).split(/[\s,;()]+/).filter(t => /^[A-Za-z0-9]+(-[A-Za-z0-9]+)+$/.test(t));
+  const vondst = new Map();
+  toks.forEach(t => { const d = delen(t); if(!d || !/^[A-Za-z]{3,8}$/.test(d[1])) return; pool.forEach(c => { const e = delen(c); if(e && e[0] === d[0] && e[0].length >= 4 && norm(c) !== norm(t) && /^[A-Za-z]{2,8}$/.test(e[1]) && kleurGelijk(d[1], e[1])) vondst.set(c, d[1]); }); });
+  return vondst.size === 1 ? { code:[...vondst.keys()][0], kleur:[...vondst.values()][0] } : null;
+}
 function koppel(r, lev){
   const tok = norm(eersteCode(r.pakbon_code || r.omschrijving));
   const key = norm(r.pakbon_code);
@@ -1512,6 +1683,9 @@ function koppel(r, lev){
   als.forEach(x => { if(x.pakbon_code.length >= 4 && txt.includes(x.pakbon_code) && P[x.productcode] && (!best || x.pakbon_code.length > best.len)) best = { len:x.pakbon_code.length, code:x.productcode, alias:x }; });
   pool.forEach(c => { const n = norm(c); if(n.length >= 4 && txt.includes(n) && (!best || n.length > best.len)) best = { len:n.length, code:c }; });
   if(best) return best.alias ? uit(best.code, 'alias', num(best.alias.factor) || 1, 'geleerd') : uit(best.code, 'voorstel');
+  // 3b. zelfde artikel, kleur anders geschreven (SE121V-black = SE121V-BLA): één product met dezelfde stam en dezelfde kleur, nooit bevestigd
+  const kk = koppelKleur(r, pool);
+  if(kk) return Object.assign(uit(kk.code, 'voorstel'), { reden:'zelfde artikel, kleur "' + kk.kleur + '" = ' + kk.code.split('-').pop() });
   // 4. bijna gelijk (typefout / OCR)
   let fz = null;
   if(tok.length >= 4) pool.forEach(c => {
@@ -1539,7 +1713,7 @@ function ontdubbel(regels, lev){
   return n;
 }
 function koppelAlles(c){
-  c.data.regels.forEach(r => { if(r.match === 'handmatig' && r.productcode) return; delete r.fuzzy; Object.assign(r, koppel(r, c.leverancier)); });
+  c.data.regels.forEach(r => { if((r.match === 'handmatig' || r.match === 'inkooporder') && r.productcode) return; delete r.fuzzy; Object.assign(r, koppel(r, c.leverancier)); });
   ontdubbel(c.data.regels, c.leverancier);
 }
 async function leer(r, lev){
@@ -2255,7 +2429,7 @@ async function route(){
   return viewHome();
 }
 window.addEventListener('hashchange', route);
-window.CP_TEST = { heeftProduct:c => !!P[c], leesControle:t => { const res = leesPakbonTekst(t); const c = ensureData({ id:-9, leverancier:res.lev, status:'concept', data:{} }); vulRegels(c, res.docs[0], res, 'test.txt', 'plak', t); return Object.assign(pakbonControle(c), { lev:res.lev }); }, pakbonControle, koppelMaat, voorDaan, statusBalkTest:c => statusBalk(c, voortgang(c)), alias:() => ALIAS, koppel, koppelInkoopMet, herkoppelRegels, leerZeker, leesPakbonTekst2:(t) => leesPakbonTekst(t), isGeenProduct, aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, adviesKern, leegEerder, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
+window.CP_TEST = { zetBlob:(pad, blob) => { BLOBS[pad] = blob; }, zetInkoop:o => { INKOOPC = { t:Date.now(), o, ob:null }; }, inkoopOpen, inkoopToepassen, inkoopTekst, poRoute, verschilBesluit, pakbonZeker, zoekBestaand, naarPrullenbak, containerVerwijderen, containerTerugzetten, samenvoegen, prullen:() => PRULLEN, dubbelVan:c => dubbelVan(c), kopieContainer, vulRegels, ocrOpschonen, excelResultaat, koppelKleur, zetProduct:p => { LIVEP[p.productcode] = p; liveToevoegen(p); }, alleLeveranciers, isVast:(c, r) => isVast(c, r), leesBestand, pakbonnenBulk, levKort, heeftProduct:c => !!P[c], leesControle:t => { const res = leesPakbonTekst(t); const c = ensureData({ id:-9, leverancier:res.lev, status:'concept', data:{} }); vulRegels(c, res.docs[0], res, 'test.txt', 'plak', t); return Object.assign(pakbonControle(c), { lev:res.lev }); }, pakbonControle, koppelMaat, voorDaan, statusBalkTest:c => statusBalk(c, voortgang(c)), alias:() => ALIAS, koppel, koppelInkoopMet, herkoppelRegels, leerZeker, leesPakbonTekst2:(t) => leesPakbonTekst(t), isGeenProduct, aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, adviesKern, leegEerder, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 function rerender(){
   const y = window.scrollY;
@@ -2477,15 +2651,150 @@ function kaartDelen(c){
         ${c.status !== 'concept' ? `<span class="badge b-info">${STATUS[c.status] || c.status}</span>` : ''}
       </div>`;
 }
+/* =====================================================================
+   Verwijderen (prullenbak), samenvoegen en "Mogelijk dubbel"
+   ===================================================================== */
+let PRULLEN = [];
+const PRULLEN_KEY = 'wh-prullenbak-containers';
+const prullenActief = () => PRULLEN.filter(x => new Date(x.tot) > new Date());
+async function prullenSchrijf(items){
+  const nu = new Date().toISOString(), rij = m => [{ key:PRULLEN_KEY, mode:m, data:{ items }, updated_at:nu }];
+  try{ await api('POST', 'catalog?on_conflict=key', rij('wh'), { Prefer:'resolution=merge-duplicates,return=minimal' }); }
+  catch(e){
+    if(!/23514|check|mode/i.test(e.body || '')) throw new Error('prullenbak bewaren mislukt: ' + e.message);
+    try{ await api('POST', 'catalog?on_conflict=key', rij('ean'), { Prefer:'resolution=merge-duplicates,return=minimal' }); }
+    catch(e2){ throw new Error('prullenbak bewaren mislukt: ' + e2.message); }
+  }
+  PRULLEN = items;
+}
+const cNaam = c => [levKort(c.leverancier), c.pakbon_ref, c.containernummer].filter(Boolean).join(' · ') || ('container ' + c.id);
+const aantalAkkoord = c => Object.values(c.data.verdeling || {}).filter(v => v && v.bevestigd).length;
+// kopie van de rij (wh-kopie-containers-<id>-<datum>), dan prullenbak (30 dagen), dan pas uit de tabel containers
+async function naarPrullenbak(c, reden){
+  await kopieContainer(c, reden);
+  const nu = new Date(), tot = new Date(nu.getTime() + 30 * 864e5);
+  const rij = { id:c.id, leverancier:c.leverancier, pakbon_ref:c.pakbon_ref, containernummer:c.containernummer, losdatum:c.losdatum, lostijd:c.lostijd, transporteur:c.transporteur, status:c.status, data:c.data };
+  const nieuw = prullenActief().filter(x => x.id !== c.id).concat([{ id:c.id, naam:cNaam(c), reden, regels:(c.data.regels || []).length, verwijderd_op:nu.toISOString(), tot:tot.toISOString(), rij:JSON.parse(JSON.stringify(rij)) }]);
+  await prullenSchrijf(nieuw);
+  try{
+    await api('DELETE', 'containers?id=eq.' + c.id, undefined, { Prefer:'return=representation' });
+  }catch(e){ try{ await prullenSchrijf(nieuw.filter(x => x.id !== c.id)); }catch(e2){} throw new Error('verwijderen mislukt: ' + e.message); }
+  CONT = CONT.filter(x => x.id !== c.id); PLAN = wisCache();
+  if(cur === c){ cur = null; setSaved(''); }
+}
+async function containerVerwijderen(c){
+  const n = (c.data.regels || []).length, akk = aantalAkkoord(c);
+  let t = 'Container verwijderen?\n\n' + (c.leverancier || 'Leverancier?') + ' · ' + (c.pakbon_ref || 'zonder ref') + (c.containernummer ? ' · ' + c.containernummer : '') + ' · ' + n + (n === 1 ? ' regel' : ' regels') + '\n\nHij gaat 30 dagen naar de prullenbak (onderaan het Containers-scherm: Terugzetten).';
+  if(akk) t += '\n\nLET OP: ' + akk + (akk === 1 ? ' verdeling is' : ' verdelingen zijn') + ' al akkoord.';
+  if(c.losdatum) t += '\n\nLET OP: ' + (isVerwacht(c) ? 'ETA ' : 'losdatum ') + fdate(c.losdatum, { day:'numeric', month:'short' }) + (c.lostijd ? ' ' + c.lostijd : '') + ' staat erbij.';
+  if(!confirm(t)) return false;
+  if(dirty) await flushSave();
+  try{ await naarPrullenbak(c, 'verwijderd'); }catch(e){ toast(e.message, 7000); return false; }
+  toast(cNaam(c) + ' staat in de prullenbak (30 dagen).', 5000);
+  if(location.hash !== '#/') location.hash = '#/'; else viewHome();
+  return true;
+}
+async function containerTerugzetten(id){
+  const it = PRULLEN.find(x => x.id === id); if(!it) return;
+  try{
+    const r = it.rij, rows = await api('POST', 'containers', [{ leverancier:r.leverancier, pakbon_ref:r.pakbon_ref, containernummer:r.containernummer, losdatum:r.losdatum, lostijd:r.lostijd, transporteur:r.transporteur, status:r.status || 'concept', data:r.data }], { Prefer:'return=representation' });
+    const c = ensureData(rows[0]); CONT.push(c);
+    await prullenSchrijf(prullenActief().filter(x => x.id !== id));
+    PLAN = wisCache(); toast(it.naam + ' is teruggezet.', 5000); viewHome();
+  }catch(e){ toast('Terugzetten mislukt: ' + e.message, 7000); }
+}
+// twee containers samenvoegen: regels van B in A (zelfde productcode + aantal één keer), B naar de prullenbak; A blijft zoals hij is, alleen lege velden worden aangevuld
+async function samenvoegen(a, b){
+  if(dirty) await flushSave();
+  await kopieContainer(a, 'samengevoegd met ' + cNaam(b)); await kopieContainer(b, 'samengevoegd in ' + cNaam(a));
+  const sleutel = r => norm(r.productcode || r.pakbon_code) + '|' + (num(r.totaal) || 0) * (num(r.factor) || 1);
+  const heeft = new Set((a.data.regels || []).map(sleutel));
+  let toe = 0, dub = 0, akk = 0;
+  (b.data.regels || []).forEach(r => {
+    const k = sleutel(r);
+    if(heeft.has(k)){ dub++; return; }
+    heeft.add(k); a.data.regels.push(Object.assign(JSON.parse(JSON.stringify(r)), { id:'r' + uid(), sl:a.data.regels.length + 1 })); toe++;
+  });
+  Object.entries(b.data.verdeling || {}).forEach(([code, v]) => { const av = a.data.verdeling[code]; if(v && ((v.porties && v.porties.length) || v.bevestigd) && !(av && ((av.porties && av.porties.length) || av.bevestigd))){ a.data.verdeling[code] = JSON.parse(JSON.stringify(v)); if(v.bevestigd) akk++; } });
+  ['leverancier', 'pakbon_ref', 'containernummer', 'losdatum', 'lostijd', 'transporteur'].forEach(k => { if(!a[k] && b[k]) a[k] = b[k]; });
+  if(!a.data.verwacht && !a.losdatum && b.data.verwacht) a.data.verwacht = true;
+  if(b.data.pakbon_bestand){ if(!a.data.pakbon_bestand) a.data.pakbon_bestand = b.data.pakbon_bestand; else a.data.bijlagen = (a.data.bijlagen || []).concat([Object.assign({}, b.data.pakbon_bestand, { orig:b.data.pakbon_bestand.orig || 'pakbon van ' + cNaam(b) })]); }
+  a.data.bijlagen = (a.data.bijlagen || []).concat(b.data.bijlagen || []);
+  a.data.po_nrs = [...new Set([].concat(a.data.po_nrs || [], b.data.po_nrs || []))];
+  a.data.po_gevonden = [...new Set([].concat(a.data.po_gevonden || [], b.data.po_gevonden || []))];
+  if(!a.data.pakbon && b.data.pakbon) a.data.pakbon = b.data.pakbon;
+  PLAN = wisCache();
+  await bewaarContainer(a);
+  await naarPrullenbak(b, 'samengevoegd in ' + cNaam(a));
+  return { toe, dub, akk };
+}
+// kleine keuzedialoog (knoppen, eventueel een lijst); in de test beantwoordt window.CP_ANTWOORD hem
+function dialoog(o){
+  if(typeof window.CP_ANTWOORD === 'function'){ const x = window.CP_ANTWOORD(o); if(x) return Promise.resolve(x); }
+  return new Promise(res => {
+    const el = document.createElement('div'); el.id = 'dialoog'; el.setAttribute('role', 'dialog');
+    el.style.cssText = 'position:fixed;inset:0;z-index:80;background:rgba(15,20,28,.6);display:flex;align-items:center;justify-content:center;padding:1rem';
+    el.innerHTML = `<div class="card" style="max-width:none;width:min(100%,34rem);margin:0"><h3>${esc(o.titel)}</h3><div class="small mt8" style="line-height:1.55">${o.html || esc(o.tekst || '')}</div>
+      ${o.opties ? `<select id="dlg_sel" class="mt8">${o.opties.map(x => `<option value="${esc(x[0])}">${esc(x[1])}</option>`).join('')}</select>` : ''}
+      <div class="row wrap mt12">${o.knoppen.map((k, i) => `<button class="btn ${k.cls || ''}" data-dk="${i}">${esc(k.label)}</button>`).join('')}</div></div>`;
+    document.body.appendChild(el);
+    el.querySelectorAll('[data-dk]').forEach(b => { b.onclick = () => { const w = el.querySelector('#dlg_sel'); el.remove(); res({ knop:o.knoppen[+b.dataset.dk].id, waarde:w ? w.value : null }); }; });
+    const f = el.querySelector('[data-dk="0"]'); if(f) f.focus();
+  });
+}
+// gevonden bij containernummer, pakbon-ref of PO + leverancier
+function zoekBestaand(res, d, text, bestandsnaam){
+  const lk = levKort(res.lev || ''), zelfdeLev = x => !res.lev || levKort(x.leverancier || '') === lk || !x.leverancier;
+  const cn = d.container || (String(bestandsnaam || '').toUpperCase().match(/[A-Z]{3}U\d{7}/) || [])[0];
+  let x = cn && CONT.find(k => k.containernummer === cn);
+  if(x) return { c:x, reden:'zelfde containernummer ' + cn };
+  x = res.ref && CONT.find(k => k.pakbon_ref === res.ref && zelfdeLev(k));
+  if(x) return { c:x, reden:'zelfde pakbon-ref ' + res.ref };
+  const po = [...new Set([].concat(res.po || [], CPLEZER.zoekPO(String(text || '') + ' ' + String(bestandsnaam || ''))))];
+  if(po.length){ x = CONT.find(k => zelfdeLev(k) && k.leverancier && [...CPLEZER.posVan(k)].some(p => po.includes(p))); if(x) return { c:x, reden:'zelfde PO ' + po.filter(p => CPLEZER.posVan(x).has(p)).join(', ') }; }
+  return null;
+}
+async function bijwerkKeuze(c, naam, reden){
+  const n = (c.data.regels || []).length, vast = (c.data.regels || []).filter(r => isVast(c, r)).length;
+  const k = await dialoog({ titel:'Deze container staat er al', html:`Gevonden: <b>${esc(cNaam(c))}</b> (${esc(reden)}), ${n} ${n === 1 ? 'regel' : 'regels'}${vast ? `, waarvan ${vast} bevestigd of verdeeld` : ''}${aantalAkkoord(c) ? `, ${aantalAkkoord(c)} akkoord` : ''}.<br>Bijwerken vervangt alleen wat nog niet bevestigd of verdeeld is. Bevestigde koppelingen, verdelingen en akkoorden blijven staan.`,
+    knoppen:[{ id:'bijwerken', label:'Bijwerken: ' + cNaam(c), cls:'pri' }, { id:'nieuw', label:'Toch nieuwe container' }] });
+  return k.knop;
+}
+// mogelijk dubbel: zelfde containernummer, zelfde PO, of zelfde leverancier + >= 60% dezelfde productcodes; zelf niets verwijderen
+let DUBC = { sig:'', map:{} };
+function dubbelMap(){
+  const sig = CONT.map(c => c.id + ':' + (c.updated_at || '') + ':' + ((c.data && c.data.regels) || []).length).join('|');
+  if(DUBC.sig !== sig) DUBC = { sig, map:CPLEZER.dubbelPerContainer(CPLEZER.dubbelParen(CONT, { levKort })) };
+  return DUBC.map;
+}
+const dubbelVan = c => dubbelMap()[c.id] || [];
+function dubbelBlok(c, dub){
+  return `<div class="etabox" style="margin-bottom:14px"><b>Mogelijk dubbel</b> <span class="small muted">(de app verwijdert zelf niets)</span>
+    ${dub.map(d => `<div class="row wrap mt8"><span class="grow small"><a href="#/c/${d.met.id}">${esc(cNaam(d.met))}</a> · ${plural((d.met.data.regels || []).length, 'regel', 'regels')}${d.met.losdatum ? ' · ' + esc(fdate(d.met.losdatum, { day:'numeric', month:'short' })) : ''}<br><span class="muted">${esc(d.redenen.join(' · '))}</span></span>
+      <button class="btn sm" data-act="csamenmet" data-id="${c.id}" data-met="${d.met.id}">Voeg ${esc(d.met.containernummer || d.met.pakbon_ref || '#' + d.met.id)} hierin samen</button></div>`).join('')}</div>`;
+}
+function containerMenu(c){
+  return `<details class="kmenu"><summary title="Meer" aria-label="Meer acties">⋯</summary><div class="kmenu-in">
+    <button class="btn sm" data-act="csamen" data-id="${c.id}">Samenvoegen met…</button>
+    <button class="btn sm" data-act="cverwijder" data-id="${c.id}" style="color:var(--bad)">Verwijderen</button></div></details>`;
+}
+function prullenKaart(){
+  const lijst = prullenActief();
+  if(!lijst.length) return '';
+  return `<details class="mt12" style="margin-top:22px" data-det="prullenbak" ${UI.open.prullenbak ? 'open' : ''}><summary><b>Prullenbak (${lijst.length})</b> <span class="small muted">30 dagen bewaard</span></summary>
+    <div class="card mt8">${lijst.map(x => `<div class="row wrap" style="padding:6px 0;border-top:1px solid #eef1f4"><span class="grow small"><b>${esc(x.naam)}</b> · ${plural(x.regels || 0, 'regel', 'regels')} · ${esc(x.reden || 'verwijderd')} · ${esc(fdt(x.verwijderd_op))} · bewaard tot ${esc(fdate(x.tot, { day:'numeric', month:'short' }))}</span><button class="btn sm" data-act="cterug" data-id="${x.id}">Terugzetten</button></div>`).join('')}</div></details>`;
+}
 function containerKaart(c, uitstel){
   const d = c.losdatum ? new Date(c.losdatum + 'T12:00:00') : null;
-  return `<a class="ccard" href="#/c/${c.id}">
+  const dub = dubbelVan(c);
+  return `<div class="cwrap"><a class="ccard" href="#/c/${c.id}">
     <div class="date ${d ? '' : 'none'} ${isVerwacht(c) ? 'eta' : ''}">${d && isVerwacht(c) ? '<div class="m">ETA</div>' : ''}${d ? `<div class="d">${d.getDate()}</div><div class="m">${d.toLocaleDateString('nl-NL', { month:'short' })}</div><div class="w">${d.toLocaleDateString('nl-NL', { weekday:'short' })}${c.lostijd ? ' ' + esc(c.lostijd) : ''}</div>` : '<div class="m">geen<br>datum</div>'}</div>
     <div class="grow">
       <h3>${esc(c.leverancier || 'Leverancier?')}</h3>
       <div class="small muted">${esc(c.pakbon_ref || '')}${c.pakbon_ref && c.containernummer ? ' · ' : ''}${esc(c.containernummer || '')}${c.transporteur ? ' · ' + esc(c.transporteur) : ''}</div>
+      ${dub.length ? `<div class="mt8"><span class="badge dubbel-badge" title="${esc(dub.map(d => cNaam(d.met) + ': ' + d.redenen.join(', ')).join(' | '))}">Mogelijk dubbel</span></div>` : ''}
       <div class="kdelen" data-kid="${c.id}">${uitstel ? '<div class="small muted mt8 kwacht">berekenen…</div>' : kaartDelen(c)}</div>
-    </div></a>`;
+    </div></a>${containerMenu(c)}</div>`;
 }
 let HOMEGEN = 0;
 // zware delen van het startscherm na het tekenen, per container een eigen taak (setTimeout 0), zodat de pagina nooit lang blokkeert
@@ -2563,7 +2872,7 @@ function viewHome(){
     <div class="card mt12" id="nieuw" ${UI.nieuw ? '' : 'hidden'}>
       <h3 class="mb8">Nieuwe container</h3>
       <div class="fields">
-        <div class="fld" style="grid-column:span 2"><label>Leverancier</label><select id="n_lev">${levs.map(l => `<option ${l === def ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
+        <div class="fld" style="grid-column:span 2"><label>Leverancier</label><select id="n_lev"><option value="">— nog niet bekend: de pakbon bepaalt het —</option>${levs.map(l => `<option ${l === def && UI.nieuwLev ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
         <div class="fld"><label>Losdatum</label><input type="date" id="n_datum"></div>
         <div class="fld"><label>Pakbon-ref</label><input id="n_ref" placeholder="bijv. NL-300"></div>
         <div class="fld"><label>Containernummer</label><input id="n_cont" placeholder="bijv. FFAU6809680"></div>
@@ -2574,7 +2883,8 @@ function viewHome(){
     ${ontvangstKaart()}
     ${bulk && bulk.bezig ? '' : voorbijKaart + etaKaart}
     ${open.length ? `<div class="cgrid">${open.map(c => containerKaart(c, true)).join('')}</div>` : '<div class="card empty">Nog geen containers. Klik op <b>+ Nieuwe container</b>.</div>'}
-    ${done.length ? `<h2 class="mt12" style="margin-top:22px">Afgerond</h2><div class="cgrid">${done.map(c => containerKaart(c, true)).join('')}</div>` : ''}`;
+    ${done.length ? `<h2 class="mt12" style="margin-top:22px">Afgerond</h2><div class="cgrid">${done.map(c => containerKaart(c, true)).join('')}</div>` : ''}
+    ${prullenKaart()}`;
   homeRekenen(open.concat(done), open);
 }
 
@@ -2874,6 +3184,13 @@ function leesSheet(file){
     return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, blankrows:false, defval:null });
   });
 }
+// alle tabbladen van een Excel: [{ naam, rijen }]
+function leesSheets(file){
+  return file.arrayBuffer().then(buf => {
+    const wb = XLSX.read(buf, { type:'array', cellDates:false });
+    return wb.SheetNames.map(naam => ({ naam, rijen:XLSX.utils.sheet_to_json(wb.Sheets[naam], { header:1, blankrows:false, defval:null }) }));
+  });
+}
 const txt = v => leeg(v) ? null : (typeof v === 'number' ? (Number.isInteger(v) ? String(v) : String(v)) : (String(v).trim() || null));
 async function impProducten(file){
   const st = m => { $('st_prod').textContent = m; $('st_prod').className = 'status'; };
@@ -2953,7 +3270,7 @@ function herkoppelRegels(c){
     else if(k.bevestigd && !r.bevestigd){ Object.assign(r, { match:k.match, bevestigd:true, reden:k.reden }); nieuw.push(r); }   // zelfde product, nu zeker (code of EAN gelijk)
   });
   c.data.regels.forEach(r => {                                    // nog niet bevestigd, maar alias, code of EAN zegt hetzelfde product (of: de gekozen code bestaat niet in Picqer en een zekere koppeling wel) → bevestigen
-    if(!r.productcode || r.bevestigd || r.koppel_leeg || r.match === 'voorstel' || nieuw.includes(r)) return;
+    if(!r.productcode || r.bevestigd || r.koppel_leeg || r.match === 'voorstel' || r.match === 'inkooporder' || r.verschil || r.ocr || nieuw.includes(r)) return;   // gele verschilregels en foto-regels bevestigt alleen Daan zelf
     const k = koppel(r, c.leverancier);
     if(!k.bevestigd) return;
     if(k.productcode === r.productcode){ Object.assign(r, { match:k.match, bevestigd:true, reden:k.reden }); nieuw.push(r); }
@@ -3085,6 +3402,9 @@ function viewContainer(id, t){
     <div class="tabs">${TABS.map(([k, l], i) => `<a class="tab ${k === tab ? 'on' : ''} ${tabSt[k]}" href="#/c/${c.id}/${k}"><span class="nr">${tabSt[k] === 'done' ? '✓' : i + 1}</span>${l}</a>`).join('')}</div>
     <div id="tabbody">${body}</div>
     <datalist id="dl-codes">${codesVoorLijst(c).map(code => `<option value="${esc(code)}">${esc(naamVan(code))}</option>`).join('')}</datalist>`;
+  const dub = dubbelVan(c);
+  if(dub.length){ const k = $('tabbody'); if(k) k.insertAdjacentHTML('beforebegin', dubbelBlok(c, dub)); }
+  if(tab === 'pakbon' && lvCode() && c.status !== 'afgerond' && (!UI.ik[c.id] || UI.ik[c.id].st === 'idle')) setTimeout(() => { if(cur === c) inkoopLaden(c); }, 0);
 }
 function codesVoorLijst(c){
   const eigen = (BYLEV[c.leverancier] || []).slice().sort();
@@ -3100,7 +3420,7 @@ function kopKaart(c){
     <div class="row between wrap">
       <div class="grow"><h2>${esc(c.leverancier || 'Leverancier?')} ${esc(c.pakbon_ref || '')}</h2>
         <div class="small muted">${esc(c.containernummer || 'containernummer?')} · <b style="color:var(--ink)">${ver ? 'ETA ' : ''}${esc(d)}${c.lostijd ? ' ' + esc(c.lostijd) : ''}</b>${ver ? ' <span class="badge b-warn">verwacht</span>' : ''}${c.transporteur ? ' · ' + esc(c.transporteur) : ''} · ${STATUS[c.status] || c.status}</div></div>
-      <div class="row" style="gap:6px">${c.data.pakbon_bestand ? '<button class="btn sm" data-act="pbkijk" title="' + esc(pakbonNaam(c)) + '">📄 Pakbon</button>' : ''}<button class="btn sm" data-act="kopedit">${open ? 'Klaar' : 'Gegevens wijzigen'}</button></div>
+      <div class="row wrap" style="gap:6px">${c.data.pakbon_bestand ? '<button class="btn sm" data-act="pbkijk" title="' + esc(pakbonNaam(c)) + '">📄 Pakbon</button>' : ''}<button class="btn sm" data-act="kopedit">${open ? 'Klaar' : 'Gegevens wijzigen'}</button><button class="btn sm" data-act="csamen" data-id="${c.id}">Samenvoegen met…</button><button class="btn sm" data-act="cverwijder" data-id="${c.id}" style="color:var(--bad)">Verwijderen</button></div>
     </div>
     ${c.data.verzonden ? `<div class="small muted mt8">Pakbon: ${esc(c.data.verzonden_bron || 'datum')} <b>${esc(fdate(c.data.verzonden, { day:'numeric', month:'short', year:'numeric' }))}</b>${c.data.eta_auto ? ` · ETA = + ${c.data.eta_auto.dagen} dagen (${c.data.eta_auto.n ? 'gemiddelde van ' + c.data.eta_auto.n + ' eerdere ' + esc(levKort(c.leverancier)) + '-container' + (c.data.eta_auto.n > 1 ? 's' : '') : 'standaard, nog niets geleerd voor ' + esc(levKort(c.leverancier))})` : c.losdatum && !ver ? ' · doorlooptijd ' + dagenTussen(c.data.verzonden, c.losdatum) + ' dagen' : ''}</div>` : ''}
     ${c.data.po ? (() => { const pb = pakbonEenheden(c), vs = []; const po = {}; c.data.po.regels.forEach(x => po[norm(x.code)] = (po[norm(x.code)] || 0) + x.aantal);
@@ -3113,7 +3433,7 @@ function kopKaart(c){
     ${ver ? `<div class="etabox mt12"><div class="small"><b>ETA is nog een schatting.</b> Advies en verdeling zijn een voorlopige planning. Zodra de vervoerder de losdatum heeft gepland: vul hem hier in en zet hem vast.</div>
       <div class="row wrap mt8"><input type="date" id="def_datum" value="${esc(c.losdatum || '')}" style="width:auto">${tijdKeuze24('id="def_tijd" style="width:auto"', c.lostijd)}<button class="btn acc" data-act="etadef">Losdatum vastzetten</button></div></div>` : ''}
     <div class="fields mt12" ${open ? '' : 'hidden'}>
-      <div class="fld" style="grid-column:span 2"><label>Leverancier</label><select data-meta="leverancier">${levs.map(l => `<option ${l === c.leverancier ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
+      <div class="fld" style="grid-column:span 2"><label>Leverancier</label><select data-meta="leverancier">${c.leverancier ? '' : '<option value="" selected>— leverancier niet herkend: kies —</option>'}${levs.map(l => `<option ${l === c.leverancier ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
       <div class="fld"><label>Pakbon-ref</label><input data-meta="pakbon_ref" value="${esc(c.pakbon_ref || '')}"></div>
       <div class="fld"><label>Containernummer</label><input data-meta="containernummer" value="${esc(c.containernummer || '')}"></div>
       <div class="fld"><label>${ver ? 'ETA (verwacht)' : 'Losdatum'}</label><input type="date" data-meta="losdatum" value="${esc(c.losdatum || '')}"><label class="row small mt8" style="gap:6px;text-transform:none;font-weight:400;letter-spacing:0"><input type="checkbox" data-verwacht ${ver ? 'checked' : ''} style="width:auto"> nog verwacht (schatting)</label></div>
@@ -3141,7 +3461,8 @@ function groepeer(pts){
 /* ---------- Karin: één statusbalk per container (pakbon klopt? alles gekoppeld? verdeling akkoord?) ---------- */
 // sluitende controle: het totaal dat de pakbon zelf geeft tegen de ingelezen som
 function pakbonControle(c){
-  const R = c.data.regels || [], pb = c.data.pakbon || {};
+  const R = c.data.regels || [], pb = Object.assign({}, c.data.pakbon || {});
+  if(c.data.regels_bron === 'inkooporder'){ pb.totaal_stuks = null; pb.totaal_eenheden = null; }   // de inkooporder is de bron; wat de pakbon anders zegt staat als gele regel
   const st = R.reduce((a, r) => a + (num(r.totaal) || 0), 0), ee = R.reduce((a, r) => a + (num(r.aantal) || 0), 0);
   const woord = R.length && R.every(r => r.eenheid === 'rol') ? 'rollen' : 'stuks';
   const mis = [];
@@ -3181,7 +3502,9 @@ function statusBalk(c, g){
   if(!R.length) return `<div class="card statusbalk"><div class="row between wrap"><b>Nog geen pakbon</b><label class="btn pri file">Pakbon inlezen<input type="file" accept=".pdf,.xlsx,.xls,.csv,.txt,image/*" data-change="pakbonBestand"></label></div></div>`;
   if(!ctl.ok && !ctl.akkoord) L.push({ cls:'b-bad', t:ctl.tekst, knop:(c.data.pakbon_bestand ? '<button class="btn sm" data-act="pbkijk">Bekijk pakbon</button> ' : '<button class="btn sm" data-act="naarregels">Bekijk regels</button> ') + '<button class="btn ghost sm" data-act="pbaccepteer">Toch accepteren</button>' });
   const kies = R.filter(r => !r.productcode && !r.geenVoorraad && !isNieuwProduct(c, r));
-  const oranje = R.filter(r => r.productcode && !r.bevestigd && !r.geenVoorraad);
+  const oranje = R.filter(r => r.productcode && !r.bevestigd && !r.geenVoorraad && !r.verschil);
+  const verschillen = R.filter(r => r.verschil);
+  if(verschillen.length) L.push({ cls:'b-warn', t:plural(verschillen.length, 'verschil', 'verschillen') + ' tussen pakbon en inkooporder: kies per regel wat klopt', knop:'<button class="btn sm" data-act="naarregels">Bekijk</button>' });
   if(kies.length) L.push({ cls:'b-warn', t:plural(kies.length, 'regel', 'regels') + ' niet herkend', knop:'<button class="btn sm" data-act="naarregels">Kies</button>' });
   if(oranje.length) L.push({ cls:'b-warn', t:plural(oranje.length, 'koppeling', 'koppelingen') + ' nog controleren (oranje)', knop:'<button class="btn sm" data-act="naarregels">Bekijk</button> <button class="btn ok sm" data-act="allesbev">Alles bevestigen</button>' });
   if(!pakbonBlokkeert(c) && g.n && g.akk < g.nAk) L.push({ cls:'b-warn', t:'Verdeling: ' + g.akk + ' van ' + g.nAk + ' akkoord' + (g.lossen ? ' · ' + g.lossen + ' bij lossen bepalen' : ''), knop:'<button class="btn ok sm" data-act="akkalles">Alles akkoord</button>' });
@@ -3239,14 +3562,59 @@ function puntenKaart(c, pts){
 }
 
 /* ---------- Tab 1: pakbon ---------- */
-const MATCH = { alias:['b-ok', 'geleerd'], exact:['b-ok', 'exact'], ean:['b-ok', 'EAN'], maat:['b-ok', 'maat'], inkoop:['b-ok', 'inkoop'], handmatig:['b-ok', 'gekozen'], voorstel:['b-warn', 'voorstel'], onbekend:['b-bad', 'onbekend'] };
+const MATCH = { inkooporder:['b-ok', 'inkooporder'], alias:['b-ok', 'geleerd'], exact:['b-ok', 'exact'], ean:['b-ok', 'EAN'], maat:['b-ok', 'maat'], inkoop:['b-ok', 'inkoop'], handmatig:['b-ok', 'gekozen'], voorstel:['b-warn', 'voorstel'], onbekend:['b-bad', 'onbekend'] };
+/* ---------- Regels uit de inkooporder (keuzelijst met open inkooporders van de leverancier) ---------- */
+function inkoopBox(c){ return c.status === 'afgerond' ? '' : '<div id="inkoopbox" class="mt12">' + inkoopBoxInner(c) + '</div>'; }
+function inkoopBoxInner(c){
+  const st = (UI.ik[c.id] = UI.ik[c.id] || { st:'idle', keuze:{}, extra:{} }), gevonden = c.data.po_gevonden || [];
+  const kop = '<b>Regels uit de inkooporder</b> <span class="small muted">(live uit Picqer, alleen lezen)</span>';
+  const uitleg = '<p class="small muted mt8">De exacte Picqer-codes, namen en aantallen komen uit de inkooporder. Wat de pakbon erbij zegt (dozen, pallets, kg) komt erbij; verschillen worden een gele regel. De foto of PDF blijft bijlage.</p>';
+  const gev = gevonden.length ? `<p class="small mt8">PO-nummer${gevonden.length > 1 ? 's' : ''} in de pakbon gevonden: <b>${esc(gevonden.join(', '))}</b></p>` : '';
+  const nu = c.data.inkoop ? `<p class="small mt8"><span class="badge b-ok">nu uit inkooporder</span> ${esc((c.data.po_nrs || []).join(' + '))}</p>` : '';
+  let lijst = '';
+  if(!lvCode()) lijst = `<p class="small mt8 muted">Picqer is op dit apparaat niet gekoppeld (koppelcode ontbreekt): de inkooporders kunnen niet live gelezen worden. Koppel Picqer zoals in Warehouse.</p>`;
+  else if(st.st === 'laden') lijst = '<p class="small mt8 muted">Open inkooporders ophalen uit Picqer…</p>';
+  else if(st.st === 'fout') lijst = `<p class="small mt8" style="color:var(--bad)">Inkooporders niet gelezen: ${esc(st.fout)}</p><div class="row mt8"><button class="btn sm" data-act="ikladen">Opnieuw proberen</button></div>`;
+  else if(st.st === 'klaar'){
+    const eigen = st.orders.filter(o => st.keuze[o.id] || st.extra[o.id] || gevonden.includes(o.po) || (c.leverancier && o.lev && levGelijk(o.lev, c.leverancier)));
+    const rest = st.orders.filter(o => !eigen.includes(o));
+    const rij = o => `<label class="row small" style="gap:8px;padding:3px 0;align-items:flex-start"><input type="checkbox" data-ik="${o.id}" ${st.keuze[o.id] ? 'checked' : ''} style="width:auto;margin-top:3px"><span><b>${esc(o.po || '#' + o.id)}</b> · ${esc(fdate(o.datum, { day:'numeric', month:'short' }))} · ${esc(o.status)}${o.lev ? ' · ' + esc(o.lev) : ''}${o.regels ? ' · ' + o.regels.length + ' regels' : ''}</span>${gevonden.includes(o.po) ? ' <span class="badge b-ok">staat in de pakbon</span>' : ''}</label>`;
+    lijst = `<div class="mt8"><div class="small"><b>Inkooporders van ${esc(c.leverancier || 'de leverancier')}</b> (${eigen.length}):</div>${eigen.length ? eigen.map(rij).join('') : '<p class="small muted">Geen open inkooporders gevonden' + (c.leverancier ? ' voor deze leverancier' : '') + '.</p>'}</div>
+      ${rest.length ? `<details class="mt8" data-det="ikrest"><summary class="small">Alle andere open inkooporders (${rest.length})</summary>${rest.map(rij).join('')}</details>` : ''}
+      <div class="row wrap mt8"><input id="ik_po" placeholder="of typ een PO-nummer, bijv. PO2026-002539" style="width:min(100%,20rem)"><button class="btn sm" data-act="ikpo">Zoek</button></div>
+      <div class="row wrap mt8"><button class="btn pri" data-act="ikneem" ${Object.values(st.keuze).some(Boolean) ? '' : 'disabled'}>Regels uit gekozen inkooporder(s) nemen</button><button class="btn ghost sm" data-act="ikladen" data-vers="1">Opnieuw ophalen</button></div>`;
+  }
+  return `<div class="pbfile" style="padding:10px 12px"><div class="row between wrap">${kop}</div>${uitleg}${gev}${nu}${lijst}</div>`;
+}
+function inkoopBoxTeken(c){ const el = $('inkoopbox'); if(el && cur === c) el.innerHTML = inkoopBoxInner(c); }
+async function inkoopLaden(c, vers){
+  const st = (UI.ik[c.id] = UI.ik[c.id] || { st:'idle', keuze:{}, extra:{} });
+  if(st.st === 'laden' || !lvCode()) return;
+  st.st = 'laden'; inkoopBoxTeken(c);
+  try{
+    if(vers) INKOOPC = null;
+    st.orders = await inkoopOpen(); st.st = 'klaar';
+    (c.data.po_gevonden || []).forEach(p => { const o = st.orders.find(x => x.po === p); if(o) st.keuze[o.id] = true; });
+  }catch(e){ st.st = 'fout'; st.fout = e.message; }
+  inkoopBoxTeken(c);
+}
+// pakbon ↔ inkooporder: wie heeft gelijk?
+function verschilBesluit(c, i, wie){
+  const r = c.data.regels[i]; if(!r || !r.verschil) return;
+  const v = r.verschil, pb = r.pakbon || {};
+  const zet = tot => { r.totaal = tot; r.factor = 1; if(pb.per > 1 && tot % pb.per === 0){ r.per = pb.per; r.aantal = tot / pb.per; r.soort = pb.soort || 'los'; } else { r.per = 1; r.aantal = tot; r.soort = 'los'; } };
+  if(wie === 'pakbon' && v.soort === 'alleen-inkoop' || wie === 'inkoop' && v.soort === 'alleen-pakbon'){ c.data.regels.splice(i, 1); return; }
+  zet(wie === 'pakbon' ? v.pakbon : v.inkoop);
+  r.reden = (r.reden || '') + ' · ' + (wie === 'pakbon' ? 'pakbon klopt (inkoop zei ' + nf(v.inkoop) + ')' : 'inkoop klopt (pakbon zei ' + nf(v.pakbon) + ')');
+  r.vast = true; r.bevestigd = true; delete r.verschil;
+}
 function tabPakbon(c, g){
   const R = c.data.regels, pb = c.data.pakbon || {};
   const somOk = pb.totaal_stuks == null || R.reduce((a, r) => a + (num(r.totaal) || 0), 0) === pb.totaal_stuks;
-  const tabelDicht = R.length && R.every(r => r.productcode) && somOk;
+  const tabelDicht = R.length && R.every(r => r.productcode) && somOk && !R.some(r => r.verschil);
   const tabelOpen = UI.open.pbtabel !== undefined ? UI.open.pbtabel : !tabelDicht;
   const sumT = R.reduce((a, r) => a + (num(r.totaal) || 0), 0), sumA = R.reduce((a, r) => a + (num(r.aantal) || 0), 0);
-  const nVoorstel = R.filter(r => r.productcode && !r.bevestigd).length;
+  const nVoorstel = R.filter(r => r.productcode && !r.bevestigd && !r.verschil).length;
   const methode = { pdf:'tekst uit PDF', ocr:'herkend uit scan (OCR)', excel:'uit Excel', plak:'geplakt', handmatig:'ingevoerd' };
   return `<div class="card">
     <div class="row between wrap"><h2>Pakbon</h2>
@@ -3257,6 +3625,8 @@ function tabPakbon(c, g){
       </div></div>
     ${c.data.pakbon_bestand ? `<div class="row wrap mt8 pbfile"><span class="grow">📄 <b>${esc(pakbonNaam(c))}</b></span><button class="btn sm" data-act="pbkijk">Bekijken</button><button class="btn ghost sm" data-act="pbtab">Nieuw tabblad</button></div>`
       : R.length && OPSLAG !== false ? `<div class="row wrap mt8"><label class="btn sm file">Pakbonbestand bewaren<input type="file" accept=".pdf,.xlsx,.xls,.csv,image/*" data-change="pakbonBewaarIn"></label><span class="small muted">zonder opnieuw in te lezen</span></div>` : ''}
+    ${(c.data.bijlagen || []).map((b, n) => `<div class="row wrap mt8 pbfile"><span class="grow">📎 ${esc(b.orig || ('bijlage ' + (n + 1)))}</span><button class="btn sm" data-act="bijkijk" data-n="${n}">Bekijken</button></div>`).join('')}
+    ${inkoopBox(c)}
     ${pb.bestand ? `<p class="small muted mt8">${esc(pb.bestand)} · ${methode[pb.methode] || esc(pb.methode || '')}${pb.gelezen_op ? ' · ' + fdt(pb.gelezen_op) : ''}${pb.bl ? ' · B/L ' + esc(pb.bl) : ''}${pb.leverancier ? ' · herkend als ' + esc(pb.leverancier) : ''}</p>` : ''}
     <div class="status" id="pbstatus"></div>
     <div id="plakbox" class="mt12" ${UI.plak ? '' : 'hidden'}>
@@ -3609,17 +3979,19 @@ function regelRij(c, r, i){
   const eh = r.productcode ? eenheidVan(r.productcode) : 'st.';
   const inp = (k, v) => `<input class="num" data-regel="${i}" data-k="${k}" value="${v ?? ''}" inputmode="decimal">`;
   if(r.geenVoorraad) return `<tr style="opacity:.6"><td class="small muted">${r.sl || i + 1}</td><td colspan="9"><b>${esc(r.pakbon_code || '')}</b> <span class="muted">${esc(r.omschrijving || '')} · geen voorraad (verpakking, gaat direct naar Karin en Kata)</span></td><td><button class="btn ghost sm" data-act="geenvoorraad" data-i="${i}" title="Toch meetellen">terug</button> <button class="btn ghost sm" data-act="regeldel" data-i="${i}" title="Regel verwijderen">✕</button></td></tr>`;
+  const verschil = r.verschil ? `<tr class="verschil"><td></td><td colspan="10"><div class="vsbox"><b>${esc(r.productcode || r.pakbon_code || '')}</b>: ${r.verschil.soort === 'alleen-pakbon' ? 'pakbon zegt ' + nf(r.verschil.pakbon) + ', inkoop zegt niets (staat niet in de inkooporder)' : r.verschil.soort === 'alleen-inkoop' ? 'pakbon zegt niets, inkoop zegt ' + nf(r.verschil.inkoop) : 'pakbon zegt ' + nf(r.verschil.pakbon) + ', inkoop zegt ' + nf(r.verschil.inkoop)}
+      <span class="row wrap" style="gap:6px;margin-top:6px"><button class="btn sm" data-act="vspakbon" data-i="${i}">Pakbon klopt</button><button class="btn sm" data-act="vsinkoop" data-i="${i}">Inkoop klopt</button></span></div></td></tr>` : '';
   return `<tr class="${rc}">
     <td class="small muted">${r.sl || i + 1}</td>
     <td><input class="code" data-regel="${i}" data-k="pakbon_code" value="${esc(r.pakbon_code || '')}" style="min-width:130px;padding:4px 6px"><div class="desc">${esc(r.omschrijving || '')}${r.context ? ' <span style="opacity:.7">· ' + esc(r.context).slice(0, 90) + '</span>' : ''}</div></td>
     <td class="n">${inp('totaal', t)}</td><td class="n">${inp('per', pe)}</td><td class="n">${inp('aantal', a)}</td>
     <td><select data-regel="${i}" data-k="soort" style="width:auto;padding:4px 6px;font-size:12.5px"><option value="pallet" ${r.soort === 'pallet' ? 'selected' : ''}>pallets</option><option value="los" ${r.soort !== 'pallet' ? 'selected' : ''}>losse pakken</option></select></td>
     <td class="n hide-m">${nf(num(r.bruto_per), 1)}</td>
-    <td style="min-width:190px"><div class="row"><input class="code" list="dl-codes" data-regel="${i}" data-k="productcode" value="${esc(r.productcode || '')}" placeholder="kies productcode" style="padding:4px 6px">${r.productcode && !r.bevestigd ? `<button class="btn ok sm" data-act="bev" data-i="${i}" title="Klopt">✓</button>` : ''}</div>
-      <div class="tiny mt8" style="margin-top:3px"><span class="badge ${cls}" title="${esc(r.reden || '')}">${lbl}</span> ${r.productcode ? '<span class="muted">' + esc(naamVan(r.productcode)).slice(0, 60) + '</span>' : ''}${r.reden && r.match !== 'handmatig' && r.match !== 'exact' ? ' <span class="muted">· ' + esc(r.reden).slice(0, 90) + '</span>' : ''}${(r.kandidaten || []).length > 1 && !r.bevestigd ? '<div class="row wrap mt8" style="gap:4px">' + r.kandidaten.slice(0, 4).map(k => `<button class="btn sm" data-act="kieskand" data-i="${i}" data-code="${esc(k)}" title="${esc(naamVan(k))}">${esc(k)}</button>`).join('') + '</div>' : ''}</div></td>
+    <td style="min-width:190px"><div class="row"><input class="code" list="dl-codes" data-regel="${i}" data-k="productcode" value="${esc(r.productcode || '')}" placeholder="kies productcode" style="padding:4px 6px">${r.productcode && !r.bevestigd && !r.verschil ? `<button class="btn ok sm" data-act="bev" data-i="${i}" title="Klopt">✓</button>` : ''}</div>
+      <div class="tiny mt8" style="margin-top:3px"><span class="badge ${cls}" title="${esc(r.reden || '')}">${lbl}</span> ${r.ocr && !r.bevestigd ? '<span class="badge b-warn">nakijken (scan)</span> ' : ''}${r.productcode ? '<span class="muted">' + esc(naamVan(r.productcode)).slice(0, 60) + '</span>' : ''}${r.reden && r.match !== 'handmatig' && r.match !== 'exact' ? ' <span class="muted">· ' + esc(r.reden).slice(0, 90) + '</span>' : ''}${(r.kandidaten || []).length > 1 && !r.bevestigd ? '<div class="row wrap mt8" style="gap:4px">' + r.kandidaten.slice(0, 4).map(k => `<button class="btn sm" data-act="kieskand" data-i="${i}" data-code="${esc(k)}" title="${esc(naamVan(k))}">${esc(k)}</button>`).join('') + '</div>' : ''}</div></td>
     <td class="n">${inp('factor', f)}${f !== 1 ? `<div class="tiny muted">1 = ${nf(f)} ${eh}</div>` : ''}</td>
     <td class="n"><b>${nf((t || 0) * f)}</b> <span class="tiny muted">${eh}</span></td>
-    <td>${r.productcode ? '' : `<button class="btn ghost sm" data-act="geenvoorraad" data-i="${i}" title="Verpakking of iets dat niet in het magazijn komt">geen voorraad</button> `}<button class="btn ghost sm" data-act="regeldel" data-i="${i}" title="Regel verwijderen">✕</button></td></tr>`;
+    <td>${r.productcode ? '' : `<button class="btn ghost sm" data-act="geenvoorraad" data-i="${i}" title="Verpakking of iets dat niet in het magazijn komt">geen voorraad</button> `}<button class="btn ghost sm" data-act="regeldel" data-i="${i}" title="Regel verwijderen">✕</button></td></tr>` + verschil;
 }
 /* ---------- Picqer-ontvangst (inruimlijst PDF of Excel) → welke container is binnen ---------- */
 function leesOntvangstTekst(text, L){
@@ -3795,6 +4167,40 @@ function ontvangstKaart(){
     }).join('')}
   </div>`;
 }
+// Excel op koptekst gelezen (CPLEZER.leesExcelKoppen) -> hetzelfde resultaat als de lezers per leverancier
+function excelResultaat(ex){
+  const g = ex.gekozen, res = kopBasis(ex.tekst);
+  res.containers = ex.containers;
+  const tc = ex.kopTekst.replace(/[ \t]+/g, ' ');
+  const prof = PAKBON_LEV.concat([WALLACE]).find(pf => (pf.herken || pf.zoek).test(tc));
+  const h = CPLEZER.herkenLeverancier(ex.kopTekst, alleLeveranciers());
+  res.lev = prof ? levNaam(prof) : h.naam;   // niet gevonden = null (melden), nooit de eerste uit de lijst
+  res.levKandidaten = h.kandidaten;
+  res.ref = zoek1(ex.tekst, /INVOICE\s*No\.?\s*:?\s*([A-Z0-9][\w\/-]*)/i) || ex.po[0] || null;
+  res.po = ex.po;
+  res.regels = g.regels.map(x => {
+    const dozen = Number.isInteger(x.colli) && x.colli > 0 && x.colli < x.totaal;
+    const r = pbRegel(x.code || pakbonCode(x.oms, ''), x.oms || x.code, x.totaal, dozen ? Math.ceil(x.totaal / x.colli - 1e-9) : 1,
+      { bruto_per:x.bruto != null && x.colli > 0 ? afr(x.bruto / x.colli) : null });
+    if(dozen){ r.aantal = x.colli; if(x.totaal % x.colli) r.inhoud_wisselt = true; }
+    if(x.pallets) r.pallets = x.pallets;
+    if(x.po) r.po = x.po;
+    return r;
+  });
+  res.totaal_stuks = g.totaal_stuks; res.totaal_eenheden = g.totaal_eenheden;
+  if(ex.genegeerd.length) res.notities.push('Tabbladen niet meegeteld: ' + ex.genegeerd.map(x => x.naam + ' (' + x.reden + ')').join(' · ') + '.');
+  res.verzonden = docDatum(ex.tekst); res.profiel = 'excel';
+  res.docs = [{ container:ex.containers.length === 1 ? ex.containers[0] : null, regels:res.regels, totaal_stuks:g.totaal_stuks, totaal_eenheden:g.totaal_eenheden }];
+  return res;
+}
+// foto-OCR: kop/adres/fax/bank, specificaties en regels met totaal 0 worden nooit een productregel
+function ocrOpschonen(res){
+  const weg = [];
+  res.docs = (res.docs || []).map(d => { const o = CPLEZER.schoonOcr(d.regels); weg.push(...o.weg); return Object.assign({}, d, { regels:o.regels }); });
+  res.regels = [].concat(...res.docs.map(d => d.regels));
+  res.ocrWeg = weg;
+  return res;
+}
 // leest één bestand (PDF, scan, foto, Excel of tekst) en herkent leverancier + regels
 async function leesBestand(file, st){
   st = st || (() => {});
@@ -3817,10 +4223,21 @@ async function leesBestand(file, st){
     text = await ocrCanvasList(cvs, (pr, s2) => st(pr >= 0 ? 'Tekst herkennen… ' + Math.round(pr * 100) + '%' : 'Tekstherkenning starten… (' + s2 + ')'));
     methode = 'ocr'; res = leesPakbonTekst(text);
   } else if(/\.(xlsx|xls|csv)$/i.test(file.name)){
-    const arr = await leesSheet(file);
-    text = arr.map(r => r.map(v => v ?? '').join('\t')).join('\n');
-    res = leesPakbonTekst(arr.map(r => r.filter(v => v !== null && v !== '').join('   ')).join('\n'));
+    const sheets = await leesSheets(file), alsTekst = arr => arr.map(r => r.filter(v => v !== null && v !== '').join('   ')).join('\n');
+    const ex = CPLEZER.leesExcelKoppen(sheets);
     methode = 'excel';
+    if(ex.gekozen){   // kolommen herkend op koptekst
+      text = ex.tekst; res = excelResultaat(ex);
+    } else {          // geen koptekst herkend: de oude lezer per leverancier, tabblad voor tabblad
+      for(const sh of sheets){
+        text = sh.rijen.map(r => r.map(v => v ?? '').join('\t')).join('\n');
+        res = leesPakbonTekst(alsTekst(sh.rijen));
+        if(res.regels.length) break;
+      }
+      if(!res){ text = ''; res = leesPakbonTekst(''); }
+      res.po = CPLEZER.zoekPO(sheets.map(sh => alsTekst(sh.rijen)).join('\n'));
+      if(!res.lev){ const h = CPLEZER.herkenLeverancier(ex.kopTekst, alleLeveranciers()); if(h.naam) res.lev = h.naam; }
+    }
   } else {
     text = await file.text(); res = leesPakbonTekst(text); methode = 'plak';
   }
@@ -3828,31 +4245,45 @@ async function leesBestand(file, st){
     const simpel = parseSimpel(text);
     if(simpel.length){ res.regels = simpel; res.docs = [{ container:null, regels:simpel, totaal_stuks:null, totaal_eenheden:null }]; }
   }
+  if(methode === 'ocr') ocrOpschonen(res);
+  if(!res.po) res.po = CPLEZER.zoekPO(text);
   return { text, methode, res };
 }
 async function pakbonBestand(file){
   const c = cur, st = (m, cls) => { const s2 = $('pbstatus'); if(s2){ s2.textContent = m; s2.className = 'status ' + (cls || ''); } };
-  if(c.data.regels.length && !confirm('De huidige regels worden vervangen door deze pakbon. Doorgaan?')) return;
+  const had = c.data.regels.length > 0;
+  if(had && !confirm('Bijwerken: de pakbon wordt opnieuw gelezen. Regels die je bevestigde of die al verdeeld zijn blijven staan; de rest wordt vervangen. Doorgaan?')) return;
   try{
     const { text, methode, res } = await leesBestand(file, st);
     const doc = res.docs.find(d => d.container && d.container === c.containernummer) || res.docs[0];
     const andere = res.docs.map(d => d.container).filter(x => x && x !== doc.container);
-    if(res.lev && res.lev !== c.leverancier) c.leverancier = res.lev;
-    vulRegels(c, doc, res, file.name, methode, text);
+    if(c.id > 0 && (had || Object.keys(c.data.verdeling || {}).length)) await kopieContainer(c, 'pakbon opnieuw ingelezen: ' + file.name);
+    if(res.lev && res.lev !== c.leverancier && (!c.leverancier || !c.data.regels.some(r => isVast(c, r)))) c.leverancier = res.lev;
+    const vr = vulRegels(c, doc, res, file.name, methode, text);
     const inNaam = (file.name.toUpperCase().match(/[A-Z]{3}U\d{7}/) || [])[0];
-    if(!inNaam || inNaam === c.containernummer) zetLosMoment(c, losMoment(file.name));
+    if((!inNaam || inNaam === c.containernummer) && (!c.losdatum || isVerwacht(c))) zetLosMoment(c, losMoment(file.name));
     zetEtaAuto(c);
-    if(OPSLAG !== false){ try{ await pakbonBewaar(c, file); }catch(e){ toast('Pakbonbestand niet bewaard: ' + e.message, 5000); } }
+    if(OPSLAG !== false){ try{ if(c.data.pakbon_bestand) await bijlageBewaar(c, file); else await pakbonBewaar(c, file); }catch(e){ toast('Pakbonbestand niet bewaard: ' + e.message, 5000); } }
     save();
+    const po = await poRoute(c);
     const regels = c.data.regels;
     const n = regels.filter(r => !r.bevestigd).length;
     rerender();
     st(!regels.length ? 'Geen pakbonregels herkend. Controleer de ingelezen tekst onderaan, of plak/voeg de regels handmatig toe.'
-      : regels.length + ' regels ingelezen' + (res.lev ? ' (' + res.lev + ')' : '') + (methode === 'ocr' ? ' uit een scan — controleer de getallen' : '') + '. ' +
+      : regels.length + ' regels ingelezen' + (res.lev ? ' (' + res.lev + ')' : '') + (methode === 'ocr' ? ' uit een scan — alles staat oranje: nakijken' : '') + '. ' +
         (n ? n + ' regel(s) vragen om je bevestiging.' : 'Alles automatisch gekoppeld.') +
+        (!res.lev ? ' Leverancier niet herkend in het bestand: kies hem bij "Gegevens wijzigen".' : '') +
+        (vr.behouden ? ' ' + vr.behouden + ' vaste regel(s) niet aangeraakt.' : '') +
+        ((res.ocrWeg || []).length ? ' ' + res.ocrWeg.length + ' foto-regel(s) genegeerd (kop/adres/specificatie/aantal 0).' : '') + po +
         (andere.length ? ' Deze pakbon heeft ook container ' + andere.join(', ') + ' — lees hem in via "Pakbonnen inlezen" op het overzicht om die ook aan te maken.' : ''),
       regels.length ? 'ok' : 'err');
   }catch(e){ st('Inlezen mislukt: ' + e.message, 'err'); }
+}
+// extra pakbonbestand bij een container die er al een heeft (bijwerken): het eerste blijft staan
+async function bijlageBewaar(c, file){
+  const ext = ((file.name.match(/\.([a-z0-9]+)$/i) || [])[1] || 'pdf').toLowerCase(), pad = 'c' + c.id + '/bijlage-' + Date.now() + '.' + ext;
+  await opslagZet(pad, file); BLOBS[pad] = file;
+  c.data.bijlagen = (c.data.bijlagen || []).concat([{ pad, ext, type:file.type || '', orig:file.name, grootte:file.size, op:new Date().toISOString() }]);
 }
 // verzenddatum ophalen uit bewaarde pakbonnen van containers zonder datum, en daaruit de ETA
 async function etaUitPakbonnen(){
@@ -3880,15 +4311,25 @@ async function pakbonBewaarIn(file){
   try{ await pakbonBewaar(c, file); save(); rerender(); toast('Pakbon bewaard als "' + pakbonNaam(c) + '".'); }
   catch(e){ toast('Bewaren mislukt: ' + e.message, 6000); rerender(); }
 }
-async function pakbonToon(c, nieuwVenster){
-  const b = c.data.pakbon_bestand; if(!b) return;
+const isSheetBestand = b => /^(xlsx|xls|csv)$/i.test(b.ext || '') || /spreadsheet|excel|csv/i.test(b.type || '');
+const xlsxDoc = (naam, sheets, i) => '<!doctype html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(naam) + '</title><style>body{font:13px system-ui,sans-serif;margin:12px}.xl{border-collapse:collapse}.xl td,.xl th{border:1px solid #d9dfe7;padding:2px 6px;white-space:nowrap;vertical-align:top}.xl th.rn{background:#eef1f5;color:#5b6673;font-weight:600;text-align:right}h2{margin:18px 0 6px;font-size:15px}</style></head><body><h1 style="font-size:16px">' + esc(naam) + '</h1>' + sheets.map(sh => '<h2>Tabblad: ' + esc(sh.naam) + '</h2><div style="overflow:auto">' + CPLEZER.tabelHtml(sh.rijen) + '</div>').join('') + '</body></html>';
+async function pakbonToon(c, nieuwVenster, bestand){
+  const b = bestand || c.data.pakbon_bestand; if(!b) return;
   const w = nieuwVenster ? window.open('', '_blank') : null;
   try{
     const blob = await opslagHaal(b.pad);
+    const naam = bestand ? (b.orig || 'bijlage.' + b.ext) : pakbonNaam(c);
+    if(isSheetBestand(b)){   // Excel: als tabel tonen, per tabblad
+      if(!window.XLSX) throw new Error('Excel-lezer niet geladen (internet?)');
+      const sheets = await leesSheets(blob);
+      const url = URL.createObjectURL(blob);
+      if(nieuwVenster){ const u2 = URL.createObjectURL(new Blob([xlsxDoc(naam, sheets)], { type:'text/html' })); if(w && w.location) w.location.href = u2; else window.open(u2, '_blank'); return; }
+      UI.kijk = { url, naam, xl:sheets, xi:0 }; toonKijker(); return;
+    }
     const typed = blob.type ? blob : new Blob([blob], { type:b.type || (b.ext === 'pdf' ? 'application/pdf' : '') });
     const url = URL.createObjectURL(typed);
     if(nieuwVenster){ if(w && w.location) w.location.href = url; else window.open(url, '_blank'); return; }
-    UI.kijk = { url, naam:pakbonNaam(c), beeld:/^image\//.test(typed.type), pdf:/pdf/.test(typed.type) || b.ext === 'pdf' };
+    UI.kijk = { url, naam, beeld:/^image\//.test(typed.type), pdf:/pdf/.test(typed.type) || b.ext === 'pdf' };
     toonKijker();
   }catch(e){ if(w && w.close) w.close(); toast(e.message, 5000); }
 }
@@ -3897,26 +4338,47 @@ function toonKijker(){
   if(!UI.kijk){ if(el) el.remove(); return; }
   if(!el){ el = document.createElement('div'); el.id = 'kijker'; document.body.appendChild(el); }
   const k = UI.kijk;
+  const inhoud = k.xl ? `<div class="xlbody"><div class="xltabs">${k.xl.map((sh, i) => `<button class="btn sm ${i === (k.xi || 0) ? 'pri' : ''}" data-xlt="${i}">${esc(sh.naam)}</button>`).join('')}</div><div id="xlinhoud" style="overflow:auto">${CPLEZER.tabelHtml((k.xl[k.xi || 0] || { rijen:[] }).rijen)}</div></div>`
+    : k.beeld ? `<img src="${k.url}" alt="">` : k.pdf ? `<iframe src="${k.url}" title="pakbon"></iframe>` : `<div class="empty" style="color:#fff">Dit bestand kan de browser niet tonen. Gebruik Downloaden.</div>`;
   el.innerHTML = `<div class="kijk-kop"><b>${esc(k.naam)}</b><span class="grow"></span>
     <a class="btn sm" href="${k.url}" target="_blank">Nieuw tabblad</a><a class="btn sm" href="${k.url}" download="${esc(k.naam)}">Downloaden</a><button class="btn sm" id="kijk_dicht">Sluiten</button></div>
-    <div class="kijk-body">${k.beeld ? `<img src="${k.url}" alt="">` : k.pdf ? `<iframe src="${k.url}" title="pakbon"></iframe>` : `<div class="empty" style="color:#fff">Dit bestand kan de browser niet tonen. Gebruik Downloaden.</div>`}</div>`;
+    <div class="kijk-body">${inhoud}</div>`;
   $('kijk_dicht').onclick = () => { UI.kijk = null; toonKijker(); };
+  el.querySelectorAll('[data-xlt]').forEach(bn => { bn.onclick = () => { k.xi = +bn.dataset.xlt; toonKijker(); }; });
 }
 document.addEventListener('keydown', e => { if(e.key === 'Escape' && UI.kijk){ UI.kijk = null; toonKijker(); } });
 // zet de regels van één container (doc) uit een ingelezen pakbon in container c (zonder scherm)
+// vast = door Daan bevestigd of al verdeeld: bij bijwerken nooit vervangen
+const verdeeld = (c, code) => { const v = c.data.verdeling && c.data.verdeling[code]; return !!(v && ((v.porties && v.porties.length) || v.bevestigd)); };
+const isVast = (c, r) => !!(r.productcode && (verdeeld(c, r.productcode) || r.vast || r.match === 'handmatig'));
+// zet de regels van één container (doc) uit een ingelezen pakbon in container c (zonder scherm); vaste regels (bevestigd of verdeeld) blijven staan
 function vulRegels(c, doc, kop, bestand, methode, text){
-  c.data.regels = doc.regels.filter(r => !isGeenProduct(r)).map((r, i) => { const x = Object.assign({ id:'r' + uid(), soort:'pallet', factor:1 }, r, { sl:r.sl || i + 1 }); delete x.container; return x; });
+  const vast = (c.data.regels || []).filter(r => isVast(c, r));
+  const gelezen = doc.regels.filter(r => !isGeenProduct(r)).map((r, i) => { const x = Object.assign({ id:'r' + uid(), soort:'pallet', factor:1 }, r, { sl:r.sl || i + 1 }); delete x.container; return x; });
+  c.data.regels = gelezen;
   if(kop.ref && !c.pakbon_ref) c.pakbon_ref = kop.ref;
   if(doc.container && !c.containernummer) c.containernummer = doc.container;
   c.data.pakbon = { bestand, methode, gelezen_op:new Date().toISOString(), totaal_stuks:doc.totaal_stuks ?? null, totaal_eenheden:doc.totaal_eenheden ?? null,
     bl:kop.bl || null, eenheid:kop.perPallet ? 'pallet' : 'pakket', notities:kop.notities || [], leverancier:kop.lev || null,
     andere_containers:(kop.docs || []).map(d => d.container).filter(x => x && x !== doc.container) };
+  if((kop.ocrWeg || []).length) c.data.pakbon.ocr_weg = kop.ocrWeg.slice(0, 40);
   c.data.pakbon_ruw = (methode === 'ocr' || !c.data.regels.length) ? String(text || '').slice(0, 15000) : '';
   if(kop.verzonden){ c.data.verzonden = kop.verzonden.datum; c.data.verzonden_bron = kop.verzonden.bron; }
-  c.data.verdeling = {};
+  const po = [...new Set([].concat(kop.po || [], CPLEZER.zoekPO(String(text || '') + ' ' + String(bestand || ''))))];
+  if(po.length) c.data.po_gevonden = po;
+  if(!vast.length) c.data.verdeling = {};   // niets vast: schoon beginnen; met vaste regels blijven verdelingen en akkoorden zoals ze zijn
   koppelAlles(c);
+  if(methode === 'ocr') c.data.regels.forEach(r => { r.ocr = true; r.bevestigd = false; });   // foto's: alles nakijken, nooit stil als zeker aannemen
+  // wat al vaststaat (zelfde productcode) niet nog eens zetten
+  const vastCodes = new Set(vast.map(r => r.productcode));
+  const dubbel = c.data.regels.filter(r => r.productcode && vastCodes.has(r.productcode)).length;
+  c.data.regels = vast.concat(c.data.regels.filter(r => !(r.productcode && vastCodes.has(r.productcode))));
+  c.data.regels.forEach((r, i) => { if(!r.sl) r.sl = i + 1; });
+  // wat de pakbon zegt bewaren (voor het vergelijken met de inkooporder); foto's tellen niet als bron
+  c.data.pakbon_gelezen = methode === 'ocr' ? null : { bestand, op:new Date().toISOString(), regels:gelezen.map(r => JSON.parse(JSON.stringify(r))) };
   // zekere koppelingen (EAN, maat, code anders geschreven) direct leren, zodat de volgende container ze meteen weet
-  if(c.id > 0) c.data.regels.filter(r => r.bevestigd && ['ean', 'maat', 'exact'].includes(r.match)).forEach(r => leerZeker(r, c.leverancier));
+  if(c.id > 0) c.data.regels.filter(r => r.bevestigd && ['ean', 'maat', 'exact'].includes(r.match) && !r.ocr).forEach(r => leerZeker(r, c.leverancier));
+  return { behouden:vast.length, dubbel };
 }
 function zetRegels(c, regels, kop, bestand, methode, text){
   vulRegels(c, { container:kop.container || null, regels, totaal_stuks:kop.totaal_stuks ?? null, totaal_eenheden:kop.totaal_eenheden ?? null }, kop, bestand, methode, text);
@@ -4016,7 +4478,8 @@ async function pakbonnenBulk(files){
     const inNaam = (f.name.toUpperCase().match(/[A-Z]{3}U\d{7}/) || [])[0];   // scheelt tekstherkenning van scans die er al zijn
     const lm = losMoment(f.name);
     const alBekend = inNaam && CONT.find(x => x.containernummer === inNaam);
-    if(alBekend && (alBekend.data.regels || []).length){
+    const zelfdeBestand = alBekend && alBekend.data.pakbon_bestand && alBekend.data.pakbon_bestand.orig === f.name && alBekend.data.pakbon_bestand.grootte === f.size;
+    if(alBekend && (alBekend.data.regels || []).length && zelfdeBestand){
       const datum = zetLosMoment(alBekend, lm);
       const bestand = !alBekend.data.pakbon_bestand ? await bewaar(alBekend, f) : '';
       if(datum || bestand){
@@ -4046,25 +4509,29 @@ async function pakbonnenBulk(files){
       }
       for(const d of res.docs){
         const naam = (res.lev || 'Leverancier?') + ' · ' + (d.container || res.ref || f.name);
-        const bestaat = CONT.find(x => d.container ? x.containernummer === d.container : (res.ref && x.pakbon_ref === res.ref && (x.leverancier || '') === (res.lev || '')));
-        if(bestaat && (bestaat.data.regels || []).length){
-          const bestand = !bestaat.data.pakbon_bestand ? await bewaar(bestaat, f) : '';
-          if(bestand){ await bewaarContainer(bestaat); log(naam + ': stond er al.' + bestand, 'ok'); }
-          else log(naam + ': stond er al, overgeslagen.', 'muted');
-          continue;
+        const gevonden = zoekBestaand(res, d, text, f.name);
+        let bestaat = null;
+        if(gevonden){
+          const k = await bijwerkKeuze(gevonden.c, naam, gevonden.reden);
+          if(k === 'bijwerken') bestaat = gevonden.c;
         }
-        let c = bestaat;   // container stond er al maar nog zonder pakbon: aanvullen
+        let c = bestaat, bijgewerkt = null;
         if(!c){
           const r = await api('POST', 'containers', [{ leverancier:res.lev || null, pakbon_ref:res.ref || null, containernummer:d.container || null, status:'concept', data:{} }], { Prefer:'return=representation' });
           c = ensureData(r[0]); CONT.push(c);
-        } else if(res.lev) c.leverancier = res.lev;
-        vulRegels(c, d, res, f.name, methode, text);
-        if(!inNaam || d.container === inNaam) zetLosMoment(c, lm);
+        } else {
+          await kopieContainer(c, 'bijgewerkt met ' + f.name);
+          if(res.lev && !c.leverancier) c.leverancier = res.lev;
+          bijgewerkt = true;
+        }
+        const vr = vulRegels(c, d, res, f.name, methode, text);
+        if((!inNaam || d.container === inNaam) && (!bijgewerkt || !c.losdatum || isVerwacht(c))) zetLosMoment(c, lm);
         zetEtaAuto(c);
-        const bestand = await bewaar(c, f);
+        const bestand = bijgewerkt && c.data.pakbon_bestand ? await (async () => { if(OPSLAG === false) return ''; try{ await bijlageBewaar(c, f); return ' Bestand erbij bewaard als bijlage.'; }catch(e){ return ' Bestand niet bewaard (' + e.message.slice(0, 60) + ').'; } })() : await bewaar(c, f);
         await bewaarContainer(c);
+        const po = await poRoute(c);
         const open = c.data.regels.filter(x => !x.bevestigd).length;
-        log(naam + ': ' + plural(c.data.regels.length, 'regel', 'regels') + (open ? ', ' + open + ' nog koppelen' : ', alles gekoppeld') + (methode === 'ocr' ? ' (scan)' : '') + (c.losdatum ? ', lossen ' + losTekst(c) + (c.data.eta_auto ? ' (verzonden ' + fdate(c.data.verzonden, { day:'numeric', month:'short' }) + ' + ' + c.data.eta_auto.dagen + ' dagen)' : '') : ', nog geen ETA (geen datum op de pakbon gevonden)') + '.' + bestand, 'ok');
+        log((bijgewerkt ? 'Bijgewerkt: ' : '') + naam + ': ' + plural(c.data.regels.length, 'regel', 'regels') + (open ? ', ' + open + ' nog koppelen' : ', alles gekoppeld') + (methode === 'ocr' ? ' (scan, alles oranje: nakijken)' : '') + (vr.behouden ? ', ' + vr.behouden + ' vaste regel(s) niet aangeraakt' : '') + ((res.ocrWeg || []).length ? ', ' + res.ocrWeg.length + ' foto-regel(s) genegeerd' : '') + (c.losdatum ? ', lossen ' + losTekst(c) + (c.data.eta_auto ? ' (verzonden ' + fdate(c.data.verzonden, { day:'numeric', month:'short' }) + ' + ' + c.data.eta_auto.dagen + ' dagen)' : '') : ', nog geen ETA (geen datum op de pakbon gevonden)') + '.' + bestand + po + (!c.leverancier ? ' Leverancier niet herkend: kies hem in de container.' : ''), !c.leverancier ? 'err' : 'ok');
       }
     }catch(e){
       const i = UI.bulk.log.indexOf(regel); if(i >= 0) UI.bulk.log.splice(i, 1);
@@ -5054,7 +5521,7 @@ const ACT = {
   copysql: () => kopieer(SETUP_SQL),
   nieuwtoggle: () => { UI.nieuw = !UI.nieuw; viewHome(); if(UI.nieuw && $('n_datum')) $('n_datum').focus(); },
   nieuwmaak: async () => {
-    const row = { leverancier:$('n_lev').value, losdatum:$('n_datum').value || null, pakbon_ref:$('n_ref').value.trim() || null,
+    const row = { leverancier:$('n_lev').value || null, losdatum:$('n_datum').value || null, pakbon_ref:$('n_ref').value.trim() || null,
                   containernummer:$('n_cont').value.trim().toUpperCase() || null, status:'concept', data:{} };
     try{
       const r = await api('POST', 'containers', [row], { Prefer:'return=representation' });
@@ -5097,14 +5564,57 @@ const ACT = {
   },
   regeladd: () => { cur.data.regels.push({ id:'r' + uid(), sl:cur.data.regels.length + 1, pakbon_code:'', omschrijving:'', totaal:null, per:null, aantal:null, soort:'pallet', factor:1, productcode:'', match:'onbekend', bevestigd:false }); save(); rerender(); },
   regeldel: el => { const r = cur.data.regels[+el.dataset.i]; if(!confirm('Regel ' + (r.pakbon_code || '') + ' verwijderen?')) return; cur.data.regels.splice(+el.dataset.i, 1); save(); rerender(); },
-  bev: async el => { const r = cur.data.regels[+el.dataset.i]; r.bevestigd = true; if(r.factor_bron === 'voorstel') r.factor_bron = 'bevestigd'; save(); rerender(); await leer(r); },
+  bev: async el => { const r = cur.data.regels[+el.dataset.i]; r.bevestigd = true; r.vast = true; if(r.factor_bron === 'voorstel') r.factor_bron = 'bevestigd'; save(); rerender(); await leer(r); },
   allesbev: async () => {
-    const lijst = cur.data.regels.filter(r => r.productcode && !r.bevestigd);
-    lijst.forEach(r => { r.bevestigd = true; if(r.factor_bron === 'voorstel') r.factor_bron = 'bevestigd'; });
+    const lijst = cur.data.regels.filter(r => r.productcode && !r.bevestigd && !r.verschil);
+    lijst.forEach(r => { r.bevestigd = true; r.vast = true; if(r.factor_bron === 'voorstel') r.factor_bron = 'bevestigd'; });
     save(); rerender();
     for(const r of lijst) await leer(r);
     toast(lijst.length + ' koppelingen bevestigd en onthouden.');
   },
+  // verwijderen / samenvoegen
+  cverwijder: async el => { const c = CONT.find(x => x.id === +el.dataset.id); if(c) await containerVerwijderen(c); },
+  cterug: el => containerTerugzetten(+el.dataset.id),
+  csamen: async el => {
+    const a = CONT.find(x => x.id === +el.dataset.id); if(!a) return;
+    const dub = dubbelVan(a).map(d => d.met.id), rest = CONT.filter(x => x.id !== a.id).sort((x, y) => (dub.includes(y.id) ? 1 : 0) - (dub.includes(x.id) ? 1 : 0) || (y.losdatum || '').localeCompare(x.losdatum || ''));
+    if(!rest.length){ toast('Er is geen andere container om mee samen te voegen.'); return; }
+    const k = await dialoog({ titel:'Samenvoegen met…', html:`De regels van de gekozen container komen in <b>${esc(cNaam(a))}</b> (zelfde productcode en aantal één keer). De gekozen container gaat naar de prullenbak (30 dagen). Wat in ${esc(cNaam(a))} al bevestigd of akkoord is, blijft zoals het is.`,
+      opties:rest.map(x => [String(x.id), (dub.includes(x.id) ? 'Mogelijk dubbel · ' : '') + cNaam(x) + ' · ' + plural((x.data.regels || []).length, 'regel', 'regels') + (x.losdatum ? ' · ' + fdate(x.losdatum, { day:'numeric', month:'short' }) : '') + (aantalAkkoord(x) ? ' · ' + aantalAkkoord(x) + ' akkoord' : '')]),
+      knoppen:[{ id:'ja', label:'Samenvoegen', cls:'pri' }, { id:'nee', label:'Annuleren' }] });
+    if(k.knop !== 'ja') return;
+    await ACT.csamenmet({ dataset:{ id:String(a.id), met:k.waarde } });
+  },
+  csamenmet: async el => {
+    const a = CONT.find(x => x.id === +el.dataset.id), b = CONT.find(x => x.id === +el.dataset.met); if(!a || !b) return;
+    const akk = aantalAkkoord(b);
+    if(el.dataset.vraag !== '0' && (akk || b.losdatum) && !confirm('LET OP: ' + cNaam(b) + (akk ? ' heeft ' + akk + ' akkoord' : '') + (akk && b.losdatum ? ' en ' : '') + (b.losdatum ? ' een ' + (isVerwacht(b) ? 'ETA' : 'losdatum') + ' (' + fdate(b.losdatum, { day:'numeric', month:'short' }) + ')' : '') + '. Alleen waar ' + cNaam(a) + ' nog niets heeft overgenomen, daarna gaat hij naar de prullenbak. Doorgaan?')) return;
+    try{
+      const r = await samenvoegen(a, b);
+      toast(cNaam(b) + ' samengevoegd in ' + cNaam(a) + ': ' + r.toe + ' regel(s) erbij, ' + r.dub + ' dubbele regel(s) één keer' + (r.akk ? ', ' + r.akk + ' akkoord overgenomen' : '') + '. De andere container staat in de prullenbak.', 9000);
+      if(location.hash === '#/c/' + a.id + '/pakbon' || /^#\/c\//.test(location.hash)){ if(cur === a) rerender(); else location.hash = '#/c/' + a.id + '/pakbon'; } else viewHome();
+    }catch(e){ toast('Samenvoegen mislukt: ' + e.message, 8000); }
+  },
+  // regels uit de inkooporder
+  ikladen: el => inkoopLaden(cur, !!el.dataset.vers),
+  ikpo: () => {
+    const st = UI.ik[cur.id]; if(!st || !st.orders) return;
+    const v = ($('ik_po') || {}).value || '', p = CPLEZER.zoekPO(v)[0] || v.trim().toUpperCase();
+    const o = st.orders.find(x => x.po === p);
+    if(!o){ toast((p || 'Dit PO-nummer') + ' staat niet bij de open inkooporders van Picqer (al ontvangen of geannuleerd?).', 6000); return; }
+    st.keuze[o.id] = true; st.extra[o.id] = true; inkoopBoxTeken(cur);
+  },
+  ikneem: async () => {
+    const c = cur, st = UI.ik[c.id], ids = Object.keys(st.keuze).filter(k => st.keuze[k]).map(Number);
+    if(!ids.length){ toast('Vink eerst een inkooporder aan.'); return; }
+    if(c.data.regels.some(r => !isVast(c, r)) && !confirm('De pakbonregels die je nog niet bevestigde worden vervangen door de regels van de inkooporder(s). Bevestigde en verdeelde regels blijven staan. Doorgaan?')) return;
+    toast('Regels uit de inkooporder halen…', 3000);
+    try{ const r = await inkoopToepassen(c, ids); toast(inkoopTekst(r), 9000); }
+    catch(e){ toast('Inkooporder nemen mislukt: ' + e.message, 7000); }
+  },
+  vspakbon: el => { verschilBesluit(cur, +el.dataset.i, 'pakbon'); save(); rerender(); },
+  vsinkoop: el => { verschilBesluit(cur, +el.dataset.i, 'inkoop'); save(); rerender(); },
+  bijkijk: el => pakbonToon(cur, window.innerWidth < 700, (cur.data.bijlagen || [])[+el.dataset.n]),
   // verdeling
   advneem: el => { const code = el.dataset.code, pl = pools(cur); const a = advies(cur, pl.map[code]); if(!a.porties.length){ toast('Nog te bepalen: verdeel zelf.'); return; } if((cur.data.verdeling[code] || {}).bevestigd) return; cur.data.verdeling[code] = { porties:a.porties.map(x => Object.assign({}, x)), bevestigd:false, bron:'advies' }; save(); rerender(); },
   advalles: () => {
@@ -5167,7 +5677,7 @@ const ACT = {
   pbkijk: () => pakbonToon(cur, window.innerWidth < 700),
   pbaccepteer: () => { const k = pakbonControle(cur); if(!confirm('Pakbon wijkt af (' + k.tekst + '). Toch verder? Dit wordt bij de container vastgelegd.')) return; cur.data.pakbon = Object.assign({}, cur.data.pakbon, { afwijking_akkoord:{ op:new Date().toISOString(), tekst:k.tekst } }); save(); rerender(); },
   naarregels: () => { UI.open.pbtabel = true; if(tab !== 'pakbon'){ location.hash = '#/c/' + cur.id + '/pakbon'; setTimeout(() => { const e = document.querySelector('[data-det="pbtabel"]'); if(e) e.scrollIntoView(); }, 50); return; } rerender(); const e = document.querySelector('[data-det="pbtabel"]'); if(e) e.scrollIntoView(); },
-  kieskand: async el => { const r = cur.data.regels[+el.dataset.i]; if(!r) return; Object.assign(r, { productcode:el.dataset.code, match:'handmatig', bevestigd:true, reden:'gekozen uit ' + (r.kandidaten || []).length + ' kandidaten' }); delete r.kandidaten; save(); rerender(); await leer(r); },
+  kieskand: async el => { const r = cur.data.regels[+el.dataset.i]; if(!r) return; Object.assign(r, { productcode:el.dataset.code, match:'handmatig', bevestigd:true, vast:true, reden:'gekozen uit ' + (r.kandidaten || []).length + ' kandidaten' }); delete r.kandidaten; save(); rerender(); await leer(r); },
   pbtab: () => pakbonToon(cur, true),
   copyopslag: () => kopieer(OPSLAG_SQL),
   backup: () => backupMaken(),
@@ -5255,6 +5765,7 @@ app.addEventListener('change', e => {
     return;
   }
   if(el.dataset.ovc !== undefined){ UI.ontv[+el.dataset.ovc].cid = +el.value || null; viewHome(); return; }
+  if(el.dataset.ik !== undefined && cur){ const st = UI.ik[cur.id]; if(st){ st.keuze[el.dataset.ik] = el.checked; const b = document.querySelector('[data-act="ikneem"]'); if(b) b.disabled = !Object.values(st.keuze).some(Boolean); } return; }
   if(el.dataset.change === 'ontvangstHier' && el.files){
     const f = el.files[0]; el.value = ''; if(!f) return;
     UI.ontv = []; const c = cur;
