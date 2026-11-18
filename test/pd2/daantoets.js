@@ -353,6 +353,13 @@ function check(d, regel, waar, x){
     const tekst = { D49:'§7 De pakbon bepaalt de regels, de inkooporder geeft code + controle (som over containers), nooit een inkoopregel die niet op de pakbon staat; verschil = gele regel; kopie vooraf', D50:'§7 Foto-OCR: kop/fax/specificatie/totaal 0 nooit een productregel, alles oranje nakijken', D51:'§7 Excel op kopteksten en tekst-PDF Selected met kolommen (totaal 336/401, REMARKS-verdeling), leverancier niet gevonden = leeg', D52:'§7 Inlezen bij bestaande container = Bijwerken of Toch nieuwe; containernummer is de identiteit', D53:'§7 Verwijderen = prullenbak 30 dagen met Terugzetten (kopie vooraf, waarschuwing), samenvoegen', D54:'§7 Mogelijk dubbel alleen als label (nooit zelf verwijderen); Excel-bijlage als tabel' };
     for(const d of ['D49', 'D50', 'D51', 'D52', 'D53', 'D54']) if(doe(d)){ const g = groep(gr[d]); check(d, tekst[d], goed(g), g.length ? rood(g) : 'geen uitvoer van containerinkoop.js: ' + uit.slice(-200)); }
   }
+  /* ---------- Containers: zelfde product op meerdere regels (Besteel, Daan 18-11) ---------- */
+  if(doe('D55')){
+    let uit = '';
+    try{ uit = execSync('node containerbesteel.js', { cwd:__dirname, timeout:600000, env:Object.assign({}, process.env, { PD2_URL:B }) }).toString(); }catch(e){ uit = String((e.stdout || '') + (e.stderr || '')); }
+    const regels = uit.split('\n').filter(l => /^(OK|FOUT) /.test(l));
+    check('D55', '§7 Zelfde product op meerdere regels met andere "komt als" blijft apart; pallet-kostenregel is geen product; verdeling rekent met het totaal van alle regels in eigen pallets; zonder palletregel bij lossen bepalen', regels.length >= 5 && regels.every(l => /^OK/.test(l)), regels.filter(l => /^FOUT/.test(l)).map(l => l.slice(5, 90)).join(' | ') || (regels.length ? '' : 'geen uitvoer van containerbesteel.js: ' + uit.slice(-200)));
+  }
   /* ---------- repo ---------- */
   const root = path.join(__dirname, '..', '..');
   if(doe('D6')){

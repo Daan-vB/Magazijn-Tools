@@ -802,7 +802,8 @@ function kopBasis(text){
 const zoek1 = (text, rx) => { const m = String(text).match(rx); return m ? m[1].trim() : null; };
 // regels die geen product zijn (totalen, vracht, verzekering, korting, negatieve aantallen): nooit overnemen
 const RX_GEENPRODUCT = /sub\s*total|\btotal\b|\btotaal\b|say\s+total|extra\s+cost|freight|insurance|\bcharge\b|discount/i;
-const isGeenProduct = r => RX_GEENPRODUCT.test(String(r.pakbon_code || '') + ' ' + String(r.omschrijving || '')) || (num(r.aantal) || 0) < 0 || (num(r.totaal) || 0) < 0;
+const RX_PALLETKOSTEN = /^\s*(?:pallet|size)\b.*(?:\bfor\s+\S|\d+\s*[*x×]\s*\d+\s*[*x×]\s*\d+)/i;   // "Pallet 960*1120*120 For <code>": kosten van de pallets, geen product
+const isGeenProduct = r => RX_GEENPRODUCT.test(String(r.pakbon_code || '') + ' ' + String(r.omschrijving || '')) || RX_PALLETKOSTEN.test(String(r.omschrijving || '')) || RX_PALLETKOSTEN.test(String(r.pakbon_code || '')) || (num(r.aantal) || 0) < 0 || (num(r.totaal) || 0) < 0;
 // een pakbonregel in de vorm die de app kent
 function pbRegel(code, oms, totaal, per, extra){
   per = per && per > 0 ? per : 1;
@@ -893,16 +894,35 @@ function leesHongle(text, L){
   return res;
 }
 
-/* Luoyang Besteel — proforma: regel met alleen de artikelcode, daaronder omschrijving + volume/aantal/prijs */
+/* Luoyang Besteel — proforma: regel met alleen de artikelcode, daaronder omschrijving + volume/aantal/prijs.
+   Zelfde product op meerdere regels met andere "komt als" blijft apart (264 op pallets, 76 los "upper space / without pallets").
+   "Pallet 960*1120*120 For <code>" = kostenregel van de pallets, geen product: het aantal pallets hoort bij de productregel erboven (264 / 24 = 11 per pallet). */
 function leesBesteel(text, L){
   const res = kopBasis(text);
   res.ref = zoek1(text, /PI\s*NO\s*:?\s*([A-Z]{2}-[A-Z]?\d+)/i);
+  const LOS = /without\s+pallets?|upper\s+space/i;
   let code = null, laatste = null;
+  const wachtPal = {};   // pallets-kostenregel vóór de productregel: bewaren tot de regel er is
+  const alsPallets = (r, n) => {
+    if(!(n > 0) || r.soort === 'pallet') return false;
+    if(r.totaal % n){ res.notities.push(n + ' pallets bij ' + r.pakbon_code + ' gaan niet op in ' + r.totaal + ' stuks — als los gelezen, nakijken.'); return false; }
+    r.per = r.totaal / n; r.aantal = n; r.soort = 'pallet'; return true;
+  };
+  const markeerLos = r => { if(r && !r.los){ r.los = true; r.omschrijving += ' (zonder pallet, bovenin container)'; } };
+  let vorigeRegel = false, losVolgende = false;
   L.forEach(l => {
-    const s = l.s.trim();
+    const s = l.s.trim(), eerderRegel = vorigeRegel; vorigeRegel = false;
     if(/^[A-Z]{2}(?:-[A-Za-z0-9]+)+$/.test(s)){ code = s; return; }
-    const pal = s.match(/^Pallet\b.*?([\d.]+) {3,}([\d.]+) {3,}(\d+) {3,}US\$/i);
-    if(pal){ res.notities.push(pal[3] + ' pallets meegestuurd (' + (s.match(/For\s+([^ ].*?)(?: {3,}|$)/i) || ['', 'zie pakbon'])[1].replace(/,\s*$/, '') + '…).'); return; }
+    // kostenregel pallets: "Pallet 960*1120*120 For <code>   …   24   US$ …" (geen product)
+    if(/^(?:Pallet|Size)\b/i.test(s) && (/\bFor\s+\S/i.test(s) || /\d+\s*[*x×]\s*\d+\s*[*x×]\s*\d+/.test(s) || /US\$/.test(s))){
+      const nm = s.match(/(\d+) {3,}US\$/), n = nm ? +nm[1] : 0;
+      const voor = ((s.match(/For\s+([^ ].*?)(?: {3,}|$)/i) || [])[1] || '').replace(/,\s*$/, '').trim();
+      const kode = voor || code;
+      const doel = [...res.regels].reverse().find(r => r.pakbon_code === kode && r.soort !== 'pallet' && !r.los);
+      if(doel) alsPallets(doel, n); else if(n > 0 && kode) wachtPal[kode] = n;
+      res.notities.push(n + ' pallets (kostenregel, geen product) bij ' + (kode || 'zie pakbon') + '.');
+      return;
+    }
     const tot = s.match(/IN TOTAL\b.*?(\d+) {3,}\//i);
     if(tot){ res.totaal_stuks = +tot[1]; return; }
     if(/Product Total/i.test(s)) return;
@@ -910,9 +930,12 @@ function leesBesteel(text, L){
     if(m && code){
       laatste = pbRegel(code, code, +m[3], 1);
       if(!num(m[4])) laatste.omschrijving += ' (gratis)';
+      if(LOS.test(s) || losVolgende) markeerLos(laatste);
+      else if(wachtPal[code]){ alsPallets(laatste, wachtPal[code]); delete wachtPal[code]; }
+      losVolgende = false; vorigeRegel = true;
       res.regels.push(laatste); return;
     }
-    if(laatste && /without pallets/i.test(s) && !/zonder pallet/.test(laatste.omschrijving)) laatste.omschrijving += ' (zonder pallet, bovenin container)';
+    if(LOS.test(s)){ if(laatste && eerderRegel) markeerLos(laatste); else losVolgende = true; }
   });
   return res;
 }
@@ -2143,14 +2166,16 @@ function poolsBouw(c){
       const n = Math.floor(p.losU / spp);
       for(let i = 0; i < n; i++) p.pallets.push(spp);
       p.losU -= n * spp; p.gebouwd = n;
-    } else if(!p.spp && auto && R.maxpal && losRegels.length && p.losU > 0){
+    } else if(!p.spp && auto && R.maxpal && p.regels.length && Math.abs(p.totaalU - Math.round(p.totaalU)) < 1e-9 && p.totaalU > 0){
+      // altijd het totaal van alle regels van het product, in eigen pallets van hoogstens maxpal, los van hoe het binnenkomt (§7)
       // eerst wat op pick past, de rest gelijk verdeeld over pallets van hoogstens maxpal
       const room = R.pickmax ? Math.max(0, R.pickmax - Math.max(0, feiten(code).vrij)) : 0;
-      const rest = Math.max(0, p.losU - room);
+      const totU = Math.round(p.totaalU), rest = Math.max(0, totU - room);
       if(rest > 0){
         const np = Math.ceil(rest / R.maxpal), basis = Math.floor(rest / np), extra = rest - basis * np;
+        p.pallets = [];
         for(let i = 0; i < np; i++) p.pallets.push(basis + (i < extra ? 1 : 0));
-        p.losU -= rest; p.gebouwd = np;
+        p.losU = totU - rest; p.gebouwd = np;
       }
     }
     // al (deels) geleverd via een eerdere ontvangst: dat deel telt niet meer mee
@@ -2260,6 +2285,8 @@ function adviesKern(c, pool, eerder){
   if(qtySoort((geh1(code) || {}).qty) === 'onb') return teBepalen('stuks per pallet onbekend — nog te bepalen, verdeel zelf');
   // "geen verkoophistorie" alleen als er in 6 maanden echt geen enkele bestelling is (bestellingen live); zonder live bestellingen zegt het dat
   const geenVk = f.vkBron === 'bestellingen' ? 'geen verkoophistorie (6 mnd geen bestelling)' : 'geen verzonden verkoop in de import (bestellingen niet live)';
+  // zelfde product op meerdere regels met andere "komt als" (pallets én los) en geen palletregel: niet raden hoe wij het wegzetten
+  if(pool.regels.some(r => r.soort === 'pallet') && pool.regels.some(r => r.soort !== 'pallet') && !sppVan(code) && !(R.losdest || R.pickmax || R.restdest || R.bulk || R.maxpal)) return teBepalen('twee regels (pallets en los) en geen palletregel — bij lossen bepalen, verdeel zelf');
   if(!f.rate && !pallets.length && !sppVan(code) && !(R.losdest || R.pickmax || R.restdest || R.bulk || R.maxpal)) return teBepalen(geenVk + ' en geen bekende pallet — nog te bepalen, verdeel zelf');
   // soort Bulk (productdata): pallet alleen op bulk, nooit naar pick; zonder bekende stuks per pallet blijft het bij lossen bepalen
   const PDd = window.PDBRON && PDBRON.cp ? PDBRON.cp(code) : null;   // productdata: soort, stuks per pallet, max op pick, aanvullen bij (bevestigd of vastgelegd)
@@ -2500,7 +2527,7 @@ async function route(){
   return viewHome();
 }
 window.addEventListener('hashchange', route);
-window.CP_TEST = { zetBlob:(pad, blob) => { BLOBS[pad] = blob; }, zetInkoop:o => { INKOOPC = { t:Date.now(), o, ob:null }; }, inkoopOpen, inkoopToepassen, inkoopTekst, poRoute, verschilBesluit, pakbonZeker, zoekBestaand, naarPrullenbak, containerVerwijderen, containerTerugzetten, samenvoegen, prullen:() => PRULLEN, dubbelVan:c => dubbelVan(c), kopieContainer, vulRegels, ocrOpschonen, excelResultaat, koppelKleur, zetProduct:p => { LIVEP[p.productcode] = p; liveToevoegen(p); }, alleLeveranciers, isVast:(c, r) => isVast(c, r), leesBestand, pakbonnenBulk, levKort, heeftProduct:c => !!P[c], leesControle:t => { const res = leesPakbonTekst(t); const c = ensureData({ id:-9, leverancier:res.lev, status:'concept', data:{} }); vulRegels(c, res.docs[0], res, 'test.txt', 'plak', t); return Object.assign(pakbonControle(c), { lev:res.lev }); }, pakbonControle, koppelMaat, voorDaan, statusBalkTest:c => statusBalk(c, voortgang(c)), alias:() => ALIAS, koppel, koppelInkoopMet, herkoppelRegels, leerZeker, leesPakbonTekst2:(t) => leesPakbonTekst(t), isGeenProduct, aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, adviesKern, leegEerder, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
+window.CP_TEST = { zetGeheugen:(code, rec) => { const cat = Object.assign({}, CAT); cat['zz-' + code] = Object.assign({ sub:code, name:code, ean:'', qty:'' }, rec); indexCatalog(cat); wisCache(); }, zetBlob:(pad, blob) => { BLOBS[pad] = blob; }, zetInkoop:o => { INKOOPC = { t:Date.now(), o, ob:null }; }, inkoopOpen, inkoopToepassen, inkoopTekst, poRoute, verschilBesluit, pakbonZeker, zoekBestaand, naarPrullenbak, containerVerwijderen, containerTerugzetten, samenvoegen, prullen:() => PRULLEN, dubbelVan:c => dubbelVan(c), kopieContainer, vulRegels, ocrOpschonen, excelResultaat, koppelKleur, zetProduct:p => { LIVEP[p.productcode] = p; liveToevoegen(p); }, alleLeveranciers, isVast:(c, r) => isVast(c, r), leesBestand, pakbonnenBulk, levKort, heeftProduct:c => !!P[c], leesControle:t => { const res = leesPakbonTekst(t); const c = ensureData({ id:-9, leverancier:res.lev, status:'concept', data:{} }); vulRegels(c, res.docs[0], res, 'test.txt', 'plak', t); return Object.assign(pakbonControle(c), { lev:res.lev }); }, pakbonControle, koppelMaat, voorDaan, statusBalkTest:c => statusBalk(c, voortgang(c)), alias:() => ALIAS, koppel, koppelInkoopMet, herkoppelRegels, leerZeker, leesPakbonTekst2:(t) => leesPakbonTekst(t), isGeenProduct, aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, adviesKern, leegEerder, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 function rerender(){
   const y = window.scrollY;
