@@ -73,6 +73,7 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 ## 7. Containers (containerplanning.html)
 - Containers komen binnen in dozen; het team bouwt zelf pallets. "Los" alleen bij een pakbonregel met Per = 1; anders dozen ("5 dozen à 100").
 - Nooit losse stuks uit een doos naar pick; pick krijgt hele dozen of niets.
+- VASTE REGEL VST (Daan 19-11): naar VST gaan ALLEEN volle pallets (regels "pallets à N"). Losse rollen, dozen en stuks gaan NOOIT naar VST: eerst naar pick tot max op pick, rest naar bulk (IVOL); zonder max op pick alles los naar bulk + "bij lossen bepalen". Geldt voor het advies, ook bij oude regels (restdest/losdest VST) en het productgeheugen. Kiest iemand handmatig VST bij een los-regel: gele melding "VST neemt alleen pallets", geen blokkade.
 - Voorraad op "geen specifieke locatie" telt niet als pick-voorraad.
 - Een krat (bijv. E4005-10KG, krat van 100) telt als 1 pallet.
 - Pakbon = hoe het binnenkomt (info). Verdeling = hoe wij wegzetten: opslagpallet uit het productgeheugen, per regel aan te passen; akkoord telt alleen het totaal.

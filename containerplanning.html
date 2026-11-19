@@ -2202,6 +2202,9 @@ function pakbonEenheden(c){
   return out;
 }
 const nogOpen = (c, k) => { const pb = pakbonEenheden(c)[k]; return pb ? Math.max(0, pb.u - (num((c.data.geleverd || {})[k]) || 0)) : 0; };
+// VST neemt alleen volle pallets (Daan 19-11): een los-portie met bestemming VST is een gele melding, geen blokkade
+const losNaarVst = x => !!x && x.soort !== 'pallet' && x.dest === 'VST' && portieU(x) > 0;
+const VST_MELDING = 'VST neemt alleen pallets';
 function portieU(x){ return x.soort === 'pallet' ? (num(x.n) || 0) * (num(x.per) || 0) : (num(x.n) || 0); }
 // akkoord telt alleen eenheden: som van alle regels = totaal binnen
 function restVan(pool, porties){
@@ -2313,9 +2316,9 @@ function adviesKern(c, pool, eerder){
       const doos = dz.length && dz.every(x => x > 1 && Math.abs(x - Math.round(x)) < 1e-9) ? Math.round(dz.reduce((a, x) => ggd(a, Math.round(x)), 0)) : 1;
       const naarBo = Math.min(Math.round(pool.losU), Math.ceil(rest / doos) * doos);
       if(naarBo > 0) porties.push({ soort:'los', n:naarBo, dest:'BO' });
-      if(Math.round(pool.losU) - naarBo > 0) porties.push({ soort:'los', n:Math.round(pool.losU) - naarBo, dest:'VST' });
+      if(Math.round(pool.losU) - naarBo > 0) porties.push({ soort:'los', n:Math.round(pool.losU) - naarBo, dest:'UP' });   // VST neemt alleen pallets (Daan 19-11)
     }
-    return { porties, uitleg:'productdata: Backorder → alleen de backorders (' + nf(boNu) + '), de rest naar VST', feiten:f, eerder, proj:0, verbruik:0, uitVst:0, mnd:maandenTot(c) };
+    return { porties, uitleg:'productdata: Backorder → alleen de backorders (' + nf(boNu) + '), de rest pallets naar VST' + (pool.losU > 0 ? ', los naar Bulk (up)' : ''), feiten:f, eerder, proj:0, verbruik:0, uitVst:0, mnd:maandenTot(c) };
   }
   // alleen hele eenheden (st., rollen, hele meters/cm) en losse goederen alleen in hele dozen ("Per" van de pakbonregel)
   if(Math.abs(pool.losU - Math.round(pool.losU)) > 1e-9) return teBepalen('aantal is geen heel getal — nog te bepalen, verdeel zelf');
@@ -2350,21 +2353,24 @@ function adviesKern(c, pool, eerder){
     need = Math.max(0, doel - vrij);
     uitleg.push('doel ' + nf(doel) + ' (' + nf(maanden, 1) + ' mnd × ' + nf(f.rate) + '/mnd ' + (f.vkBron === 'bestellingen' ? 'bestellingen' : 'verzonden') + '), vrij ' + nf(vrij));
   }
-  // 3. los -> eerst hier aanvullen tot het doel, rest naar VST
+  // 3. los -> eerst naar pick tot max op pick, rest naar Bulk (up). VST neemt ALLEEN volle pallets: losse rollen, dozen en stuks gaan nooit naar VST,
+  //    ook niet via een oude regel of het productgeheugen (VASTE REGEL Daan 19-11). Zonder max op pick: alles los naar Bulk, bij lossen bepalen.
   if(pool.losU > 0){
+    const maxOp = R.pickmax || (PDd && PDd.soort !== 'bulk' && PDd.soort !== 'weg' && PDd.soort !== 'twijfel' && PDd.maxpick > 0 ? PDd.maxpick : 0);
+    const naarBulk = d => d === 'VST' ? 'UP' : d;
     if(R.losdest){
-      porties.push({ soort:'los', n:pool.losU, dest:R.losdest });
-      uitleg.push('alles los naar ' + DEST[R.losdest].nl + (R.verplaats ? ', per ' + nf(R.verplaats) + ' naar pick verplaatsen' : ''));
-    } else if(R.pickmax || R.restdest || R.bulk || R.maxpal){
-      const room = R.pickmax ? Math.max(0, R.pickmax - Math.max(0, vrij - Math.min(Math.max(0, vrij), geenPlek(code)))) : pool.losU;   // voorraad op geen specifieke locatie telt niet als pick-voorraad (CLAUDE.md §7)
+      porties.push({ soort:'los', n:pool.losU, dest:naarBulk(R.losdest) });
+      uitleg.push('alles los naar ' + DEST[naarBulk(R.losdest)].nl + (R.losdest === 'VST' ? ' (VST neemt alleen pallets)' : '') + (R.verplaats ? ', per ' + nf(R.verplaats) + ' naar pick verplaatsen' : ''));
+    } else if(maxOp || R.restdest || R.bulk || R.maxpal){
+      const room = maxOp ? Math.max(0, maxOp - Math.max(0, vrij - Math.min(Math.max(0, vrij), geenPlek(code)))) : pool.losU;   // voorraad op geen specifieke locatie telt niet als pick-voorraad (CLAUDE.md §7)
       const hierU = R.bulk || R.maxpal ? pool.losU : Math.min(pool.losU, naarDozen(room, false));
+      const restD = naarBulk(R.restdest || 'UP');
       if(hierU > 0) porties.push({ soort:'los', n:hierU, dest:'PICK' });
-      if(pool.losU - hierU > 0) porties.push({ soort:'los', n:pool.losU - hierU, dest:R.restdest || 'VST' });
-      uitleg.push((R.pickmax ? 'max op pick ' + nf(R.pickmax) + ', ruimte ' + nf(room) : 'rest naar pick') + (pool.losU - hierU > 0 ? ' · rest naar ' + DEST[R.restdest || 'VST'].nl : ''));
+      if(pool.losU - hierU > 0) porties.push({ soort:'los', n:pool.losU - hierU, dest:restD });
+      uitleg.push((maxOp ? 'max op pick ' + nf(maxOp) + ', ruimte ' + nf(room) : 'rest naar pick') + (pool.losU - hierU > 0 ? ' · rest los naar ' + DEST[restD].nl : '') + (R.restdest === 'VST' ? ' (VST neemt alleen pallets)' : ''));
     } else {
-      const hierU = Math.max(0, Math.min(pool.losU, naarDozen(need, true)));
-      if(hierU > 0) porties.push({ soort:'los', n:hierU, dest:'PICK' });
-      if(pool.losU - hierU > 0) porties.push({ soort:'los', n:pool.losU - hierU, dest:'VST' });
+      porties.push({ soort:'los', n:pool.losU, dest:'UP', note:'bij lossen bepalen' });
+      uitleg.push('geen max op pick bekend: alles los naar Bulk (up) — bij lossen bepalen (VST neemt alleen pallets)');
     }
     need -= pool.losU;
   }
@@ -2403,6 +2409,9 @@ function adviesKern(c, pool, eerder){
   else if(!PDa && PDd && PDd.soort) uitleg.push('(oude regel: productdata mist ' + (PDd.maxpick > 0 ? 'de soort' : 'max op pick') + ')');
   else uitleg.push('(oude regel)');
   porties.forEach(x => { x.n = Math.round(x.n); });   // nooit decimalen in een verdeling
+  // vangnet: los → nooit VST (VST neemt alleen volle pallets), wat de bron ook is; losse porties naar Bulk (up) samenvoegen
+  porties.forEach(x => { if(x.soort !== 'pallet' && x.dest === 'VST') x.dest = 'UP'; });
+  for(let i = porties.length - 1; i > 0; i--){ const a = porties[i]; if(a.soort === 'pallet') continue; const j = porties.findIndex((y, k) => k < i && y.soort !== 'pallet' && y.dest === a.dest && (y.note || '') === (a.note || '')); if(j >= 0){ porties[j].n += a.n; porties.splice(i, 1); } }
   return { porties, uitleg:uitleg.join(' · '), feiten:f, eerder, proj, verbruik, uitVst, mnd };
 }
 function portiesGelijk(a, b){
@@ -2656,7 +2665,7 @@ function lossenKaart(c, code){
   const veld = ([k, lbl, breed]) => k === 'stand'
     ? `<div class="fld"><label>${esc(lbl)}</label><select data-ll="${esc(code)}" data-lk="stand"><option value=""></option>${['staand', 'liggend'].map(x => `<option ${u.stand === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>`
     : `<div class="fld${breed ? ' breed' : ''}"><label>${esc(lbl)}</label><input data-ll="${esc(code)}" data-lk="${k}" value="${esc(u[k] ?? '')}" placeholder="${esc(ph[k] || '')}"${['geteld', 'per', 'dpp', 'hoogte', 'gewicht'].includes(k) ? ' inputmode="decimal"' : ''} autocomplete="off"></div>`;
-  const stand = naar ? `<b>${esc(allesTekst(c, code, v.porties))}</b>${akk ? ' <span class="badge b-ok">akkoord</span>' : ''}` : nu ? '' : '<span class="badge b-info">bij lossen bepalen</span>';
+  const stand = naar ? `<b>${esc(allesTekst(c, code, v.porties))}</b>${akk ? ' <span class="badge b-ok">akkoord</span>' : ''}${v.porties.some(losNaarVst) ? ` <span class="badge b-warn vstmeld">${VST_MELDING}</span>` : ''}` : nu ? '' : '<span class="badge b-info">bij lossen bepalen</span>';
   return `<div class="vcard llrij" data-ll-kaart="${esc(code)}" data-ll-stand="${nu ? 'nu' : naar ? 'naar' : 'lossen'}" data-code="${esc(code)}">
     <span class="code" style="font-size:14px">${esc(code)}</span><span class="small grow">${esc(labelNaam(code))} · pakbon ${esc(pakbonLossen(c, code, 'nl'))}${stand ? ' · ' + stand : ''}</span>
     ${lossenSelect(c, code)}
@@ -3609,6 +3618,8 @@ function statusBalk(c, g){
   if(kies.length) L.push({ cls:'b-warn', t:plural(kies.length, 'regel', 'regels') + ' niet herkend', knop:'<button class="btn sm" data-act="naarregels">Kies</button>' });
   if(oranje.length) L.push({ cls:'b-warn', t:plural(oranje.length, 'koppeling', 'koppelingen') + ' nog controleren (oranje)', knop:'<button class="btn sm" data-act="naarregels">Bekijk</button> <button class="btn ok sm" data-act="allesbev">Alles bevestigen</button>' });
   if(!pakbonBlokkeert(c) && g.n && g.akk < g.nAk) L.push({ cls:'b-warn', t:'Verdeling: ' + g.akk + ' van ' + g.nAk + ' akkoord' + (g.lossen ? ' · ' + g.lossen + ' bij lossen bepalen' : ''), knop:'<button class="btn ok sm" data-act="akkalles">Alles akkoord</button>' });
+  const vstLos = (g.pl ? g.pl.order : []).filter(code => ((c.data.verdeling[code] || {}).porties || []).some(losNaarVst));
+  if(vstLos.length) L.push({ cls:'b-warn vstmeld', t:VST_MELDING + ': ' + plural(vstLos.length, 'product heeft', 'producten hebben') + ' losse stuks naar VST (' + vstLos.slice(0, 4).join(', ') + (vstLos.length > 4 ? ' …' : '') + '). Los gaat eerst naar pick, de rest naar bulk.', knop:'<button class="btn sm" data-act="naarregels">Bekijk</button>' });
   const vd = voorDaan(c, g.pl).length;
   const daan = vd ? ` · <a href="#/voordaan" class="small">Voor Daan: ${vd}</a>` : '';
   const info = `<details class="mt8" data-det="statusinfo" ${UI.open.statusinfo ? 'open' : ''}><summary class="small muted">toon info (${g.pts.length} punten)</summary>${puntenKaart(c, g.pts)}</details>`;
@@ -4956,7 +4967,7 @@ function verdeelKaart(c, pool){
     return `<div class="vcard okk" id="v-${esc(code)}" data-code="${esc(code)}"><div class="row between wrap">
       <div class="grow"><span class="code" style="font-size:14px">${esc(code)}</span> <span class="small muted">${esc(naamVan(code))}</span>
       <div class="small">${vkTekst(f)}</div>
-      <div class="chips mt8">${(v.porties || []).filter(x => portieU(x) > 0).sort((a, b) => DEST_ORDER.indexOf(a.dest) - DEST_ORDER.indexOf(b.dest)).map(x => `<span class="badge d-${x.dest}">${x.soort === 'pallet' ? x.n + '× ' + eenhTekst(c, code, x.per) : losPortie(c, code, x.n)} → ${DEST[x.dest].nl}${x.note ? ', ' + esc(x.note) : ''}</span>`).join('')}</div></div>
+      <div class="chips mt8">${(v.porties || []).filter(x => portieU(x) > 0).sort((a, b) => DEST_ORDER.indexOf(a.dest) - DEST_ORDER.indexOf(b.dest)).map(x => `<span class="badge d-${x.dest}">${x.soort === 'pallet' ? x.n + '× ' + eenhTekst(c, code, x.per) : losPortie(c, code, x.n)} → ${DEST[x.dest].nl}${x.note ? ', ' + esc(x.note) : ''}</span>${losNaarVst(x) ? ` <span class="badge b-warn vstmeld">${VST_MELDING}</span>` : ''}`).join('')}</div></div>
       <span class="badge b-ok">akkoord</span><button class="btn ghost sm" data-act="vopen">details / wijzigen</button></div></div>`;
   }
   return `<div class="vcard ${cls}" id="v-${esc(code)}">
@@ -4976,7 +4987,7 @@ function verdeelKaart(c, pool){
       ${(v.porties || []).map((x, i) => `<div class="portie" data-i="${i}">
         <input class="num" data-p="n" value="${x.soort !== 'pallet' && dz ? doosAantal(dz, num(x.n) || 0) : x.n}" inputmode="decimal" style="width:64px">
         ${x.soort === 'pallet' ? maatSel(x) : dz ? '<span class="small">dozen</span>' : `<span class="small">${eh === 'st.' ? 'st.' : eh === 'rol' ? 'rollen' : eh} los</span>`}
-        <span class="small">→</span>${destSel(x)}
+        <span class="small">→</span>${destSel(x)}${losNaarVst(x) ? ` <span class="badge b-warn vstmeld" title="Losse rollen, dozen en stuks gaan eerst naar pick en de rest naar bulk (IVOL)">${VST_MELDING}</span>` : ''}
         <input class="note" data-p="note" value="${esc(x.note || '')}" placeholder="notitie (bijv. klant, locatie AD/AE)">
         <button class="btn ghost sm" data-act="pdel" title="Verwijderen">✕</button></div>`).join('')}
       <div class="row wrap mt8">

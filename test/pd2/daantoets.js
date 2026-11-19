@@ -360,6 +360,13 @@ function check(d, regel, waar, x){
     const regels = uit.split('\n').filter(l => /^(OK|FOUT) /.test(l));
     check('D55', '§7 Zelfde product op meerdere regels met andere "komt als" blijft apart; pallet-kostenregel is geen product; verdeling rekent met het totaal van alle regels in eigen pallets; zonder palletregel bij lossen bepalen', regels.length >= 5 && regels.every(l => /^OK/.test(l)), regels.filter(l => /^FOUT/.test(l)).map(l => l.slice(5, 90)).join(' | ') || (regels.length ? '' : 'geen uitvoer van containerbesteel.js: ' + uit.slice(-200)));
   }
+  /* ---------- Containers: alleen pallets naar VST (Daan 19-11) ---------- */
+  if(doe('D56')){
+    let uit = '';
+    try{ uit = execSync('node containervst.js', { cwd:__dirname, timeout:600000, env:Object.assign({}, process.env, { PD2_URL:B }) }).toString(); }catch(e){ uit = String((e.stdout || '') + (e.stderr || '')); }
+    const regels = uit.split('\n').filter(l => /^(OK|FOUT) /.test(l));
+    check('D56', '§7 VST neemt ALLEEN volle pallets: los (rollen, dozen, stuks) gaat nooit naar VST (eerst pick tot max op pick, rest bulk; zonder max alles bulk + bij lossen bepalen), ook niet uit oude regels of productgeheugen; pallet-regel mag wel VST; handmatig VST bij los = gele melding "VST neemt alleen pallets", geen blokkade', regels.length >= 7 && regels.every(l => /^OK/.test(l)), regels.filter(l => /^FOUT/.test(l)).map(l => l.slice(5, 90)).join(' | ') || (regels.length ? '' : 'geen uitvoer van containervst.js: ' + uit.slice(-200)));
+  }
   /* ---------- repo ---------- */
   const root = path.join(__dirname, '..', '..');
   if(doe('D6')){
