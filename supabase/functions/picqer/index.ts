@@ -3,6 +3,9 @@
 //  Supabase Edge Function "picqer". Plak dit bestand in Supabase:
 //  Edge Functions → Deploy a new function → Via Editor (naam: picqer).
 //
+//  Inloggen: de app met de koppelcode (header x-ivol-code). De nachtelijke ververs-workflow in GitHub met de servicesleutel van dit
+//  Supabase-project (header x-ivol-dienst; GitHub haalt hem op met het bestaande SUPABASE_ACCESS_TOKEN, er komt geen nieuwe sleutel bij).
+//
 //  Geheimen (Edge Functions → Secrets), nooit in de app of de repo:
 //    PICQER_DOMAIN     bv. ivol.picqer.com
 //    PICQER_KEY        Picqer API-sleutel
@@ -32,17 +35,20 @@
 //  met CORS en diag { picqerStatus, ms, paginas, retryAfter }; bij een fout ook { fout, status, wacht, soort } en bij 429 wachtSec.
 //  soort = picqer-weigert (sleutel of verzoek geweigerd) · picqer-druk (429) · picqer-traag (geen antwoord op tijd) · picqer-weg (niet bereikbaar)
 //          · tijd-op (functie stopt zelf) · ongeldig (verkeerde vraag van de app)
+//                              Optioneel &mag=1: alleen orders van het Hoofdmagazijn (orders met een ander idwarehouse tellen niet mee).
+//                              Het antwoord meldt altijd hoeveel orders per idwarehouse zijn gezien (magazijnen), zonder klantgegevens.
 //    versie      zonder koppelcode: { versie, acties } — om te zien of de nieuwe versie live staat (geen gegevens uit Picqer)
 // =====================================================================
 
 const DOMEIN = (Deno.env.get("PICQER_DOMAIN") || "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
 const SLEUTEL = (Deno.env.get("PICQER_KEY") || "").trim();
 const CODE = (Deno.env.get("IVOL_CODE") || "").trim();
+const DIENST = (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "").trim();
 const MAGAZIJN = Number(Deno.env.get("PICQER_WAREHOUSE") || "3857");
 const BASIS = Deno.env.get("PICQER_BASE") || (DOMEIN ? "https://" + (DOMEIN.includes(".") ? DOMEIN : DOMEIN + ".picqer.com") + "/api/v1" : "");
 const HERKOMST = ["https://daan-vb.github.io"];
 const UA = "IVOL Warehouse (github.com/Daan-vB/Magazijn-Tools)";
-const VERSIE = "2026-11-21.1";   // bij elke wijziging ophogen: actie "versie" laat zien wat er live staat
+const VERSIE = "2026-11-21.2";   // bij elke wijziging ophogen: actie "versie" laat zien wat er live staat
 const ACTIES = ["status", "vandaag", "producten", "picklijst", "catalogus", "locaties", "ontvangsten", "keten", "ontvangstenlijst", "verplaatsingen",
   "historielicht", "idindex", "historietest", "bestellingen", "mutaties", "locatielijst", "niveaus", "lees", "versie"];
 
@@ -578,14 +584,15 @@ async function historieLicht(sindsTxt: string, totTxt: string, paginasTxt: strin
 
 // bestelde aantallen (zoals de grafiek Bestellingen in Picqer): per dag en productcode, alleen lezen, geen klantgegevens.
 // sinds/tot gaan als sincedate/untildate mee (aanmaakmoment van de order). Lukt een volgende pagina niet, dan komt wat er is terug met volgende.
-async function bestellingen(sindsTxt: string, totTxt: string, paginasTxt: string | null, offsetTxt: string | null, rd: Ronde) {
+async function bestellingen(sindsTxt: string, totTxt: string, paginasTxt: string | null, offsetTxt: string | null, rd: Ronde, alleenHoofd = false) {
   if (!MOMENT.test(sindsTxt || "")) throw new Fout("Ongeldig moment (sinds)", 400);
   if (totTxt && !MOMENT.test(totTxt)) throw new Fout("Ongeldig moment (tot)", 400);
   const sinds = volMoment(sindsTxt), tot = totTxt ? volMoment(totTxt) : null, n = aantalPaginas(paginasTxt, 10);
   const startOff = Math.max(0, Math.floor((parseInt(offsetTxt || "0", 10) || 0) / 100) * 100);
   const pad = "orders?sincedate=" + encodeURIComponent(sinds) + (tot ? "&untildate=" + encodeURIComponent(tot) : "");
   const som = new Map<string, number>();
-  let gedaan = 0, orders = 0, buiten = 0, klaar = false, onderbroken = "", wachtSec: number | null = null;
+  const magazijnen: Record<string, number> = {};   // diagnose: orders per idwarehouse zoals Picqer ze meldt ("geen" = veld ontbreekt)
+  let gedaan = 0, orders = 0, buiten = 0, anderMag = 0, klaar = false, onderbroken = "", wachtSec: number | null = null;
   for (let p = 0; p < n && !klaar; p++) {
     if (p > 0 && !tijdVoorPagina(rd)) { onderbroken = "tijd op na " + p + " pagina's"; break; }
     let pagina: any;
@@ -603,6 +610,9 @@ async function bestellingen(sindsTxt: string, totTxt: string, paginasTxt: string
       // buiten het gevraagde venster (als Picqer sincedate/untildate negeert): niet tellen, anders telt een order in twee vensters
       if (moment < sinds || (tot && moment > tot)) { buiten++; if (moment < sinds) ouder++; continue; }
       if (st === "cancelled" || st === "concept") continue;
+      const mg = o.idwarehouse === undefined || o.idwarehouse === null || o.idwarehouse === "" ? "geen" : String(o.idwarehouse);
+      magazijnen[mg] = (magazijnen[mg] || 0) + 1;
+      if (alleenHoofd && mg !== "geen" && Number(mg) !== MAGAZIJN) { anderMag++; continue; }
       orders++;
       for (const r of (Array.isArray(o.products) ? o.products : [])) {
         if (r.partof_idorder_product) continue;   // onderdeel van een samengesteld product: telt via het hoofdproduct
@@ -618,7 +628,7 @@ async function bestellingen(sindsTxt: string, totTxt: string, paginasTxt: string
     if (pagina.length < 100 || (nieuwsteEerst && ouder === pagina.length)) klaar = true;
   }
   return {
-    bron: "picqer-bestellingen", versie: 1, sinds, tot, opgehaald: new Date().toISOString(), orders, buiten,
+    bron: "picqer-bestellingen", versie: 1, sinds, tot, opgehaald: new Date().toISOString(), orders, buiten, magazijnen, anderMag,
     rijen: [...som].map(([k, a]) => { const [d, c] = k.split("\t"); return [d, c, a]; }),
     volgende: klaar ? null : startOff + gedaan * 100,
     ...(onderbroken ? { onderbroken } : {}), ...(wachtSec ? { wachtSec } : {}), diag: diagNu(rd),
@@ -672,7 +682,7 @@ async function licht(actie: string, url: URL, origin: string | null): Promise<Re
   try {
     const werk = actie === "historietest" ? historieTest(rd)
       : actie === "historielicht" ? historieLicht(q("sinds") || "", q("tot") || "", q("paginas"), q("idproduct"), rd, q("offset"))
-      : actie === "bestellingen" ? bestellingen(q("sinds") || "", q("tot") || "", q("paginas"), q("offset"), rd)
+      : actie === "bestellingen" ? bestellingen(q("sinds") || "", q("tot") || "", q("paginas"), q("offset"), rd, q("mag") === "1")
       : idIndex(q("soort") || "", q("offset") || "0", q("paginas"), rd);
     const rem = new Promise<never>((_, nee) => {
       noodrem = setTimeout(() => nee(new LichtFout("Tijd op: de functie stopt zelf na " + LICHT_BUDGET_MS / 1000 + " s", 503, true)), LICHT_BUDGET_MS + 2000);
@@ -712,8 +722,10 @@ Deno.serve(async (req: Request) => {
   // versie: zonder koppelcode en zonder Picqer, alleen welke versie en welke acties live staan
   if (new URL(req.url).searchParams.get("actie") === "versie") return antwoord({ versie: VERSIE, acties: ACTIES }, 200, origin);
   if (!BASIS || !SLEUTEL) return antwoord({ fout: "PICQER_DOMAIN of PICQER_KEY ontbreekt bij de Secrets in Supabase." }, 500, origin);
-  if (!CODE) return antwoord({ fout: "IVOL_CODE ontbreekt bij de Secrets in Supabase." }, 500, origin);
-  if ((req.headers.get("x-ivol-code") || "").trim() !== CODE) return antwoord({ fout: "Koppelcode klopt niet.", code: "koppelcode" }, 401, origin);
+  if (!CODE && !DIENST) return antwoord({ fout: "IVOL_CODE ontbreekt bij de Secrets in Supabase." }, 500, origin);
+  const dienst = (req.headers.get("x-ivol-dienst") || "").trim();
+  const metDienst = !!DIENST && dienst === DIENST;   // servicesleutel van het project: kan de database toch al alles, dus geen extra rechten
+  if (!metDienst && (req.headers.get("x-ivol-code") || "").trim() !== CODE) return antwoord({ fout: "Koppelcode klopt niet.", code: "koppelcode" }, 401, origin);
   const url = new URL(req.url);
   const actie = url.searchParams.get("actie") || "status";
   try {
