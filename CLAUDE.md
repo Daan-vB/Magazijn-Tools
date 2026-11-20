@@ -5,6 +5,7 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 ## 1. Systeem en data
 - Picqer alleen lezen. Nooit schrijven naar Picqer (pas na akkoord van Maxime). Schrijven alleen in eigen opslag (Supabase), en altijd eerst een kopie van wat je overschrijft.
 - Alles live uit Picqer via het tussenstation (Supabase-functie "picqer", koppelcode in localStorage 'ivol-koppelcode'). Nooit Daan om een export, screenshot of bestand vragen voor iets wat live te lezen is.
+- Verkoop per maand (wh-verkoop-mnd + tabel verkoop), voorraad per locatie (wh-voorraad) en locaties (wh-locaties) verversen elke nacht 05:30 vanzelf uit live Picqer (GitHub-workflow ververs.yml, script .github/ververs/ververs.py; Daan exporteert niet meer). Bij elke dataset staat de datum ververst; ouder dan 36 uur = oranje melding. Excel-import blijft reserve. Log is openbaar: alleen aantallen, nooit producten.
 - Picqer is eigenaar van naam, productcode, EAN en prijzen. Het magazijn is eigenaar van gewicht en aanvulinstellingen. Productcode is heilig.
 - Inkoop en alles buiten het magazijn: zichtbaar, nooit bewerkbaar.
 - Nooit stil wijzigen wat Daan heeft bevestigd of zelf heeft ingevuld; een akkoord blijft akkoord.

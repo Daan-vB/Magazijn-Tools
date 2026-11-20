@@ -37,10 +37,10 @@ def haal_dienstsleutel():
     with urllib.request.urlopen(r, timeout=60) as x:
         sleutels = json.loads(x.read())
     for k in sleutels:
-        if k.get("name") == "service_role" and k.get("api_key"):
+        if str(k.get("name", "")).startswith("service") and k.get("api_key"):
             print("::add-mask::" + k["api_key"])
             return k["api_key"]
-    raise SystemExit("Geen service_role-sleutel gevonden bij het project")
+    raise SystemExit("Geen servicesleutel gevonden bij het project")
 
 
 def fn(actie, params=None, pogingen=8):

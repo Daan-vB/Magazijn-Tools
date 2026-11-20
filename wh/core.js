@@ -224,7 +224,7 @@ function zetPQ(d){
 }
 // voorraad per locatie (Picqer "stock"-export): per product { locs:{loc:aantal}, geen:aantal op geen specifieke locatie, cont:{kar:aantal} }
 function zetVoorraad(d){
-  D.VR = {}; D.VRDATUM = d ? d.datum : null;
+  D.VR = {}; D.VRDATUM = d ? d.datum : null; D.VRBRON = d && d.bron || 'export';
   ((d && d.rows) || []).forEach(([code, loc, n, cont]) => {
     const c = D.PLOW[String(code).toLowerCase()] || code;
     const v = D.VR[c] = D.VR[c] || { locs:{}, geen:0, cont:{} };

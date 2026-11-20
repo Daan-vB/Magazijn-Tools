@@ -367,6 +367,21 @@ function check(d, regel, waar, x){
     const regels = uit.split('\n').filter(l => /^(OK|FOUT) /.test(l));
     check('D56', '§7 VST neemt ALLEEN volle pallets: los (rollen, dozen, stuks) gaat nooit naar VST (eerst pick tot max op pick, rest bulk; zonder max alles bulk + bij lossen bepalen), ook niet uit oude regels of productgeheugen; pallet-regel mag wel VST; handmatig VST bij los = gele melding "VST neemt alleen pallets", geen blokkade', regels.length >= 7 && regels.every(l => /^OK/.test(l)), regels.filter(l => /^FOUT/.test(l)).map(l => l.slice(5, 90)).join(' | ') || (regels.length ? '' : 'geen uitvoer van containervst.js: ' + uit.slice(-200)));
   }
+  /* ---------- Verkoop, voorraad en locaties automatisch uit live Picqer (Daan 21-11) ---------- */
+  if(doe('D57')){
+    const r = (...x) => { try{ return fs.readFileSync(path.join(__dirname, '..', '..', ...x), 'utf8'); }catch(e){ return ''; } };
+    const wf = r('.github', 'workflows', 'ververs.yml'), py = r('.github', 'ververs', 'ververs.py'), fnc = r('supabase', 'functions', 'picqer', 'index.ts'), ivol = r('wh', 'ivol.js'), views = r('wh', 'views.js');
+    const sec = /secrets\.[A-Z_]+/g, geheimen = [...new Set(wf.match(sec) || [])];
+    const uit = [
+      ['workflow: elke nacht (cron) + handmatige knop', /cron:/.test(wf) && /workflow_dispatch/.test(wf) && /Europe\/Amsterdam/.test(wf)],
+      ['workflow gebruikt alleen het bestaande secret SUPABASE_ACCESS_TOKEN', geheimen.length === 1 && geheimen[0] === 'secrets.SUPABASE_ACCESS_TOKEN'],
+      ['script leest Picqer alleen via het tussenstation (geen eigen Picqer-aanroep, geen sleutel)', !/picqer\.com|PICQER_KEY/i.test(py) && /functions\/v1\/picqer/.test(py)],
+      ['script maakt vóór de eerste overschrijving een kopie wh-kopie-<naam>-20261121 (verkoop-mnd, voorraad, locaties, tabel verkoop)', /wh-kopie-\{naam\}-\{KOPIE\}/.test(py) && ['wh-verkoop-mnd', 'wh-voorraad', 'wh-locaties', '"verkoop"'].every(n => py.includes('kopie(' + (n[0] === '"' ? n : '"' + n + '"'))) ],
+      ['tussenstation laat alleen GET naar Picqer toe en nieuwe versie live', /method: "GET"/.test(fnc) && !/method: "(POST|PUT|PATCH|DELETE)"/.test(fnc.replace(/\/\/.*$/gm, '')) && /x-ivol-dienst/.test(fnc)],
+      ['app toont per dataset wanneer hij ververst is en meldt oranje na 36 uur', /> 36/.test(ivol) && /> 36/.test(views) && /nachtOud/.test(ivol)],
+    ];
+    check('D57', '§1 Alles live uit Picqer via het tussenstation, geen exports meer: verkoop per maand, voorraad per locatie en locaties verversen elke nacht 05:30 automatisch (alleen lezen uit Picqer, kopie vooraf, geen nieuwe sleutels); datum ververst zichtbaar, oranje na 36 uur', uit.every(x => x[1]), uit.filter(x => !x[1]).map(x => x[0]).join(' | '));
+  }
   /* ---------- repo ---------- */
   const root = path.join(__dirname, '..', '..');
   if(doe('D6')){

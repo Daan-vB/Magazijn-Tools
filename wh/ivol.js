@@ -252,6 +252,10 @@ function viewFundament(){
 const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 const dag2 = iso => { if(!iso) return null; const d = new Date(String(iso).length <= 10 ? iso + 'T12:00:00' : iso); return isNaN(d) ? null : d; };
 const oud = iso => { const d = dag2(iso); if(!d) return null; const a = new Date(isoDag(d) + 'T12:00:00'), n = new Date(vandaag() + 'T12:00:00'); return Math.round((n - a) / 864e5); };
+/* gegevens die elke nacht automatisch uit live Picqer komen (GitHub, 05:30): ouder dan 36 uur = oranje melding */
+const uurOud = iso => { const t = iso ? new Date(iso).getTime() : NaN; return isNaN(t) ? null : (Date.now() - t) / 36e5; };
+const wanneerUur = iso => { const u = uurOud(iso); if(u == null) return 'nooit'; const t = new Date(iso).toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', hour12:false }); return t + (u < 1 ? ' (net)' : u < 48 ? ' (' + Math.round(u) + ' uur geleden)' : ' (' + Math.floor(u / 24) + ' dagen geleden)'); };
+const nachtOud = iso => uurOud(iso) == null || uurOud(iso) > 36;
 const wanneer = iso => { const d = dag2(iso); if(!d) return 'nooit'; const n = oud(iso); return n === 0 ? 'vandaag' : n === 1 ? 'gisteren' : n + ' dagen geleden'; };
 function blok(nr, titel, kleur, kern, regels, linkId, linkTxt){
   return `<section class="fblok ${kleur}"><div class="fkop"><span class="fnr">${nr}</span><h2>${esc(titel)}</h2></div>
@@ -361,11 +365,13 @@ async function rekenFundament(){
     // gegevens: hoe vers
     const boD = (D.BO || []).reduce((m, r) => r.geimporteerd_op && (!m || r.geimporteerd_op > m) ? r.geimporteerd_op : m, null);
     const pD = Object.values(D.P).reduce((m, r) => r.picqer_datum && (!m || r.picqer_datum > m) ? r.picqer_datum : m, null);
-    UI.stats.oudExp = [['Backorders', boD, 1], ['Aanvuladvies-PDF', D.ADV && (D.ADV.ingelezen || D.ADV.datum), 1], ['Voorraad per locatie', D.VRDATUM, 1], ['Producten', pD, 7], ['Locaties', D.LOCDATUM, 7], ['Aanvulniveaus (Picqer)', D.PQDATUM, 7]]
-      .filter(([t, iso, max]) => oud(iso) == null || oud(iso) > max).map(([t, iso]) => ({ t, w:wanneer(iso) }));
+    UI.stats.oudExp = [['Backorders', boD, 1], ['Aanvuladvies-PDF', D.ADV && (D.ADV.ingelezen || D.ADV.datum), 1], ['Producten', pD, 7], ['Aanvulniveaus (Picqer)', D.PQDATUM, 7]]
+      .filter(([t, iso, max]) => oud(iso) == null || oud(iso) > max).map(([t, iso]) => ({ t, w:wanneer(iso) }))
+      .concat([['Verkoop per maand', D.VKM && D.VKM.datum], ['Voorraad per locatie', D.VRDATUM], ['Locaties', D.LOCDATUM]].filter(([t, iso]) => nachtOud(iso)).map(([t, iso]) => ({ t, w:wanneerUur(iso) + ', ouder dan 36 uur: de nachtelijke ververs is niet gelukt' })));
+    const rijNacht = (t, iso) => `<tr><td>${esc(t)}</td><td class="${nachtOud(iso) ? 'let' : ''}">${esc(wanneerUur(iso))}</td><td class="muted">elke nacht 05:30</td></tr>`;
     const rij = (t, iso, max) => `<tr><td>${esc(t)}</td><td class="${oud(iso) == null || oud(iso) > max ? 'let' : ''}">${esc(wanneer(iso))}</td><td class="muted">${max === 0 ? 'dagelijks' : max === 1 ? 'dagelijks' : 'elke ' + max + ' dagen'}</td></tr>`;
     h += `<section class="blok vers"><h2>Hoe vers zijn de gegevens</h2><div class="tabel"><table><thead><tr><th>Export</th><th>Laatst</th><th>Ritme</th></tr></thead><tbody>
-      ${rij('Backorders', boD, 1)}${rij('Aanvuladvies-PDF', D.ADV && (D.ADV.ingelezen || D.ADV.datum), 1)}${rij('Voorraad per locatie', D.VRDATUM, 1)}${rij('Producten', pD, 7)}${rij('Locaties', D.LOCDATUM, 7)}${rij('Aanvulniveaus (Picqer)', D.PQDATUM, 7)}
+      ${rij('Backorders', boD, 1)}${rij('Aanvuladvies-PDF', D.ADV && (D.ADV.ingelezen || D.ADV.datum), 1)}${rijNacht('Voorraad per locatie', D.VRDATUM)}${rijNacht('Verkoop per maand', D.VKM && D.VKM.datum)}${rijNacht('Locaties', D.LOCDATUM)}${rij('Producten', pD, 7)}${rij('Aanvulniveaus (Picqer)', D.PQDATUM, 7)}
       </tbody></table></div><p class="muted klein">Picqer live: ${LIVE() ? 'gekoppeld op dit apparaat' : 'niet gekoppeld op dit apparaat'}. Met de vaste koppeling (gesprek Maxime) vervallen deze exports.</p></section>`;
   }catch(e){ console.error(e); h = `<div class="melding">Rekenen lukte niet: ${esc(e.message)}</div>`; }
   UI.cache = h;
@@ -481,7 +487,7 @@ function viewBronnen(){
     <section class="blok"><div class="rij" style="justify-content:space-between;align-items:center"><h2>Gegevens</h2><button class="knop" data-a="ververs" ${B.bezig ? 'disabled' : ''}>Nu verversen</button></div>
       ${B.bezig ? `<p class="muted">${esc(B.bezig)}</p>` : ''}${B.fout ? `<div class="melding">${esc(B.fout.message || String(B.fout))}</div>` : ''}
       <div class="tabel"><table><thead><tr><th>Gegevens</th><th>Bron</th><th>Laatst</th><th>Ritme</th><th>Vervangt</th></tr></thead><tbody>
-      ${B.rijen.map(r => `<tr><td><b>${esc(r.t)}</b>${r.extra ? `<br><span class="muted">${esc(r.extra)}</span>` : ''}</td><td><i class="st ${r.bron === 'live' ? 'ok' : 'warn'}">${r.bron}</i></td><td>${esc(tijdKort(r.op))}</td><td class="muted">${esc(r.ritme)}</td><td class="muted">${esc(r.vervangt)}</td></tr>`).join('')}
+      ${B.rijen.map(r => `<tr><td><b>${esc(r.t)}</b>${r.extra ? `<br><span class="muted">${esc(r.extra)}</span>` : ''}</td><td><i class="st ${r.bron === 'live' ? 'ok' : 'warn'}">${r.bron}</i></td><td class="${r.nacht && nachtOud(r.op) ? 'let' : ''}">${esc(tijdKort(r.op))}${r.nacht && nachtOud(r.op) ? ' · ouder dan 36 uur' : ''}</td><td class="muted">${esc(r.ritme)}</td><td class="muted">${esc(r.vervangt)}</td></tr>`).join('')}
       </tbody></table></div>
       <p class="muted klein">Aanvulniveaus worden pas de waarheid voor alle apps na een volle ronde én als ze voor minstens 90% gelijk zijn aan de laatste export. Zo weten we zeker dat de velden uit Picqer de goede zijn.</p></section>
     <section class="blok"><h2>Productdata als bron</h2>

@@ -22,6 +22,12 @@ function exportLeeftijd(iso){
   const d = dagenOud(iso);
   return badge(d < 1 ? 'vandaag ' + new Date(iso).toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' }) : Math.floor(d) + ' dag' + (Math.floor(d) === 1 ? '' : 'en') + ' oud', d < 1 ? 'b-ok' : d < 7 ? 'b-warn' : 'b-bad');
 }
+// gegevens die elke nacht automatisch uit live Picqer komen: ouder dan 36 uur = oranje (de nachtelijke ververs is niet gelukt)
+function nachtLeeftijd(iso){
+  if(!iso) return badge('ontbreekt', 'b-bad');
+  const u = (Date.now() - new Date(iso).getTime()) / 36e5, t = new Date(iso).toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', hour12:false });
+  return badge(t + (u > 36 ? ' · ouder dan 36 uur' : ''), u > 36 ? 'b-warn' : 'b-ok');
+}
 function dataDatums(){
   const eerste = (arr, k) => arr.reduce((m, r) => r[k] && (!m || r[k] > m) ? r[k] : m, null);
   return {
@@ -706,12 +712,13 @@ function viewGegevens(){
     <div id="impst" class="status"></div></div>
   <div class="card"><h3>Stand</h3><div class="scroll mt8"><table><tr><th>Bron</th><th>Leeftijd</th><th class="n">Aantal</th></tr>
     ${rij('Productexport', 'producten', nf(Object.keys(D.P).length), 'Picqer → Producten → Exporteren (alle producten). Neemt ook aanvulniveaus mee.')}
-    ${rij('Locatie-export', 'locaties', nf(Object.keys(D.LOC).length), 'Picqer → Instellingen → Locaties → Import/Export → Exporteren.')}
+    <tr><td><b>Locaties</b><div class="desc">Elke nacht 05:30 automatisch uit live Picqer; welke producten aan een locatie gekoppeld zijn komt nog uit de locatie-export (Picqer → Instellingen → Locaties → Import/Export).</div></td><td>${nachtLeeftijd(D.LOCDATUM)}</td><td class="n">${nf(Object.keys(D.LOC).length)}</td></tr>
     <tr><td><b>VST-palletlocaties</b><div class="desc">Zelfde locatie-export, maar dan van magazijn Bulk van Spreuwel: palletnummers per product.</div></td><td>${exportLeeftijd(D.VSTDATUM)}</td><td class="n">${nf(Object.keys(D.VSTLOC).length)} producten</td></tr>
-    <tr><td><b>Voorraad per locatie</b><div class="desc">Aantal per product per locatie, incl. geen specifieke locatie en retourkarren (export "stock-….xlsx"). Nodig voor de controle na het lossen.</div></td><td>${exportLeeftijd(D.VRDATUM)}</td><td class="n">${nf(Object.keys(D.VR).length)} producten</td></tr>
+    <tr><td><b>Voorraad per locatie</b><div class="desc">Aantal per product per locatie, incl. geen specifieke locatie en retourkarren. Elke nacht 05:30 automatisch uit live Picqer (reserve: export "stock-….xlsx"). Nodig voor de controle na het lossen.</div></td><td>${nachtLeeftijd(D.VRDATUM)}</td><td class="n">${nf(Object.keys(D.VR).length)} producten</td></tr>
     <tr><td><b>VST: voorraad per pallet</b><div class="desc">Zelfde export, magazijn Bulk van Spreuwel.</div></td><td>${exportLeeftijd(D.VSTVRDATUM)}</td><td class="n">${nf(Object.keys(D.VSTVR).length)} producten</td></tr>
     ${rij('Backorders', 'backorders', nf(D.BO.length) + ' regels', 'Picqer → Backorders → Exporteer backorders. De vorige stand wordt bewaard (opgelost / open / nieuw).')}
-    <tr><td><b>Magazijnverkopen</b><div class="desc">Picqer → Rapporten → Magazijnverkopen. Vul hierboven de periode in en laad het bestand in. Verkoop/maand = totaal gedeeld door het aantal maanden.</div></td><td>${exportLeeftijd(dataDatums().verkoop)}</td><td class="n">${vkPeriodeTxt()}</td></tr>
+    <tr><td><b>Verkoop per maand</b><div class="desc">Elke nacht 05:30 automatisch uit de bestellingen in live Picqer (13 volle maanden + lopende maand). Reserve: Picqer → Rapporten → Magazijnverkopen, maand in de bestandsnaam.</div></td><td>${nachtLeeftijd(D.VKM && D.VKM.datum)}</td><td class="n">${D.VKM && D.VKM.maanden && D.VKM.maanden.length ? esc(D.VKM.maanden[0] + ' t/m ' + D.VKM.maanden[D.VKM.maanden.length - 1]) : '–'}</td></tr>
+    <tr><td><b>Verkoop per maand (gemiddelde)</b><div class="desc">Gemiddelde van de laatste 6 maanden, voor Containers en de aanvullijsten.</div></td><td>${exportLeeftijd(dataDatums().verkoop)}</td><td class="n">${vkPeriodeTxt()}</td></tr>
     <tr><td><b>Verplaatsingen uit Picqer</b><div class="desc">Mac-script "Verplaatsingen ophalen" → bestand in 00_Inbox (.json). Laatste 60 dagen blijven bewaard.</div></td><td>${D.VP && D.VP !== 'laden' && D.VP.datum ? exportLeeftijd(D.VP.datum) : '–'}</td><td class="n">${D.VP && D.VP !== 'laden' && D.VP.rows ? nf(D.VP.rows.length) + ' verplaatsingen' + (D.VP.rows.length ? ' · ' + esc(String(D.VP.rows.reduce((m, r) => r[1] < m ? r[1] : m, '9')).slice(0, 10)) + ' t/m ' + esc(String(D.VP.rows.reduce((m, r) => r[1] > m ? r[1] : m, '')).slice(0, 10)) : '') : '–'}</td></tr>
     ${rij('Aanvuladvies', 'advies', D.ADV ? nf(D.ADV.rows.length) + ' regels' : '–', 'Picqer → Aanvuladvies → PDF (picklijst bulklocaties).')}
   </table></div>

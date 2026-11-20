@@ -132,7 +132,8 @@ function bronnen(){
       { t:'Producten met voorraad, ABC, picks per dag', bron:'live', op:cat && cat.t, ritme:'elke 12 uur', vervangt:'deel van de productexport' },
       { t:'Voorraad per locatie (aanvulkandidaten)', bron:'live', op:st && st.bijgewerkt, ritme:'elke 10 minuten', vervangt:'voorraad-per-locatie-export, aanvuladvies-PDF',
         extra:(() => { const n = st && st.p ? WHAL.teOud().length : 0; return n ? 'stand van ' + nf(n) + ' producten ouder dan 30 min' : ''; })() },
-      { t:'Locaties: pick/bulk, vast/tijdelijk', bron:S.functieOud ? 'export' : 'live', op:(S.meta.loc || {}).t || D.LOCDATUM, ritme:S.functieOud ? 'na functie-update: elke 12 uur' : 'elke 12 uur', vervangt:'locatie-export' },
+      { t:'Locaties: pick/bulk, vast/tijdelijk', bron:S.functieOud ? 'export' : 'live', op:[(S.meta.loc || {}).t, D.LOCDATUM].filter(Boolean).sort().pop() || null, ritme:S.functieOud ? 'na functie-update: elke 12 uur' : 'elke 12 uur en elke nacht 05:30', vervangt:'locatie-export', nacht:true },
+      { t:'Voorraad per locatie (alle producten)', bron:D.VRBRON === 'picqer-live' ? 'live' : 'export', op:D.VRDATUM, ritme:'elke nacht 05:30 (GitHub)', vervangt:'voorraad-per-locatie-export (stock-….xlsx)', nacht:true },
       { t:'Aanvulniveaus', bron:S.functieOud ? 'export' : 'live', op:n && (n.klaar || n.t), ritme:S.functieOud ? 'na functie-update: doorlopend' : 'doorlopend, ±90 min per ronde', vervangt:'productexport (niveaus)',
         extra:n ? (n.cursor ? 'ronde ' + nf(n.cursor) + ' / ' + nf(n.totaal || 0) : '') + (n.check ? ' · controle: ' + n.check.pct + '% gelijk aan export, ' + n.check.uitkomst : '') : '' },
       { t:'Producten per locatie (koppelingen)', bron:'export', op:(S.meta.loc && S.meta.loc.t) ? (S.meta.loc.codes || null) : D.LOCDATUM, ritme:'met de productexport (wekelijks)', vervangt:'', extra:(S.meta.loc && S.meta.loc.t && !S.meta.loc.codes) ? 'uit de laatste locatie-export, datum onbekend' : '' },
@@ -140,7 +141,8 @@ function bronnen(){
         { t:'Inkoop per product (12 maanden)', bron:'live', op:v.ink.op, ritme:'elke 24 uur', vervangt:'knop Ophalen uit Picqer', extra:(v.ink.n ? v.ink.n + ' inkooporders' : (v.tekstInk || '')) + (v.ink.wachtTot ? ' · wacht tot ' + String(v.ink.wachtTot).slice(11, 16) + ' na Picqer-fout: ' + v.ink.fout : '') },
         { t:'Verplaatsingen tussen locaties (aanvulling)', bron:v.oudeFunctie ? 'export' : 'live', op:v.vp.tot, ritme:'elk half uur, per uur, met rem; historie uit Geschiedenis en Mac-script', vervangt:'Mac-script Verplaatsingen ophalen (alleen de laatste dagen)', extra:(v.vp.n ? v.vp.n + ' verplaatsingen bewaard' : '') + (v.tekstVp ? ' · ' + v.tekstVp : '') + (v.vp.gat ? ' · GAT: ' + String(v.vp.gat.van || 'begin').slice(0, 16) + ' t/m ' + String(v.vp.gat.tot).slice(0, 16) + ' niet opgehaald (alleen laatste 24 uur); vul aan met Verplaatsingen ophalen' : '') + (v.vp.gatGedicht ? ' · gat ' + String(v.vp.gatGedicht.van || '').slice(0, 10) + ' t/m ' + String(v.vp.gatGedicht.tot || '').slice(0, 10) + ' gedicht met het Mac-script (' + String(v.vp.gatGedicht.op || '').slice(0, 10) + ')' : '') + (v.vp.wachtTot ? ' · wacht tot ' + String(v.vp.wachtTot).slice(11, 16) + ' na Picqer-fout (' + v.vp.fout + ')' : '') + (v.oudeFunctie ? ' · functie picqer nog zonder venster: opnieuw live zetten' : '') }
       ]; })() : []),
-      { t:'Magazijnverkopen per maand', bron:'export', op:null, ritme:'maandelijks', vervangt:'' }
+      { t:'Magazijnverkopen per maand', bron:D.VKM && D.VKM.bron === 'picqer-bestellingen' ? 'live' : 'export', op:D.VKM && D.VKM.datum, ritme:'elke nacht 05:30 (GitHub); Excel-import blijft als reserve', vervangt:'Magazijnverkopen-export per maand', nacht:true,
+        extra:D.VKM && D.VKM.maanden && D.VKM.maanden.length ? 'tot en met ' + D.VKM.maanden[D.VKM.maanden.length - 1] + (D.VKM.lopend ? ' (lopende maand)' : '') : '' }
     ]
   };
 }
