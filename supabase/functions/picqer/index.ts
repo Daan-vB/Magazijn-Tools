@@ -42,9 +42,9 @@ const MAGAZIJN = Number(Deno.env.get("PICQER_WAREHOUSE") || "3857");
 const BASIS = Deno.env.get("PICQER_BASE") || (DOMEIN ? "https://" + (DOMEIN.includes(".") ? DOMEIN : DOMEIN + ".picqer.com") + "/api/v1" : "");
 const HERKOMST = ["https://daan-vb.github.io"];
 const UA = "IVOL Warehouse (github.com/Daan-vB/Magazijn-Tools)";
-const VERSIE = "2026-11-09.2";   // bij elke wijziging ophogen: actie "versie" laat zien wat er live staat
+const VERSIE = "2026-11-21.1";   // bij elke wijziging ophogen: actie "versie" laat zien wat er live staat
 const ACTIES = ["status", "vandaag", "producten", "picklijst", "catalogus", "locaties", "ontvangsten", "keten", "ontvangstenlijst", "verplaatsingen",
-  "historielicht", "idindex", "historietest", "bestellingen", "mutaties", "locatielijst", "niveaus", "versie"];
+  "historielicht", "idindex", "historietest", "bestellingen", "mutaties", "locatielijst", "niveaus", "lees", "versie"];
 
 function cors(origin: string | null): Record<string, string> {
   const ok = origin && (HERKOMST.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin));
@@ -685,6 +685,25 @@ async function licht(actie: string, url: URL, origin: string | null): Promise<Re
   } finally { clearTimeout(noodrem); }
 }
 
+
+// ---------- lees: alleen-lezen doorgeefluik voor de containercontrole ----------
+// Eén GET naar een vooraf toegestane Picqer-route (inkooporders, ontvangsten, productgegevens, voorraadhistorie, backorders).
+// Geen orders of picklijsten (klantgegevens). Eén pagina per aanroep; de aanroeper loopt zelf door met &offset=.
+const LEES_TEKENS = "[\\w=&.%:+,-]*";
+const LEES_TOEGESTAAN: RegExp[] = [
+  new RegExp("^purchaseorders(\\?" + LEES_TEKENS + ")?$"), /^purchaseorders\/\d+$/,
+  new RegExp("^receipts(\\?" + LEES_TEKENS + ")?$"), /^receipts\/\d+$/,
+  /^products\/\d+$/, /^products\/\d+\/(locations|warehouses)$/, new RegExp("^products\\?" + LEES_TEKENS + "$"),
+  new RegExp("^stockhistory\\?" + LEES_TEKENS + "$"), new RegExp("^location-stock-history\\?" + LEES_TEKENS + "$"),
+  new RegExp("^backorders(\\?" + LEES_TEKENS + ")?$"),
+  /^locations\/\d+$/, /^users\/\d+$/, /^suppliers\/\d+$/,
+];
+async function lees(padTxt: string) {
+  const pad = String(padTxt || "").trim().replace(/^\/+/, "");
+  if (!pad || pad.length > 300 || pad.includes("..") || !LEES_TOEGESTAAN.some((re) => re.test(pad))) throw new Fout("Deze Picqer-route staat niet in de leeslijst", 400);
+  return { pad, opgehaald: new Date().toISOString(), data: await pq(pad) };
+}
+
 // ---------- ingang ----------
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
@@ -716,6 +735,7 @@ Deno.serve(async (req: Request) => {
     if (actie === "mutaties") return antwoord(await mutaties(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "locatielijst") return antwoord(await locatielijst(url.searchParams.get("van") || "0"), 200, origin);
     if (actie === "niveaus") return antwoord(await niveaus(url.searchParams.get("ids") || ""), 200, origin);
+    if (actie === "lees") return antwoord(await lees(url.searchParams.get("pad") || ""), 200, origin);
     return antwoord({ fout: "Onbekende actie: " + actie, soort: "onbekende-actie", versie: VERSIE }, 400, origin);
   } catch (e) {
     const f = e instanceof Fout ? e : new Fout(String((e as Error)?.message || e));
