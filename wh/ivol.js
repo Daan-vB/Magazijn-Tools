@@ -28,7 +28,7 @@ const GROEPEN = [
 ];
 // menu op de pilaren (week 1, 28-10): wat nu telt staat bovenaan; al het andere onder "Meer" (ingeklapt, ongewijzigd bereikbaar)
 const PIJLERS = [
-  { k:'week', t:'Deze week', ids:['todo'] },
+  { k:'week', t:'Deze week', ids:['todo', 'weekendcheck'] },
   { k:'fund', t:'Fundering', ids:['pd2', 'locaties'] },
   { k:'p1', t:'1 · Aanvullen', ids:['aanvullen', 'aanvullive'] },
   { k:'p2', t:'2 · Voorraad op plek', ids:['geenloc', 'abcheck'] },
@@ -41,6 +41,7 @@ const M = [
   { id:'stand', g:'start', t:'Hoe staat het ervoor', native:'x-stand', st:'proef', r:['daan', 'karin', 'mgmt'], uit:'Daans tien punten met het cijfer dat de app erover kan geven. Alleen lezen, voor Jim, Maxime, Ryan en Gino.' },
   { id:'nakijken', g:'start', t:'Te controleren', native:'x-nakijken', st:'proef', r:DV, uit:'Schattingen van Claude in Productdata en aannames (kerncijfers, dagritme): Klopt of aanpassen.' },
   { id:'todo', g:'start', t:'Te doen', native:'todo', st:'draait', r:DV, uit:'De werkplek: de bouwplanstap van nu, wat vandaag moet en wat later komt. Elke knop opent het scherm waar je het doet.' },
+  { id:'weekendcheck', g:'start', t:'Weekendcheck', native:'weekendcheck', st:'proef', r:DV, data:'leest catalog weekendcheck-2026-w47 (snapshot van Claude); schrijft alleen catalog weekendcheck-antwoorden', uit:'Containers van de week en inventaris A/B/C uit een snapshot (zonder koppelcode, ook op de iPhone): één vraag per scherm, Klopt / Aanpassen / Twijfel / Overslaan, export voor Claude.' },
   { id:'bouwplan', g:'start', t:'Bouwplan', native:'bouwplan', st:'draait', r:DV, uit:'De route, stap voor stap: Nu, Route, Visie, Data, Logboek, Parkeerplaats.' },
   { id:'taak', g:'start', t:'Taak', native:'taak', st:'draait', r:DV, verborgen:true, uit:'Eén bouwplanstap: wat nog moet, klaar als, vastleggen, afronden.' },
   { id:'fundament', g:'start', t:'Fundament', native:'fundament', st:'draait', r:DK, uit:'Stand van de vier fundamentpunten, uit de echte gegevens.' },
@@ -171,6 +172,15 @@ function laadDoorloop(){
     .catch(e => { dlP = null; console.error(e); $('native').innerHTML = '<div class="pagina"><div class="melding">Doorloop laden lukte niet: ' + (e.message || e) + '</div></div>'; });
   return dlP;
 }
+// Weekendcheck (wh/weekendcheck.js) ook pas laden als hij geopend wordt
+let wkP = null;
+function laadWeekendcheck(){
+  if(window.WHWK) return Promise.resolve();
+  if(!wkP) wkP = fetch('wh/weekendcheck.js', { cache:'no-cache' }).then(r => { if(!r.ok) throw new Error('status ' + r.status); return r.text(); })
+    .then(t => { const s = document.createElement('script'); s.textContent = t + '\n//# sourceURL=wh/weekendcheck.js'; document.body.appendChild(s); })
+    .catch(e => { wkP = null; console.error(e); $('native').innerHTML = '<div class="pagina"><div class="melding">Weekendcheck laden lukte niet: ' + (e.message || e) + '</div></div>'; });
+  return wkP;
+}
 /* ---------- inhoud ---------- */
 let frameUrl = null;
 function toon(){
@@ -185,6 +195,7 @@ function toon(){
     else if(m.native === 'kennisbank' && window.WHKB){ WHKB.render(nat); nat.scrollTop = 0; return; }
     else if(m.native === 'ryan' && window.WHKB){ WHKB.renderRyan(nat); nat.scrollTop = 0; return; }
     else if(m.native === 'pd2' && window.WHPD2){ WHPD2.render(nat, UI.rest); nat.scrollTop = 0; return; }
+    else if(m.native === 'weekendcheck'){ laadWeekendcheck().then(() => { if(huidig().native === 'weekendcheck' && window.WHWK) WHWK.render(nat, UI.rest); }); nat.scrollTop = 0; return; }
     else if(m.native === 'doorloop'){ laadDoorloop().then(() => { if(huidig().native === 'doorloop' && window.WHDL) WHDL.render(nat, UI.rest); }); nat.scrollTop = 0; return; }
     else if(/^x-/.test(m.native) && window.WHX){ WHX.render(m.native.slice(2), nat, UI.rest); nat.scrollTop = 0; return; }
     else { nat.innerHTML = m.native === 'kaart' ? viewKaart() : m.native === 'bronnen' ? viewBronnen() : m.native === 'naslag' ? viewNaslag() : viewFundament(); nat.scrollTop = 0; }
