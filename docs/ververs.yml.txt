@@ -1,0 +1,43 @@
+# Ververst elke nacht om 05:30 (Nederlandse tijd) verkoop per maand, voorraad per locatie en locatielijst uit live Picqer
+# (alleen lezen, via het tussenstation) en zet ze in onze eigen Supabase-opslag. Ook met de hand te starten (Run workflow).
+# Gebruikt alleen het bestaande secret SUPABASE_ACCESS_TOKEN; zie .github/ververs/ververs.py.
+name: Ververs verkoop, voorraad en locaties
+on:
+  schedule:
+    # GitHub kent geen tijdzone: beide kloktijden (zomer- en wintertijd); de stap "Nederlandse tijd" laat er één door
+    - cron: '30 3 * * *'
+    - cron: '30 4 * * *'
+  workflow_dispatch:
+    inputs:
+      alleen:
+        description: 'Welke onderdelen (komma): verkoop, locaties, voorraad'
+        required: false
+        default: 'verkoop,locaties,voorraad'
+permissions:
+  contents: read
+concurrency:
+  group: ververs
+  cancel-in-progress: false
+jobs:
+  ververs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      ALLEEN: ${{ github.event.inputs.alleen }}
+      GEBEURTENIS: ${{ github.event_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Nederlandse tijd
+        id: tijd
+        run: |
+          uur=$(TZ=Europe/Amsterdam date +%H)
+          echo "Nederlandse tijd nu: $uur uur"
+          # de nachtelijke run telt alleen rond 05:30 (05 of 06 uur, GitHub kan een run laten uitlopen); op de knop altijd
+          if [ "$GEBEURTENIS" = "schedule" ] && [ "$uur" != "05" ] && [ "$uur" != "06" ]; then echo "doorgaan=nee" >> "$GITHUB_OUTPUT"; else echo "doorgaan=ja" >> "$GITHUB_OUTPUT"; fi
+      - name: Verversen
+        if: steps.tijd.outputs.doorgaan == 'ja'
+        run: |
+          alleen="$ALLEEN"; [ -z "$alleen" ] && alleen="verkoop,locaties,voorraad"
+          zacht=""; [ "$GEBEURTENIS" = "schedule" ] && zacht="--zacht"
+          python3 .github/ververs/ververs.py --alleen "$alleen" $zacht
