@@ -93,7 +93,27 @@ def haal_dienstsleutel():
             return v
         fouten.append(f"{naam}: {fout or 'geen servicesleutel in de lijst'}")
         log(f"  servicesleutel via {naam} lukt niet: {fout or 'geen servicesleutel in de lijst'}")
+    rechten(tok)
     raise SystemExit("Servicesleutel niet op te halen. " + " | ".join(fouten))
+
+
+def rechten(tok):
+    """Alleen bij een fout: welke beheer-onderdelen dit token mag lezen (alleen status en ontbrekend recht, nooit inhoud)."""
+    for pad in ("", "/functions", "/functions/picqer", "/secrets", "/postgrest", "/config/auth", "/database/backups"):
+        r = urllib.request.Request(f"https://api.supabase.com/v1/projects/{PROJECT}{pad}",
+                                   headers={"Authorization": "Bearer " + tok, "User-Agent": UA, "Accept": "application/json"})
+        try:
+            with urllib.request.urlopen(r, timeout=30) as x:
+                uit = f"HTTP {x.status}"
+        except urllib.error.HTTPError as e:
+            try:
+                mis = json.loads(e.read()).get("error", {}).get("missing_permissions") or []
+            except Exception:
+                mis = []
+            uit = f"HTTP {e.code}" + (" · mist " + ", ".join(map(str, mis)) if mis else "")
+        except Exception as e:
+            uit = type(e).__name__
+        log(f"  token-recht /projects/…{pad or ' (project)'}: {uit}")
 
 
 def fn(actie, params=None, pogingen=8):
