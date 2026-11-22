@@ -16,7 +16,7 @@ const wacht = ms => new Promise(r => setTimeout(r, ms));
 
 /* ---------- aannames: keuzes die niet in het ontwerp staan (chip "aanname" in de pagina) ---------- */
 const AANNAMES = {
-  nooitpick: 'VASTE REGEL (Daan 22-11): Pick alleen voor producten die nooit meer binnenkrijgen dan op pick past. Voorraad op bulk of bij VST (pallets), of een inkoop groter dan op pick past = nooit Pick. De verplaatsingen naar pick beslissen: telkens de hele bulkplek naar pick = Pallet, telkens een deel van de bulkplek = Deel.',
+  nooitpick: 'VASTE REGEL (Daan 22-11): Pick alleen voor producten die nooit meer binnenkrijgen dan op pick past. Voorraad op bulk of bij VST (pallets), of een inkoop groter dan op pick past = nooit Pick. De verplaatsingen naar pick beslissen: Pallet alleen als de hele bulkplek in minstens 70% van de keren naar pick ging, anders Deel.',
   selectedstoel: 'VASTE REGEL (Daan 22-11): een stoel van Selected Furniture (bureau-, vergader-, eetkamer-, werkplaatsstoel; geen wieltjes, glijders, gasveren, kussens of dopjes) met voorraad en een inkoop in de laatste 6 maanden is soort Pallet: elke stoel gaat per volle pallet naar pick.',
   palletregel: 'VASTE REGEL (Daan 30-10): palletvragen (per pallet, palletmaat, hoogte, gewicht volle pallet, plaatsen, max per ligger) alleen als de data bewijst dat het product per pallet komt of ligt: bulk- of VST-voorraad, palletlabels, pallet-verplaatsingen naar pick, of inkoop van minstens één volle pallet. Zonder dat bewijs: soort-voorstel Pick (of Weg → Backorder bij alleen backorders) en nooit palletvragen.',
   zoek:     'Zoeken kijkt in alle actieve producten, ook buiten de gekozen scope (anders vind je bijv. Waterhog zonder voorraad niet).',
@@ -486,7 +486,9 @@ const actief = c => { const p = D.P[c]; return !!p && p.actief !== false; };
 
 /* ---------- feiten (alleen lezen) ---------- */
 const kgPq = c => P().kgPicqer(c);
-const vk6 = c => Math.round(num(D.VK[c] && D.VK[c].per_maand) || 0);
+const vk6 = c => Math.round(num(D.VK[c] && D.VK[c].per_maand) || 0);   // verkoop-gepickt (ABC, aanvulniveaus)
+// verkoop-besteld (Daan 22-11: inkoop en backorders): bestellingen per maand, ook wat op backorder staat; zonder die rij de gepickte
+const vkBesteld = c => D.VKB && D.VKB.gem ? Math.round(num(D.VKB.gem[c]) || 0) : vk6(c);
 const vk28 = c => { const pd = num(P().S.cat && P().S.cat.pd && P().S.cat.pd[c]); return pd === null ? null : Math.round(pd * 30); };
 function inkoop(c){
   const r = ((P().S.ink && P().S.ink.p && P().S.ink.p[c]) || []).map(x => ({ d:String(x[0] || ''), b:num(x[1]) || 0 })).filter(x => x.b > 0);
@@ -1123,7 +1125,7 @@ function vsRol(c, k, I){
 // soort uit eigen data, met reden; tegenstrijdig = twijfel met beide opties
 // weg-deel van het soortvoorstel (ook los te gebruiken voor alle producten: wegLicht)
 function wegDeel(c, f, ink){
-  const naam = naamVan(c), pp = D.P[c] || {}, bo = backorders(c), v6 = vk6(c), v28 = vk28(c) || 0;
+  const naam = naamVan(c), pp = D.P[c] || {}, bo = backorders(c), v6 = vkBesteld(c), v28 = vk28(c) || 0;   // weg of backorder: bestellingen tellen
   const stock = Math.max(som(f.pick) + som(f.bulk) + f.vst + f.geen, (num(pp.voorraad_hm) || 0) + (num(pp.voorraad_vst) || 0));
   const t = (v, why, extra) => Object.assign({ v, why }, extra || {});
   const ls = isSam(c) ? null : leerOf(c, 'opslag', [['fammaat', 1], ['fam', 2]]);
@@ -1149,8 +1151,8 @@ function palletBewijs(c, f, ink){
   if(som(f.bulk) > 0) return 'bulkvoorraad ' + nf(som(f.bulk));
   if(f.vst > 0 || (num(pp.voorraad_vst) || 0) > 0) return 'VST-voorraad ' + nf(Math.max(f.vst, num(pp.voorraad_vst) || 0));
   if(labelSppLijst(c).length) return 'palletlabel';
-  let ms = null; try{ ms = X().mvSoort(c); }catch(e){}
-  if(ms && ms.soort === 'pallet') return ms.t;
+  let g = null; try{ g = X().mvPatroon(c); }catch(e){}
+  if(g && g.vol) return g.vol.t;   // de hele bulkplek ging (3× of vaker) naar pick: het lag per pallet, ook als de soort Deel wordt
   const e = eigen(c, 'spp'), sppV = e ? nOf(e.v) : nOf(vastPd(c, 'spp'));
   if(ink && sppV > 0 && ink.max >= sppV) return 'inkoop van een volle pallet (' + nf(ink.max) + ' ≥ ' + nf(sppV) + ')';
   return '';
@@ -1201,8 +1203,8 @@ function vsSoortKern(c, f, ink){
   if(bulkN > 0 && !f.pick.length && !isSam(c) && !(pc && pc.v === 'moetpick')) return { r:'soort:bulk', so:t('bulk', 'bulk ' + nf(bulkN) + ' op ' + bulkMet.slice(0, 2).map(x => x.n).join(', ') + ', geen picklocatie: per order 1 stuk naar geen specifieke locatie, nooit aanvullen naar pick', { alt:['bulk', 'deel'], aan:'bulk' }) };
   // vaste regel Daan 22-11: de eigen verplaatsingen naar pick beslissen, vóór kleurgenoten en familie (bronvolgorde: eigen data eerst)
   if(vol && perPallet) return { r:'soort:4', so:t('pallet', inkT + ' (≥ 85% van ' + nf(sppV) + ' per pallet) en ' + ms.t, { aan:'pallet85' }) };
-  // telkens de hele bulkplek naar pick = Pallet (ook als de inkoop kleiner is dan een pallet)
-  if(perPallet) return { r:'soort:mv-pallet', so:t('pallet', ms.t + ' → Pallet (regel Daan 22-11: telkens de hele bulkplek naar pick)' + (ink && sppV ? ' · inkoop meestal ' + nf(ink.meestal) + ' bij ' + nf(sppV) + ' per pallet' : ''), { aan:'nooitpick' }) };
+  // de hele bulkplek in minstens 70% van de keren naar pick = Pallet (ook als de inkoop kleiner is dan een pallet)
+  if(perPallet) return { r:'soort:mv-pallet', so:t('pallet', ms.t + ' → Pallet (regel Daan 22-11: de hele bulkplek in minstens 70% van de keren naar pick)' + (ink && sppV ? ' · inkoop meestal ' + nf(ink.meestal) + ' bij ' + nf(sppV) + ' per pallet' : ''), { aan:'nooitpick' }) };
   // telkens een deel van de bulkplek naar pick = Deel; staat de bulk alleen op gedeelde plekken, dan eerst de mix-vraag hieronder
   if(ms && ms.soort === 'deel' && !(bulkMet.length && gedeeld.length === bulkMet.length)) return { r:'soort:mv-deel', so:t('deel', (bulkN > 0 ? 'bulk ' + nf(bulkN) + ' (' + bulkMet.slice(0, 2).map(x => x.n).join(', ') + '), pick ' + nf(pickN) + ' · ' : '') + ms.t + ' → Deel (regel Daan 22-11: telkens een deel van de bulkplek)', { aan:'nooitpick' }) };
   // vaste regel Daan 22-11: voorraad op bulk of bij VST = nooit Pick, ook niet als kleurgenoten of de familie Pick zijn
@@ -1211,7 +1213,8 @@ function vsSoortKern(c, f, ink){
   // mix: kleine aantallen (geen pallet-aantal bekend, geen volle pallet ingekocht) en de bulk staat bij andere producten
   if(!vol && bulkMet.length && gedeeld.length){
     if(gedeeld.length === bulkMet.length && !sppV) return { r:'soort:6', so:t('mix', 'bulk staat op een gedeelde plek: ' + plekT + ' · ' + inkT + ', geen pallet-aantal bekend', { aan:'mix' }) };
-    return { r:'soort:7', so:t('deel', 'bulk ' + nf(bulkN) + (eigenB.length ? ' op eigen én gedeelde plekken (' : ' op een gedeelde plek (') + plekT + ')' + (sppV ? ', wel ' + nf(sppV) + ' per pallet bekend' : '') + ' · ' + inkT, { tw:true, alt:['deel', 'mix'], aan:'mix' }) };
+    // Daan 22-11: Deel (zo wordt de pickplek aangevuld) en Mix (staat ook op een mixpallet) zijn geen tegenstrijdigheid: geen twijfel
+    return { r:'soort:7', so:t('deel', 'bulk ' + nf(bulkN) + (eigenB.length ? ' op eigen én gedeelde plekken (' : ' op een gedeelde plek (') + plekT + ')' + (sppV ? ', wel ' + nf(sppV) + ' per pallet bekend' : '') + ' · ' + inkT + ' · staat ook op een mixpallet', { alt:['deel', 'mix'], aan:'mix' }) };
   }
   // vaste regel Daan 22-11: telkens een deel van de bulkplek naar pick = Deel
   if(bulkN > 0 && ms && ms.soort === 'deel') return { r:'soort:mv-deel', so:t('deel', 'bulk ' + nf(bulkN) + ' (' + bulkMet.slice(0, 2).map(x => x.n).join(', ') + '), pick ' + nf(pickN) + ' · ' + ms.t + ' → Deel (regel Daan 22-11: telkens een deel van de bulkplek)', { aan:'nooitpick' }) };
@@ -1721,7 +1724,7 @@ function telling(){
 }
 
 return { S, AANNAMES, KEY_OEFEN, KEY_FB, laad, flush, plan, schrijf, po, poZet, poHerstel, wisAlles, oefDone, fbTab, fbOpm, fbOpmWeg, fbAann, mgPlus,
-  koppelVan, isKoppel, koppelTekst, wegLicht, controle, maatRegel, vnRegel, sppUitBronnen, famVan, maatVan, maatNaam, maatGetallen, zelfdeMaat, kleurgenoten, groepVan, groepVanFam, groepLeden, hoofdwoord, levKort, halVan, halTekst, wensNorm, gangen, famNaam, isSam, naamVan, abcVan, actief, kgPq, vk6, vk28, inkoop, backorders, inkomend, locInfo, som, anderOpPlek,
+  koppelVan, isKoppel, koppelTekst, wegLicht, controle, maatRegel, vnRegel, sppUitBronnen, famVan, maatVan, maatNaam, maatGetallen, zelfdeMaat, kleurgenoten, groepVan, groepVanFam, groepLeden, hoofdwoord, levKort, halVan, halTekst, wensNorm, gangen, famNaam, isSam, naamVan, abcVan, actief, kgPq, vk6, vk28, vkBesteld, inkoop, backorders, inkomend, locInfo, som, anderOpPlek,
   VELD, SOORTEN, SOORTT, ZONDERVRAGEN, WEG, KOLOMMEN, NODIG, ROLNODIG, ROLVS, SAMVELD, MATEN, MATEN_WB, EIGEN_MATEN, OPSLAG_MATEN, matenVoor, voegMaatToe, maatSleutel, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
   eenheid, palletBewijs, selectedStoel, rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
   naControle, liggerVan, metVastePick, labelsVerbeteren, rolCheck, labelsGoed, verschil, verschilKies, herstel, pdFlush, PDQ,

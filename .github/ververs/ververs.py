@@ -4,9 +4,12 @@
 #  - Picqer wordt alleen gelezen, via het tussenstation (Supabase-functie "picqer", alleen GET).
 #    Inloggen bij het tussenstation met het bestaande SUPABASE_ACCESS_TOKEN (header x-ivol-beheer): de functie vraagt Supabase
 #    zelf of het token de functie mag lezen. Er komt geen nieuwe sleutel bij en niets staat in de repo.
-#  - Schrijven gebeurt alleen in onze eigen Supabase-opslag (catalog-rijen wh-verkoop-mnd, wh-voorraad, wh-locaties,
-#    tabel verkoop) met dezelfde publieke sleutel als de app. Vóór de eerste overschrijving per rij komt er een kopie
-#    (wh-kopie-<naam>-20261121).
+#  - Twee tellingen verkoop (Daan 22-11): verkoop-gepickt = fysieke picks uit de voorraadmutaties, op pickdatum (onderdelen van sets
+#    wel, sets zelf niet) voor ABC en aanvulniveaus: wh-verkoop-gepickt, wh-verkoop-mnd en tabel verkoop. verkoop-besteld = bestellingen
+#    op besteldatum voor inkoop en backorders: wh-verkoop-besteld (met gemiddelde per maand).
+#  - Schrijven gebeurt alleen in onze eigen Supabase-opslag (catalog-rijen wh-verkoop-gepickt, wh-verkoop-besteld, wh-verkoop-mnd,
+#    wh-voorraad, wh-locaties, tabel verkoop) met dezelfde publieke sleutel als de app. Vóór de eerste overschrijving per rij komt er een
+#    kopie (wh-kopie-<naam>-20261121; verkoop-mnd en tabel verkoop ook -20261122, vóór de wissel naar gepickt).
 #  - De log van een openbare repo is openbaar: hier staan dus alleen aantallen en totalen, nooit producten of klanten.
 #    De productafwijkingen staan in catalog-rij wh-ververs-controle (alleen in de eigen database).
 import argparse, datetime, json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
@@ -17,7 +20,7 @@ SB = f"https://{PROJECT}.supabase.co"
 KEY = "sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA"             # publieke sleutel, staat ook in wh/core.js
 MAGAZIJN = 3857                                                   # Hoofdmagazijn
 KOPIE = "20261121"
-MIN_VERSIE = "2026-11-22.1"
+MIN_VERSIE = "2026-11-22.2"
 NL = ZoneInfo("Europe/Amsterdam")
 UA = "ivol-ververs/1.0"
 INLOG = {}                                                        # header voor het tussenstation
@@ -168,9 +171,9 @@ def cat_zet(key, data):
             raise
 
 
-def kopie(naam, data):
+def kopie(naam, data, wanneer=None):
     """Eerste keer: kopie van wat we gaan overschrijven. Bestaat de kopie al, dan blijft hij staan."""
-    sleutel = f"wh-kopie-{naam}-{KOPIE}"
+    sleutel = f"wh-kopie-{naam}-{wanneer or KOPIE}"
     if cat_haal(sleutel) is None:
         cat_zet(sleutel, {"kopie_van": naam, "gemaakt": iso_nu(), "data": data})
         log(f"  kopie gemaakt: {sleutel}")
@@ -226,19 +229,119 @@ def venster_ophalen(sinds, tot, hoofd):
     raise RuntimeError("te veel pagina's in één maand")
 
 
+def gepickt_ophalen(sinds, tot):
+    """Fysieke picks in één venster: [(dag, idproduct, aantal)], alle pagina's (picking min pickingrollback, Hoofdmagazijn)."""
+    rijen, off, regels = [], 0, 0
+    for _ in range(3000):
+        r = fn("gepickt", {"sinds": sinds, "tot": tot, "offset": off, "paginas": 10})
+        rijen += r.get("rijen", [])
+        regels += r.get("regels", 0)
+        if r.get("wachtSec"):
+            time.sleep(min(30, r["wachtSec"]))
+        off = r.get("volgende")
+        if off is None:
+            return rijen, regels
+    raise RuntimeError("te veel pagina's voorraadmutaties in één maand")
+
+
+def ids_naar_codes(ids, bekend):
+    """idproduct -> productcode: eerst wat we al weten (catalogus, eigen index, vorige nacht), dan het tussenstation (gepickt&ids)."""
+    uit = {i: bekend[i] for i in ids if bekend.get(i)}
+    open_, weg = [i for i in ids if i not in uit], []
+    for ronde in range(6):
+        if not open_:
+            break
+        nog = []
+        for k in range(0, len(open_), 60):
+            deel = open_[k:k + 60]
+            terug = {int(x): c for x, c in fn("gepickt", {"ids": ",".join(map(str, deel))}).get("codes", [])}
+            for i in deel:
+                if i not in terug:
+                    nog.append(i)
+                elif terug[i]:
+                    uit[i] = terug[i]
+                else:
+                    weg.append(i)
+            time.sleep(1)
+        open_ = nog
+    return uit, open_ + weg
+
+
+def gem_6(M, maanden, vandaag):
+    """De laatste 6 maanden voor het gemiddelde per maand; de lopende maand telt alleen mee als hij bijna vol is (>= 90%)."""
+    dagen = (datetime.date(vandaag.year + (vandaag.month == 12), vandaag.month % 12 + 1, 1) - datetime.date(vandaag.year, vandaag.month, 1)).days
+    lopend = maanden[-1]
+    mee_lopend = vandaag.day / dagen >= 0.9
+    basis = maanden if mee_lopend else [m for m in maanden if m != lopend]
+    laatste = basis[-6:]
+    y, m = map(int, laatste[-1].split("-"))
+    eind = datetime.date(y + (m == 12), m % 12 + 1, 1) - datetime.timedelta(days=1)
+    return laatste, laatste[0] + "-01", eind.strftime("%Y-%m-%d"), mee_lopend
+
+
+def verkoop_gepickt(prod, venster, vandaag):
+    """verkoop-gepickt (Daan 22-11): fysieke picks uit de voorraadmutaties, op pickdatum. Afgesloten maanden van vóór vorige maand
+    blijven uit de vorige nacht staan; de rest wordt opnieuw gelezen."""
+    vorig = (cat_haal("wh-verkoop-gepickt") or {}).get("data") or {}
+    klein = {c.lower(): c for c in prod}
+    bekend = {int(k): v for k, v in (vorig.get("ids") or {}).items()}
+    for k, v in ((cat_haal("wh-hist-index") or {}).get("data") or {}).get("p", {}).items():
+        bekend.setdefault(int(k), v)
+    van = 0
+    while van < 100000:                                         # verse codes van producten met voorraad
+        r = fn("catalogus", {"van": van})
+        for x in r.get("rijen", []):
+            bekend[int(x[0])] = x[1]
+        if r.get("klaar"):
+            break
+        van = r.get("volgende", van + 1000)
+        time.sleep(2)
+    houd = {venster[-1][0], venster[-2][0]}                      # lopende en vorige maand altijd opnieuw
+    M_oud = {}
+    for i, ym in enumerate(vorig.get("maanden", [])):
+        if ym in (vorig.get("compleet") or []) and ym not in houd:
+            M_oud[ym] = {c: a[i] for c, a in vorig.get("v", {}).items() if i < len(a) and a[i]}
+    per_id, regels_tot, gelezen = {}, 0, []
+    for ym, sinds, tot, vol in venster:
+        if ym in M_oud:
+            continue
+        rijen, regels = gepickt_ophalen(sinds, tot)
+        per = per_id.setdefault(ym, {})
+        for dag, pid, a in rijen:
+            per[int(pid)] = per.get(int(pid), 0) + (a or 0)
+        regels_tot += regels
+        gelezen.append(ym)
+        log(f"  {ym}: {len(per)} producten gepickt, {afr(sum(per.values()), 0):.0f} stuks{'' if vol else ' (lopende maand, tot nu)'}")
+    ids = sorted({i for per in per_id.values() for i in per})
+    codes, onbekend = ids_naar_codes(ids, bekend)
+    M = dict(M_oud)
+    for ym, per in per_id.items():
+        m = {}
+        for pid, a in per.items():
+            c = codes.get(pid)
+            if c:
+                c = klein.get(c.lower(), c)
+                m[c] = m.get(c, 0) + a
+        M[ym] = {c: round(a) for c, a in m.items() if round(a) > 0}        # aantallen zonder decimalen
+    maanden = [ym for ym, *_ in venster]
+    mis = sum(per.get(i, 0) for per in per_id.values() for i in onbekend)
+    log(f"  verkoop-gepickt: {len(gelezen)} maanden gelezen, {len(M_oud)} uit de vorige nacht · {regels_tot} mutaties · "
+        f"{len(onbekend)} producten niet op code te zetten ({afr(mis, 0):.0f} stuks)")
+    return M, maanden, {str(i): c for i, c in codes.items()}, onbekend, mis
+
+
 def verkoop(prod):
     vandaag = datetime.datetime.now(NL).date()
     venster = maandvenster(vandaag)
     log(f"Verkoop: {venster[0][0]} t/m {venster[-1][0]} ({len(venster) - 1} volle maanden + lopende maand)")
-    oud_rij = cat_haal("wh-verkoop-mnd")
-    oud = (oud_rij or {}).get("data") or {"maanden": [], "v": {}}
     klein = {c.lower(): c for c in prod}
+    # ---- verkoop-besteld: bestellingen op besteldatum (sets als set) — voor inkoop en backorders
     nieuw, magtot, anderTot = {}, {}, 0
     for ym, sinds, tot, vol in venster:
         som, orders, mg, ander = venster_ophalen(sinds, tot, True)
         som = {klein.get(c.lower(), c): a for c, a in som.items()}
         tel = sum(som.values())
-        log(f"  {ym}: {orders} orders, {len(som)} producten, {afr(tel, 0):.0f} stuks{'' if vol else ' (lopende maand, tot nu)'}")
+        log(f"  besteld {ym}: {orders} orders, {len(som)} producten, {afr(tel, 0):.0f} stuks{'' if vol else ' (lopende maand, tot nu)'}")
         if vol and tel <= 0:
             raise RuntimeError(f"maand {ym} is leeg: niets opgeslagen")
         nieuw[ym] = som
@@ -246,76 +349,63 @@ def verkoop(prod):
         for k, v in mg.items():
             magtot[k] = magtot.get(k, 0) + v
     log("  orders per magazijn-id volgens Picqer: " + ", ".join(f"{k}={v}" for k, v in sorted(magtot.items())) + f" · overgeslagen als ander magazijn: {anderTot}")
-
-    # vergelijking september 2026 met de Excel-import (voor het overschrijven)
-    controle = {"magazijnen": magtot, "andermag": anderTot}
-    if "2026-09" in oud.get("maanden", []) and "2026-09" in nieuw:
-        i = oud["maanden"].index("2026-09")
-        oudsep = {c: a[i] for c, a in oud["v"].items() if i < len(a) and a[i]}
-        nwsep = nieuw["2026-09"]
-        codes = set(oudsep) | set(nwsep)
-        afw, gelijk, nw_hoger, oud_hoger = [], 0, 0, 0
-        for c in codes:
-            o, n = oudsep.get(c, 0), nwsep.get(c, 0)
-            m = max(abs(o), abs(n))
-            if not m:
-                continue
-            if abs(n - o) / m <= 0.02:
-                gelijk += 1
-            else:
-                afw.append([c, o, afr(n)])
-                nw_hoger += n > o
-                oud_hoger += o > n
-        afw.sort(key=lambda x: -abs(x[2] - x[1]))
-        controle["september"] = {
-            "producten": gelijk + len(afw), "binnen_2pct": gelijk, "afwijkend": len(afw), "nieuw_hoger": nw_hoger, "oud_hoger": oud_hoger,
-            "som_oud": afr(sum(oudsep.values())), "som_nieuw": afr(sum(nwsep.values())), "afwijkingen": afw,
-        }
-        s = controle["september"]
-        log(f"  September 2026 live tegen Excel-import: {s['producten']} producten, {s['afwijkend']} wijken > 2% af "
-            f"(live hoger {nw_hoger}, import hoger {oud_hoger}); totaal import {s['som_oud']:.0f} stuks, live {s['som_nieuw']:.0f} stuks")
-    else:
-        log("  September 2026 zat niet in de import: geen vergelijking")
-
-    # samenvoegen: live maanden overschrijven, oudere maanden uit de import blijven
-    kopie("wh-verkoop-mnd", oud_rij["data"] if oud_rij else None)
-    M = {}
-    for i, ym in enumerate(oud.get("maanden", [])):
-        M[ym] = {c: a[i] for c, a in oud["v"].items() if i < len(a) and a[i]}
-    M.update(nieuw)
-    maanden = sorted(M)
-    codes = set()
-    for ym in maanden:
-        codes |= set(M[ym])
-    v = {c: [afr(M[ym].get(c, 0)) for ym in maanden] for c in codes}
-    lopend = venster[-1][0]
-    data = {"maanden": maanden, "v": v, "datum": iso_nu(), "bron": "picqer-bestellingen", "lopend": lopend}
-    cat_zet("wh-verkoop-mnd", data)
-    log(f"  wh-verkoop-mnd: {len(maanden)} maanden, {maanden[0]} t/m {maanden[-1]}, {len(v)} producten")
-
-    # verkoop/maand = gemiddelde van de laatste 6 maanden; de lopende maand telt alleen mee als hij bijna vol is (>= 90%)
-    dagen = (datetime.date(vandaag.year + (vandaag.month == 12), vandaag.month % 12 + 1, 1) - datetime.date(vandaag.year, vandaag.month, 1)).days
-    mee_lopend = vandaag.day / dagen >= 0.9
-    basis = maanden if mee_lopend else [m for m in maanden if m != lopend]
-    laatste = basis[-6:]
+    # ---- verkoop-gepickt: fysieke picks op pickdatum (onderdelen van sets wel, sets zelf niet) — voor ABC en aanvulniveaus
+    G, maanden, idcodes, onbekend, mis = verkoop_gepickt(prod, venster, vandaag)
+    for ym, sinds, tot, vol in venster:
+        if vol and sum(G.get(ym, {}).values()) <= 0:
+            raise RuntimeError(f"gepickt {ym} is leeg: niets opgeslagen")
+    laatste, van, tot, mee_lopend = gem_6(G, maanden, vandaag)
     idx = [maanden.index(m) for m in laatste]
-    y, m = map(int, laatste[-1].split("-"))
-    eind = datetime.date(y + (m == 12), m % 12 + 1, 1) - datetime.timedelta(days=1)
-    van, tot = laatste[0] + "-01", eind.strftime("%Y-%m-%d")
-    verkooptabel = tabel("verkoop", "select=*")
-    kopie("verkoop", verkooptabel)
+    controle = {"magazijnen": magtot, "andermag": anderTot}
+
+    def inpakken(M):
+        codes = set()
+        for ym in maanden:
+            codes |= set(M.get(ym, {}))
+        return {c: [afr(M.get(ym, {}).get(c, 0)) for ym in maanden] for c in codes}
+
+    vb, vg = inpakken(nieuw), inpakken(G)
     nu = iso_nu()
+    lopend = venster[-1][0]
+    gem_b = {c: afr(sum(a[i] for i in idx) / len(laatste)) for c, a in vb.items() if sum(a[i] for i in idx)}
+    cat_zet("wh-verkoop-besteld", {"maanden": maanden, "v": vb, "gem": gem_b, "periode": {"van": van, "tot": tot, "maanden": len(laatste)},
+                                   "datum": nu, "bron": "picqer-bestellingen", "lopend": lopend})
+    cat_zet("wh-verkoop-besteld-gem", {"gem": gem_b, "periode": {"van": van, "tot": tot, "maanden": len(laatste)}, "datum": nu, "bron": "picqer-bestellingen"})
+    log(f"  wh-verkoop-besteld: {len(maanden)} maanden, {len(vb)} producten · gemiddelde per maand in wh-verkoop-besteld-gem")
+    cat_zet("wh-verkoop-gepickt", {"maanden": maanden, "v": vg, "datum": nu, "bron": "picqer-voorraadmutaties", "lopend": lopend,
+                                   "compleet": [ym for ym, *_r, vol in venster if vol], "ids": idcodes})
+    oud_rij = cat_haal("wh-verkoop-mnd")
+    kopie("wh-verkoop-mnd", oud_rij["data"] if oud_rij else None, "20261122")       # vóór de wissel naar gepickt
+    cat_zet("wh-verkoop-mnd", {"maanden": maanden, "v": vg, "datum": nu, "bron": "picqer-voorraadmutaties", "lopend": lopend})
+    log(f"  wh-verkoop-gepickt en wh-verkoop-mnd: {len(maanden)} maanden, {len(vg)} producten")
+
+    # tabel verkoop (ABC, aanvulniveaus, Productdata) = verkoop-gepickt, gemiddelde van de laatste 6 maanden
+    verkooptabel = tabel("verkoop", "select=*")
+    kopie("verkoop", verkooptabel, "20261122")
     rijen = []
-    for c in set(prod) | codes:
-        a = sum(v[c][i] for i in idx) if c in v else 0
+    for c in set(prod) | set(vg):
+        a = sum(vg[c][i] for i in idx) if c in vg else 0
         rijen.append({"productcode": c, "leverancier": prod.get(c), "aantal": afr(a), "periode_van": van, "periode_tot": tot,
                       "maanden": len(laatste), "per_maand": afr(a / len(laatste)), "geimporteerd_op": nu})
     for i in range(0, len(rijen), 500):
         rest("POST", "verkoop?on_conflict=productcode", rijen[i:i + 500], {"Prefer": "resolution=merge-duplicates,return=minimal"})
-    log(f"  tabel verkoop: {len(rijen)} producten, gemiddelde {laatste[0]} t/m {laatste[-1]} ({len(laatste)} maanden)")
-    controle["laatsteMaand"] = maanden[-1]
-    controle["gemiddelde"] = {"van": laatste[0], "tot": laatste[-1], "lopendMee": mee_lopend}
-    return {"t": nu, "laatsteMaand": maanden[-1], "maanden": len(maanden), "producten": len(v)}, controle
+    log(f"  tabel verkoop: {len(rijen)} producten, gemiddelde gepickt {laatste[0]} t/m {laatste[-1]} ({len(laatste)} maanden)")
+
+    # controle (moet 0 zijn): gepickt in de 6 maanden, maar 0 verkoop in de tabel; plus picks die niet op een code te zetten zijn
+    pm = {r["productcode"]: r["per_maand"] for r in rijen}
+    nul = [c for c in vg if sum(vg[c][i] for i in idx) > 0 and not pm.get(c)]
+    zonder_code = len(onbekend)
+    log(f"  Controle verkoop-gepickt: {len(nul)} producten gepickt maar 0 verkoop (moet 0 zijn)")
+    if zonder_code:                                             # product bestaat niet meer in Picqer: staat ook niet in de app
+        print(f"::warning::{zonder_code} gepickte producten hebben geen productcode meer in Picqer ({afr(mis, 0):.0f} stuks)")
+    tb = sum(sum(a[i] for i in idx) for a in vb.values()) / len(laatste)
+    tg = sum(sum(a[i] for i in idx) for a in vg.values()) / len(laatste)
+    log(f"  per maand (gemiddeld {len(laatste)} mnd): gepickt {tg:.0f} stuks · besteld {tb:.0f} stuks")
+    controle.update({"laatsteMaand": maanden[-1], "gemiddelde": {"van": laatste[0], "tot": laatste[-1], "lopendMee": mee_lopend},
+                     "gepicktZonderVerkoop": len(nul), "zonderCode": zonder_code, "zonderCodeStuks": afr(mis, 0)})
+    if nul:
+        raise RuntimeError(f"{len(nul)} producten gepickt maar 0 verkoop")
+    return {"t": nu, "laatsteMaand": maanden[-1], "maanden": len(maanden), "producten": len(vg), "besteld": len(vb), "gepicktZonderVerkoop": 0}, controle
 
 
 # ---------- locaties ----------

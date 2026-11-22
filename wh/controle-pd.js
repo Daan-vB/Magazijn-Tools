@@ -21,6 +21,8 @@ const S = { klopt:{}, reacties:[], steek:null, klaar:false, p:null, memo:null, m
 // soort volgens de blauwdruk (§8): Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder; Weg = Uitlopend of Archief (09-11)
 const SOORTK = ['pick', 'bulk', 'deel', 'pallet', 'mix', 'twijfel', 'weg', 'backorder'];
 const SOORTT = { pick:'Pick', bulk:'Bulk', deel:'Deel', pallet:'Pallet', mix:'Mix', twijfel:'Twijfel', weg:'Weg', backorder:'Backorder' };
+// Deel en Mix botsen niet (Daan 22-11): een product kan per deel aangevuld worden én op een mixpallet staan
+const zelfdeSoort = (a, b) => a === b || (['deel', 'mix'].includes(a) && ['deel', 'mix'].includes(b));
 const ZONDER = new Set(['weg', 'backorder', 'twijfel']);   // geen gewicht- of hoeveelheidsvragen
 const WEGT = { uitlopend:'Uitlopend', archief:'Archief' };
 const nu = () => new Date().toISOString();
@@ -273,9 +275,10 @@ function berekenen(){
       if(vp && vp > 1500) punt('hercontrole', 'Volle pallet ' + nf(vp) + ' kg is boven 1.500 kg (' + uitleg + ')', 'Een volle pallet van ' + nf(vp) + ' kg is onwaarschijnlijk: meestal klopt het gewicht per stuk of het aantal per pallet niet.', { tekst:'Voorstel: controleer gewicht per stuk of aantal per pallet (Aanpassen)' }, 'vp>|' + vp);
       if(vp && vp < 50) punt('hercontrole', 'Volle pallet ' + nf(vp) + ' kg is onder 50 kg (' + uitleg + ')', 'Een volle pallet van ' + nf(vp) + ' kg is onwaarschijnlijk licht: meestal klopt het gewicht per stuk of het aantal per pallet niet.', { tekst:'Voorstel: controleer gewicht per stuk of aantal per pallet (Aanpassen)' }, 'vp<|' + vp);
     }
-    // andere soort dan de kleurgenoten: nooit als een van beide Weg is (Weg is een eigen keuze per product)
+    // andere soort dan de kleurgenoten: nooit als een van beide Weg is (Weg is een eigen keuze per product), en Deel tegenover Mix is
+    // geen tegenstrijdigheid (Daan 22-11: Deel = hoe de pickplek wordt aangevuld, Mix = staat ook op een mixpallet)
     if(!ZONDER.has(so)){
-      const glw = gl.filter(x => !ZONDER.has(soortVan(x))), andere = [...new Set(glw.map(soortVan))].filter(x => x && x !== so);
+      const glw = gl.filter(x => !ZONDER.has(soortVan(x))), andere = [...new Set(glw.map(soortVan))].filter(x => x && !zelfdeSoort(x, so));
       if(andere.length && glw.length >= 2){ const top = andere.map(a => [a, glw.filter(x => soortVan(x) === a).length]).sort((a, b) => b[1] - a[1])[0];
         if(top[1] > glw.length / 2 && verkoopGelijk(c, glw)) punt('hercontrole', 'Kleurgenoten (zelfde maat) hebben soort ' + SOORTT[top[0]] + ' (' + top[1] + ' van ' + glw.length + '), dit product ' + SOORTT[so], 'De verkoop is vergelijkbaar, dus ze komen waarschijnlijk op dezelfde manier binnen; het verschil in soort lijkt geen bewuste keuze.', { soort:top[0], tekst:'Voorstel: ' + SOORTT[top[0]] }, 'soort|' + so + '|' + top[0]); }
     }

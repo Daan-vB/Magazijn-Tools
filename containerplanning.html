@@ -426,6 +426,7 @@ let CAT = {};        // productgeheugen (catalog-ean)
 let LIVEP = {};      // producten die live uit Picqer zijn opgezocht (staan niet in de import)
 let GEH = {};        // lowercase productcode -> [geheugen-items]
 let VK = {};         // productcode -> verkoop
+let VKB = null;      // verkoop-besteld van vannacht (wh-verkoop-besteld-gem): terugval als de live bestellingen niet lukken (Daan 22-11)
 let BO = [];         // backorderregels
 let BOBY = {};       // productcode -> { open, totaal, regels }
 let ALIAS = [];      // geleerde pakboncodes
@@ -495,6 +496,7 @@ async function load(){
       safe('containers', T('containers', 'select=*&order=id', ['updated_at'])),
       safe('todos', getAll('todos', 'select=*')),
       api('GET', 'catalog?key=eq.' + PRULLEN_KEY + '&select=data').catch(() => []),
+      api('GET', 'catalog?key=eq.wh-verkoop-besteld-gem&select=data').then(r => { VKB = r && r[0] && r[0].data && r[0].data.gem ? r[0].data : null; }).catch(() => {}),
       laadGeenPlek()   // voorraad op "geen specifieke locatie" (telt niet als pick-voorraad), tegelijk met de rest
     ]);
     if(window.PDBRON && PDBRON.laadCp) await PDBRON.laadCp(true);   // productdata altijd lezen voor het advies (alleen bevestigde waarden), los van de schakelaar
@@ -618,7 +620,10 @@ function feiten(code){
   return {
     hm, vst:num(p.voorraad_vst) || 0,
     vrij: leeg(p.vrij_hm) ? hm - b.open : num(p.vrij_hm),
-    ...(() => { const l = vkLive(code); return l ? { rate:l.m6, rate28:l.d28, vkBron:'bestellingen' } : { rate:v ? num(v.per_maand) : null, rate28:null, vkBron:'import' }; })(), verkoop:v,
+    ...(() => { const l = vkLive(code); if(l) return { rate:l.m6, rate28:l.d28, vkBron:'bestellingen' };
+      // inkoop rekent met bestellingen (verkoop-besteld); de tabel verkoop is sinds 22-11 de gepickte telling (ABC, aanvullen)
+      if(VKB) return { rate:num(VKB.gem[code]) || 0, rate28:null, vkBron:'besteld' };
+      return { rate:v ? num(v.per_maand) : null, rate28:null, vkBron:'import' }; })(), verkoop:v,
     bo:b.open, boRegels:b.regels, abc:p.abc || ''
   };
 }
@@ -2074,6 +2079,7 @@ function liveVerkoopOpen(){
 // "Verkoop: x/mnd (6 mnd) · y laatste 28 dgn" (zonder live bestellingen: de import van verzonden verkoop, met die uitleg)
 function vkTekst(f, kort){
   if(f.vkBron === 'bestellingen') return (kort ? '' : 'Verkoop: ') + '<b>' + nf(f.rate) + '/mnd</b> (6 mnd) · <b>' + nf(f.rate28) + '</b> laatste 28 dgn';
+  if(f.vkBron === 'besteld') return (kort ? '' : 'Verkoop: ') + '<b>' + nf(f.rate) + '/mnd</b> (6 mnd) <span class="muted">(bestellingen van vannacht' + (VKL.fout ? '; nu niet live: ' + esc(VKL.fout) : '') + ')</span>';
   return (kort ? '' : 'Verkoop: ') + '<b>' + (f.rate === null ? 'onbekend' : nf(f.rate) + '/mnd') + '</b> <span class="muted">(alleen verzonden, import' + (VKL.fout ? '; bestellingen niet live: ' + esc(VKL.fout) : '; bestellingen nog niet opgehaald') + ')</span>';
 }
 function vkLiveRegel(){
@@ -2287,7 +2293,7 @@ function adviesKern(c, pool, eerder){
   // geen gecontroleerde data = geen automatisch advies: pallet onbekend (onb), of geen verkoophistorie zonder bekende pallet en zonder vaste regel
   if(qtySoort((geh1(code) || {}).qty) === 'onb') return teBepalen('stuks per pallet onbekend — nog te bepalen, verdeel zelf');
   // "geen verkoophistorie" alleen als er in 6 maanden echt geen enkele bestelling is (bestellingen live); zonder live bestellingen zegt het dat
-  const geenVk = f.vkBron === 'bestellingen' ? 'geen verkoophistorie (6 mnd geen bestelling)' : 'geen verzonden verkoop in de import (bestellingen niet live)';
+  const geenVk = f.vkBron === 'bestellingen' || f.vkBron === 'besteld' ? 'geen verkoophistorie (6 mnd geen bestelling)' : 'geen verzonden verkoop in de import (bestellingen niet live)';
   // zelfde product op meerdere regels met andere "komt als" (pallets én los) en geen palletregel: niet raden hoe wij het wegzetten
   if(pool.regels.some(r => r.soort === 'pallet') && pool.regels.some(r => r.soort !== 'pallet') && !sppVan(code) && !(R.losdest || R.pickmax || R.restdest || R.bulk || R.maxpal)) return teBepalen('twee regels (pallets en los) en geen palletregel — bij lossen bepalen, verdeel zelf');
   if(!f.rate && !pallets.length && !sppVan(code) && !(R.losdest || R.pickmax || R.restdest || R.bulk || R.maxpal)) return teBepalen(geenVk + ' en geen bekende pallet — nog te bepalen, verdeel zelf');
@@ -2351,7 +2357,7 @@ function adviesKern(c, pool, eerder){
   } else {
     const doel = f.rate * maanden;
     need = Math.max(0, doel - vrij);
-    uitleg.push('doel ' + nf(doel) + ' (' + nf(maanden, 1) + ' mnd × ' + nf(f.rate) + '/mnd ' + (f.vkBron === 'bestellingen' ? 'bestellingen' : 'verzonden') + '), vrij ' + nf(vrij));
+    uitleg.push('doel ' + nf(doel) + ' (' + nf(maanden, 1) + ' mnd × ' + nf(f.rate) + '/mnd ' + (f.vkBron === 'bestellingen' || f.vkBron === 'besteld' ? 'bestellingen' : 'verzonden') + '), vrij ' + nf(vrij));
   }
   // 3. los -> eerst naar pick tot max op pick, rest naar Bulk (up). VST neemt ALLEEN volle pallets: losse rollen, dozen en stuks gaan nooit naar VST,
   //    ook niet via een oude regel of het productgeheugen (VASTE REGEL Daan 19-11). Zonder max op pick: alles los naar Bulk, bij lossen bepalen.
@@ -2495,7 +2501,7 @@ function punten(c, pl){
       else if(Math.abs(pq / 1000 - perU) / perU > 0.25) add('gw-' + code, 'let', code + ': Picqer-gewicht ' + nf(pq / 1000, 2) + ' kg, pakbon zegt ' + nf(perU, 2) + ' kg per ' + per_ + '. Aanpassen in Picqer (belangrijk voor orderpickers).', code, null, 'gw', code + ' ' + nf(pq / 1000, 2) + ' → ' + nf(perU, 2) + ' kg/' + per_);
     }
     const f = feiten(code);
-    if(!f.rate && f.hm === 0) add('nieuw-' + code, 'info', code + ': ' + (f.vkBron === 'bestellingen' ? 'geen verkoophistorie (6 mnd geen bestelling)' : 'geen verzonden verkoop in de import') + ' — nieuw product? Verdeling zelf beoordelen.', code, 'verdeling', 'nieuw', code);
+    if(!f.rate && f.hm === 0) add('nieuw-' + code, 'info', code + ': ' + (f.vkBron === 'bestellingen' || f.vkBron === 'besteld' ? 'geen verkoophistorie (6 mnd geen bestelling)' : 'geen verzonden verkoop in de import') + ' — nieuw product? Verdeling zelf beoordelen.', code, 'verdeling', 'nieuw', code);
     const v = c.data.verdeling[code];
     if(v && v.porties && v.porties.length && !restVan(pool, v.porties).ok) add('vd-' + code, 'fout', code + ': verdeling telt niet op.', code, 'verdeling', 'vd', code);
     if(perRol(eenheidVan(code)) && factorVan(c, code) === 1)

@@ -376,7 +376,7 @@ function check(d, regel, waar, x){
       ['workflow: elke nacht (cron) + handmatige knop', /cron:/.test(wf) && /workflow_dispatch/.test(wf) && /Europe\/Amsterdam/.test(wf)],
       ['workflow gebruikt alleen het bestaande secret SUPABASE_ACCESS_TOKEN', geheimen.length === 1 && geheimen[0] === 'secrets.SUPABASE_ACCESS_TOKEN'],
       ['script leest Picqer alleen via het tussenstation (geen eigen Picqer-aanroep, geen sleutel)', !/picqer\.com|PICQER_KEY/i.test(py) && /functions\/v1\/picqer/.test(py)],
-      ['script maakt vóór de eerste overschrijving een kopie wh-kopie-<naam>-20261121 (verkoop-mnd, voorraad, locaties, tabel verkoop)', /wh-kopie-\{naam\}-\{KOPIE\}/.test(py) && ['wh-verkoop-mnd', 'wh-voorraad', 'wh-locaties', '"verkoop"'].every(n => py.includes('kopie(' + (n[0] === '"' ? n : '"' + n + '"'))) ],
+      ['script maakt vóór de eerste overschrijving een kopie wh-kopie-<naam>-20261121 (verkoop-mnd, voorraad, locaties, tabel verkoop)', /wh-kopie-\{naam\}-\{(wanneer or )?KOPIE\}/.test(py) && ['wh-verkoop-mnd', 'wh-voorraad', 'wh-locaties', '"verkoop"'].every(n => py.includes('kopie(' + (n[0] === '"' ? n : '"' + n + '"'))) ],
       ['tussenstation laat alleen GET naar Picqer toe en nieuwe versie live', /method: "GET"/.test(fnc) && !/method: "(POST|PUT|PATCH|DELETE)"/.test(fnc.replace(/\/\/.*$/gm, '')) && /x-ivol-dienst/.test(fnc)],
       ['workflow logt in met het bestaande token (tussenstation vraagt Supabase zelf, GET; token nooit in de log, geen sleutels ophalen)', /x-ivol-beheer/.test(fnc) && /api\.supabase\.com\/v1\/projects\/" \+ PROJECT_REF \+ "\/functions\/picqer/.test(fnc) && /const PROJECT_REF = "jarbgetbwkjtxwtcfwmq"/.test(fnc) && /slug !== "picqer"/.test(fnc) && /BEHEER_ACTIES\.includes\(actie\)/.test(fnc) && /fout token/.test(py) && /x-ivol-beheer/.test(py) && !/api-keys|reveal/.test(py) && !/console\.log\([^)]*tok/.test(fnc) && !/log\([^)]*\btok\b/.test(py.replace(/rechten\(tok\)/g, ''))],
       ['app toont per dataset wanneer hij ververst is en meldt oranje na 36 uur', /> 36/.test(ivol) && /> 36/.test(views) && /nachtOud/.test(ivol)],
@@ -412,8 +412,53 @@ function check(d, regel, waar, x){
       met.slice(0, 2500).forEach(c => { const s = R.soortWaarde(c); if(s.st !== 'voorstel') return; let m = null; try{ m = WHPD.intern && WHPD.intern.mvSoort ? WHPD.intern.mvSoort(c) : null; }catch(e){} if(!m) return; if(s.r === 'soort:mv-pallet'){ mv.pallet++; if(s.v !== 'pallet') mv.fout.push(c); } if(s.r === 'soort:mv-deel'){ mv.deel++; if(s.v !== 'deel') mv.fout.push(c); } if(m.soort === 'pallet' && /fam(maat)?$/.test(s.r || '')) mv.fout.push(c + ' familie vóór eigen verplaatsingen'); });
       return { n:met.length, fout:fout.slice(0, 8), nf:fout.length, regels, mv, aanname:!!(R.AANNAMES && R.AANNAMES.nooitpick) };
     });
-    check('D59', '§3 VASTE REGEL nooit Pick (Daan 22-11): voorraad op bulk of bij VST (of meer inkoop dan op pick past) = nooit soortvoorstel Pick, ook niet via kleurgenoten; verplaatsingen naar pick: telkens de hele bulkplek = Pallet, telkens een deel = Deel',
+    check('D59', '§3 VASTE REGEL nooit Pick (Daan 22-11): voorraad op bulk of bij VST (of meer inkoop dan op pick past) = nooit soortvoorstel Pick, ook niet via kleurgenoten; verplaatsingen naar pick: Pallet alleen bij de hele bulkplek in ≥ 70% van de keren (D61), anders Deel',
       r.n > 50 && r.nf === 0 && !r.mv.fout.length && r.aanname, JSON.stringify(r).slice(0, 400));
+  }
+  /* ---------- Twee tellingen verkoop (Daan 22-11) ---------- */
+  if(doe('D60')){
+    const r = (...x) => { try{ return fs.readFileSync(path.join(__dirname, '..', '..', ...x), 'utf8'); }catch(e){ return ''; } };
+    const py = r('.github', 'ververs', 'ververs.py'), fnc = r('supabase', 'functions', 'picqer', 'index.ts'), core = r('wh', 'core.js'), reken = r('wh', 'pd2-reken.js'), cp = r('containerplanning.html');
+    const gp = (fnc.match(/async function gepickt[\s\S]*?\n}\n/) || [''])[0];
+    const uit = [
+      ['tussenstation: actie gepickt leest alleen voorraadmutaties (stockhistory) van het Hoofdmagazijn, picking min pickingrollback, alleen GET', /stockhistory\?idwarehouse=" \+ MAGAZIJN/.test(gp) && /"picking"/.test(gp) && /"pickingrollback"/.test(gp) && !/method: "(POST|PUT|PATCH|DELETE)"/.test(gp) && !/iduser|reason/.test(gp.replace(/\/\/.*$/gm, ''))],
+      ['token: alleen de lees-acties van de ververs plus gepickt', /const BEHEER_ACTIES = \["status", "catalogus", "locaties", "locatielijst", "bestellingen", "gepickt"\]/.test(fnc)],
+      ['script schrijft verkoop-gepickt en verkoop-besteld apart', /cat_zet\("wh-verkoop-gepickt"/.test(py) && /cat_zet\("wh-verkoop-besteld"/.test(py) && /cat_zet\("wh-verkoop-besteld-gem"/.test(py)],
+      ['ABC en aanvulniveaus: wh-verkoop-mnd en tabel verkoop uit gepickt (met kopie vooraf)', /cat_zet\("wh-verkoop-mnd", \{"maanden": maanden, "v": vg/.test(py) && /for c in set\(prod\) \| set\(vg\)/.test(py) && /kopie\("verkoop", verkooptabel, "20261122"\)/.test(py) && /kopie\("wh-verkoop-mnd"/.test(py)],
+      ['controle: stopt als een product gepickt is zonder verkoop (moet 0 zijn)', /gepickt maar 0 verkoop \(moet 0 zijn\)/.test(py) && /if nul:\s*\n\s*raise RuntimeError/.test(py)],
+      ['inkoop en backorders: app leest verkoop-besteld (Weg/Backorder en Containers-terugval)', /'wh-verkoop-besteld-gem'/.test(core) && /v6 = vkBesteld\(c\)/.test(reken) && /wh-verkoop-besteld-gem/.test(cp) && /vkBron:'besteld'/.test(cp)],
+    ];
+    check('D60', '§1 VASTE REGEL twee tellingen verkoop (Daan 22-11): verkoop-gepickt (fysieke picks, onderdelen van sets wel, sets niet) voor ABC en aanvulniveaus; verkoop-besteld voor inkoop en backorders; 0 producten gepickt zonder verkoop',
+      uit.every(x => x[1]), uit.filter(x => !x[1]).map(x => x[0]).join(' | '));
+  }
+  /* ---------- Verplaatsingsregel 70% (Daan 22-11) ---------- */
+  if(doe('D61')){
+    if(!(await ev(() => !!(window.PD2R && PD2R.S && PD2R.S.klaar)))){ await P.goto(B + 'ivol.html#/pd2'); await P.waitForFunction(() => window.PD2R && PD2R.S && PD2R.S.klaar, null, { timeout:280000 }).catch(() => {}); }
+    const r = await ev(() => {
+      const I = WHPD.intern, uit = { pallet:0, deel:0, fout:[] };
+      Object.keys(WH.D.P).forEach(c => {
+        let m = null, g = null; try{ m = I.mvSoort(c); g = I.mvPatroon(c); }catch(e){ return; }
+        if(!m || !g) return;
+        const n = g.vol ? g.vol.n : 0, tot = g.naarPick || 0;
+        if(m.soort === 'pallet'){ uit.pallet++; if(!(tot && n >= 0.7 * tot)) uit.fout.push(c + ' Pallet bij ' + n + ' van ' + tot); }
+        else { uit.deel++; if(g.vol && tot && n >= 0.7 * tot) uit.fout.push(c + ' Deel bij ' + n + ' van ' + tot); }
+      });
+      return uit;
+    });
+    check('D61', '§3 Verplaatsingsregel (Daan 22-11): Pallet alleen als de hele bulkplek in minstens 70% van de keren naar pick ging, anders Deel',
+      !!r && r.pallet + r.deel > 20 && !r.fout.length, JSON.stringify(r).slice(0, 300));
+  }
+  /* ---------- Deel en Mix geen tegenstrijdigheid (Daan 22-11) ---------- */
+  if(doe('D62')){
+    const r = (...x) => { try{ return fs.readFileSync(path.join(__dirname, '..', '..', ...x), 'utf8'); }catch(e){ return ''; } };
+    const cpd = r('wh', 'controle-pd.js'), reken = r('wh', 'pd2-reken.js');
+    const s7 = (reken.match(/return \{ r:'soort:7'[^\n]*/) || [''])[0];
+    const uit = [
+      ['Hercontrole: kleurgenoten met Deel tegenover Mix is geen punt', /const zelfdeSoort = \(a, b\) => a === b \|\| \(\['deel', 'mix'\]\.includes\(a\) && \['deel', 'mix'\]\.includes\(b\)\)/.test(cpd) && /filter\(x => x && !zelfdeSoort\(x, so\)\)/.test(cpd)],
+      ['voorstel bulk op eigen én gedeelde plekken = Deel zonder twijfel tussen Deel en Mix', !!s7 && /t\('deel'/.test(s7) && !/tw:true/.test(s7)],
+    ];
+    check('D62', '§3 VASTE REGEL Deel en Mix (Daan 22-11): geen tegenstrijdigheid; nooit twijfel of Hercontrole-punt tussen Deel en Mix, Daans keuzes blijven',
+      uit.every(x => x[1]), uit.filter(x => !x[1]).map(x => x[0]).join(' | '));
   }
   /* ---------- repo ---------- */
   const root = path.join(__dirname, '..', '..');

@@ -190,8 +190,10 @@ function vraagLijst(stat){
       ['rl', 'rmax'].forEach(k => { if(!st.open.includes(k)) return; if(k === 'rmax' && zonderPallet(c)) return tel('pallet'); if(S.later.has(c + '|' + k)) return tel('later'); const w = PD2R.waarde(c, k); L.push({ c, k, v:w.v || '', uit:w.why || '', fam, ab:ab(c) }); });
     }catch(e){}
   });
-  // A/B eerst, dan per familie en per vraag (soort eerst): dezelfde vraag komt achter elkaar
-  return L.sort((a, b) => a.ab - b.ab || a.fam.localeCompare(b.fam) || VO.indexOf(a.k) - VO.indexOf(b.k) || naamVan(a.c).localeCompare(naamVan(b.c), 'nl', { numeric:true }));
+  // A/B eerst, dan per familie en per vraag (soort eerst): dezelfde vraag komt achter elkaar. A/B telt per familie (de beste klasse in de
+  // familie), zodat een familie bij elkaar blijft en de soortvraag van een C-kleurgenoot nooit na de maatvraag van een A-product komt
+  const famAb = {}; L.forEach(q => { famAb[q.fam] = Math.min(famAb[q.fam] ?? 9, q.ab); });
+  return L.sort((a, b) => famAb[a.fam] - famAb[b.fam] || a.fam.localeCompare(b.fam) || VO.indexOf(a.k) - VO.indexOf(b.k) || a.ab - b.ab || naamVan(a.c).localeCompare(naamVan(b.c), 'nl', { numeric:true }));
 }
 // zelfde opslag als Productdata 2.0: productdata met bron pd2, vooraf een kopie van de rijen in wh-pd2-kopie-<dag>
 async function pd2Zet(items){

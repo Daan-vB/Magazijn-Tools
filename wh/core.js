@@ -13,7 +13,7 @@ window.WH = (function(){
 const URL_ = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
 const KEY  = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
 const H    = { apikey:KEY, Authorization:'Bearer ' + KEY };
-const CAT_KEYS = ['wh-locaties', 'wh-vst-locaties', 'wh-vst-locaties-vorige', 'wh-pq', 'wh-advies', 'wh-aanvul', 'wh-taken', 'wh-triage', 'wh-voorraad', 'wh-vst-voorraad', 'wh-verkoop-mnd', 'wh-bo-vorige', 'wh-stellingen', 'wh-todo', 'wh-leveringen'];
+const CAT_KEYS = ['wh-locaties', 'wh-vst-locaties', 'wh-vst-locaties-vorige', 'wh-pq', 'wh-advies', 'wh-aanvul', 'wh-taken', 'wh-triage', 'wh-voorraad', 'wh-vst-voorraad', 'wh-verkoop-mnd', 'wh-verkoop-besteld-gem', 'wh-bo-vorige', 'wh-stellingen', 'wh-todo', 'wh-leveringen'];
 /* Productdata als bron (bouwplan 0.4, 15-10-2026): eerst in 3.0 en Test, Warehouse en Junior pas na akkoord van Daan.
    Aan = de tabel productdata wordt geladen (D.PD) en de rekenregels lezen stuks per pallet, aanvullen en picklocatie daar eerst.
    Per apparaat te overrulen met localStorage 'ivol-pd-bron' = 'aan' of 'uit'. Na akkoord: 'warehouse' en 'junior' aan PD_APPS toevoegen. */
@@ -188,7 +188,8 @@ async function load(){
     ((C['wh-vst-locaties-vorige'] || {}).rows || []).forEach(([pal, codes]) => String(codes).split('|').forEach(c => (D.VSTLOCVORIG[c] = D.VSTLOCVORIG[c] || []).push(pal)));
     zetVoorraad(C['wh-voorraad']);
     zetVstVoorraad(C['wh-vst-voorraad']);
-    D.VKM = C['wh-verkoop-mnd'] || null;
+    D.VKM = C['wh-verkoop-mnd'] || null;   // verkoop-gepickt per maand (ABC, aanvulniveaus)
+    D.VKB = C['wh-verkoop-besteld-gem'] || null;   // verkoop-besteld, gemiddeld per maand (inkoop, backorders; Daan 22-11)
     D.BOVORIG = C['wh-bo-vorige'] || null;
     D.ADV = C['wh-advies'] || null;
     D.AANVUL = C['wh-aanvul'] || {};

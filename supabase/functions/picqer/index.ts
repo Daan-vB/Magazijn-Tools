@@ -39,6 +39,9 @@
 //          · tijd-op (functie stopt zelf) · ongeldig (verkeerde vraag van de app)
 //                              Optioneel &mag=1: alleen orders van het Hoofdmagazijn (orders met een ander idwarehouse tellen niet mee).
 //                              Het antwoord meldt altijd hoeveel orders per idwarehouse zijn gezien (magazijnen), zonder klantgegevens.
+//    gepickt     ?sinds=…&tot=…&offset=0&paginas=N → fysieke picks uit de voorraadmutaties van het Hoofdmagazijn (picking min
+//                              pickingrollback) per pickdag en idproduct, max. 10 pagina's van 100 per aanroep; geen gebruikers of redenen.
+//                              ?ids=1,2,3 (max. 60) → alleen [idproduct, productcode] om de mutaties op code te zetten. Ook met het Supabase-token.
 //    versie      zonder koppelcode: { versie, acties } — om te zien of de nieuwe versie live staat (geen gegevens uit Picqer)
 // =====================================================================
 
@@ -50,12 +53,12 @@ const MAGAZIJN = Number(Deno.env.get("PICQER_WAREHOUSE") || "3857");
 const BASIS = Deno.env.get("PICQER_BASE") || (DOMEIN ? "https://" + (DOMEIN.includes(".") ? DOMEIN : DOMEIN + ".picqer.com") + "/api/v1" : "");
 const HERKOMST = ["https://daan-vb.github.io"];
 const UA = "IVOL Warehouse (github.com/Daan-vB/Magazijn-Tools)";
-const VERSIE = "2026-11-22.1";   // bij elke wijziging ophogen: actie "versie" laat zien wat er live staat
+const VERSIE = "2026-11-22.2";   // bij elke wijziging ophogen: actie "versie" laat zien wat er live staat
 const PROJECT_REF = "jarbgetbwkjtxwtcfwmq";   // token-controle alleen voor ons project (Palletlabels)
 const EIGEN_PROJECT = (Deno.env.get("SUPABASE_URL") || "").startsWith("https://" + PROJECT_REF + ".supabase.co");
-const BEHEER_ACTIES = ["status", "catalogus", "locaties", "locatielijst", "bestellingen"];   // alleen deze lees-acties met het Supabase-token
+const BEHEER_ACTIES = ["status", "catalogus", "locaties", "locatielijst", "bestellingen", "gepickt"];   // alleen deze lees-acties met het Supabase-token (gepickt: Daan 22-11)
 const ACTIES = ["status", "vandaag", "producten", "picklijst", "catalogus", "locaties", "ontvangsten", "keten", "ontvangstenlijst", "verplaatsingen",
-  "historielicht", "idindex", "historietest", "bestellingen", "mutaties", "locatielijst", "niveaus", "lees", "versie"];
+  "historielicht", "idindex", "historietest", "bestellingen", "gepickt", "mutaties", "locatielijst", "niveaus", "lees", "versie"];
 
 function cors(origin: string | null): Record<string, string> {
   const ok = origin && (HERKOMST.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin));
@@ -706,6 +709,64 @@ async function historieTest(rd: Ronde) {
 }
 
 // de drie geschiedenis-acties: altijd JSON met CORS en diag, ook als alles misgaat; uiterlijk na 45 s (+2 s noodrem)
+// fysieke picks (verkoop-gepickt, Daan 22-11): voorraadmutaties van het Hoofdmagazijn, picking min pickingrollback, per pickdag en idproduct.
+// Onderdelen van sets tellen zo vanzelf mee (die worden gepickt), sets zelf niet. Alleen GET naar Picqer; geen gebruikers, redenen of klantgegevens.
+// sinds/tot gaan als sincedate/untildate mee; de aanroeper loopt door met &offset= tot volgende = null.
+// Met ids (max. 60): alleen de productcodes van die producten; wat niet op tijd lukt, komt niet terug en vraagt de aanroeper opnieuw.
+async function gepickt(sindsTxt: string, totTxt: string, paginasTxt: string | null, offsetTxt: string | null, idsTxt: string | null, rd: Ronde) {
+  if (idsTxt) {
+    const ids = [...new Set(String(idsTxt).split(",").map((x) => parseInt(x, 10)).filter((x) => x > 0))].slice(0, 60);
+    if (!ids.length) throw new Fout("Geen producten gevraagd", 400);
+    const codes: [number, string | null][] = [];
+    for (const id of ids) {
+      if (codes.length && !tijdVoorPagina(rd)) break;
+      let p: any = null;
+      try { p = await pqLicht("products/" + id, rd); }
+      catch (e) {
+        if (!(e instanceof LichtFout) || e.wacht) { if (!codes.length) throw e; break; }   // druk of tijd op: de rest in een volgende aanroep
+        p = null;                                                                       // Picqer kent het product niet (meer)
+      }
+      codes.push([id, p && p.productcode ? String(p.productcode) : null]);
+    }
+    return { bron: "picqer-producten", codes, diag: diagNu(rd) };
+  }
+  if (!MOMENT.test(sindsTxt || "")) throw new Fout("Ongeldig moment (sinds)", 400);
+  if (!MOMENT.test(totTxt || "")) throw new Fout("Ongeldig moment (tot)", 400);
+  const sinds = volMoment(sindsTxt), tot = volMoment(totTxt), n = aantalPaginas(paginasTxt, 10);
+  const startOff = Math.max(0, Math.floor((parseInt(offsetTxt || "0", 10) || 0) / 100) * 100);
+  const pad = "stockhistory?idwarehouse=" + MAGAZIJN + "&sincedate=" + encodeURIComponent(sinds) + "&untildate=" + encodeURIComponent(tot);
+  const som = new Map<string, number>();
+  let gedaan = 0, regels = 0, klaar = false, onderbroken = "", wachtSec: number | null = null;
+  for (let p = 0; p < n && !klaar; p++) {
+    if (p > 0 && !tijdVoorPagina(rd)) { onderbroken = "tijd op na " + p + " pagina's"; break; }
+    let pagina: any;
+    try { pagina = await pqLicht(pad + "&offset=" + (startOff + p * 100), rd); }
+    catch (e) {
+      if (p === 0 || !(e instanceof LichtFout)) throw e;
+      onderbroken = e.message; wachtSec = e.wachtSec; break;
+    }
+    if (!Array.isArray(pagina) || !pagina.length) { klaar = true; break; }
+    for (const h of pagina) {
+      const t = String(h.changed_at || "").replace("T", " ").slice(0, 19), ct = String(h.change_type || "");
+      if (Number(h.idwarehouse) !== MAGAZIJN || t < sinds || t > tot) continue;
+      if (ct !== "picking" && ct !== "pickingrollback") continue;
+      const a = -(Number(h.stock_change) || 0);   // picking -5 = 5 gepickt; terugzetten +5 = 5 minder
+      if (!a || !(Number(h.idproduct) > 0)) continue;
+      const k = t.slice(0, 10) + "\t" + Number(h.idproduct);
+      som.set(k, (som.get(k) || 0) + a);
+      regels++;
+    }
+    gedaan++;
+    if (pagina.length < 100) klaar = true;
+  }
+  return {
+    bron: "picqer-voorraadmutaties", versie: 1, sinds, tot, opgehaald: new Date().toISOString(), regels,
+    rijen: [...som].map(([k, a]) => { const [d, id] = k.split("\t"); return [d, Number(id), a]; }),
+    volgende: klaar ? null : startOff + gedaan * 100,
+    ...(onderbroken ? { onderbroken } : {}), ...(wachtSec ? { wachtSec } : {}), diag: diagNu(rd),
+  };
+}
+
 async function licht(actie: string, url: URL, origin: string | null): Promise<Response> {
   const rd = nieuweRonde();
   const q = (k: string) => url.searchParams.get(k);
@@ -714,6 +775,7 @@ async function licht(actie: string, url: URL, origin: string | null): Promise<Re
     const werk = actie === "historietest" ? historieTest(rd)
       : actie === "historielicht" ? historieLicht(q("sinds") || "", q("tot") || "", q("paginas"), q("idproduct"), rd, q("offset"))
       : actie === "bestellingen" ? bestellingen(q("sinds") || "", q("tot") || "", q("paginas"), q("offset"), rd, q("mag") === "1")
+      : actie === "gepickt" ? gepickt(q("sinds") || "", q("tot") || "", q("paginas"), q("offset"), q("ids"), rd)
       : idIndex(q("soort") || "", q("offset") || "0", q("paginas"), rd);
     const rem = new Promise<never>((_, nee) => {
       noodrem = setTimeout(() => nee(new LichtFout("Tijd op: de functie stopt zelf na " + LICHT_BUDGET_MS / 1000 + " s", 503, true)), LICHT_BUDGET_MS + 2000);
@@ -781,7 +843,7 @@ Deno.serve(async (req: Request) => {
     if (actie === "keten") return antwoord(await keten(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "ontvangstenlijst") return antwoord(await ontvangstenLijst(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "verplaatsingen") return antwoord(await verplaatsingen(url.searchParams.get("sinds") || "", url.searchParams.get("tot") || ""), 200, origin);
-    if (actie === "historielicht" || actie === "idindex" || actie === "historietest" || actie === "bestellingen") return await licht(actie, url, origin);
+    if (actie === "historielicht" || actie === "idindex" || actie === "historietest" || actie === "bestellingen" || actie === "gepickt") return await licht(actie, url, origin);
     if (actie === "mutaties") return antwoord(await mutaties(url.searchParams.get("sinds") || ""), 200, origin);
     if (actie === "locatielijst") return antwoord(await locatielijst(url.searchParams.get("van") || "0"), 200, origin);
     if (actie === "niveaus") return antwoord(await niveaus(url.searchParams.get("ids") || ""), 200, origin);

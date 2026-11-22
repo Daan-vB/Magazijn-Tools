@@ -498,7 +498,8 @@ function sppBronnen(code){
 /* Leren uit de verplaatsingen (aanname p-gesch, Daan 16-10). Alleen van een bulklocatie naar pick; retourkar (Container 1–6) telt niet.
    "Hele voorraad" = de bulklocatie was daarna leeg. Dat rekent de app per bulklocatie terug vanaf de voorraad-export
    (alleen verplaatsingen tot de exportdatum); klopt het terugrekenen niet (onder 0), dan telt die verplaatsing als niet de hele voorraad.
-   ≥ 3× de hele voorraad → volle pallet (stuks = het meest verplaatste aantal) · ≥ 3× hetzelfde aantal, niet de hele voorraad → deel (stuks = het gemiddelde). */
+   ≥ 3× de hele voorraad → volle pallet (stuks = het meest verplaatste aantal) · ≥ 3× hetzelfde aantal, niet de hele voorraad → deel (stuks = het gemiddelde).
+   De soort (mvSoort, Daan 22-11): Pallet alleen als de hele bulkplek in minstens 70% van de keren naar pick ging, anders Deel. */
 const kar = l => /^container\s*\d+$/i.test(String(l || '').trim());
 const isBulkLoc = l => !!(l && D.LOC[l] && D.LOC[l].bulk);
 function mvPatroon(code){
@@ -514,7 +515,7 @@ function mvPatroon(code){
     });
   });
   const pick = mv.filter(m => isBulkLoc(m.van) && m.naar && !kar(m.naar) && !isBulkLoc(m.naar));
-  const vol = pick.filter(m => leeg.get(m) === true), rest = pick.filter(m => leeg.get(m) !== true), uit = { vol:null, deel:null };
+  const vol = pick.filter(m => leeg.get(m) === true), rest = pick.filter(m => leeg.get(m) !== true), uit = { vol:null, deel:null, naarPick:pick.length, gemPick:pick.length ? Math.round(pick.reduce((s, m) => s + m.n, 0) / pick.length) : 0 };
   if(vol.length >= 3){
     const mo = modus(vol.map(m => m.n)), v = mo && mo.n >= 2 ? mo.v : Math.max(...vol.map(m => m.n));
     uit.vol = { n:vol.length, v, t:'verplaatsingen: ' + vol.length + '× de hele bulkvoorraad naar pick (' + [...new Set(vol.map(m => nf(m.n)))].join(', ') + ')' };
@@ -548,11 +549,14 @@ function kokosDoos(cs, kgCm){
   if(v <= 0) return { v:'nvt', why:wat + ': ' + nf(stap) + ' cm weegt al ' + nf(kg * stap, 1) + ' kg, boven ' + nf(R.kg) + ' kg → pallet', p:1 };
   return { v:String(v), why:wat + ': max ' + nf(v) + ' cm per doos (' + (smal ? 'gewicht beslist, ' : '') + (v < lmax ? 'onder ' + nf(R.kg) + ' kg bij ' + nf(kg, 3) + ' kg per cm' : 'lengte t/m ' + nf(R.lengte) + ' cm') + '), langer = pallet', p:1 };
 }
-// volle pallet of deel volgens de verplaatsingen; komen ze allebei voor, dan wat het vaakst gebeurde
+// volle pallet of deel volgens de verplaatsingen (Daan 22-11): Pallet alleen als de hele bulkplek in minstens 70% van de keren naar pick ging,
+// anders Deel (ook als de hele plek wel een paar keer ging). Zonder patroon (geen 3× de hele plek, geen 3× hetzelfde aantal): geen uitspraak.
+const MV_PALLET = 0.7;
 function mvSoort(code){
-  const g = mvPatroon(code);
-  if(g.vol && (!g.deel || g.vol.n >= g.deel.n)) return { soort:'pallet', v:g.vol.v, n:g.vol.n, t:g.vol.t };
-  if(g.deel) return { soort:'deel', gem:g.deel.gem, n:g.deel.n, t:g.deel.t };
+  const g = mvPatroon(code), tot = g.naarPick || 0;
+  if(g.vol && tot && g.vol.n >= MV_PALLET * tot) return { soort:'pallet', v:g.vol.v, n:g.vol.n, tot, t:g.vol.t + ', ' + g.vol.n + ' van ' + tot + '× naar pick (≥ 70%)' };
+  if(g.deel) return { soort:'deel', gem:g.deel.gem, n:g.deel.n, tot, t:g.deel.t + (g.vol ? ' · ' + g.vol.n + ' van ' + tot + '× de hele bulkplek (minder dan 70%)' : '') };
+  if(g.vol) return { soort:'deel', gem:g.gemPick, n:tot - g.vol.n, tot, t:'verplaatsingen: ' + g.vol.n + ' van ' + tot + '× de hele bulkplek naar pick (minder dan 70%), de andere keren een deel' };
   return null;
 }
 // zonder voorraad: alleen wat de pakbon (containerlijst) zegt
