@@ -35,6 +35,7 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Deel = komt op een pallet of in grotere hoeveelheid dan op pick past; deel naar pick, rest naar bulk; aanvullen met een deel van de bulkvoorraad.
 - Bulk = pallet staat alleen op bulk, geen picklocatie. Alleen als het besteld wordt: 1 stuk naar geen specifieke locatie verplaatsen en de backorder verwerken, zodat het op de picklijst komt. Nooit aanvuladvies naar pick. Vragen: gewicht en de palletvragen (per pallet, palletmaat, hoogte); geen max op pick. Voorbeeld: alle Sprinttrack kunstgras.
 - Pick = kleine hoeveelheden, geen bulk. Enige vraag: max op pick.
+- VASTE REGEL nooit Pick (Daan 22-11): Pick alleen voor producten die nooit meer binnenkrijgen dan op pick past. Voorraad op bulk of bij VST (pallets), of inkoop groter dan op pick past = nooit Pick, ook niet via kleurgenoten. De verplaatsingen naar pick beslissen: telkens de hele bulkplek naar pick = Pallet, telkens een deel van de bulkplek = Deel; zeggen ze nog niets, dan voorstel Pallet of Deel met twijfel, nooit Pick.
 - Mix = pallet met meerdere producten, met een deel naar pick.
 - Soort volgens de blauwdruk (§8): Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder.
 - Weg = keuzemenu Uitlopend (geen data meer nodig) / Archief. Backorder = eigen soort: alleen voor backorders ingekocht (oude Weg · Backorder telt als Backorder). Containers: alleen de backorders, rest VST.
@@ -66,6 +67,7 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 
 ## 6. Leveranciers en families
 - SAM Europe: alleen picklocatie, bulklocaties en aanvulniveau; niets anders vragen; nooit combineren of vergelijken met andere artikelen.
+- Selected Furniture (Daan 22-11): elke stoel (bureau-, vergader-, eetkamer-, werkplaatsstoel; geen wieltjes, glijders, gasveren, kussens of dopjes) met voorraad en een inkoop in de laatste 6 maanden is soort Pallet: stoelen gaan per volle pallet naar pick. Nooit Deel voorstellen.
 - Whiteboards: alleen FWB van Hebei komen in kratten van 50. Ningbo Henri komt los in de container; het team stapelt zelf pallets met een vast aantal per product (4560WM: 100 per pallet, 80x120x140); pick wordt per hele pallet aangevuld.
 - Kokos: alleen 100 of 200 cm breed. 100 breed: een stuk tot 30 kg in een doos, daarboven op pallet (rol max 600 cm); losse stukken in één order elk een eigen doos. 200 breed: tot 2 m en onder 30 kg in een doos, anders pallet.
 - Rubber ribbelmat op rol: losse lengtes 1–10 m bestaan pas enkele maanden; per 25 of meer een eigen pallet, rest op een mix/pick-pallet.

@@ -382,6 +382,38 @@ function check(d, regel, waar, x){
     ];
     check('D57', '§1 Alles live uit Picqer via het tussenstation, geen exports meer: verkoop per maand, voorraad per locatie en locaties verversen elke nacht 05:30 automatisch (alleen lezen uit Picqer, kopie vooraf, geen nieuwe sleutels); datum ververst zichtbaar, oranje na 36 uur', uit.every(x => x[1]), uit.filter(x => !x[1]).map(x => x[0]).join(' | '));
   }
+  /* ---------- Selected-stoelen = Pallet (Daan 22-11) ---------- */
+  if(doe('D58')){
+    await P.goto(B + 'ivol.html#/pd2'); await P.waitForFunction(() => window.PD2R && PD2R.S && PD2R.S.klaar, null, { timeout:280000 }).catch(() => {});
+    const r = await ev(() => {
+      const R = PD2R, D = WH.D, stoel = c => /selected/i.test(String((D.P[c] || {}).leverancier || '')) && /stoel/i.test(R.naamVan(c));
+      const alle = Object.keys(D.P).filter(c => stoel(c) && R.actief(c));
+      const inRegel = alle.filter(c => R.selectedStoel(c, R.locInfo(c), R.inkoop(c)));
+      const fout = inRegel.filter(c => { const p = R.po(c); if(p && p.so && p.so.v) return false; if(WHPD.S.pd[c] && WHPD.S.pd[c].data && WHPD.S.pd[c].data.uitlopend) return false; const s = R.soortWaarde(c); return s.v !== 'pallet' || (s.st === 'voorstel' && !/Daan 22-11/.test(s.why || '')); }).map(c => c + ':' + R.soortWaarde(c).v);
+      const onderdeel = alle.filter(c => /glijder|wiel|gasveer|kussen|dopje/i.test(R.naamVan(c)) && R.selectedStoel(c, R.locInfo(c), R.inkoop(c)));
+      const oud = alle.filter(c => { const i = R.inkoop(c); return i && i.laatste < WH.isoDag(new Date(Date.now() - 200 * 864e5)) && R.selectedStoel(c, R.locInfo(c), R.inkoop(c)); });
+      const sf = R.soortWaarde('SF251S');
+      return { n:inRegel.length, fout, onderdeel, oud, sf:{ v:sf.v, st:sf.st, why:sf.why }, aanname:!!(R.AANNAMES && R.AANNAMES.selectedstoel) };
+    });
+    check('D58', '§6 Selected Furniture (Daan 22-11): stoel met voorraad en inkoop in de laatste 6 maanden = soort Pallet (per volle pallet naar pick), nooit Deel; onderdelen en stoel zonder recente inkoop niet; eigen antwoord van Daan gaat voor',
+      r.n > 5 && !r.fout.length && !r.onderdeel.length && !r.oud.length && r.aanname && r.sf.v === 'pallet', JSON.stringify(r).slice(0, 380));
+  }
+  /* ---------- nooit Pick met voorraad op bulk of bij VST (Daan 22-11) ---------- */
+  if(doe('D59')){
+    if(!(await ev(() => !!(window.PD2R && PD2R.S && PD2R.S.klaar)))){ await P.goto(B + 'ivol.html#/pd2'); await P.waitForFunction(() => window.PD2R && PD2R.S && PD2R.S.klaar, null, { timeout:280000 }).catch(() => {}); }
+    const r = await ev(() => {
+      const R = PD2R, D = WH.D, som = a => a.reduce((s, x) => s + (x.v || 0), 0);
+      const codes = Object.keys(D.P).filter(c => R.actief(c) && !R.isSam(c) && !R.isKoppel(c));
+      const met = codes.filter(c => { const f = R.locInfo(c); return som(f.bulk) > 0 || (f.vst || 0) > 0; });
+      const fout = [], regels = {};
+      met.forEach(c => { const s = R.soortWaarde(c); if(!['voorstel', 'twijfel'].includes(s.st)) return; regels[s.r || '?'] = (regels[s.r || '?'] || 0) + 1; if(s.v === 'pick') fout.push(c + ' (' + (s.r || '') + ')'); });
+      const mv = { pallet:0, deel:0, fout:[] };
+      met.slice(0, 2500).forEach(c => { const s = R.soortWaarde(c); if(s.st !== 'voorstel') return; let m = null; try{ m = WHPD.intern && WHPD.intern.mvSoort ? WHPD.intern.mvSoort(c) : null; }catch(e){} if(!m) return; if(s.r === 'soort:mv-pallet'){ mv.pallet++; if(s.v !== 'pallet') mv.fout.push(c); } if(s.r === 'soort:mv-deel'){ mv.deel++; if(s.v !== 'deel') mv.fout.push(c); } });
+      return { n:met.length, fout:fout.slice(0, 8), nf:fout.length, regels, mv, aanname:!!(R.AANNAMES && R.AANNAMES.nooitpick) };
+    });
+    check('D59', '§3 VASTE REGEL nooit Pick (Daan 22-11): voorraad op bulk of bij VST (of meer inkoop dan op pick past) = nooit soortvoorstel Pick, ook niet via kleurgenoten; verplaatsingen naar pick: telkens de hele bulkplek = Pallet, telkens een deel = Deel',
+      r.n > 50 && r.nf === 0 && !r.mv.fout.length && r.aanname, JSON.stringify(r).slice(0, 400));
+  }
   /* ---------- repo ---------- */
   const root = path.join(__dirname, '..', '..');
   if(doe('D6')){

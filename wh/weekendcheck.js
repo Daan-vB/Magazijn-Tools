@@ -11,8 +11,10 @@ window.WHWK = (function(){
 'use strict';
 const SNAP_KEY = 'weekendcheck-2026-w47', ANT_KEY = 'weekendcheck-antwoorden';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
-const S = { snap:null, ant:{}, fout:null, laden:false, deel:'', id:'', aanpas:false, uit:new Set(), groepOpen:false, el:null, bewaar:0 };
-const DEEL = { c:'Containers deze week', i:'Inventaris A/B/C', alle:'Jouw vragen', afgeleid:'Afgeleid — bekijken' };
+const S = { snap:null, ant:{}, fout:null, laden:false, deel:'', id:'', aanpas:false, uit:new Set(), groepOpen:false, el:null, bewaar:0, hist:[] };
+// naar een andere vraag; de vorige onthouden zodat "Vorige" altijd teruggaat naar wat je net zag
+function ga(id){ if(S.id && id !== S.id){ S.hist.push(S.id); if(S.hist.length > 200) S.hist.shift(); } S.id = id || ''; }
+const DEEL = { c:'Containers deze week', i:'Inventaris A/B/C', alle:'Jouw vragen', afgeleid:'Afgeleid — bekijken', open:'Nog open — per groep' };
 const FASE = { hoog:'hoog', midden:'midden', A:'klasse A', B:'klasse B', C:'klasse C' };
 const SOORT = { daan:'voor jou', voorstel:'voorstel · 1 tik', zeker:'afgeleid', leverancier:'bij leverancier', actie:'actie' };
 const GEDAAN = a => a && ['klopt', 'aangepast', 'twijfel'].includes(a.a);
@@ -97,9 +99,12 @@ function info(v){
   return { q:v.q || b.q || '', vs:v.vs ?? b.vs ?? '', r:v.r || b.r || '', nu:b.nu || '', wie:v.wie || b.wie || '', ctrl:b.ctrl || '', cont:b.n || '', naam:p[0] || '', fe:p.slice(1), groep:(S.snap.g || {})[v.gk] || '', z:v.z };
 }
 const open = v => !ant(v) || (soortVan(v) !== 'zeker' && !GEDAAN(ant(v)) && ant(v).a !== 'overslaan');
+// eerst wat in dezelfde groep nog open staat (uitgevinkte uitzonderingen), dan verder in de lijst, dan weer van voren
 function volgende(van, deel){
   const l = vragen(deel), i = van ? l.findIndex(v => v.id === van) : -1;
   if(deel === 'afgeleid') return i + 1 < l.length ? l[i + 1].id : '';
+  const gk = i >= 0 ? l[i].gk : null;
+  if(gk){ const g = l.find(v => v.gk === gk && v.id !== van && !ant(v)); if(g) return g.id; }
   for(let j = i + 1; j < l.length; j++) if(!ant(l[j])) return l[j].id;
   for(let j = 0; j < l.length; j++) if(!ant(l[j])) return l[j].id;
   for(let j = 0; j < l.length; j++) if(ant(l[j]) && ant(l[j]).a === 'overslaan') return l[j].id;
@@ -118,7 +123,7 @@ function zet(lijst){
 function beantwoord(v, a, w){
   zet([[v, a, w]]);
   S.aanpas = false; S.uit = new Set(); S.groepOpen = false;
-  S.id = volgende(v.id, S.deel) || ''; teken();
+  ga(volgende(v.id, S.deel)); teken();
 }
 const groepLeden = v => (S.deel === 'afgeleid' ? [v] : vragen(S.deel || v.d).filter(x => x.gk === v.gk && (x.id === v.id || !GEDAAN(ant(x)))));
 function groepsAntwoord(v, keuze){
@@ -132,8 +137,12 @@ function groepsAntwoord(v, keuze){
     return [x, I.vs === keuze ? 'klopt' : 'aangepast', keuze, 1];
   }).filter(Boolean);
   if(!rij.length){ WH.toast('Geen voorstel voor de aangevinkte producten: vul ze per product in'); return; }
-  zet(rij); WH.toast(rij.length + ' antwoorden bewaard' + (leden.length > rij.length ? ' (' + (leden.length - rij.length) + ' blijven open)' : ''));
-  S.uit = new Set(); S.groepOpen = false; S.id = volgende(v.id, S.deel) || ''; teken();
+  // uitgevinkte uitzonderingen (en leden zonder voorstel) blijven open: daar gaat het scherm meteen heen, in dezelfde groep
+  const open = groepLeden(v).filter(x => !rij.some(r => r[0].id === x.id) && !GEDAAN(ant(x)));
+  zet(rij); WH.toast(rij.length + ' antwoorden bewaard' + (open.length ? ' · nog ' + open.length + ' in deze groep' : ''));
+  S.uit = new Set(); S.groepOpen = open.length > 1; S.aanpas = false;
+  ga(open.length ? open[0].id : volgende(v.id, S.deel)); teken();
+  const n = document.getElementById('native'); if(n) n.scrollTop = 0;
 }
 
 /* ---------- export ---------- */
@@ -179,6 +188,13 @@ async function kopieer(){
   catch(e){ S.toonTekst = t; teken(); }
 }
 
+// groepen in jouw lijst met nog open vragen (ook overgeslagen); deels gedane groepen eerst
+function openGroepen(){
+  const per = new Map();
+  vragen('alle').forEach(v => { const g = per.get(v.gk) || { gk:v.gk, n:0, open:[], naam:(S.snap.g || {})[v.gk] || v.gk }; g.n++; if(!GEDAAN(ant(v))) g.open.push(v); per.set(v.gk, g); });
+  const l = [...per.values()].filter(g => g.open.length);
+  return l.filter(g => g.open.length < g.n).concat(l.filter(g => g.open.length === g.n));
+}
 /* ---------- schermen ---------- */
 function tellers(t, d){
   const r = [['zeker', 'afgeleid zeker'], ['voorstel', 'voorstel (1 tik)'], ['leverancier', 'bij leverancier'], ['daan', 'voor Daan']].concat(d === 'c' ? [['actie', 'acties']] : []);
@@ -193,6 +209,7 @@ function start(){
     <div class="tegels"><button class="tegel pri" data-wk="deel" data-d="alle"><b>Start: eerst jouw vragen</b><span>${td.k} van ${td.n} voor jou · ${tj.k - td.k} van ${tj.n - td.n} voorstellen</span><div class="balk"><i style="width:${tj.pct}%"></i></div><span class="stil klein">Volgorde: containers hoog → A → B → C, wegen per hal en gang, daarna de voorstellen van één tik.</span></button>
       ${tegel('c', DEEL.c, (sn.containers || []).length + ' containers · datafixes en acties per persoon')}${tegel('i', DEEL.i, 'per groep (leverancier + hoofdwoord)')}</div>
     <div class="tegels">
+      ${(() => { const og = openGroepen(), half = og.filter(g => g.open.length < g.n); return `<button class="tegel" data-wk="deel" data-d="open"><b>Nog open — per groep</b><span>${og.length} groepen met ${nf(og.reduce((s, g) => s + g.open.length, 0))} open vragen${half.length ? ' · ' + half.length + ' groepen deels gedaan' : ''}</span><span class="stil klein">Terugvinden wat je bij "Selectie is…" uitvinkte of oversloeg.</span></button>`; })()}
       <button class="tegel" data-wk="deel" data-d="afgeleid"><b>Afgeleid — bekijken</b><span>${nf(vragen('afgeleid').length)} vragen vooraf beantwoord uit de data, met bron en zekerheid. Aanpassen kan altijd.</span></button>
       ${Object.keys(weeg).length ? `<section class="vlak"><h2>Weeglijst</h2><ul class="feit">${Object.entries(weeg).map(([h, l]) => `<li>${esc(h.replace(/^Wegen · /, ''))}: ${esc(l.join(', '))}</li>`).join('')}</ul></section>` : ''}
     </div>
@@ -202,6 +219,12 @@ function start(){
       <div class="knoppen"><button class="k pri" data-wk="export">Klaar — export voor Claude</button><button class="k" data-wk="kopieer">Kopieer overzicht</button></div>
       ${S.geexporteerd ? `<span class="stil klein">Gedownload om ${esc(tijd24(S.geexporteerd))}: weekendcheck-antwoorden.json en weekendcheck-samenvatting.md.</span>` : ''}
       ${S.toonTekst ? `<pre class="tekst vlak">${esc(S.toonTekst)}</pre>` : ''}</section>`;
+}
+function openScherm(){
+  const og = openGroepen();
+  return `<div class="kopregel"><button class="terug" data-wk="home">← Weekendcheck</button><span class="stil">${og.length} groepen</span></div><h1>Nog open — per groep</h1>
+    <p class="stil">Elke groep met vragen die nog open staan (ook overgeslagen). Deels gedane groepen staan bovenaan. Tik een groep om verder te gaan bij de eerste open vraag.</p>
+    <section class="vlak"><div class="rijen">${og.map(g => `<button class="terug rij2" data-wk="opengroep" data-id="${esc(g.open[0].id)}"><span><b>${esc(g.naam)}</b>${g.open.length < g.n ? ' <span class="label voorstel">deels gedaan</span>' : ''}</span><span class="klein stil">${g.open.length} open van ${g.n} · ${esc(g.open.slice(0, 6).map(v => v.c || '').filter(Boolean).join(', '))}${g.open.length > 6 ? ' …' : ''}</span></button>`).join('') || '<span class="stil">Niets meer open.</span>'}</div></section>`;
 }
 function afgeleidScherm(){
   const l = vragen('afgeleid'), per = {};
@@ -246,7 +269,7 @@ function vraagScherm(){
         <div class="voorstel"><span class="stil klein">${k === 'zeker' ? 'Afgeleid uit de data' + zk : k === 'daan' ? 'Wat de data zegt' : 'Voorstel uit de data' + zk}</span><b>${esc(I.vs !== '' ? I.vs : 'geen voorstel')}</b>${I.r ? `<span class="klein">${esc(I.r)}</span>` : ''}${v.alt && v.alt.length ? `<span class="klein stil">twijfel tussen ${esc(v.alt.join(' / '))}</span>` : ''}</div>
         ${a && (k !== 'zeker' || eigenAnt(v)) ? `<div class="stil klein">Eerder: ${esc({ klopt:'klopt', aangepast:'aangepast', twijfel:'twijfel', overslaan:'overgeslagen' }[a.a] || a.a)}${a.w ? ' · ' + esc(a.w) : ''} (${esc(tijd24(a.t))})</div>` : ''}
         ${S.aanpas ? veldHtml(v, I) : `<div class="knoppen"><button class="k pri" data-wk="klopt" ${I.vs === '' && v.d !== 'c' ? 'disabled' : ''}>Klopt</button><button class="k" data-wk="aanpassen">Aanpassen</button><button class="k" data-wk="twijfel">Twijfel</button>${S.deel === 'afgeleid' ? '' : '<button class="k" data-wk="overslaan">Overslaan</button>'}</div>`}
-        <div class="kopregel"><button class="terug" data-wk="vorige" ${pos > 0 ? '' : 'disabled'}>← Vorige</button><button class="terug" data-wk="verder">Volgende →</button></div>
+        <div class="kopregel"><button class="terug" data-wk="vorige" ${pos > 0 || S.hist.length ? '' : 'disabled'}>← Vorige</button><button class="terug" data-wk="verder">Volgende →</button></div>
       </section>
       <div style="display:grid;gap:1rem">
         <section class="vlak"><b>Feiten</b><ul class="feit">${feiten.map(f => `<li>${esc(f)}</li>`).join('')}</ul></section>
@@ -265,18 +288,19 @@ function teken(){
   if(S.fout && !S.snap){ h = `<div class="melding">${esc(S.fout.message || S.fout)}</div>`; sch = 'fout'; }
   else if(!S.snap){ h = `<div class="stil">Weekendcheck laden…</div>`; sch = 'laden'; }
   else {
-    sch = !S.deel ? 'start' : S.deel === 'afgeleid' && !S.id ? 'afgeleid' : S.id ? 'vraag' : 'klaar';
-    h = (S.fout ? `<div class="melding">${esc(S.fout.message)}</div>` : '') + (sch === 'start' ? start() : sch === 'afgeleid' ? afgeleidScherm() : sch === 'vraag' ? vraagScherm() : klaarScherm());
+    sch = !S.deel ? 'start' : S.deel === 'open' ? 'open' : S.deel === 'afgeleid' && !S.id ? 'afgeleid' : S.id ? 'vraag' : 'klaar';
+    h = (S.fout ? `<div class="melding">${esc(S.fout.message)}</div>` : '') + (sch === 'start' ? start() : sch === 'open' ? openScherm() : sch === 'afgeleid' ? afgeleidScherm() : sch === 'vraag' ? vraagScherm() : klaarScherm());
   }
   el.innerHTML = `<div class="wk" data-scherm="${sch}">${h}</div>`;
 }
 function render(el, rest){
   stijl(); S.el = el;
   const d = String(rest || '').split('/')[0];
-  if(['c', 'i', 'alle', 'afgeleid'].includes(d)){ if(S.deel !== d){ S.deel = d; S.id = ''; } } else S.deel = '';
+  if(['c', 'i', 'alle', 'afgeleid', 'open'].includes(d)){ if(S.deel !== d){ S.deel = d; S.id = ''; S.hist = []; } } else S.deel = '';
   teken();
-  laad().then(() => { if(S.deel && S.deel !== 'afgeleid' && !S.id && S.snap){ S.id = volgende('', S.deel); teken(); } });
-  if(S.snap && S.deel && S.deel !== 'afgeleid' && !S.id){ S.id = volgende('', S.deel); teken(); }
+  const lijst = () => S.deel && !['afgeleid', 'open'].includes(S.deel);
+  laad().then(() => { if(lijst() && !S.id && S.snap){ S.id = volgende('', S.deel); teken(); } });
+  if(S.snap && lijst() && !S.id){ S.id = volgende('', S.deel); teken(); }
 }
 document.addEventListener('click', ev => {
   const k = ev.target.closest('.wk [data-wk]'); if(!k || !S.snap) return;
@@ -285,6 +309,7 @@ document.addEventListener('click', ev => {
   if(a === 'home'){ location.hash = '#/weekendcheck'; return; }
   if(a === 'export'){ exporteer(); return; }
   if(a === 'kopieer'){ kopieer(); return; }
+  if(a === 'opengroep'){ S.deel = 'alle'; S.id = k.dataset.id; S.aanpas = false; S.uit = new Set(); S.groepOpen = false; location.hash = '#/weekendcheck/alle'; teken(); return; }
   if(a === 'bekijk'){ S.id = k.dataset.id; S.aanpas = false; teken(); const n = document.getElementById('native'); if(n) n.scrollTop = 0; return; }
   const v = S.id ? vind(S.id) : null; if(!v) return;
   const I = info(v);
@@ -301,8 +326,8 @@ document.addEventListener('click', ev => {
     const waarde = v.t === 'getal' && !kg ? String(Math.round(getal(w))) : w;   // nooit decimalen in aantallen
     beantwoord(v, waarde === I.vs ? 'klopt' : 'aangepast', kg && v.t === 'getal' ? 'gewogen ' + waarde + ' kg' : waarde); return;
   }
-  if(a === 'vorige'){ const l = vragen(S.deel), i = l.findIndex(x => x.id === v.id); if(i > 0){ S.id = l[i - 1].id; S.aanpas = false; S.uit = new Set(); teken(); } return; }
-  if(a === 'verder'){ const l = vragen(S.deel), i = l.findIndex(x => x.id === v.id); S.id = i + 1 < l.length ? l[i + 1].id : ''; S.aanpas = false; S.uit = new Set(); teken(); return; }
+  if(a === 'vorige'){ const l = vragen(S.deel), i = l.findIndex(x => x.id === v.id); const terug = S.hist.length ? S.hist.pop() : i > 0 ? l[i - 1].id : ''; if(terug){ S.id = terug; S.aanpas = false; S.uit = new Set(); teken(); } return; }
+  if(a === 'verder'){ const l = vragen(S.deel), i = l.findIndex(x => x.id === v.id); ga(i + 1 < l.length ? l[i + 1].id : ''); S.aanpas = false; S.uit = new Set(); teken(); return; }
   if(a === 'groep'){ S.groepOpen = !S.groepOpen; teken(); return; }
   if(a === 'groepkies'){ groepsAntwoord(v, k.dataset.w); return; }
 });

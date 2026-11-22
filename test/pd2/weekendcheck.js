@@ -104,6 +104,18 @@ const check = (n, waar, x) => { (waar ? ok : fout).push(n); console.log((waar ? 
   await klik('.wk [data-wk="groepkies"][data-w="Pick"]'); await P.waitForTimeout(600);
   const sst = await ev(l => l.map(id => WHWK.S.ant[id] ? WHWK.S.ant[id].a + (WHWK.S.ant[id].g ? '+g' : '') : 'open'), gid);
   check('Selectie is → alle aangevinkte beantwoord, uitgevinkte blijft open', sst[1] === 'open' && sst.filter((x, i) => i !== 1).every(x => /\+g$/.test(x)), sst.join(','));
+  check('na Selectie is: meteen de uitgevinkte uitzondering van dezelfde groep (niet ergens verderop in de lijst)', (await huidigId()) === gid[1], await huidigId());
+  // uitzondering eerst overslaan en via "Nog open — per groep" terugvinden
+  await klik('.wk [data-wk="overslaan"]'); await P.waitForTimeout(300);
+  await P.goto(B + 'ivol.html#/weekendcheck'); await P.waitForSelector('.wk[data-scherm="start"]', { timeout:30000 });
+  await ev(a => { a.forEach(r => Object.assign(WHWK.S.ant, r.data)); WHWK.render(document.getElementById('native'), ''); }, antw.flatMap(x => x));
+  check('start: tegel "Nog open — per groep" met deels gedane groepen', /deels gedaan/.test(await ev(() => (document.querySelector('.wk .tegel[data-d="open"]') || {}).innerText || '')));
+  await klik('.wk .tegel[data-d="open"]'); await P.waitForSelector('.wk[data-scherm="open"]');
+  const og = await ev(id => { const b = [...document.querySelectorAll('.wk [data-wk="opengroep"]')]; const i = b.findIndex(x => x.dataset.id === id); return { n:b.length, i, deels:i >= 0 && /deels gedaan/.test(b[i].innerText) }; }, gid[1]);
+  check('"Nog open — per groep" toont de groep met de overgeslagen uitzondering als deels gedaan', og.i >= 0 && og.deels, JSON.stringify(og));
+  check('Nog open: 390 px zonder horizontaal scrollen', !(await hscroll()));
+  await klik('.wk [data-wk="opengroep"][data-id="' + gid[1] + '"]'); await P.waitForTimeout(400);
+  check('tik op de groep opent de open vraag in die groep', (await huidigId()) === gid[1] && await ev(() => document.querySelector('.wk').dataset.scherm === 'vraag'));
 
   // 5 afgeleid: niet in de lijst, wel te bekijken en aan te passen
   await P.goto(B + 'ivol.html#/weekendcheck/afgeleid'); await P.waitForSelector('.wk[data-scherm="afgeleid"]', { timeout:30000 });

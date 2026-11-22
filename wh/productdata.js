@@ -76,9 +76,10 @@ const UI = { afdModus:bewaard('afdmodus') || 'tabel', scope:bewaard('scope2') ||
 /* ---------- laden ---------- */
 // verplaatsingen uit Picqer: [id, tijd, wie, code, aantal, van, naar, magazijn] → per product
 // bronnen: wh-verplaatsingen (Mac-script, Controle, automatische aanvulling) en wh-vp-hist (Geschiedenis ophalen); dezelfde verplaatsing telt één keer
-const HIST_KEYS = () => { const kw = d => d.getFullYear() + 'q' + (Math.floor(d.getMonth() / 3) + 1); return [...new Set([new Date(Date.now() - 60 * 864e5), new Date()].map(kw))].map(q => 'wh-vp-hist-' + q); };
+// 6 maanden terug (Daan 22-11: "zo vaak met dit aantal naar pick" beslist Pallet of Deel), per kwartaal ± 150 KB
+const HIST_KEYS = () => { const kw = d => d.getFullYear() + 'q' + (Math.floor(d.getMonth() / 3) + 1); return [...new Set([183, 120, 60, 0].map(n => new Date(Date.now() - n * 864e5)).map(kw))].map(q => 'wh-vp-hist-' + q); };
 const CAT_PD = () => ['wh-pq-cat', 'catalog-ean', 'wh-verplaatsingen', 'wh-inkoop', 'wh-bouwplan', 'wh-pd-fam', 'wh-hist-index'].concat(HIST_KEYS());
-// wh-vp-hist: [id, tijd, gebruiker-id, idproduct, aantal, van-idlocatie, naar-idlocatie, 0] → zelfde vorm als wh-verplaatsingen (laatste 60 dagen)
+// wh-vp-hist: [id, tijd, gebruiker-id, idproduct, aantal, van-idlocatie, naar-idlocatie, 0] → zelfde vorm als wh-verplaatsingen (laatste 6 maanden)
 function histRijen(cat){
   const idx = ((cat || []).find(r => r.key === 'wh-hist-index') || {}).data; if(!idx || !idx.p) return [];
   const grens = isoDag(Date.now() - 60 * 864e5), uit = [];
