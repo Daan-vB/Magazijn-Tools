@@ -409,7 +409,7 @@ function check(d, regel, waar, x){
       const fout = [], regels = {};
       met.forEach(c => { const s = R.soortWaarde(c); if(!['voorstel', 'twijfel'].includes(s.st)) return; regels[s.r || '?'] = (regels[s.r || '?'] || 0) + 1; if(s.v === 'pick') fout.push(c + ' (' + (s.r || '') + ')'); });
       const mv = { pallet:0, deel:0, fout:[] };
-      met.slice(0, 2500).forEach(c => { const s = R.soortWaarde(c); if(s.st !== 'voorstel') return; let m = null; try{ m = WHPD.intern && WHPD.intern.mvSoort ? WHPD.intern.mvSoort(c) : null; }catch(e){} if(!m) return; if(s.r === 'soort:mv-pallet'){ mv.pallet++; if(s.v !== 'pallet') mv.fout.push(c); } if(s.r === 'soort:mv-deel'){ mv.deel++; if(s.v !== 'deel') mv.fout.push(c); } });
+      met.slice(0, 2500).forEach(c => { const s = R.soortWaarde(c); if(s.st !== 'voorstel') return; let m = null; try{ m = WHPD.intern && WHPD.intern.mvSoort ? WHPD.intern.mvSoort(c) : null; }catch(e){} if(!m) return; if(s.r === 'soort:mv-pallet'){ mv.pallet++; if(s.v !== 'pallet') mv.fout.push(c); } if(s.r === 'soort:mv-deel'){ mv.deel++; if(s.v !== 'deel') mv.fout.push(c); } if(m.soort === 'pallet' && /fam(maat)?$/.test(s.r || '')) mv.fout.push(c + ' familie vóór eigen verplaatsingen'); });
       return { n:met.length, fout:fout.slice(0, 8), nf:fout.length, regels, mv, aanname:!!(R.AANNAMES && R.AANNAMES.nooitpick) };
     });
     check('D59', '§3 VASTE REGEL nooit Pick (Daan 22-11): voorraad op bulk of bij VST (of meer inkoop dan op pick past) = nooit soortvoorstel Pick, ook niet via kleurgenoten; verplaatsingen naar pick: telkens de hele bulkplek = Pallet, telkens een deel = Deel',

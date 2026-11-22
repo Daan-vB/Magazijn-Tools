@@ -1199,12 +1199,14 @@ function vsSoortKern(c, f, ink){
   // bulk: pallet staat alleen op bulk, geen picklocatie (eigen data gaat voor kleurgenoten en familie)
   const pc = eigen(c, 'pickc');
   if(bulkN > 0 && !f.pick.length && !isSam(c) && !(pc && pc.v === 'moetpick')) return { r:'soort:bulk', so:t('bulk', 'bulk ' + nf(bulkN) + ' op ' + bulkMet.slice(0, 2).map(x => x.n).join(', ') + ', geen picklocatie: per order 1 stuk naar geen specifieke locatie, nooit aanvullen naar pick', { alt:['bulk', 'deel'], aan:'bulk' }) };
-  // vaste regel Daan 22-11: voorraad op bulk of bij VST = nooit Pick, ook niet als kleurgenoten of de familie Pick zijn
-  if(!(vol && perPallet) && ls && !(ls.v === 'pick' && (bulkN > 0 || (f.vst || 0) > 0))) return { r:ls.r, so:t(ls.v, lsKort(ls)) };
+  // vaste regel Daan 22-11: de eigen verplaatsingen naar pick beslissen, vóór kleurgenoten en familie (bronvolgorde: eigen data eerst)
   if(vol && perPallet) return { r:'soort:4', so:t('pallet', inkT + ' (≥ 85% van ' + nf(sppV) + ' per pallet) en ' + ms.t, { aan:'pallet85' }) };
-  // per volle pallet verplaatst, maar de inkoop is minder dan een pallet (of onbekend): twijfel
-  // vaste regel Daan 22-11: telkens de hele bulkplek naar pick = Pallet (ook als de inkoop kleiner is dan een pallet)
+  // telkens de hele bulkplek naar pick = Pallet (ook als de inkoop kleiner is dan een pallet)
   if(perPallet) return { r:'soort:mv-pallet', so:t('pallet', ms.t + ' → Pallet (regel Daan 22-11: telkens de hele bulkplek naar pick)' + (ink && sppV ? ' · inkoop meestal ' + nf(ink.meestal) + ' bij ' + nf(sppV) + ' per pallet' : ''), { aan:'nooitpick' }) };
+  // telkens een deel van de bulkplek naar pick = Deel; staat de bulk alleen op gedeelde plekken, dan eerst de mix-vraag hieronder
+  if(ms && ms.soort === 'deel' && !(bulkMet.length && gedeeld.length === bulkMet.length)) return { r:'soort:mv-deel', so:t('deel', (bulkN > 0 ? 'bulk ' + nf(bulkN) + ' (' + bulkMet.slice(0, 2).map(x => x.n).join(', ') + '), pick ' + nf(pickN) + ' · ' : '') + ms.t + ' → Deel (regel Daan 22-11: telkens een deel van de bulkplek)', { aan:'nooitpick' }) };
+  // vaste regel Daan 22-11: voorraad op bulk of bij VST = nooit Pick, ook niet als kleurgenoten of de familie Pick zijn
+  if(ls && !(ls.v === 'pick' && (bulkN > 0 || (f.vst || 0) > 0))) return { r:ls.r, so:t(ls.v, lsKort(ls)) };
   const volT = vol ? ' · inkoop ≈ volle pallet (≥ 85% van ' + nf(sppV) + '), maar niet per volle pallet verplaatst' : '';
   // mix: kleine aantallen (geen pallet-aantal bekend, geen volle pallet ingekocht) en de bulk staat bij andere producten
   if(!vol && bulkMet.length && gedeeld.length){

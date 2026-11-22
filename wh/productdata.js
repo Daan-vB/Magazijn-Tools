@@ -82,7 +82,7 @@ const CAT_PD = () => ['wh-pq-cat', 'catalog-ean', 'wh-verplaatsingen', 'wh-inkoo
 // wh-vp-hist: [id, tijd, gebruiker-id, idproduct, aantal, van-idlocatie, naar-idlocatie, 0] → zelfde vorm als wh-verplaatsingen (laatste 6 maanden)
 function histRijen(cat){
   const idx = ((cat || []).find(r => r.key === 'wh-hist-index') || {}).data; if(!idx || !idx.p) return [];
-  const grens = isoDag(Date.now() - 60 * 864e5), uit = [];
+  const grens = isoDag(Date.now() - 183 * 864e5), uit = [];   // zelfde 6 maanden als HIST_KEYS (Daan 22-11)
   HIST_KEYS().forEach(k => (((cat || []).find(r => r.key === k) || {}).data || {}).rows?.forEach(r => {
     if(String(r[1]).slice(0, 10) < grens) return;
     const code = idx.p[String(r[3])], van = r[5] ? idx.l && idx.l[String(r[5])] : '', naar = r[6] ? idx.l && idx.l[String(r[6])] : '';
