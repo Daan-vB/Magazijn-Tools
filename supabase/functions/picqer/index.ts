@@ -3,8 +3,10 @@
 //  Supabase Edge Function "picqer". Plak dit bestand in Supabase:
 //  Edge Functions → Deploy a new function → Via Editor (naam: picqer).
 //
-//  Inloggen: de app met de koppelcode (header x-ivol-code). De nachtelijke ververs-workflow in GitHub met de servicesleutel van dit
-//  Supabase-project (header x-ivol-dienst; GitHub haalt hem op met het bestaande SUPABASE_ACCESS_TOKEN, er komt geen nieuwe sleutel bij).
+//  Inloggen: de app met de koppelcode (header x-ivol-code). De nachtelijke ververs-workflow in GitHub met het bestaande
+//  SUPABASE_ACCESS_TOKEN (header x-ivol-beheer): de functie vraagt Supabase zelf (GET api.supabase.com) of dat token de functie picqer van dit
+//  project mag zien (alleen leden van het Supabase-project; GitHub zet er de functie ook mee live); het token wordt nergens bewaard of gelogd, alleen een hash 10 min
+//  in het geheugen. Er komt geen nieuwe sleutel bij. Ook kan het met de servicesleutel van het project (header x-ivol-dienst).
 //
 //  Geheimen (Edge Functions → Secrets), nooit in de app of de repo:
 //    PICQER_DOMAIN     bv. ivol.picqer.com
@@ -48,7 +50,10 @@ const MAGAZIJN = Number(Deno.env.get("PICQER_WAREHOUSE") || "3857");
 const BASIS = Deno.env.get("PICQER_BASE") || (DOMEIN ? "https://" + (DOMEIN.includes(".") ? DOMEIN : DOMEIN + ".picqer.com") + "/api/v1" : "");
 const HERKOMST = ["https://daan-vb.github.io"];
 const UA = "IVOL Warehouse (github.com/Daan-vB/Magazijn-Tools)";
-const VERSIE = "2026-11-21.2";   // bij elke wijziging ophogen: actie "versie" laat zien wat er live staat
+const VERSIE = "2026-11-22.1";   // bij elke wijziging ophogen: actie "versie" laat zien wat er live staat
+const PROJECT_REF = "jarbgetbwkjtxwtcfwmq";   // token-controle alleen voor ons project (Palletlabels)
+const EIGEN_PROJECT = (Deno.env.get("SUPABASE_URL") || "").startsWith("https://" + PROJECT_REF + ".supabase.co");
+const BEHEER_ACTIES = ["status", "catalogus", "locaties", "locatielijst", "bestellingen"];   // alleen deze lees-acties met het Supabase-token
 const ACTIES = ["status", "vandaag", "producten", "picklijst", "catalogus", "locaties", "ontvangsten", "keten", "ontvangstenlijst", "verplaatsingen",
   "historielicht", "idindex", "historietest", "bestellingen", "mutaties", "locatielijst", "niveaus", "lees", "versie"];
 
@@ -74,6 +79,32 @@ class Fout extends Error {
   constructor(bericht: string, status = 502, soort = "") { super(bericht); this.status = status; this.soort = soort || (status === 400 ? "ongeldig" : ""); }
 }
 const wacht = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// ---------- beheer-token (ververs-workflow): Supabase zelf zegt of het token de functie picqer van ons project mag zien ----------
+// Alleen project jarbgetbwkjtxwtcfwmq en alleen de functie picqer. Het token wordt nooit gelogd of bewaard: alleen de sha-256 ervan staat
+// 10 min in het geheugen van deze functie, zodat niet elke aanroep Supabase opnieuw hoeft te vragen. Een fout of verlopen token = 401.
+const BEHEER_OK = new Map<string, number>();
+async function metBeheer(tok: string): Promise<boolean> {
+  if (!EIGEN_PROJECT || !/^[\w.-]{20,400}$/.test(tok)) return false;
+  const h = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(tok))))
+    .map((b) => b.toString(16).padStart(2, "0")).join("");
+  if ((BEHEER_OK.get(h) || 0) > Date.now()) return true;
+  try {
+    const r = await fetch("https://api.supabase.com/v1/projects/" + PROJECT_REF + "/functions/picqer", {
+      method: "GET",
+      headers: { Authorization: "Bearer " + tok, Accept: "application/json", "User-Agent": UA },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (r.status !== 200) { await r.body?.cancel(); return false; }
+    const f = await r.json().catch(() => ({}));
+    if (f?.slug !== "picqer") return false;
+  } catch (_e) {
+    return false;
+  }
+  if (BEHEER_OK.size > 20) BEHEER_OK.clear();
+  BEHEER_OK.set(h, Date.now() + 10 * 60_000);
+  return true;
+}
 
 // ---------- Picqer: enige netwerkfunctie, altijd GET ----------
 async function pq(pad: string): Promise<any> {
@@ -725,9 +756,16 @@ Deno.serve(async (req: Request) => {
   if (!CODE && !DIENST) return antwoord({ fout: "IVOL_CODE ontbreekt bij de Secrets in Supabase." }, 500, origin);
   const dienst = (req.headers.get("x-ivol-dienst") || "").trim();
   const metDienst = !!DIENST && dienst === DIENST;   // servicesleutel van het project: kan de database toch al alles, dus geen extra rechten
-  if (!metDienst && (req.headers.get("x-ivol-code") || "").trim() !== CODE) return antwoord({ fout: "Koppelcode klopt niet.", code: "koppelcode" }, 401, origin);
+  const metCode = !!CODE && (req.headers.get("x-ivol-code") || "").trim() === CODE;
+  const beheer = (req.headers.get("x-ivol-beheer") || "").trim();   // alleen een token van een lid van dit Supabase-project
+  const metToken = !metDienst && !metCode && !!beheer && await metBeheer(beheer);
+  if (!metDienst && !metCode && !metToken) {
+    return antwoord(beheer ? { fout: "Supabase-token geeft geen toegang tot de functie picqer van dit project.", code: "beheer" }
+      : { fout: "Koppelcode klopt niet.", code: "koppelcode" }, 401, origin);
+  }
   const url = new URL(req.url);
   const actie = url.searchParams.get("actie") || "status";
+  if (metToken && !BEHEER_ACTIES.includes(actie)) return antwoord({ fout: "Deze actie mag niet met het Supabase-token.", code: "beheer" }, 403, origin);
   try {
     if (actie === "status") return antwoord(await bewaard("status", 60, status), 200, origin);
     if (actie === "vandaag") {
