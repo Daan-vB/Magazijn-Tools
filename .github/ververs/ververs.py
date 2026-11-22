@@ -28,19 +28,72 @@ def log(*a):
 
 
 # ---------- tussenstation ----------
+CLI = "2.122.1"                                                  # vaste versie van de Supabase CLI (npm-pakket "supabase")
+
+
+def verberg(t):
+    """Foutteksten voor de openbare log: elke sleutel of token eruit, één regel, kort."""
+    t = re.sub(r"eyJ[\w-]+\.[\w-]+\.[\w-]+|sb_(?:secret|publishable)_[\w-]+|sbp_[\w-]+", "‹verborgen›", str(t))
+    return re.sub(r"\s+", " ", t).strip()[:300]
+
+
+def kies_service(sleutels):
+    """De servicesleutel waarmee het tussenstation inlogt (SUPABASE_SERVICE_ROLE_KEY van de functie)."""
+    for k in sleutels if isinstance(sleutels, list) else []:
+        v = str(k.get("api_key") or "")
+        if str(k.get("name", "")).startswith("service") and v.startswith("eyJ") and v.count(".") == 2:
+            return v
+    return ""
+
+
+def sleutel_api(tok, reveal):
+    url = f"https://api.supabase.com/v1/projects/{PROJECT}/api-keys" + ("?reveal=true" if reveal else "")
+    r = urllib.request.Request(url, headers={"Authorization": "Bearer " + tok, "User-Agent": UA, "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(r, timeout=60) as x:
+            return kies_service(json.loads(x.read())), ""
+    except urllib.error.HTTPError as e:
+        h = e.headers
+        kop = ", ".join(f"{k}: {h.get(k)}" for k in ("server", "cf-mitigated", "content-type") if h.get(k))
+        return "", f"HTTP {e.code} {e.reason} ({kop}) · Supabase zegt: {verberg(e.read().decode(errors='replace')) or '(leeg)'}"
+    except Exception as e:
+        return "", f"{type(e).__name__}: {verberg(e)}"
+
+
+def sleutel_cli():
+    """Zelfde weg als de workflow supabase-functies.yml: de Supabase CLI met hetzelfde token."""
+    import subprocess
+    try:
+        p = subprocess.run(["npx", "--yes", f"supabase@{CLI}", "projects", "api-keys", "--project-ref", PROJECT, "-o", "json"],
+                           capture_output=True, text=True, timeout=300)
+    except Exception as e:
+        return "", f"CLI start niet: {type(e).__name__}: {verberg(e)}"
+    if p.returncode != 0:
+        return "", f"CLI stopte met code {p.returncode}: {verberg(p.stderr or p.stdout)}"
+    uit = p.stdout
+    try:
+        sleutels = json.loads(uit[uit.index("["):uit.rindex("]") + 1])
+    except Exception:
+        return "", "CLI gaf geen leesbare lijst terug"                  # uitvoer zelf nooit loggen (bevat sleutels)
+    return kies_service(sleutels), ""
+
+
 def haal_dienstsleutel():
     tok = os.environ.get("SUPABASE_ACCESS_TOKEN", "").strip()
     if not tok:
         raise SystemExit("SUPABASE_ACCESS_TOKEN ontbreekt bij de secrets")
-    r = urllib.request.Request(f"https://api.supabase.com/v1/projects/{PROJECT}/api-keys?reveal=true",
-                               headers={"Authorization": "Bearer " + tok, "User-Agent": UA, "Accept": "application/json"})
-    with urllib.request.urlopen(r, timeout=60) as x:
-        sleutels = json.loads(x.read())
-    for k in sleutels:
-        if str(k.get("name", "")).startswith("service") and k.get("api_key"):
-            print("::add-mask::" + k["api_key"])
-            return k["api_key"]
-    raise SystemExit("Geen servicesleutel gevonden bij het project")
+    fouten = []
+    for naam, doe in (("API (reveal)", lambda: sleutel_api(tok, True)),
+                      ("API", lambda: sleutel_api(tok, False)),
+                      (f"Supabase CLI {CLI}", sleutel_cli)):
+        v, fout = doe()
+        if v:
+            print("::add-mask::" + v)
+            log(f"Servicesleutel opgehaald via {naam}")
+            return v
+        fouten.append(f"{naam}: {fout or 'geen servicesleutel in de lijst'}")
+        log(f"  servicesleutel via {naam} lukt niet: {fout or 'geen servicesleutel in de lijst'}")
+    raise SystemExit("Servicesleutel niet op te halen. " + " | ".join(fouten))
 
 
 def fn(actie, params=None, pogingen=8):
