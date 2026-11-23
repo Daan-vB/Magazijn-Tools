@@ -35,14 +35,15 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 ## 3. Soort en welke vragen erbij horen
 - Pallet = komt per volle pallet binnen en wordt per volle pallet aangevuld.
 - Deel = komt op een pallet of in grotere hoeveelheid dan op pick past; deel naar pick, rest naar bulk; aanvullen met een deel van de bulkvoorraad.
-- Bulk = pallet staat alleen op bulk, geen picklocatie. Alleen als het besteld wordt: 1 stuk naar geen specifieke locatie verplaatsen en de backorder verwerken, zodat het op de picklijst komt. Nooit aanvuladvies naar pick. Vragen: gewicht en de palletvragen (per pallet, palletmaat, hoogte); geen max op pick. Voorbeeld: alle Sprinttrack kunstgras.
+- Bulk = pallet staat alleen op bulk, geen picklocatie. Alleen als het besteld wordt: het bestelde aantal (niet 1 stuk) van bulk naar geen specifieke locatie verplaatsen, alleen als de hele order daardoor weg kan; bij een deelzending alleen dat deel. Daarna Verwerk backorders, zodat het op de picklijst komt (basis 23-11). Nooit aanvuladvies naar pick. Vragen: gewicht en de palletvragen (per pallet, palletmaat, hoogte); geen max op pick. Voorbeeld: alle Sprinttrack kunstgras.
 - Pick = kleine hoeveelheden, geen bulk. Enige vraag: max op pick.
 - VASTE REGEL nooit Pick (Daan 22-11): Pick alleen voor producten die nooit meer binnenkrijgen dan op pick past. Voorraad op bulk of bij VST (pallets), of inkoop groter dan op pick past = nooit Pick, ook niet via kleurgenoten. De verplaatsingen naar pick beslissen: Pallet alleen als de hele bulkplek in minstens 70% van de keren naar pick ging (Daan 22-11), anders Deel; zeggen ze nog niets, dan voorstel Pallet of Deel met twijfel, nooit Pick.
 - Mix = pallet met meerdere producten, met een deel naar pick.
 - VASTE REGEL Deel en Mix (Daan 22-11): Deel = hoe de pickplek wordt aangevuld (met een deel van de bulkvoorraad); Mix = het product staat (ook) op een mixpallet. Een product kan volle bulkpallets hebben, op een mixpallet staan én Deel zijn: nooit als tegenstrijdig melden of twijfel maken, en nooit Daans bestaande Deel- of Mix-keuze veranderen. Aparte velden (aanvulwijze, mixpallet) komen later uit het basismodel; daar nu niets voor bouwen.
+- Op mixpallet = eigenschap (ja/nee) naast de soort; mixpallets ontstaan voor ruimte (dozen samengevoegd), niet bij binnenkomst. Geen vaste mixgroep (basis 23-11).
 - Soort volgens de blauwdruk (§8): Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder.
-- Weg = keuzemenu Uitlopend (geen data meer nodig) / Archief. Backorder = eigen soort: alleen voor backorders ingekocht (oude Weg · Backorder telt als Backorder). Containers: alleen de backorders, rest VST.
-- Twijfel = "weet ik nog niet": telt niet als afgerond, geen gewicht- of hoeveelheidsvragen, staat in Te doen onder Later ("Twijfel (n)"). Containers: bij lossen bepalen.
+- Weg = keuzemenu Uitlopend (geen data meer nodig) / Archief. Backorder = eigen soort: alleen voor backorders ingekocht (oude Weg · Backorder telt als Backorder); geen opslagdata, wel alle productdata (basis 23-11). Containers: alleen de backorders, rest VST.
+- Twijfel = "weet ik nog niet": telt niet als afgerond, geen gewicht- of hoeveelheidsvragen, staat in Te doen onder Later ("Twijfel (n)"). Containers: bij lossen bepalen. Twijfel is een markering bij elke keuze (onthouden, later in een tab Twijfels), niet iets dat terugkomt tijdens het verzamelen (basis 23-11).
 - Hercontrole: "Weg met voorraad" alleen bij Archief (en Backorder met meer voorraad dan backorders); Uitlopend met voorraad is normaal. Andere soort bij kleurgenoten niet melden als één van beide Weg is. Elk punt met Claudes visie (1–2 zinnen) en een voorstel.
 - Pallet, Deel en Bulk: stuks per pallet, palletmaat, hoogte incl. pallet. Gewicht volle pallet nooit vragen (zie §4). Stuks per doos, doosmaat en inkoopverpakking niet vragen (later).
 - VASTE REGEL palletvragen: palletvragen (per pallet, palletmaat, hoogte, gewicht volle pallet, plaatsen, max per ligger) alleen voor producten waarvan de data bewijst dat ze per pallet komen of liggen: bulk- of VST-voorraad, palletlabels, pallet-verplaatsingen naar pick, of inkoop van minstens één volle pallet. Producten met voorraad 0 of minimaal, alleen voor backorders ingekocht, of per enkele stuks of rollen binnen: voorstel Pick (of Backorder) en nooit palletvragen.
@@ -52,6 +53,9 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 ## 4. Gewicht
 - Status: gewogen (echt gewogen) · vertrouwd (Daan vertrouwt de Picqer-waarde) · te wegen (nu zeker fout; komt op de Weeglijst, kg niet verplicht).
 - Picqer-gewichten zijn bij bijna elke leverancier deels fout. Losse producten op de weegschaal.
+- Picqer-gewicht = productgewicht, incl. eigen verpakking van het product (stoel in doos), nooit onze verzenddoos of -pallet (basis 23-11).
+- Gewicht van de leverancier (sheet/Packing List Template) = vertrouwd en gaat voor; weegt Daan zelf en wijkt het > 10% af, dan melding en Daans weging geldt. Opnieuw wegen alleen als verpakking of leverancier wijzigt (basis 23-11).
+- Gewicht per cm/meter nooit opslaan: volle rol ÷ lengte van die rol (basis 23-11).
 - Gewicht controleren: voorstel alleen uit kleurgenoten; een andere maat alleen naar verhouding met een rekensom (per meter, per m², kg in de naam), anders geen voorstel maar "Naar Te wegen".
 - Twee tegen elkaar (of een gelijke stand in een grotere groep): niet te zeggen welke klopt, geen voorstel, alle Naar Te wegen. Nooit elkaars waarde voorstellen.
 - Gewicht volle pallet = gewicht per stuk × stuks per pallet + 15 kg pallet. Altijd berekend, nooit een vraag. Alleen met gewicht vertrouwd of gewogen; staat het op te wegen, dan wacht de berekening op het gewogen gewicht.
@@ -60,6 +64,7 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Max op pick = aanvullen bij + wat je aanvult (bij 10 + pallet van 67 = 77), zoals "vul aan tot" in Picqer.
 - Deel en Pallet met picklocatie: "aanvullen bij" (Deel ook "max op pick") alleen vragen als het ontbreekt; Pallet: max op pick = aanvullen bij + stuks per pallet, berekend (Claudes keuze 09-11, Daan kan overrulen).
 - Pallethoogtes naar boven afronden op 10 cm.
+- Maatpallets: alle maten voor opslag én transport, behalve 40x120 en 40x200 (alleen transport). Lege pallet altijd 15 kg. Europallets komen via het ruilsysteem DHL/DPD, niet uit containers (basis 23-11).
 - Palletmaat kiezen: altijd de hele lijst vaste opslagmaten tonen (niet 3 maten + typen). Een nieuwe maat die Daan typt wordt meteen bewaard en staat daarna overal in de lijst.
 - Elk scherm vóór oplevering zelf doorlopen met alle antwoorden (elke soort, Weg-keuzes, gewogen zonder kg, geen voorstel, uitvinken, Later, terug) tegen deze regels.
 - Drie hallen: A, B en C. Er is geen hal D: hal C heeft twee stellingdelen, gedeelte C (gangen C..) en gedeelte D (gangen D..). Keuze altijd: hal → gedeelte (alleen bij C) → gang, met alleen gangen die echt bestaan.
@@ -73,6 +78,9 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Selected Furniture (Daan 22-11): elke stoel (bureau-, vergader-, eetkamer-, werkplaatsstoel; geen wieltjes, glijders, gasveren, kussens of dopjes) met voorraad en een inkoop in de laatste 6 maanden is soort Pallet: stoelen gaan per volle pallet naar pick. Nooit Deel voorstellen.
 - Whiteboards: alleen FWB van Hebei komen in kratten van 50. Ningbo Henri komt los in de container; het team stapelt zelf pallets met een vast aantal per product (4560WM: 100 per pallet, 80x120x140); pick wordt per hele pallet aangevuld.
 - Kokos: alleen 100 of 200 cm breed. 100 breed: een stuk tot 30 kg in een doos, daarboven op pallet (rol max 600 cm); losse stukken in één order elk een eigen doos. 200 breed: tot 2 m en onder 30 kg in een doos, anders pallet.
+- Kokos rollengte per leverancier (Wallace 6 m, Hamat 12 m). Max op pick: 3 rollen van 6 m (1800 cm) of 2 rollen van 12 m (2400 cm); aanvullen bij 600 cm (basis 23-11).
+- Foamrand: alleen FWB-whiteboards (Hebei) vanaf 90x150 (basis 23-11).
+- Families: voorlopig alleen 5 hoofdcategorieën (Rubber, Kantoor, Huis en tuin, Auto, Sport/fitness); bestaande families/groepen blijven werkgroepen tot Daan ze samen uitwerkt (basis 23-11).
 - Rubber ribbelmat op rol: losse lengtes 1–10 m bestaan pas enkele maanden; per 25 of meer een eigen pallet, rest op een mix/pick-pallet.
 - Wandrekken (Ningbo Henri): omdozen met vast aantal per type, meestal 6 omdozen per pallet (80x120x180, liefst op 10-locaties, vaak effectief 90x120); aanvullen bij 2 met hele omdozen tot wat op pick past.
 
@@ -81,6 +89,7 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Nooit losse stuks uit een doos naar pick; pick krijgt hele dozen of niets.
 - VASTE REGEL VST (Daan 19-11): naar VST gaan ALLEEN volle pallets (regels "pallets à N"). Losse rollen, dozen en stuks gaan NOOIT naar VST: eerst naar pick tot max op pick, rest naar bulk (IVOL); zonder max op pick alles los naar bulk + "bij lossen bepalen". Geldt voor het advies, ook bij oude regels (restdest/losdest VST) en het productgeheugen. Kiest iemand handmatig VST bij een los-regel: gele melding "VST neemt alleen pallets", geen blokkade.
 - Voorraad op "geen specifieke locatie" telt niet als pick-voorraad.
+- Opslagpallet per product + leverancier (zie §11). Europese leveringen: alles naar het hoofdmagazijn, niets naar VST (basis 23-11).
 - Een krat (bijv. E4005-10KG, krat van 100) telt als 1 pallet.
 - Pakbon = hoe het binnenkomt (info). Verdeling = hoe wij wegzetten: opslagpallet uit het productgeheugen, per regel aan te passen; akkoord telt alleen het totaal.
 - Geen gecontroleerde data = geen automatisch advies: "bij lossen bepalen" en op de invullijst lossen; Daan voert het daarna één keer in, dan is het product voor elke volgende container bekend.
@@ -104,6 +113,7 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Push altijd naar main, nooit alleen naar een zijtak.
 - Elke opdracht: daantoets.js groen vóór push. Nieuwe regel van Daan = ook een nieuwe controle in daantoets.js. Eerst de regelmatrix (test/pd2/DAANTOETS.md) lezen.
 - Rapport kort, in het Nederlands, zonder vaktaal.
+- Goedkeuren: officieel alleen Daan, Ryan en Karin (basis 23-11).
 
 ## 10. Woorden (vaste namen, nooit andere gebruiken)
 - Productgeheugen = Supabase catalog-rij catalog-ean (palletlabels, vloernaam, stuks per pallet, palletregels). Productdata = Supabase-tabel productdata (Daans waarheid per product).
@@ -114,3 +124,7 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Containers: Pakbon → Verdeling → Uitvoer (losdag-PDF, labels). "Bij lossen bepalen" = nog geen gecontroleerde data, staat op de invullijst lossen. "Na het lossen" = één keer invullen door Daan.
 - Productdata 2.0 = per maat 3 stappen: 1 Soort · 2 Gewicht · 3 Hoeveelheid. Te controleren = alleen vragen die regels en data niet beantwoorden, soort eerst, per familie.
 - Sporen: 1 Containers · 2 Productdata 2.0 / Te controleren · 3 Warehouse 3.0 (fundering + pilaren 1 Aanvullen · 2 Voorraad op plek · 3 Inkomend · 4 VST · 5 Orders).
+
+## 11. Leveringsgegevens en opslagpallets (basis 23-11)
+- Leveringsgegevens (leveringsvorm, stuks per omdoos, rollengte, rolgewicht, pallet zoals geleverd) én stuks per opslagpallet zijn per product + leverancier; de app kiest via de inkooporder (rh100x150: Rubberselect 60 per pallet, Wallace 50). Elke pallet houdt het aantal van zijn levering. Herkomst (container/Europees) hoort bij de inkooporder.
+- Stapelbaar (ja/nee) per product: alleen producten die in grote aantallen komen (bijv. stalmat 80x120, sportvloer tegel 15 mm).
