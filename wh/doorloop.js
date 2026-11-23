@@ -15,7 +15,8 @@ const { esc, nf, num } = WH;
 const R = () => window.PD2R;
 // soort volgens de blauwdruk (§8): Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder; Weg = Uitlopend of Archief (09-11)
 const SOORTEN = [['pick', 'Pick'], ['bulk', 'Bulk'], ['deel', 'Deel'], ['pallet', 'Pallet'], ['mix', 'Mix'], ['twijfel', 'Twijfel'], ['weg', 'Weg'], ['backorder', 'Backorder']];
-const ZONDER = new Set(['weg', 'backorder', 'twijfel']);   // geen gewicht- of hoeveelheidsvragen
+const ZONDER = new Set(['weg', 'backorder', 'twijfel']);   // geen hoeveelheidsvragen (opslagdata)
+const ZONDERGEW = new Set(['weg', 'twijfel']);   // basis 23-11: Backorder krijgt wel het gewicht (alle productdata), geen opslagdata
 const WEG = [['uitlopend', 'Uitlopend'], ['archief', 'Archief']];
 const GEWST = [['vertrouwd', 'Vertrouwd'], ['tewegen', 'Te wegen'], ['gewogen', 'Gewogen']];
 const PAL = ['pallet', 'deel', 'bulk'];
@@ -182,14 +183,14 @@ function rijenNu(v){
   // Twijfel staat in de Later-lijst (Te doen → Later): nooit weer vooraan in de gewone Doorloop
   if(v.t === 'soort') return v.f.cs.filter(c => !st(c).stap.soort && !lat(c, 'soort') && st(c).so !== 'twijfel');
   // soort eerst: gewicht en hoeveelheid pas na een bevestigde soort; Weg heeft verder geen vragen
-  if(v.t === 'gewicht') return v.f.cs.filter(c => { const s = st(c); return s.stap.soort && !ZONDER.has(s.so) && !P.isSam(c) && !s.stap.gewicht && !lat(c, 'gewicht'); });
+  if(v.t === 'gewicht') return v.f.cs.filter(c => { const s = st(c); return s.stap.soort && !ZONDERGEW.has(s.so) && !P.isSam(c) && !s.stap.gewicht && !lat(c, 'gewicht'); });
   return v.f.cs.filter(c => { const s = st(c); return s.stap.soort && !ZONDER.has(s.so) && s.open.includes(v.t) && !lat(c, v.t); });
 }
 // alle producten van de familie voor deze vraag, ook al bevestigde (voor ←, de stap-knoppen, zoeken): alleen wat bij de soort hoort (NODIG)
 function alleRijen(v){
   const P = R(), leden = v.f.cs.filter(c => !P.isKoppel(c));
   if(v.t === 'soort') return leden;
-  if(v.t === 'gewicht') return leden.filter(c => soortNu(c) && !ZONDER.has(soortNu(c)) && !P.isSam(c));
+  if(v.t === 'gewicht') return leden.filter(c => soortNu(c) && !ZONDERGEW.has(soortNu(c)) && !P.isSam(c));
   return leden.filter(c => { const so = soortNu(c); if(!so || ZONDER.has(so)) return false; try{ return P.nodigVan(c, so, P.info(c)).includes(v.t); }catch(e){ return false; } });
 }
 const rijenVoor = v => v.alle ? alleRijen(v) : (v.rows || rijenNu(v));
@@ -252,7 +253,7 @@ function tekst(v, rijen){
   const m = meesteVoorstel(v, rijen), bev = esc(bevestigdTekst(v, rijen)), n = rijen.length, kort = s => esc(String(s || '').replace(/\s+/g, ' ').slice(0, 160));
   switch(v.t){
     case 'soort': return ['Welke soort ' + (n === 1 ? 'is dit product' : 'zijn deze ' + n) + '?', m ? 'Voorstel <b>' + esc(naamSoort(m.v)) + '</b>: ' + kort(m.why) + (m.n < n ? ' (' + m.n + ' van ' + n + ')' : '') + '.' + (bev ? ' ' + bev : '') : bev || 'Geen voorstel uit de data: kies zelf.'];
-    case 'gewicht': return ['Klopt het gewicht per stuk uit Picqer?', (m && m.why ? '<b>' + kort(m.why) + '</b>. ' : '') + 'Vertrouwd = Picqer klopt · te wegen = komt op de Weeglijst · gewogen = typ het echte gewicht.' + (bev ? ' ' + bev : '')];
+    case 'gewicht': return ['Klopt het gewicht per stuk uit Picqer?', (m && m.why ? '<b>' + kort(m.why) + '</b>. ' : '') + 'Vertrouwd = Picqer klopt · te wegen = komt op de Weeglijst · gewogen = typ het echte gewicht. Gewicht = het product met zijn eigen verpakking (stoel in doos), nooit onze verzenddoos of -pallet.' + (bev ? ' ' + bev : '')];
     case 'spp': return ['Hoeveel stuks per pallet?', m ? 'Voorstel per product uit <b>' + kort(m.why) + '</b>. Tik een getal om het aan te passen.' + (bev ? ' ' + bev : '') : bev || 'Geen voorstel uit de data: typ per product het aantal.'];
     case 'maat': return ['Welke palletmaat?', 'Jouw vaste maten' + (R().EIGEN_MATEN.length ? ' plus je eigen toegevoegde maten' : '') + '. Een nieuwe maat wordt meteen bewaard en staat er de volgende keer gewoon tussen.' + (m ? ' Voorstel: <b>' + kort(m.why) + '</b>.' : '') + (bev ? ' ' + bev : '')];
     case 'hoogte': return ['Hoe hoog is een volle pallet, incl. pallet?', 'Wordt naar boven afgerond op 10 cm. Hal A 20-locatie: max ± 140 cm.' + (m ? ' Voorstel uit <b>' + kort(m.why) + '</b>.' : '') + (bev ? ' ' + bev : '')];
@@ -325,7 +326,7 @@ function teken(){
 const kopHtml = (waar, pct) => `<div class="kop"><div class="kop-in"><b>Doorloop</b><span class="waar" id="dl-waar">${esc(waar)}</span><button type="button" class="kopknop" id="dl-zoekknop" aria-label="Zoeken">🔍</button><a href="#/todo">Stoppen</a></div>${S.gast ? '<div class="kop-in" style="margin-top:8px"><button type="button" class="kopknop" id="dl-terugmain">← Terug naar waar ik was</button></div>' : ''}<div class="balk"><i style="width:${pct}%"></i></div></div>`;
 function onderHtml(v){
   const laatste = S.i >= S.pad.length - 1;
-  return `<div class="onder"><div class="onder-in"><button class="knop" id="dl-terug" type="button"${!S.prod && !S.zoek && !heeftTerug() ? ' disabled' : ''} aria-label="Terug">←</button>${v.t !== 'klaar' && v.t !== 'prod' ? '<button class="knop" id="dl-later" type="button">Later</button>' : ''}<button class="knop hoofd" id="dl-klopt" type="button">${v.t === 'klaar' ? (laatste ? 'Klaar' : 'Volgende familie →') : 'Klopt →'}</button></div></div>`;
+  return `<div class="onder"><div class="onder-in"><button class="knop" id="dl-terug" type="button"${!S.prod && !S.zoek && !heeftTerug() ? ' disabled' : ''} aria-label="Terug">←</button>${v.t !== 'klaar' && v.t !== 'prod' ? '<button class="knop" id="dl-later" type="button">Later</button><button class="knop" id="dl-twijfel" type="button" title="Bewaren zoals gekozen en onthouden als twijfel (Te doen → Twijfels)">Twijfel</button>' : ''}<button class="knop hoofd" id="dl-klopt" type="button">${v.t === 'klaar' ? (laatste ? 'Klaar' : 'Volgende familie →') : 'Klopt →'}</button></div></div>`;
 }
 function rijHtml(v, c){
   const P = R(), a = A(c), w = waarde(v, c), on = S.sel.on.has(c), keus = ['soort', 'gewicht', 'maat'].includes(v.t);
@@ -350,7 +351,7 @@ function klaarHtml(f){
     const s = st(c), I = P.info(c), d = [], open = [];
     const so = P.soortWaarde(c, I);
     if(s.stap.soort) d.push(naamSoort(so.v) + (so.v === 'weg' ? ' · ' + naamWeg(P.wegWaarde(c, I).v) : '')); else open.push(so.v === 'twijfel' ? 'soort (Twijfel, staat onder Later)' : 'soort');
-    if(!ZONDER.has(so.v) && s.stap.soort){
+    if(!ZONDERGEW.has(so.v) && s.stap.soort){
       const g = P.gewicht(c);
       if(!P.isSam(c)){ if(s.stap.gewicht) d.push('gewicht ' + naamGew(g.st).toLowerCase() + (g.st === 'gewogen' && g.kg ? ' ' + fmt(g.kg) + ' kg' : '')); else open.push('gewicht'); }
       ['spp', 'maat', 'hoogte', 'lvl', 'maxpick', 'rl', 'rmax'].forEach(k => { const w = P.waarde(c, k, I); if(s.open.includes(k)) open.push(NAAM[k]); else if(OK.includes(w.st) && w.v) d.push(NAAM[k] + ' ' + w.v + (k === 'hoogte' ? ' cm' : '')); });
@@ -438,7 +439,8 @@ function verandert(t, c){
 function bewaarIndien(t, c){ if(verandert(t, c)) bewaar({ t }, c); }
 function volgende(){ S.melding = ''; S.sel = null; S.openRij = null; S.nieuweMaat = false; if(S.i < S.pad.length - 1){ S.i++; sla(1); } else S.klaar = true; teken(); if(S.el) S.el.scrollTop = 0; const nat = document.getElementById('native'); if(nat) nat.scrollTop = 0; }
 function reset(){ S.melding = ''; S.sel = null; S.openRij = null; S.nieuweMaat = false; S.vergC = null; }
-function klopt(){
+// twijfel = Klopt, en de keuze wordt onthouden als twijfel (basis 23-11): hij komt niet terug tijdens het verzamelen, wel in Te doen → Twijfels
+function klopt(twijfel){
   const v = S.pad[S.i]; if(!v) return;
   if(S.prod){ prodKlopt(); return; }
   if(v.t !== 'klaar'){
@@ -449,6 +451,7 @@ function klopt(){
     if(LT() && uit.length) LT().zet(uit.map(c => ({ c, t:v.t, opm:laterOpm(c, v.t) })));
     if(LT() && mee.some(c => lat(c, v.t))) LT().zet(mee.filter(c => lat(c, v.t)).map(c => ({ c, t:v.t, weg:true })));
     mee.filter(c => verandert(v.t, c)).forEach(c => bewaar(v, c));
+    if(twijfel === true && mee.length){ R().twMark(mee, v.t); WH.toast(mee.length + ' als twijfel onthouden: staat in Te doen → Twijfels', 3500); }
     if(mee.length){ try{ R().flush && R().flush(); }catch(e){} }
     // latere vragen van deze familie opnieuw bepalen (soort kan net veranderd zijn)
     S.pad.forEach(x => { if(x.f === v.f && x !== v && !x.alle && !x.laterlijst && S.pad.indexOf(x) > S.i) delete x.rows; });
@@ -581,7 +584,8 @@ function neemOver(c, t, x){
 /* ---------- één product: alle velden die bij zijn soort horen (vanuit het overzicht of een afwijking) ---------- */
 function veldenVan(c){
   const P = R(), so = soortNu(c), l = ['soort'];
-  if(so && !ZONDER.has(so)){ if(!P.isSam(c)) l.push('gewicht'); try{ const n = P.nodigVan(c, so, P.info(c)); VRAGEN.forEach(k => { if(k !== 'soort' && k !== 'gewicht' && n.includes(k)) l.push(k); }); }catch(e){} }
+  if(so && !ZONDERGEW.has(so) && !P.isSam(c)) l.push('gewicht');
+  if(so && !ZONDER.has(so)){ try{ const n = P.nodigVan(c, so, P.info(c)); VRAGEN.forEach(k => { if(k !== 'soort' && k !== 'gewicht' && n.includes(k)) l.push(k); }); }catch(e){} }
   return l;
 }
 function openProd(c){ S.terugNaar = S.terugNaar != null && S.prod ? S.terugNaar : S.i; S.prodSnap = JSON.parse(JSON.stringify(A(c))); S.prod = c; S.vergT = null; reset(); teken(); const nat = document.getElementById('native'); if(nat) nat.scrollTop = 0; }
@@ -701,6 +705,7 @@ function koppel(){
       }
     }
     if(e.target.closest('#dl-klopt')){ klopt(); return; }
+    if(e.target.closest('#dl-twijfel')){ klopt(true); return; }
     if(e.target.closest('#dl-later')){ later(); return; }
     if(e.target.closest('#dl-terug')){ terug(); return; }
     const v = S.pad[S.i]; if(!v || v.t === 'klaar') return;

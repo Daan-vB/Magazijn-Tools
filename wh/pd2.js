@@ -87,7 +87,7 @@ function aandachtVan(c){
 }
 function aandachtReken(c){
   const I = R.info(c), st = R.status(c), uit = [];
-  if(I.kop || R.ZONDERVRAGEN.has(st.so) || st.af) return uit;
+  if(I.kop || R.ZONDERGEWICHT.has(st.so) || st.af) return uit;
   if(st.gew.st === 'tewegen') uit.push('tewegen');
   else if(st.gew.st === 'niet' && !R.isSam(c) && R.gewAfwijking(c)) uit.push('gewicht');
   if(I.f.geen > 0) uit.push('geenloc');
@@ -453,7 +453,7 @@ function ctlHtml(c, k, w){
   const cl = 'pd2-in' + klasse(w);
   if(d.type === 'num' || d.type === 'tekst') return `<input class="${cl}" data-k="${k}" value="${esc(v)}" placeholder="${esc(ph)}" ${d.type === 'num' ? 'inputmode="decimal"' : ''} autocomplete="off" aria-label="${esc(d.t)}"${vs ? ` title="${esc(reden(w))}"` : ''}>`;
   if(d.type === 'maat'){
-    const lijst = R.MATEN.concat(/whiteboard|^fwb/i.test(R.naamVan(c) + ' ' + c) ? R.MATEN_WB : []);
+    const lijst = R.matenVoor(c);   // basis 23-11: hele lijst opslagmaten (incl. whiteboardmaten), nooit 40x120/40x200
     const extra = [v, w.v].filter(x => x && !lijst.includes(x));
     return `<select class="${cl}" data-k="maat" aria-label="Palletmaat"${vs ? ` title="${esc(reden(w))}"` : ''}><option value=""></option>${[...new Set(extra)].concat(lijst).map(m => `<option ${m === kies ? 'selected' : ''}>${esc(m)}</option>`).join('')}<option value="__anders">anders…</option></select>`;
   }
@@ -483,11 +483,11 @@ function wegMenu(c, I){
 /* stap 2: gewicht (kg per stuk, bij rollen per rol) */
 function gewVraag(c, I){
   const so = R.status(c).so;
-  if(I.sam || R.ZONDERVRAGEN.has(so)) return `<div class="pd2-vraag"><div class="u">Geen gewicht nodig${R.ZONDERVRAGEN.has(so) ? ' bij ' + esc(R.SOORTT[so]) : ''}.</div></div>`;
+  if(I.sam || R.ZONDERGEWICHT.has(so)) return `<div class="pd2-vraag"><div class="u">Geen gewicht nodig${R.ZONDERGEWICHT.has(so) ? ' bij ' + esc(R.SOORTT[so]) : ''}.</div></div>`;
   const g = R.gewicht(c), e = R.isRol(c) ? R.eenheid(c).e : '', eh = e === 'm' ? 'per meter' : e === 'cm' ? 'per cm' : R.isRol(c) ? 'per rol' : 'per stuk';
   const kn = (v, t) => `<button class="pd2-mini${g.st === v ? ' aan' : ''}" data-a="gewst" data-v="${v}" aria-pressed="${g.st === v}">${t}</button>`;
   return `<div class="pd2-vraag"><div class="pd2-gw"><label class="pd2-q" for="pd2-kg-${esc(c)}">Gewicht (kg ${eh})</label><span class="kg"><input id="pd2-kg-${esc(c)}" class="pd2-in${g.st === 'gewogen' || g.st === 'vertrouwd' ? ' ok' : g.pq ? ' vsel' : ''}" data-a="gewkg" value="${g.gk ? esc(String(g.gk)) : ''}" placeholder="${g.pq ? esc(nf(g.pq, 3)) : ''}" inputmode="decimal" autocomplete="off" aria-label="Gewicht in kg ${eh}"${g.pq ? ` title="Picqer ${esc(nf(g.pq, 3))} kg"` : ''}></span>
-    <span class="knopjes">${kn('gewogen', 'gewogen')}${kn('vertrouwd', 'vertrouwd')}${kn('tewegen', 'te wegen')}</span></div></div>`;
+    <span class="knopjes">${kn('gewogen', 'gewogen')}${kn('vertrouwd', 'vertrouwd')}${kn('tewegen', 'te wegen')}</span></div><div class="u">Het product met zijn eigen verpakking (stoel in doos), nooit onze verzenddoos of -pallet.</div></div>`;
 }
 
 /* stap 3: hoeveelheid (Pick en Mix: max op pick; Pallet, Deel en Bulk: stuks per pallet, palletmaat, hoogte; rol: lengte en max rollen) */
@@ -496,17 +496,21 @@ function hoevVraag(c, I){
   if(R.ZONDERVRAGEN.has(so)) return '<div class="pd2-vraag"><div class="u">Geen hoeveelheid nodig bij ' + esc(R.SOORTT[so]) + '.</div></div>';
   const ks = R.nodigVan(c, so, I);
   const rol = !I.sam && R.rolVoorstel(c) ? `<div class="pd2-rolvraag"><span>Is dit een rol?</span><button class="pd2-mini" data-a="rol" data-v="1">ja</button><button class="pd2-mini" data-a="rol" data-v="0">nee</button></div>` : '';
-  return `<div class="pd2-vraag">${rol}${ks.length ? `<div class="pd2-velden">${ks.map(k => veldHtml(c, k, I)).join('')}</div>` : '<div class="u">Geen pick: hier valt niets in te vullen.</div>'}</div>`;
+  const ex = R.extraVan(c, so, I).filter(k => !ks.includes(k));   // basis 23-11: op mixpallet en stapelbaar, niet nodig om af te ronden
+  return `<div class="pd2-vraag">${rol}${ks.length || ex.length ? `<div class="pd2-velden">${ks.concat(ex).map(k => veldHtml(c, k, I)).join('')}</div>` : '<div class="u">Geen pick: hier valt niets in te vullen.</div>'}</div>`;
 }
 const stapVraag = (c, I) => UI.stap === 'gewicht' ? gewVraag(c, I) : UI.stap === 'hoev' ? hoevVraag(c, I) : soortVraag(c, I);
 
+/* ---------- twijfel als markering bij de keuze van deze stap (basis 23-11): bewaard, onthouden in Te doen → Twijfels ---------- */
+const STAPTW = { soort:'soort', gewicht:'gewicht', hoev:'hoev' };
+const twKnop = c => { const tw = R.twVan(c), k = STAPTW[UI.stap] || 'soort', aan = !!(tw && tw[k]); return `<div class="pd2-tw"><button class="pd2-mini${aan ? ' aan' : ''}" data-a="twijfel" aria-pressed="${aan}" title="Twijfel bij deze keuze: onthouden in Te doen → Twijfels">${aan ? 'twijfel ✓' : 'twijfel'}</button></div>`; };
 /* ---------- productkaart: vinkje, naam, code, één regel feiten en de vraag van de stap ---------- */
 function kaartHtml(c){
   const I = R.info(c), st = R.status(c), sel = UI.sel.has(c), klaar = !!(st.stap && st.stap[UI.stap]);
   return `<article class="pd2-kaart${sel ? ' sel' : ''}${klaar ? ' klaar' : ''}" data-c="${esc(c)}">
     <div class="pd2-kk"><input type="checkbox" data-a="sel" ${sel ? 'checked' : ''} aria-label="Selecteer ${esc(c)}"><div class="kn"><button class="pd2-naam" data-a="info" title="Waarom deze voorstellen">${esc(R.naamVan(c))}</button> <span class="m">${esc(c)}</span></div>${klaar ? '<span class="v" aria-label="stap klaar">✓</span>' : ''}</div>
     <div class="pd2-feiten">${feitenRegel(c, I)}</div>
-    ${stapVraag(c, I)}
+    ${stapVraag(c, I)}${twKnop(c)}
   </article>`;
 }
 function afRij(c){
@@ -880,7 +884,7 @@ function bevestigStap(c, stap){
       if(so.v && (['voorstel', 'twijfel'].includes(so.st) || !(p.so && p.so.v))) p.so = { v:so.v, st:'bevestigd', voor:so.v, t:now() };
       if(so.v === 'weg'){ const w = R.wegWaarde(c, I); if(w.v && (w.st === 'voorstel' || !(p.weg && p.weg.v))) p.weg = { v:w.v, st:'bevestigd', voor:w.v, t:now() }; }
     } else if(stap === 'gewicht'){
-      const g = R.gewicht(c); if(!R.isSam(c) && !R.ZONDERVRAGEN.has(so.v) && g.st === 'niet' && g.pq > 0) p.gew = { st:'vertrouwd', kg:g.pq, t:now() };
+      const g = R.gewicht(c); if(!R.isSam(c) && !R.ZONDERGEWICHT.has(so.v) && g.st === 'niet' && g.pq > 0) p.gew = { st:'vertrouwd', kg:g.pq, t:now() };
     } else if(so.v && !R.ZONDERVRAGEN.has(so.v)){
       if(R.rolVoorstel(c)) p.rol = { v:true, st:'bevestigd', t:now() };
       R.nodigVan(c, so.v, I).forEach(k => { if(R.VELD[k] && R.VELD[k].calc) return; const w = R.waarde(c, k, I); if(['voorstel', 'twijfel'].includes(w.st) && !leeg(w.v)) p.f[k] = { v:w.v, st:'bevestigd', voor:w.v, t:now() }; });
@@ -915,6 +919,7 @@ function infoModal(c){
   kols.forEach(k => { const d = R.VELD[k]; if(d.calc){ const x = R.calc(c, k, I); r.push(`<li><b>${esc(d.t)}</b> (berekend): ${esc(x.v || '–')} — ${esc(x.why || '')}${x.warn ? ' · ' + esc(x.warn) : ''}</li>`); return; }
     const w = R.waarde(c, k, I); r.push(`<li><b>${esc(d.t)}</b>: ${esc(w.v || '–')} <span class="u">(${esc(w.st)})</span>${w.why ? ' — ' + esc(w.why) : ''}${w.voor && w.st === 'aangepast' ? ' · voorstel was ' + esc(w.voor) : ''}${esc(scoreTxt(w))}</li>`); });
   const g = R.gewicht(c), afw = R.gewAfwijking(c);
+  if(/^fwb/i.test(c)) r.push(`<li><b>Foamrand</b>: ${R.foamrand(c) ? 'ja (FWB van Hebei vanaf 90x150)' : 'nee (alleen FWB van Hebei vanaf 90x150)'}</li>`);
   r.push(`<li><b>Gewicht per stuk</b>: ${g.kg ? nf(g.kg, 3) + ' kg' : 'onbekend'} (${esc(g.st)}${g.pq ? ', Picqer ' + nf(g.pq, 3) + ' kg' : ''})${afw ? ' — ' + esc(afw) : ''}</li>`);
   modal(`<h3>${esc(c)} — waarom deze voorstellen</h3><p class="u">${esc(R.naamVan(c))}</p><ul>${r.join('')}</ul>
     ${st.open.length ? `<p><b>Nog open:</b> ${esc(st.open.map(k => k === 'soort' ? 'soort bevestigen' : k === 'rol' ? 'rol ja/nee' : R.VELD[k] ? R.VELD[k].t : k).join(', '))}</p>` : '<p><b>Compleet.</b></p>'}
@@ -1084,6 +1089,7 @@ function klik(ev){
     case 'vsoort': if(!c) return; vPas(c, w => { w.so = a.dataset.v; if(a.dataset.v !== 'weg') delete w.weg; }); return;
     case 'vgst': if(!c) return; vPas(c, w => { w.gst = a.dataset.v; }); return;
     case 'vbev': bevestigBlok(a.dataset.g, a.dataset.s); return;
+    case 'twijfel': { if(!c) return; const k = STAPTW[UI.stap] || 'soort', tw = R.twVan(c); if(tw && tw[k]) R.twWeg([c], k); else { R.twMark([c], k); WH.toast(c + ': als twijfel onthouden (Te doen → Twijfels)', 2500); } verversKaarten([c]); return; }
     case 'doelweg': UI.doel = null; UI.doelRest = ''; UI.fk = null; UI.mk = null; UI.sel.clear(); teken(); if(UI.el) UI.el.scrollTop = 0; return;
     case 'volgfam': if(UI.doel){ const L = doelFams().filter(f => f.fk !== UI.fk); if(!L.length){ UI.fk = null; UI.mk = null; UI.sel.clear(); teken(); if(UI.el) UI.el.scrollTop = 0; return; } openFam(L[0].fk); return; } { const L = families(), i = L.findIndex(f => f.fk === UI.fk), rest = L.slice(i + 1).concat(L.slice(0, Math.max(0, i))), n = rest.find(f => f.af < f.n) || rest[0]; if(!n) return; openFam(n.fk); return; }
     case 'seg': UI.seg = a.dataset.v; nieuweGroep(); meld('tab', { tab:UI.seg }); verversMaat(); return;

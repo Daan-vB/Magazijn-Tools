@@ -247,7 +247,8 @@ const URL_ = 'https://jarbgetbwkjtxwtcfwmq.supabase.co';
 const TESTAPP = !!(window.WHM && WHM.TEST);
 const KEY  = 'sb_publishable_Jn8gTTPRy7rkoDikFjQlow_V0wcO8rA';
 const H    = { apikey:KEY, Authorization:'Bearer ' + KEY };
-const MATEN = ['80x120','100x100','110x110','90x120','100x150','120x150','120x180','100x200','120x200','120x240','130x210','130x250','40x120','40x200'];
+// maatpallets (basis 23-11): alle maten zijn voor opslag én transport, behalve 40x120 en 40x200 (alleen transport, hier niet te kiezen)
+const MATEN = ['80x120','100x100','110x110','90x120','100x150','120x150','120x180','100x200','120x200','120x240','120x210','130x210','130x250'];
 const PALLET_CM = 15, PALLET_KG = 15, PLAATS_CM = 90;
 const DEST = {
   VST:   { nl:'VST (opslag)',        en:'VST',                 hier:false, label:true  },
@@ -5902,10 +5903,14 @@ const ACT = {
     }catch(e){ toast('Mislukt: ' + e.message, 5000); }
   }
 };
+// goedkeuren (basis 23-11): officieel alleen Daan, Ryan en Karin. De rol komt uit de 3.0-app (ivol-rol); zonder rol (eigen apparaat van Daan of Karin) mag het
+const GOEDKEUR_ROL = ['daan', 'ryan', 'karin'], GOEDKEUR_ACT = ['bev', 'allesbev', 'akkalles', 'vakk', 'algelost', 'algelostcur', 'afronden'];
+const magGoedkeuren = () => { try{ const r = localStorage.getItem('ivol-rol'); return !r || GOEDKEUR_ROL.includes(r); }catch(e){ return true; } };
 app.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
   if(!el || el.disabled) return;
   const f = ACT[el.dataset.act];
+  if(f && GOEDKEUR_ACT.includes(el.dataset.act) && !magGoedkeuren()){ e.preventDefault(); toast('Goedkeuren doen Daan, Ryan of Karin.', 4000); return; }
   if(f){ e.preventDefault(); f(el, e); }
 });
 app.addEventListener('toggle', e => { const d = e.target; if(d.dataset && d.dataset.det) UI.open[d.dataset.det] = d.open; }, true);

@@ -16,14 +16,15 @@ window.WHCP = (function(){
 const { esc, nf, num } = WH;
 const R = () => window.PD2R;
 const KL = 'wh-controle-klopt', RE = 'wh-controle-reacties', SP = 'wh-controle-steekproef';
-const TABS = [['overzicht', 'Overzicht'], ['later', 'Later'], ['picklocaties', 'Picklocaties'], ['bulklocaties', 'Bulklocaties'], ['hercontrole', 'Hercontrole'], ['gewicht', 'Gewicht controleren'], ['tewegen', 'Te wegen'], ['aantal', 'Aantal per pallet']];
+const TABS = [['overzicht', 'Overzicht'], ['later', 'Later'], ['twijfels', 'Twijfels'], ['picklocaties', 'Picklocaties'], ['bulklocaties', 'Bulklocaties'], ['hercontrole', 'Hercontrole'], ['gewicht', 'Gewicht controleren'], ['tewegen', 'Te wegen'], ['aantal', 'Aantal per pallet']];
 const S = { klopt:{}, reacties:[], steek:null, klaar:false, p:null, memo:null, memoKey:'', f:{ hal:'', deel:'', gang:'' }, q:Promise.resolve(), uit:new Set(), aan:new Set(), open:new Set(), keuze:{}, wegOpen:new Set(), wijzig:new Set(), kg:{}, bezig:false, undo:null, undoT:null };
 // soort volgens de blauwdruk (§8): Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder; Weg = Uitlopend of Archief (09-11)
 const SOORTK = ['pick', 'bulk', 'deel', 'pallet', 'mix', 'twijfel', 'weg', 'backorder'];
 const SOORTT = { pick:'Pick', bulk:'Bulk', deel:'Deel', pallet:'Pallet', mix:'Mix', twijfel:'Twijfel', weg:'Weg', backorder:'Backorder' };
 // Deel en Mix botsen niet (Daan 22-11): een product kan per deel aangevuld worden én op een mixpallet staan
 const zelfdeSoort = (a, b) => a === b || (['deel', 'mix'].includes(a) && ['deel', 'mix'].includes(b));
-const ZONDER = new Set(['weg', 'backorder', 'twijfel']);   // geen gewicht- of hoeveelheidsvragen
+const ZONDER = new Set(['weg', 'backorder', 'twijfel']);   // geen hoeveelheidsvragen (opslagdata)
+const ZONDERGEW = new Set(['weg', 'twijfel']);   // basis 23-11: Backorder wel gewicht
 const WEGT = { uitlopend:'Uitlopend', archief:'Archief' };
 const nu = () => new Date().toISOString();
 const dt = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.getDate() + '-' + (d.getMonth() + 1) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
@@ -283,7 +284,8 @@ function berekenen(){
         if(top[1] > glw.length / 2 && verkoopGelijk(c, glw)) punt('hercontrole', 'Kleurgenoten (zelfde maat) hebben soort ' + SOORTT[top[0]] + ' (' + top[1] + ' van ' + glw.length + '), dit product ' + SOORTT[so], 'De verkoop is vergelijkbaar, dus ze komen waarschijnlijk op dezelfde manier binnen; het verschil in soort lijkt geen bewuste keuze.', { soort:top[0], tekst:'Voorstel: ' + SOORTT[top[0]] }, 'soort|' + so + '|' + top[0]); }
     }
     // 6 Gewicht controleren
-    if(!ZONDER.has(so) && !ribbel(c)){ const gw = gewichtPunt(c); if(gw) punt('gewicht', gw.reden, gw.visie, gw.voorstel ? Object.assign({ kg:gw.voorstel.kg }, gw.voorstel) : null, gw.sig, { wegen:!!gw.wegen }); }
+    if(!ZONDERGEW.has(so)){ const lw = R().levWijkt ? R().levWijkt(c) : null; if(lw) punt('gewicht', lw.reden, lw.visie, null, lw.sig); }   // basis 23-11: eigen weging > 10% anders dan de leverancier
+    if(!ZONDERGEW.has(so) && !ribbel(c)){ const gw = gewichtPunt(c); if(gw) punt('gewicht', gw.reden, gw.visie, gw.voorstel ? Object.assign({ kg:gw.voorstel.kg }, gw.voorstel) : null, gw.sig, { wegen:!!gw.wegen }); }
     // 7 Te wegen
     try{ if(P.gewicht(c).st === 'tewegen') punt('tewegen', 'Gewicht staat op te wegen', '', null, 'w', { loc:pick[0] || bulkLocs(c)[0] || '' }); }catch(e){}
     // 8 Aantal per pallet
@@ -331,14 +333,23 @@ function laterItems(){
   laterTabs().forEach(x => voeg(x.c, 'Tab ' + (TABNAAM[x.cat] || x.cat), x.op, x.opm && !/^Later · tab/.test(x.opm) ? x.opm : '', { tab:x.cat }));
   return uit.sort((a, b) => String(a.op).localeCompare(String(b.op)));
 }
-// Twijfel: soort "weet ik nog niet" — staat in tab Later onder "Twijfel (n)"
+// Twijfel: soort "weet ik nog niet" — staat in tab Twijfels onder "Soort nog niet beslist" (basis 23-11)
 function twijfelItems(){
   const P = R();
   return Object.keys(WH.D.P).filter(c => bruikbaar(c) && soortNu(c) === 'twijfel').map(c => { const g = P.groepVan(c), fk = P.famVan(c); return { c, cat:'twijfel', naam:naam(c), fk, fam:P.famNaam(fk), gk:g.k, gnaam:g.naam, abc:abc(c), so:'twijfel', loc:'', redenen:[{ t:'Soort Twijfel: nog niet beslist', visie:'' }], voorstellen:[], sig:'twijfel' }; });
 }
+// Twijfel bij een keuze (basis 23-11): de keuze is bewaard en telt mee, de markering wordt onthouden tot "Klopt zo (twijfel weg)"; één punt per product
+const TWNAAM = { soort:'soort', gewicht:'gewicht', hoev:'hoeveelheid', spp:'stuks per pallet', maat:'palletmaat', hoogte:'hoogte', lvl:'aanvullen bij', maxpick:'max op pick', rl:'lengte volle rol', rmax:'max rollen per pallet' };
+function twKeuzeItems(){
+  const P = R(); if(!P || !P.twLijst) return [];
+  return P.twLijst().filter(c => WH.D.P[c]).map(c => { const tw = P.twVan(c), g = P.groepVan(c), fk = P.famVan(c), op = Object.values(tw).map(x => x.t).sort()[0];
+    return { c, cat:'twkeus', naam:naam(c), fk, fam:P.famNaam(fk), gk:g.k, gnaam:g.naam, abc:abc(c), so:soortVan(c), loc:'', op, voorstellen:[], sig:'twkeus|' + Object.keys(tw).sort().join(','),
+      redenen:Object.entries(tw).map(([k, x]) => ({ t:'Twijfel bij ' + (TWNAAM[k] || k) + ': gekozen ' + (x.v || '–') + ' · sinds ' + dt(x.t) + (x.opm ? ' · ' + x.opm : ''), visie:'' })) }; })
+    .sort((a, b) => String(a.op).localeCompare(String(b.op)));
+}
 function tel(){
   const c = cats(); if(!c) return null;
-  return { overzicht:1, later:laterItems().length + twijfelItems().length, picklocaties:c.picklocaties.length, bulklocaties:c.bulklocaties.length, hercontrole:c.hercontrole.length, gewicht:c.gewicht.length, tewegen:c.tewegen.length, aantal:c.aantal.length };
+  return { overzicht:1, later:laterItems().length, twijfels:twijfelItems().length + twKeuzeItems().length, picklocaties:c.picklocaties.length, bulklocaties:c.bulklocaties.length, hercontrole:c.hercontrole.length, gewicht:c.gewicht.length, tewegen:c.tewegen.length, aantal:c.aantal.length };
 }
 
 /* ---------- acties (alleen voorstellen; Daan beslist met één tik; kopie vooraf) ---------- */
@@ -483,12 +494,20 @@ function tabTeWegen(c){
   return `${filterBalk(c.tewegen)}<p class="muted klein">Alleen wat echt gewogen moet worden. Losse producten op de weegschaal; een gewogen gewicht wordt "gewogen".</p>${lijstHtml('tewegen', l, Object.assign(o, { leeg:'Niets te wegen.' }))}`;
 }
 function tabLater(){
-  const l = laterItems(), tw = twijfelItems();
+  const l = laterItems();
   const o = { uitleg:(gr) => 'Bewust uitgesteld: telt niet mee voor het afronden en komt alleen terug als je deze lijst opent.' + `<ul class="cp-later">${gr.items.slice(0, 8).map(x => `<li><code class="cp-code">${esc(x.c)}</code> ${esc(x.redenen.map(r => r.t).join(' · '))}</li>`).join('')}${gr.items.length > 8 ? `<li class="muted">… en ${gr.items.length - 8} meer (uitklappen)</li>` : ''}</ul>`,
     keuzes:(gr) => `<a class="cp-b hoofd" href="#/doorloop/later" data-taak="0.4">Doorlopen →</a>${knop('g-terug', 'Weer op de lijst (niet meer Later)', 'later', gr.k)}` };
+  return `<div id="later-kaart"><h2>Later · moet nog (${nf(l.length)})</h2>${lijstHtml('later', l, Object.assign(o, { leeg:'Niets op Later.' }))}</div>`;
+}
+// Twijfels (basis 23-11): Twijfel is een markering bij een keuze; onthouden en hier terug te zien, nooit weer vooraan tijdens het verzamelen
+function tabTwijfels(){
+  const tw = twijfelItems(), tk = twKeuzeItems();
   const ot = { uitleg:() => 'Soort Twijfel: "weet ik nog niet". Telt niet als afgerond; geen gewicht- of hoeveelheidsvragen tot je een soort kiest.', keuzes:(gr) => `<span class="cp-soort">${SOORTK.filter(k => k !== 'twijfel').map(k => knop('g-soort', SOORTT[k], 'twijfel', gr.k, '', k)).join('')}${S.wegOpen.has('twijfel|' + gr.k) ? Object.entries(WEGT).map(([k, t]) => knop('g-weg', 'Weg · ' + t, 'twijfel', gr.k, 'hoofd', k)).join('') : ''}</span>` };
-  return `<div id="later-kaart"><h2>Later · moet nog (${nf(l.length + tw.length)})</h2>${lijstHtml('later', l, Object.assign(o, { leeg:'Niets op Later.' }))}
-    <h2 id="cp-twijfel">Twijfel (${nf(tw.length)})</h2>${lijstHtml('twijfel', tw, Object.assign(ot, { leeg:'Geen producten op Twijfel.' }))}</div>`;
+  const ok = { uitleg:() => 'Je koos dit met twijfel. De keuze is bewaard en telt mee; hier kijk je er later nog eens naar. Klopt het, dan gaat de twijfel weg; anders pas je het aan.',
+    keuzes:(gr) => knop('g-twweg', 'Klopt zo (twijfel weg)', 'twkeus', gr.k, 'hoofd'), rijKnop:x => rknop('g-twweg', 'Klopt zo', 'twkeus', x.c) };
+  return `<div id="twijfel-kaart"><h2>Twijfels (${nf(tw.length + tk.length)})</h2><p class="muted klein">Twijfel is een markering bij een keuze: onthouden, en hier later te bekijken. Het komt niet terug tijdens het verzamelen (Doorloop, Te controleren).</p>
+    <h3 id="cp-twijfel">Soort nog niet beslist (${nf(tw.length)})</h3>${lijstHtml('twijfel', tw, Object.assign(ot, { leeg:'Geen producten op Twijfel.' }))}
+    <h3>Twijfel bij een keuze (${nf(tk.length)})</h3>${lijstHtml('twkeus', tk, Object.assign(ok, { leeg:'Geen keuzes met twijfel.' }))}</div>`;
 }
 
 /* Overzicht = Claudes analyse */
@@ -516,6 +535,7 @@ function overzicht(c, t){
   return `<p class="muted">Claudes analyse van de data, live berekend. Elk punt is een voorstel met Claudes visie: jij beslist met één tik, per groep (leverancier + hoofdwoord) met "Selectie is". Alleen producten met een bevestigde soort, nooit SAM Europe. Tellers tellen producten.</p>
     ${rij('picklocaties', '3 Picklocaties', c.picklocaties, c.pickklaar.length ? `<div class="klein">Klaar voor Picqer: ${mv(c.pickklaar.length, 'product', 'producten')}</div>` : '')}${rij('bulklocaties', '4 Bulklocaties', c.bulklocaties, c.bulkeraf.length ? `<div class="klein">Klaar voor Picqer: ${mv(c.bulkeraf.length, 'product', 'producten')}</div>` : '')}${rij('hercontrole', '5 Hercontrole', c.hercontrole)}${rij('gewicht', '6 Gewicht controleren', c.gewicht)}${rij('tewegen', '7 Te wegen', c.tewegen)}${rij('aantal', '8 Aantal per pallet', c.aantal)}
     <div class="cp-ov"><div><b>2 Later · ${mv(nl, 'product', 'producten')}</b><div class="muted klein">Bewust uitgesteld; telt niet mee voor het afronden.</div></div><a class="cp-b${nl ? ' hoofd' : ''}" href="#/todo/later">${nl ? 'Naar de tab →' : 'Leeg'}</a></div>
+    <div class="cp-ov"><div><b>Twijfels · ${mv(t ? t.twijfels : 0, 'product', 'producten')}</b><div class="muted klein">Keuzes met twijfel en soort Twijfel: onthouden, komen niet terug tijdens het verzamelen.</div></div><a class="cp-b${t && t.twijfels ? ' hoofd' : ''}" href="#/todo/twijfels">${t && t.twijfels ? 'Naar de tab →' : 'Leeg'}</a></div>
     <h3>Wat klopt</h3><ul class="cp-wat">${watKlopt() || '<li class="muted">Geen herkende patronen in deze data.</li>'}<li>Uitlopend met voorraad is normaal en staat niet in Hercontrole.</li><li>Productdata in gebruik: <b>3.0 en Containers</b> · Warehouse, Junior en Palletlabels pas na de steekproef.</li></ul>
     <h3>Steekproef voor Poort 0.4</h3><p class="muted klein">20 producten uit tab 3–8 (A/B eerst) als vloerlijst. 20 gecontroleerd met 0 fouten = groen.</p><button type="button" class="cp-b hoofd" data-cp="steekmaken">Steekproef maken</button>${steek}
     ${reactie}`;
@@ -565,6 +585,7 @@ function tabHtml(tab){
   if(!c) return '<p class="muted">Controleronde berekenen…</p>';
   switch(tab){
     case 'later': return tabLater();
+    case 'twijfels': return tabTwijfels();
     case 'picklocaties': return tabPick(c);
     case 'bulklocaties': return tabBulk(c);
     case 'hercontrole': return tabMetVoorstel(c.hercontrole, 'hercontrole');
@@ -585,7 +606,7 @@ function html(tab){
 
 /* ---------- gebeurtenissen: kiezen = meteen opslaan, met "Bewaard · ongedaan maken" ---------- */
 let gekoppeld = false;
-const lijstVan = cat => { const c = cats(); if(!c) return []; return cat === 'later' ? laterItems() : cat === 'twijfel' ? twijfelItems() : (c[cat] || []); };
+const lijstVan = cat => { const c = cats(); if(!c) return []; return cat === 'later' ? laterItems() : cat === 'twijfel' ? twijfelItems() : cat === 'twkeus' ? twKeuzeItems() : (c[cat] || []); };
 const groepItems = (cat, gk) => lijstVan(cat).filter(x => x.gk === gk);
 // 3 seconden "Bewaard · ongedaan maken" (onderaan, vast in beeld)
 function bewaard(tekst, terug){
@@ -618,6 +639,7 @@ async function doeActie(a, cat, sel, v, gk){
     return;
   }
   if(a === 'g-bulkok'){ const keys = sel.map(x => 'bulkeraf|' + x.c), terug = kloptTerug(keys); await zetKloptVeel(sel.map(x => ({ cat:'bulkeraf', c:x.c, sig:x.sig, opm:'Alleen bulk' }))); klaar(); bewaard(n + ': alleen bulk (picklocatie eraf)', terug); return; }
+  if(a === 'g-twweg'){ const terug = poTerug(codes); P.twWeg(codes); flush(); klaar(); bewaard(n + ': twijfel weg (klopt zo)', terug); return; }
   if(a === 'g-klopt'){ const terug = kloptTerug(sel.map(x => sk(cat, x.c))); await zetKloptVeel(sel.map(x => ({ cat, c:x.c, sig:x.sig, opm:'Klopt zo' }))); klaar(); bewaard(n + ': klopt zo', terug); return; }
   if(a === 'g-later'){ const terug = kloptTerug(sel.map(x => sk(cat, x.c))); await zetKloptVeel(sel.map(x => ({ cat, c:x.c, sig:x.sig, opm:'Later · tab ' + (TABNAAM[cat] || cat), later:true }))); klaar(); bewaard(n + ' op Later', terug); return; }
   if(a === 'g-neem'){
@@ -692,5 +714,5 @@ function koppel(){
 }
 // Poort 0.4: de steekproef komt uit de controleronde
 function poortSteek(){ return { gedaan:S.steek && S.steek.codes ? Object.keys(S.steek.uit || {}).length : 0, n:S.steek && S.steek.codes ? S.steek.codes.length : 0, fouten:S.steek && S.steek.uit ? Object.values(S.steek.uit).filter(v => v === 'fout').length : 0, groen:steekGroen() }; }
-return { html, tel, cats, laad, koppel, poortSteek, S, TABS, zetKlopt, tabHtml, groepeer, laterItems, twijfelItems, gewichtPunt, rekensom, pickVoorstel, groepActie, doeActie, groepVoorstel, feitenHtml };
+return { html, tel, cats, laad, koppel, poortSteek, S, TABS, zetKlopt, tabHtml, groepeer, laterItems, twijfelItems, twKeuzeItems, gewichtPunt, rekensom, pickVoorstel, groepActie, doeActie, groepVoorstel, feitenHtml };
 })();

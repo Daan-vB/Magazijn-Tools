@@ -29,7 +29,8 @@ const LAGEN = [
   { n:4, t:'Extra', u:'Als de rest af is' }
 ];
 const PLAATSEN = ['1', '1,2', '1,3', '2', '3'];
-const MATEN = ['80x120', '100x100', '100x120', '110x110', '90x120', '100x150', '120x150', '120x180', '100x200', '120x200', '120x240', '130x210', '130x250', '40x120', '40x200'];
+// maatpallets (basis 23-11): alle maten zijn voor opslag én transport, behalve 40x120 en 40x200 (alleen transport, hier niet te kiezen)
+const MATEN = ['80x120', '100x100', '100x120', '110x110', '90x120', '100x150', '120x150', '120x180', '100x200', '120x200', '120x240', '120x210', '130x210', '130x250'];
 const VELDEN = {
   opslag:  { t:'Soort', laag:1, type:'keus', opt:[['pallet', '1 Pallet'], ['deel', '2 Deel'], ['mix', '3 Mix'], ['pick', '4 Pick'], ['rol', '5 Rol alleen backorder']], hint:'5 rol alleen backorder: rol die alleen per backorder van de pallet wordt gehaald, geen pallet-, plaats- of picklocatievelden · 1 pallet: picklocatie, aangevuld met volle pallets · 2 deel: picklocatie aangevuld met een deel, of geen pick en alleen bulk (per order verplaatst) · 3 mix: dozen op een mixpallet · 4 pick: alles direct naar pick' },
   spp:     { t:'Stuks per pallet', laag:1, type:'num', eh:true, hint:'nvt = komt niet op pallet · onb = weet ik niet' },
@@ -784,8 +785,8 @@ function vnVanGenoot(code){
   return null;
 }
 /* ---------- schattingsregels van Daan (16-10) als er niets bekend is: palletmaat L×B×H ---------- */
-// alleen opslag-palletmaten; nooit 40x120/40x200 (halve pallets, transport) of 130x210/130x250/120x210 (transport)
-const OPSLAG = ['80x120', '90x120', '100x100', '100x120', '90x150', '100x150', '110x110', '120x150', '120x180', '100x200', '120x200', '120x240'];   // 100x120 en 90x150: Daan 17-10 (archiefkasten, rm150x90)
+// alleen opslag-palletmaten; nooit 40x120/40x200 (halve pallets, alleen transport). Basis 23-11: 120x210, 130x210, 130x250 zijn ook opslagmaten
+const OPSLAG = ['80x120', '90x120', '100x100', '100x120', '90x150', '100x150', '110x110', '120x150', '120x180', '100x200', '120x200', '120x240', '120x210', '130x210', '130x250'];   // 100x120 en 90x150: Daan 17-10 (archiefkasten, rm150x90)
 function opslagMaat(L, B, lijst){
   const a = Math.max(L, B), b = Math.min(L, B);
   const kand = (lijst || OPSLAG).map(m => m.split('x').map(Number)).map(([x, y]) => [Math.max(x, y), Math.min(x, y)]).filter(([x, y]) => x >= a - 7 && y >= b - 7).sort((p, q) => p[0] * p[1] - q[0] * q[1]);

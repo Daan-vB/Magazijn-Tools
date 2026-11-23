@@ -161,7 +161,7 @@ function vraagLijst(stat){
       if(!PD2VRAAG[f.k]) return tel('nietin2');
       if(f.k === 'opslag' && pk) return;   // de soort vraagt 2.0 zelf (hieronder), met zijn eigen voorstel
       if(sam(x.c) && f.k !== 'maxpick') return tel('sam');
-      if(ZONDERVR.has(sd.so)) return tel(sd.so === 'weg' ? (sd.weg === 'uitlopend' ? 'uitlopend' : 'weg') : sd.so);   // Weg, Backorder en Twijfel: geen vragen
+      if(ZONDERVR.has(sd.so) && !(sd.so === 'backorder' && f.k === 'kgst')) return tel(sd.so === 'weg' ? (sd.weg === 'uitlopend' ? 'uitlopend' : 'weg') : sd.so);   // Weg en Twijfel: geen vragen; Backorder alleen het gewicht (basis 23-11)
       if(PALLETVRAAG.has(f.k) && zonderPallet(x.c)) return tel('pallet');
       if(PD2SOORT[f.k] && !PD2SOORT[f.k].includes(sd.so)) return tel('soortnietbij');
       if(!sd.ok && !sam(x.c)) return tel('soorteerst');
@@ -282,7 +282,7 @@ function vraagHtml(){
       <div class="x-q"><b>${esc(PD2VRAAG[q.k])}</b>: <b class="x-vs">${q.v ? esc(q.k === 'soort' ? soortTekst(q.v) : q.v) : 'geen voorstel'}</b>${reden ? ` <span class="x-why">— ${esc(reden)}</span>` : ''}</div>
       ${q.k === 'soort' ? soortKnoppen(q) : `<label class="x-soortw small">soort: <select data-x2="soortwijzig" aria-label="Soort wijzigen">${soortOpties(soortVan(q.c))}</select></label>`}
       ${S.aanpas ? `<div class="x-acties"><input id="x-vin" value="${esc(q.v)}" aria-label="${esc(PD2VRAAG[q.k])}" autocomplete="off"><button class="x-btn ok" data-x="vopslaan">Opslaan</button></div>` : ''}
-      <div class="x-acties">${q.v ? '<button class="x-btn ok" data-x="vklopt">Klopt</button>' : ''}${S.aanpas ? '' : '<button class="x-btn" data-x="vaanpas">Aanpassen</button>'}<button class="x-btn" data-x="vlater">Later</button>${fam.length > 1 ? `<button class="x-btn${S.fam === q.fam + '|' + q.k ? ' aan' : ''}" data-x="vfam" aria-expanded="${S.fam === q.fam + '|' + q.k}">geldt voor alle ${nf(fam.length)} in deze familie</button>` : ''}</div>
+      <div class="x-acties">${q.v ? '<button class="x-btn ok" data-x="vklopt">Klopt</button><button class="x-btn" data-x="vtwijfel" title="Bewaren zoals voorgesteld en onthouden als twijfel (Te doen → Twijfels)">Twijfel</button>' : ''}${S.aanpas ? '' : '<button class="x-btn" data-x="vaanpas">Aanpassen</button>'}<button class="x-btn" data-x="vlater">Later</button>${fam.length > 1 ? `<button class="x-btn${S.fam === q.fam + '|' + q.k ? ' aan' : ''}" data-x="vfam" aria-expanded="${S.fam === q.fam + '|' + q.k}">geldt voor alle ${nf(fam.length)} in deze familie</button>` : ''}</div>
       ${fam.length > 1 && S.fam === q.fam + '|' + q.k ? famLijst(q, fam) : ''}
     </div>`;
 }
@@ -711,14 +711,14 @@ function bind(){
         catch(err){ toast('Opslaan mislukt: ' + (err.message || err)); }
         herteken();
       }
-      else if(['vklopt', 'vopslaan'].includes(x)){
+      else if(['vklopt', 'vopslaan', 'vtwijfel'].includes(x)){
         const kaart = b.closest('.x-vraag'), c = kaart.dataset.code, k = kaart.dataset.k, inp = $('x-vin');
         const L = vraagLijst(), q = L.find(y => y.c === c && y.k === k); if(!q) return;
         const v = x === 'vopslaan' ? (inp ? inp.value.trim() : q.v) : q.v;
         if(!v){ toast('Vul een waarde in'); return; }
         const items = [{ c, k, v }];
         kaart.querySelectorAll('button').forEach(z => { z.disabled = true; });
-        try{ await pd2Zet(items); S.aanpas = false; S.fam = null; S.famUit = new Set(); toast(items.length > 1 ? (PD2VRAAG[k] + ' ' + v + ' voor ' + items.length + ' producten') : c + ': ' + PD2VRAAG[k] + ' ' + v); }
+        try{ await pd2Zet(items); if(x === 'vtwijfel' && window.PD2R) PD2R.twMark([c], k === 'kgst' ? 'gewicht' : k === 'opslag' ? 'soort' : k); S.aanpas = false; S.fam = null; S.famUit = new Set(); toast(x === 'vtwijfel' ? c + ': bewaard en als twijfel onthouden (Te doen → Twijfels)' : items.length > 1 ? (PD2VRAAG[k] + ' ' + v + ' voor ' + items.length + ' producten') : c + ': ' + PD2VRAAG[k] + ' ' + v); }
         catch(err){ toast('Opslaan mislukt: ' + (err.message || err)); }
         herteken(); const i2 = $('x-vin'); if(i2) i2.focus();
       }

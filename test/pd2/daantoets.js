@@ -48,7 +48,7 @@ function check(d, regel, waar, x){
   await laadTodo('overzicht');
   /* ---------- structuur van de tabs ---------- */
   if(doe('D15')){ const r = await ev(() => ({ tabs:WHCP.TABS.map(x => x[1]), zonder:Object.entries(WHCP.cats()).flatMap(([k, l]) => l.filter(x => !x.redenen || !x.redenen.length || !x.redenen[0].t).map(x => k + ':' + x.c)) }));
-    check('D15', '§2 Te doen = tabs Overzicht · Later · Picklocaties · Bulklocaties · Hercontrole · Gewicht controleren · Te wegen · Aantal per pallet; elk punt met reden', r.tabs.join('|') === 'Overzicht|Later|Picklocaties|Bulklocaties|Hercontrole|Gewicht controleren|Te wegen|Aantal per pallet' && !r.zonder.length, r.tabs.join('|') + ' ' + r.zonder.slice(0, 5)); }
+    check('D15', '§2 Te doen = tabs Overzicht · Later · Twijfels · Picklocaties · Bulklocaties · Hercontrole · Gewicht controleren · Te wegen · Aantal per pallet; elk punt met reden', r.tabs.join('|') === 'Overzicht|Later|Twijfels|Picklocaties|Bulklocaties|Hercontrole|Gewicht controleren|Te wegen|Aantal per pallet' && !r.zonder.length, r.tabs.join('|') + ' ' + r.zonder.slice(0, 5)); }
   if(doe('D16')){ const r = await ev(() => { const c = WHCP.cats(), t = WHCP.tel(), dub = []; Object.entries(c).forEach(([k, l]) => { const s = new Set(); l.forEach(x => { if(s.has(x.c)) dub.push(k + ':' + x.c); s.add(x.c); }); }); return { dub, tel:['picklocaties', 'bulklocaties', 'hercontrole', 'gewicht', 'tewegen', 'aantal'].every(k => t[k] === c[k].length), t, pb:['PBVF-60x90-BLUE', 'ST210-Black', 'FLM66x110-B'].map(x => Object.entries(c).filter(([, l]) => l.filter(y => y.c === x).length > 1).length) }; });
     check('D16', '§2 Eén product = één punt per tab (alle redenen eronder); tellers tellen producten (PBVF-60x90-BLUE, ST210-Black, FLM66x110-B niet dubbel)', !r.dub.length && r.tel && r.pb.every(n => n === 0), JSON.stringify(r.dub.slice(0, 5)) + ' ' + JSON.stringify(r.t)); }
   if(doe('D36')){ const r = await ev(() => { const c = WHCP.cats(), sam = Object.keys(WH.D.P).filter(x => PD2R.isSam(x) && PD2R.actief(x)); const inTab = Object.values(c).flat().filter(x => PD2R.isSam(x.c)).map(x => x.c); const g = sam.slice(0, 20).map(x => PD2R.groepVan(x)); const verg = []; return { inTab, alleen:g.every(x => /^sam\|/.test(x.k)), n:sam.length, verg }; });
@@ -93,7 +93,7 @@ function check(d, regel, waar, x){
       const b = oudBo[0], ob = b ? JSON.parse(JSON.stringify(P.S.o.p[b])) : null; let omgezet = true;
       if(b){ const was = P.S.echt; P.S.echt = false; try{ P.poZet(b, p => { p.gew = p.gew || { st:'tewegen', t }; }); omgezet = P.S.o.p[b].so.v === 'backorder' && !P.S.o.p[b].weg; } finally { P.S.echt = was; P.S.o.p[b] = ob; P.ongeldig(b); } }
       return { n:oudBo.length, leesBo, c, tw, omgezet, kies:P.SOORTEN.map(x => x[0]).includes('twijfel') && P.SOORTEN.map(x => x[0]).includes('backorder') }; });
-    check('D46', '§3 Twijfel en Backorder zijn soorten: Weg · Backorder wordt gelezen als Backorder (pas bij de volgende bewaaractie omgezet); Twijfel telt niet als afgerond, geen gewicht/hoeveelheid, staat onder Later', r.kies && r.leesBo && r.omgezet && !r.tw.af && r.tw.open.join() === 'soort' && !r.tw.nodig.length && r.tw.later, JSON.stringify(r)); }
+    check('D46', '§3 Twijfel en Backorder zijn soorten: Weg · Backorder wordt gelezen als Backorder (pas bij de volgende bewaaractie omgezet); Twijfel telt niet als afgerond, geen gewicht/hoeveelheid, staat in Te doen → Twijfels', r.kies && r.leesBo && r.omgezet && !r.tw.af && r.tw.open.join() === 'soort' && !r.tw.nodig.length && r.tw.later, JSON.stringify(r)); }
   if(doe('D35')){ const r = await ev(() => { const g = PD2R.gangen(); return { g:g.map(h => h.gang), hal:[...new Set(g.map(h => h.hal))], dDeel:g.filter(h => h.gang[0] === 'D').every(h => h.hal === 'C' && h.deel === 'D'), cDeel:g.filter(h => h.gang[0] === 'C').every(h => h.hal === 'C' && h.deel === 'C'), oud:PD2R.wensNorm({ hal:'D', gang:'DD' }) }; });
     check('D35', '§5 Keuze hal → gedeelte → gang: gangen D.. = hal C gedeelte D, alleen bestaande gangen; oude pickwens "D" leest als C/D', r.hal.every(h => ['A', 'B', 'C'].includes(h)) && r.dDeel && r.cDeel && r.oud.hal === 'C' && r.oud.deel === 'D', JSON.stringify(r).slice(0, 300)); }
   if(doe('D23') || doe('D24') || doe('D25') || doe('D42')){
@@ -495,6 +495,76 @@ function check(d, regel, waar, x){
     check('D6', '§1 Geen API-sleutels of bedrijfsdata-exports in de repo', !geheim.length && !exp.length, geheim.concat(exp).join(','));
   }
   if(doe('D41')){ const core = fs.readFileSync(path.join(root, 'wh', 'core.js'), 'utf8'); check('D41', '§9 Warehouse, Junior en Palletlabels blijven zoals ze zijn: productdata alleen in 3.0 en Test (schakelaar wh-pd-bron niet omgezet)', /const PD_APPS = \['test', 'ivol'\];/.test(core) && !T.writes.includes('wh-pd-bron'), ''); }
+  /* ---------- D65–D74: basismodel 23-11 (alleen lezen; nabootsingen alleen in het geheugen en daarna teruggezet) ---------- */
+  if(['D65', 'D66', 'D67', 'D68', 'D69', 'D70', 'D71', 'D72', 'D73', 'D74'].some(doe)){
+    await P.goto(B + 'ivol.html#/todo/twijfels'); await P.waitForFunction(() => window.WHCP && WHCP.tel && WHCP.tel() && window.PD2R && PD2R.S.klaar && window.WHLIVE, null, { timeout:280000 }); await wacht(1500);
+    const bron = f => fs.readFileSync(path.join(__dirname, '..', '..', f), 'utf8');
+    const rk = bron('wh/pd2-reken.js'), dl = bron('wh/doorloop.js'), pd = bron('wh/pd2.js'), cp = bron('containerplanning.html'), pdo = bron('wh/productdata.js'), iv = bron('wh/ivol.js'), ivh = bron('ivol.html');
+    if(doe('D65')){
+      // live lijst met nagebootste backorders: order 1 kan helemaal weg (2 regels), order 2 niet (één regel niet op voorraad)
+      const r = await ev(() => { const B = WHLIVE.backorderCijfers([{ o:1, p:11, a:5, v:5 }, { o:1, p:12, a:3, v:3 }, { o:2, p:11, a:4, v:4 }, { o:2, p:13, a:2, v:0 }]); return { vol:B.vol, prod:B.producten.map(x => x.id + ':' + x.nodig) }; });
+      check('D65', '§3 Bulk bij een order (basis 23-11): het bestelde aantal (niet 1 stuk) van bulk naar geen specifieke locatie, alleen als de hele order weg kan',
+        r.vol === 1 && r.prod.sort().join() === '11:5,12:3' && !/per order 1 stuk/.test(rk) && /het bestelde aantal/.test(rk) && /verpl:Math\.max\(1, b\.nodig - st\.pickVrij\)/.test(bron('wh/live.js')), JSON.stringify(r));
+    }
+    // een product dat de test zelf kiest (actief, geen SAM/koppel, soort bevestigd als Deel/Pallet), alleen in het geheugen omgezet en daarna terug
+    const naboots = async (fn, so) => ev(([src, so]) => { const P = PD2R, t = new Date().toISOString(), c = Object.keys(WH.D.P).find(x => P.actief(x) && !P.isSam(x) && !P.isKoppel(x) && ['deel', 'pallet'].includes(P.status(x).so) && P.belangrijk().includes(x));
+      const oud = P.S.o.p[c] ? JSON.parse(JSON.stringify(P.S.o.p[c])) : null; let uit;
+      try{ P.S.o.p[c] = Object.assign({ f:{} }, oud || {}, so ? { so:{ v:so, st:'aangepast', t } } : {}); delete P.S.o.p[c].gew; P.ongeldig(c); WHCP.S.memo = null; uit = (0, eval)('(' + src + ')')(c, P); }
+      finally { if(oud) P.S.o.p[c] = oud; else delete P.S.o.p[c]; P.ongeldig(c); WHCP.S.memo = null; }
+      return Object.assign({ c }, uit); }, [fn.toString(), so]);
+    if(doe('D66')){
+      // ook het vastgelegde gewicht in productdata alleen in het geheugen weg, zodat de gewichtsvraag echt open kan staan
+      const r = await naboots((c, P) => { const pd = (window.WHPD && WHPD.S.pd) || {}, oudPd = pd[c]; if(oudPd && oudPd.data){ const d = Object.assign({}, oudPd.data); delete d.kgst; pd[c] = Object.assign({}, oudPd, { data:d }); } P.ongeldig(c);
+        try{ const st = P.status(c); return { open:st.open, nodig:P.nodigVan(c, 'backorder'), gewVraag:!P.ZONDERGEWICHT.has('backorder'), weg:P.ZONDERGEWICHT.has('weg') && P.ZONDERGEWICHT.has('twijfel'), lev:!!st.gew.lev, gst:st.gew.st }; }
+        finally { if(oudPd) pd[c] = oudPd; P.ongeldig(c); } }, 'backorder');
+      check('D66', '§3 Backorder (basis 23-11): geen opslagdata, wel alle productdata: wel de gewichtsvraag, geen hoeveelheid- of palletvragen',
+        r.gewVraag && r.weg && !r.nodig.length && !r.open.some(k => !['soort', 'weg', 'gewicht'].includes(k)) && (r.open.includes('gewicht') || r.lev), JSON.stringify(r));
+    }
+    if(doe('D67')){
+      const r = await naboots((c, P) => { P.twMark([c], 'gewicht', 'test'); const tw = P.twVan(c), ti = WHCP.twKeuzeItems().some(x => x.c === c), tel = WHCP.tel(); WHCP.S.memo = null;
+        return { tw:!!(tw && tw.gewicht), inTab:ti, tabs:WHCP.TABS.map(x => x[0]), telTw:tel.twijfels, laterZonderTwijfel:!WHCP.laterItems().some(x => x.cat === 'twijfel') }; });
+      check('D67', '§3 Twijfel (basis 23-11): markering bij elke keuze, onthouden in Te doen → Twijfels (soort Twijfel staat daar ook), komt niet terug tijdens het verzamelen',
+        r.tw && r.inTab && r.tabs.includes('twijfels') && r.tabs.indexOf('twijfels') === r.tabs.indexOf('later') + 1 && r.telTw >= 1 && r.laterZonderTwijfel && /id="dl-twijfel"/.test(dl) && /data-x="vtwijfel"/.test(bron('wh/ivol-x.js')) && /data-a="twijfel"/.test(pd) && /st\(c\)\.so !== 'twijfel'/.test(dl), JSON.stringify(r));
+    }
+    if(doe('D68')){
+      const r = await ev(() => { const P = PD2R; let deel = 0, ja = 0; Object.keys(WH.D.P).forEach(c => { try{ if(!P.actief(c) || P.isSam(c)) return; const so = P.status(c).so; if(!['deel', 'pallet', 'bulk', 'mix'].includes(so)) return; const ex = P.extraVan(c, so); if(ex.includes('opmix')){ deel++; if(P.waarde(c, 'opmix').v === 'ja') ja++; } }catch(e){} });
+        return { veld:!!(P.VELD.opmix && P.VELD.stapel), mix:P.KOLOMMEN.mix, n:deel, ja }; });
+      check('D68', '§3 Op mixpallet (basis 23-11): eigenschap ja/nee naast de soort (voorstel uit de plekken), geen vaste mixgroep; stapelbaar alleen bij grote aantallen',
+        r.veld && r.mix.includes('opmix') && !r.mix.includes('mixgroep') && r.n > 0 && /function grootAantal/.test(rk) && /GROOT_PALLETS = 2/.test(rk), JSON.stringify(r));
+    }
+    if(doe('D69')){
+      const r = await ev(() => { const P = PD2R, c = Object.keys(WH.D.P).find(x => /^kokos/i.test(P.naamVan(x)) && P.actief(x) && P.isRol(x) && P.eenheid(x).e === 'cm'); if(!c) return null;
+        const w = { rl:P.info(c).vs.rl.v }, oud = WH.D.P[c].leverancier; WH.D.P[c] = Object.assign({}, WH.D.P[c], { leverancier:'Hamat test' }); P.ongeldig(c);
+        try{ const I = P.info(c); w.hamat = { rl:I.vs.rl && I.vs.rl.v, max:I.vs.maxpick && I.vs.maxpick.v, lvl:I.vs.lvl && I.vs.lvl.v }; } finally { WH.D.P[c] = Object.assign({}, WH.D.P[c], { leverancier:oud }); P.ongeldig(c); }
+        return Object.assign({ c }, w); });
+      check('D69', '§6 Kokos rollengte per leverancier (basis 23-11): Wallace 6 m, Hamat 12 m; max op pick 1800 of 2400 cm; aanvullen bij 600 cm',
+        r && r.rl === '6' && r.hamat.rl === '12' && (r.hamat.max === '2400' || r.hamat.max === undefined) && r.hamat.lvl === '600', JSON.stringify(r));
+    }
+    if(doe('D70')){
+      const r = await ev(() => { const c = Object.keys(WH.D.P).find(x => PD2R.actief(x) && !/whiteboard|^fwb/i.test(PD2R.naamVan(x) + ' ' + x)), l = PD2R.matenVoor(c); return { geen40:!l.includes('40x120') && !l.includes('40x200'), wb:['120x210', '130x210', '130x250'].every(m => l.includes(m)) }; });
+      const cpM = (cp.match(/const MATEN = \[([^\]]*)\]/) || [])[1] || '', pdM = (pdo.match(/const MATEN = \[([^\]]*)\]/) || [])[1] || '';
+      check('D70', '§5 Maatpallets (basis 23-11): alle maten voor opslag én transport, behalve 40x120 en 40x200 (alleen transport); lege pallet 15 kg',
+        r.geen40 && r.wb && !/40x120|40x200/.test(cpM + pdM) && /PALLET_KG = 15/.test(cp), JSON.stringify(r));
+    }
+    if(doe('D71')){
+      const r = await ev(() => { const P = PD2R, cs = Object.keys(WH.D.P).filter(c => P.levKg(c)); const c = cs[0]; if(!c) return { n:0 };
+        const l = P.levKg(c), oud = P.S.o.p[c] ? JSON.parse(JSON.stringify(P.S.o.p[c])) : null, t = new Date().toISOString(); let wijkt = null, laag = null;
+        try{ P.S.o.p[c] = Object.assign({ f:{} }, oud || {}, { gew:{ st:'gewogen', kg:l.kg * 1.25, t } }); P.ongeldig(c); wijkt = P.levWijkt(c); P.S.o.p[c].gew.kg = l.kg * 1.05; P.ongeldig(c); laag = P.levWijkt(c); }
+        finally { if(oud) P.S.o.p[c] = oud; else delete P.S.o.p[c]; P.ongeldig(c); }
+        const pdr = (window.WHPD && WHPD.S.pd) || {}, vrij = cs.find(x => !(P.S.o.p[x] && P.S.o.p[x].gew) && !(pdr[x] && pdr[x].data && pdr[x].data.kgst)), g = vrij ? P.gewicht(vrij) : null;
+        return { n:cs.length, c, kg:l.kg, ref:l.ref, wijkt:!!wijkt, onder10:!laag, vrij, st:g && g.st, bron:g && g.bron }; });
+      check('D71', '§4 Gewicht van de leverancier (pakbon) = vertrouwd en gaat voor op Picqer; eigen weging > 10% anders = melding (Daans weging geldt)',
+        r.n > 0 && r.wijkt && r.onder10 && (!r.vrij || (r.st === 'vertrouwd' && r.bron === 'leverancier')), JSON.stringify(r));
+    }
+    if(doe('D72')) check('D72', '§4 Picqer-gewicht = product met eigen verpakking, nooit onze verzenddoos of -pallet (uitleg bij elke gewichtsvraag)', /eigen verpakking \(stoel in doos\), nooit onze verzenddoos of -pallet/.test(pd) && /eigen verpakking \(stoel in doos\), nooit onze verzenddoos of -pallet/.test(dl), '');
+    if(doe('D73')){
+      const r = await ev(() => { const P = PD2R, test = (code, lev, naam) => { const oud = WH.D.P[code]; WH.D.P[code] = Object.assign({}, oud || {}, { leverancier:lev, naam }); try{ return P.foamrand(code); } finally { if(oud) WH.D.P[code] = oud; else delete WH.D.P[code]; } };
+        return { groot:test('FWB-TEST-GROOT', 'Hebei test', 'Whiteboard zonder rand - 90x150 cm'), klein:test('FWB-TEST-KLEIN', 'Hebei test', 'Whiteboard zonder rand - 60x90 cm'), ander:test('FWB-TEST-ANDER', 'Ningbo Henri', 'Whiteboard zonder rand - 90x150 cm') }; });
+      check('D73', '§6 Foamrand (basis 23-11): alleen FWB-whiteboards van Hebei vanaf 90x150', r.groot && !r.klein && !r.ander, JSON.stringify(r));
+    }
+    if(doe('D74')) check('D74', '§9 Goedkeuren (basis 23-11): officieel alleen Daan, Ryan en Karin (rol Ryan in 3.0; Containers: akkoord, bevestigen en afronden alleen voor die rollen)',
+      /GOEDKEUR_ROL = \['daan', 'ryan', 'karin'\]/.test(cp) && /GOEDKEUR_ACT\.includes\(el\.dataset\.act\) && !magGoedkeuren\(\)/.test(cp) && /ryan:'Ryan'/.test(iv) && /data-rol="ryan"/.test(ivh), '');
+  }
   /* ---------- D63: onmogelijke maten en gewichten (Daan 23-11): melding, en zonder bevestiging niet opgeslagen ---------- */
   if(doe('D63')){
     // als laatste: deze controle bewaart (in het geheugen) een bevestigde waarde; dat mag de volgorde kopie → productdata van D2 niet raken

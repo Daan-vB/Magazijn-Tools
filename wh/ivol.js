@@ -115,14 +115,15 @@ const OUD = [
   ['oud/productkaart-kopie-2.html', 'Kopie productkaart', 'dubbel bestand (15-10 naar oud/)'],
   ['oud/test-kopie.html', 'Kopie test', 'dubbel bestand (15-10 naar oud/)']
 ];
-const ROLLEN = { daan:'Daan', karin:'Karin', vloer:'Vloer', mgmt:'Management' };
+const ROLLEN = { daan:'Daan', ryan:'Ryan', karin:'Karin', vloer:'Vloer', mgmt:'Management' };   // basis 23-11: goedkeuren officieel alleen Daan, Ryan en Karin; Ryan ziet wat Daan ziet
 const ST = { draait:['draait', 'ok'], proef:['proef', 'warn'], oefen:['oefen', 'warn'], geparkeerd:['geparkeerd', 'grijs'], naslag:['naslag', 'grijs'] };
 
 /* ---------- staat ---------- */
 const ls = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
 const lsZet = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
 const UI = { rol:ROLLEN[ls('ivol-rol')] ? ls('ivol-rol') : 'daan', menu:false, geladen:false, cache:null };
-const zichtbaar = () => M.filter(m => m.r.includes(UI.rol));
+const rolVoor = r => r === 'ryan' ? 'daan' : r;   // Ryan heeft dezelfde schermen als Daan
+const zichtbaar = () => M.filter(m => m.r.includes(rolVoor(UI.rol)));
 const inMenu = () => zichtbaar().filter(m => !m.verborgen);
 const startVan = rol => rol === 'vloer' ? 'dag' : rol === 'karin' ? 'dag' : rol === 'mgmt' ? 'stand' : 'todo';
 function huidig(){

@@ -71,7 +71,8 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
   await kaart(ant).locator('[data-a="soortkies"][data-v="deel"]').click(); await wacht(250);
   check('Klik op het voorgestelde knopje slaat de soort op (bevestigd)', (await st(ant)).soSt === 'bevestigd');
   await stap('hoev');
-  const ks = await ev(c => [...document.querySelectorAll(`article.pd2-kaart[data-c="${c}"] .pd2-velden > .pd2-f`)].map(x => x.dataset.kc).join(), ant);
+  // basis 23-11: Op mixpallet en Stapelbaar staan erbij als eigenschap, maar zijn niet nodig om af te ronden
+  const ks = await ev(c => [...document.querySelectorAll(`article.pd2-kaart[data-c="${c}"] .pd2-velden > .pd2-f`)].map(x => x.dataset.kc).filter(k => !['opmix', 'stapel'].includes(k)).join(), ant);
   check('Stap 3 bij Deel: stuks per pallet, palletmaat en hoogte; aanvullen bij en max op pick alleen als ze ontbreken (CLAUDE.md §5)', /^spp,maat,hoogte(,lvl)?(,maxpick)?$/.test(ks), ks);
   const oudSpp = await ev(c => PD2R.waarde(c, 'spp').v, ant);
   await vul(ant, 'spp', (parseInt(oudSpp) || 40) + 7);
@@ -103,12 +104,15 @@ const check = (naam, v, extra) => { (v ? ok : fout).push(naam + (extra ? ' — '
   await kaart(rijen[1]).locator('[data-a="soortkies"][data-v="weg"]').click(); await wacht(250);
   await kies(rijen[1], 'wegkeuze', 'archief');
   check('Opdracht w2 (Archief) gedaan', await done('weg', 'w2'));
-  const wst = await st(rijen[0]);
-  check('Weg: soort + keuze = afgerond (gewicht en hoeveelheid vervallen)', wst.af && !(await kaarten()).includes(rijen[0]), JSON.stringify(wst));
+  // basis 23-11: Backorder krijgt geen opslagdata, wel alle productdata: de gewichtsvraag blijft, hoeveelheid vervalt
+  const bst = await st(rijen[0]);
+  check('Backorder: geen hoeveelheid, wel het gewicht (basis 23-11)', bst.stap.hoev && (bst.stap.gewicht || bst.open.includes('gewicht')) && !bst.open.some(k => !['soort', 'weg', 'gewicht'].includes(k)), JSON.stringify(bst));
+  const wst = await st(rijen[1]);
+  check('Weg: soort + keuze = afgerond (gewicht en hoeveelheid vervallen)', wst.af && !(await kaarten()).includes(rijen[1]), JSON.stringify(wst));
   await P.click('[data-a="seg"][data-v="afgerond"]'); await wacht();
-  check('Tab Afgerond toont de afgeronde regel', await P.locator(`.pd2-afrij[data-c="${rijen[0]}"]`).count() === 1);
-  await P.click(`.pd2-afrij[data-c="${rijen[0]}"] [data-a="wegterug"]`); await wacht(300);
-  check('Weg terugzetten: product staat weer open; opdracht w3 gedaan', (await kaarten()).includes(rijen[0]) && !(await ev(c => PD2R.status(c).af, rijen[0])) && await done('weg', 'w3'));
+  check('Tab Afgerond toont de afgeronde regel', await P.locator(`.pd2-afrij[data-c="${rijen[1]}"]`).count() === 1);
+  await P.click(`.pd2-afrij[data-c="${rijen[1]}"] [data-a="wegterug"]`); await wacht(300);
+  check('Weg terugzetten: product staat weer open; opdracht w3 gedaan', (await kaarten()).includes(rijen[1]) && !(await ev(c => PD2R.status(c).af, rijen[1])) && await done('weg', 'w3'));
 
   /* ===== Rollen ===== */
   await oefSet('rollen');
