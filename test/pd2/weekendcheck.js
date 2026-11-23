@@ -48,6 +48,8 @@ const check = (n, waar, x) => { (waar ? ok : fout).push(n); console.log((waar ? 
   check('"voor Daan" < 100 vragen', st.tc[3] + st.ti[3] < 100, st.tc[3] + st.ti[3]);
   check('start: knop "eerst jouw vragen", "Afgeleid — bekijken", acties per persoon en leveranciers', st.start && st.afg && st.acties && st.lev);
   check('start: 390 px zonder horizontaal scrollen', !(await hscroll()));
+  const pdp = await ev(() => ({ info:!!(WHWK.S.pdInfo && WHWK.S.pdInfo.gezet_op), paneel:(document.querySelector('.wk [data-blok="productdata"]') || {}).innerText || '' }));
+  check('start: "In productdata gezet op <datum tijd>" met de dekking per klasse A/B/C (24-uurs)', !pdp.info || (/In productdata gezet op .*\d{2}:\d{2}/.test(pdp.paneel) && /klasse A \d+%/.test(pdp.paneel) && /klasse B \d+%/.test(pdp.paneel) && /klasse C \d+%/.test(pdp.paneel) && !/\b(AM|PM)\b/i.test(pdp.paneel)), pdp.paneel.replace(/\n/g, ' | ').slice(0, 200));
   check('leest niet live uit Picqer (geen koppelcode nodig)', !/koppelcode/i.test(await ev(() => document.querySelector('.wk').innerText)));
 
   // 2 jouw vragen: alleen voor Daan + voorstel, Daan eerst (containers hoog → midden → A → B → C, wegen per hal/gang), afgeleid nooit
@@ -85,6 +87,10 @@ const check = (n, waar, x) => { (waar ? ok : fout).push(n); console.log((waar ? 
   const v5 = await huidigId(); await klik('.wk [data-wk="overslaan"]'); await P.waitForTimeout(300);
   const s45 = await ev(([a, b]) => [WHWK.S.ant[a] && WHWK.S.ant[a].a, WHWK.S.ant[b] && WHWK.S.ant[b].a], [v4, v5]);
   check('Twijfel en Overslaan worden bewaard', s45[0] === 'twijfel' && s45[1] === 'overslaan', s45.join(','));
+  // B1: bovenin "nog N open (x voor jou · y voorstellen)", niet de plek in de lijst ("39 van 623")
+  const kopT = await ev(() => { const o = WHWK.vragen('alle').filter(v => !WHWK.ant(v)), nf = n => n.toLocaleString('nl-NL'); return { tekst:(document.querySelector('[data-wk-kop]') || {}).textContent, ver:'nog ' + nf(o.length) + ' open (' + nf(o.filter(v => v.k === 'daan').length) + ' voor jou · ' + nf(o.filter(v => v.k === 'voorstel').length) + ' voorstellen)' }; });
+  check('vraagscherm: bovenin "nog N open (x voor jou · y voorstellen)"', kopT.tekst === kopT.ver, kopT.tekst + ' ≠ ' + kopT.ver);
+  check('vraagscherm: niet meer de plek in de lijst ("39 van 623")', !/\d+ van [\d.]+/.test(await ev(() => document.querySelector('.wk .kopregel').innerText)));
 
   // 3 groepsknop "Alle voorstellen in deze groep kloppen"
   const gv = await ev(() => { const c = {}; WHWK.vragen('alle').filter(v => v.k === 'voorstel' && !WHWK.S.ant[v.id] && v.vs).forEach(v => { (c[v.gk] = c[v.gk] || []).push(v.id); }); const g = Object.values(c).find(l => l.length >= 2); WHWK.S.id = g[0]; WHWK.S.deel = 'alle'; WHWK.render(document.getElementById('native'), 'alle'); return g; });
@@ -117,15 +123,81 @@ const check = (n, waar, x) => { (waar ? ok : fout).push(n); console.log((waar ? 
   await klik('.wk [data-wk="opengroep"][data-id="' + gid[1] + '"]'); await P.waitForTimeout(400);
   check('tik op de groep opent de open vraag in die groep', (await huidigId()) === gid[1] && await ev(() => document.querySelector('.wk').dataset.scherm === 'vraag'));
 
-  // 5 afgeleid: niet in de lijst, wel te bekijken en aan te passen
-  await P.goto(B + 'ivol.html#/weekendcheck/afgeleid'); await P.waitForSelector('.wk[data-scherm="afgeleid"]', { timeout:30000 });
-  const afg = await ev(() => ({ n:document.querySelectorAll('.wk [data-wk="bekijk"]').length, z:WHWK.vragen('afgeleid').length, bron:WHWK.vragen('afgeleid').every(v => WHWK.ant(v) && WHWK.ant(v).bron === 'claude-afgeleid' && WHWK.ant(v).a === 'klopt') }));
-  check('"Afgeleid — bekijken" toont alle afgeleide vragen (' + afg.z + ')', afg.n === afg.z && afg.z > 0, afg.n + ' van ' + afg.z);
+  // B2: na de laatste open vraag een klaar-scherm met "x overgeslagen — bekijken"; overgeslagen komen één keer langs, nooit eindeloos
+  const kl = await ev(() => { const l = WHWK.vragen('alle'), t = new Date().toISOString(), n = l.length; l.forEach(v => { WHWK.S.ant[v.id] = { a:'klopt', w:v.vs || 'x', t, bron:'daan' }; });
+    WHWK.S.ant[l[n - 3].id] = { a:'overslaan', w:'', t, bron:'daan' }; WHWK.S.ant[l[n - 2].id] = { a:'overslaan', w:'', t, bron:'daan' }; delete WHWK.S.ant[l[n - 1].id];
+    WHWK.S.skip = false; WHWK.S.fertig = false; WHWK.S.deel = 'alle'; WHWK.S.id = l[n - 1].id; WHWK.render(document.getElementById('native'), 'alle'); return { sk:[l[n - 3].id, l[n - 2].id] }; });
+  await klik('.wk [data-wk="twijfel"]');
+  check('na de laatste open vraag: klaar-scherm met "2 overgeslagen — bekijken"', await ev(() => document.querySelector('.wk').dataset.scherm === 'klaar' && /2 overgeslagen — bekijken/.test(document.querySelector('.wk [data-wk="skip"]').innerText)));
+  check('klaar-scherm: niet automatisch terug langs de overgeslagen vragen', await ev(() => { WHWK.render(document.getElementById('native'), 'alle'); return document.querySelector('.wk').dataset.scherm === 'klaar'; }));
+  await klik('.wk [data-wk="skip"]');
+  check('bekijken: eerste overgeslagen vraag, kop "2 overgeslagen te bekijken"', (await huidigId()) === kl.sk[0] && /2 overgeslagen te bekijken/.test(await ev(() => document.querySelector('[data-wk-kop]').textContent)));
+  await klik('.wk [data-wk="overslaan"]');
+  check('opnieuw overslaan: door naar de volgende overgeslagen vraag', (await huidigId()) === kl.sk[1], await huidigId());
+  await klik('.wk [data-wk="overslaan"]');
+  check('na de laatste overgeslagen vraag weer het klaar-scherm (geen eindeloze ronde)', await ev(() => document.querySelector('.wk').dataset.scherm === 'klaar' && /2 overgeslagen — bekijken/.test(document.querySelector('.wk').innerText)));
+
+  // B3: voorsteltekst met de datum van de snapshot, feiten live en nooit tegenstrijdig; bij sets verkoop-besteld
+  await P.goto(B + 'ivol.html?vers=' + Date.now() + '#/weekendcheck/i'); await P.waitForSelector('.wk[data-scherm="vraag"]', { timeout:30000 });
+  await P.waitForFunction(() => window.WHWK && WHWK.S.live, null, { timeout:60000 });
+  const f3 = await ev(async () => {
+    const V = WHWK.S.snap.vragen.filter(v => v.d === 'i' && ['daan', 'voorstel'].includes(v.k)), pq = WHWK.S.snap.p, vr = await WH.catHaal('wh-voorraad');
+    const tot = c => (vr.data.rows || []).filter(r => !r[3] && String(r[0]).trim().toLowerCase() === c.toLowerCase()).reduce((s, r) => s + (Number(r[2]) || 0), 0);
+    const metVr = v => (pq[v.c] || []).some(f => /^voorraad/i.test(f));
+    const zet = V.find(v => { const F = WHWK.liveFeiten(v.c); return F && metVr(v) && F.besteld !== null && F.gepickt < 0.5 && F.besteld >= 0.5; });
+    const gewoon = V.find(v => { const F = WHWK.liveFeiten(v.c); return F && metVr(v) && F.gepickt >= 1; });
+    const toon = v => { WHWK.S.deel = 'i'; WHWK.S.id = v.id; WHWK.render(document.getElementById('native'), 'i'); const F = WHWK.liveFeiten(v.c);
+      return { feiten:[...document.querySelectorAll('.wk ul.feit li')].map(l => l.textContent), reden:(document.querySelector('[data-wk-reden]') || {}).textContent || '', vr:tot(v.c).toLocaleString('nl-NL'), gepickt:F.gepickt, besteld:F.besteld }; };
+    const afw = V.find(v => { const m = /nog ([\d.]+) op voorraad/.exec(v.r || ''); return m && Number(m[1].replace(/\./g, '')) !== Number(tot(v.c)); });
+    let sinds = null; if(afw){ const x = toon(afw), m = /nog ([\d.]+) op voorraad/.exec(afw.r); sinds = { tekst:(document.querySelector('[data-wk-sinds]') || {}).textContent || '', oud:m[1], nu:x.vr, reden:x.reden }; }
+    return { zet:zet ? toon(zet) : null, gewoon:gewoon ? toon(gewoon) : null, gemaakt:WHWK.S.snap.gemaakt, sinds };
+  });
+  const feitCheck = (x, naam) => check(naam + ': feiten live (voorraad uit de database, één voorraadregel, geen oude snapshot-voorraad/verkoop ernaast)', !x || (x.feiten.filter(f => /^voorraad/.test(f)).length === 1 && x.feiten.some(f => new RegExp('^voorraad ' + x.vr.replace(/\./g, '\\.') + ' \\(live ').test(f)) && x.feiten.filter(f => /^uit de snapshot/.test(f)).every(f => !/voorraad \d|verkoop/i.test(f)) && !x.feiten.some(f => /^verkoop \d/.test(f))), x ? x.feiten.join(' | ').slice(0, 260) : 'geen product gevonden');
+  feitCheck(f3.zet, 'product met verkoop-gepickt 0');
+  feitCheck(f3.gewoon, 'gewoon product');
+  check('voorsteltekst met de datum van de snapshot erbij', [f3.zet, f3.gewoon].filter(Boolean).every(x => /^Stand \d{1,2} .*\d{2}:\d{2} \(snapshot\): /.test(x.reden) && !/\b(AM|PM)\b/i.test(x.reden)), (f3.zet || f3.gewoon || {}).reden);
+  check('voorsteltekst en feiten spreken elkaar niet tegen: wat sinds de snapshot veranderde (voorraad, verkoop) staat er expliciet bij', !f3.sinds || (f3.sinds.tekst.includes('voorraad ' + f3.sinds.oud + ' → ' + f3.sinds.nu) && /^Sinds de snapshot veranderd \(live .*\d{2}:\d{2}\)/.test(f3.sinds.tekst)), f3.sinds ? f3.sinds.tekst + ' | ' + f3.sinds.reden.slice(0, 120) : 'geen verschil gevonden');
+  check('bij sets (verkoop-gepickt 0, wel besteld) staat verkoop-besteld in de feiten, naast gepickt 0,0/mnd', !f3.zet || f3.zet.feiten.some(f => /^verkoop-besteld [\d.,]+\/mnd · gepickt [\d.,]+\/mnd \(sets tellen zelf niet mee/.test(f)), f3.zet ? f3.zet.feiten[1] : 'geen set gevonden');
+  check('gewoon product: verkoop gepickt en besteld', !f3.gewoon || f3.gewoon.feiten.some(f => /^verkoop gepickt [\d.,]+\/mnd · besteld [\d.,]+\/mnd/.test(f)), f3.gewoon ? f3.gewoon.feiten[1] : '');
+
+  // 5 afgeleid per REGEL (Daan 23-11): één kaart per regel, Klopt = de regel voor alle producten eronder, Niet goed = typveld + Twijfels, nooit product voor product
+  await P.goto(B + 'ivol.html?vers=' + Date.now() + '#/weekendcheck/afgeleid'); await P.waitForSelector('.wk[data-scherm="afgeleid"]', { timeout:30000 });
+  const afg = await ev(() => ({ kaarten:document.querySelectorAll('.wk article.regel').length, regels:WHWK.regels().length, z:WHWK.vragen('afgeleid').length,
+    som:WHWK.regels().reduce((n, r) => n + r.leden.length, 0), bron:WHWK.vragen('afgeleid').every(v => WHWK.ant(v) && WHWK.ant(v).bron === 'claude-afgeleid' && WHWK.ant(v).a === 'klopt'),
+    knoppen:[...document.querySelectorAll('.wk article.regel')].every(k => k.querySelector('[data-wk="regelklopt"]') && k.querySelector('[data-wk="regelniet"]')),
+    voorb:[...document.querySelectorAll('.wk article.regel')].every(k => { const n = k.querySelectorAll('[data-wk-vb] .vb').length; return n >= 1 && n <= 3 && n === Math.min(3, WHWK.regels().find(r => r.id === k.dataset.regel).leden.length); }),
+    aantal:[...document.querySelectorAll('.wk article.regel')].every(k => /\d+ product/.test(k.innerText)), bekijk:document.querySelectorAll('.wk [data-wk="bekijk"]').length, vorigVolg:!!document.querySelector('.wk [data-wk="vorige"], .wk [data-wk="verder"]') }));
+  check('"Afgeleid — bekijken": één kaart per regel (' + afg.kaarten + ' regels voor ' + afg.z + ' vragen), niet product voor product', afg.kaarten === afg.regels && afg.kaarten > 0 && afg.kaarten < afg.z / 3, afg.kaarten + ' kaarten, ' + afg.z + ' vragen');
+  check('elke vraag valt onder precies één regel (som van de aantallen = alle afgeleide vragen)', afg.som === afg.z, afg.som + ' van ' + afg.z);
   check('afgeleid = vooraf "Klopt (afgeleid)" met bron claude-afgeleid', afg.bron);
-  await ev(() => { document.querySelector('.wk details[data-blok="afgeleid"]').open = true; });
-  await klik('.wk [data-wk="bekijk"]');
-  check('afgeleide vraag te openen, met "Afgeleid uit de data" en Aanpassen', await ev(() => /Afgeleid uit de data/.test(document.querySelector('.wk').innerText) && !!document.querySelector('.wk [data-wk="aanpassen"]')));
+  check('regelkaart: regel in één zin, aantal producten, 3 voorbeelden, knoppen Klopt en Niet goed', afg.knoppen && afg.voorb && afg.aantal);
+  check('geen losse producten in de lijst zolang niets afwijkt, geen Vorige/Volgende per product', afg.bekijk === 0 && !afg.vorigVolg, afg.bekijk);
   check('afgeleid: 390 px zonder horizontaal scrollen', !(await hscroll()));
+  // Klopt op de grootste regel: één rij voor de regel, niets per product
+  const groot = await ev(() => { const r = WHWK.regels()[0]; return { id:r.id, n:r.leden.length, ids:r.leden.map(v => v.id) }; });
+  const n0 = antw.length;
+  await klik('.wk article.regel[data-regel="' + groot.id + '"] [data-wk="regelklopt"]'); await P.waitForTimeout(500);
+  const rijen = antw.slice(n0).flatMap(x => x).filter(x => x.key === 'weekendcheck-antwoorden'), sleutels = [...new Set(rijen.flatMap(x => Object.keys(x.data)))].filter(k => k !== '_snapshot');
+  check('Klopt op een regel: één antwoord-rij (id r-…, bron daan-regel), per product niets opgeslagen', sleutels.length === 1 && sleutels[0] === groot.id && rijen.every(x => x.data[groot.id].bron === 'daan-regel' && x.data[groot.id].a === 'klopt' && x.data[groot.id].n === groot.n), sleutels.slice(0, 3).join(','));
+  const lid = await ev(id => { const v = WHWK.vragen('afgeleid').find(x => x.id === id), a = WHWK.ant(v); return { a:a.a, bron:a.bron, eigen:!!WHWK.S.ant[id] }; }, groot.ids[0]);
+  check('regel goedgekeurd geldt voor alle producten eronder (bron daan-regel)', lid.a === 'klopt' && lid.bron === 'daan-regel' && !lid.eigen, JSON.stringify(lid));
+  check('kaart toont de beoordeling en kan worden teruggenomen', await ev(id => { const k = document.querySelector('.wk article.regel[data-regel="' + id + '"]'); return /regel klopt/.test(k.innerText) && !!k.querySelector('[data-wk="regelterug"]'); }, groot.id));
+  // Niet goed: typveld, regel gaat naar Twijfels
+  const tweede = await ev(id => { const r = WHWK.regels().find(x => x.id !== id && x.leden.length >= 2) || WHWK.regels().find(x => x.id !== id); return { id:r.id, n:r.leden.length, lid:r.leden[0].id }; }, groot.id);
+  await klik('.wk article.regel[data-regel="' + tweede.id + '"] [data-wk="regelniet"]');
+  check('Niet goed opent een typveld', await ev(() => !!document.getElementById('wk-rw')));
+  await P.fill('#wk-rw', 'dit is geen Pick maar Deel'); await klik('.wk [data-wk="regelbewaar"]'); await P.waitForTimeout(500);
+  const rij2 = antw.slice(antw.length - 1).flatMap(x => x).find(x => x.data && x.data[tweede.id]);
+  check('Niet goed: regel bewaard als twijfel met jouw tekst (bron daan-regel), voor alle producten eronder', !!rij2 && rij2.data[tweede.id].a === 'twijfel' && rij2.data[tweede.id].w === 'dit is geen Pick maar Deel' && await ev(id => WHWK.ant(WHWK.vragen('afgeleid').find(x => x.id === id)).a === 'twijfel', tweede.lid), JSON.stringify(rij2 && rij2.data[tweede.id]));
+  check('Niet goed zonder tekst wordt niet bewaard', await ev(async () => { const r = WHWK.regels().find(x => !WHWK.S.ant[x.id]); if(!r) return true; document.querySelector('.wk article.regel[data-regel="' + r.id + '"] [data-wk="regelniet"]').click(); document.querySelector('.wk [data-wk="regelbewaar"]').click(); const nog = !!document.getElementById('wk-rw') && !WHWK.S.ant[r.id]; document.querySelector('.wk [data-wk="regelannuleer"]').click(); return nog; }));
+  // een los product alleen als het afwijkt van zijn regel
+  const afw = await ev(() => { const r = WHWK.regels().find(x => !WHWK.S.ant[x.id] && x.leden.length >= 2); const v = r.leden[0]; WHWK.S.ant[v.id] = { a:'aangepast', w:'Deel', t:new Date().toISOString(), bron:'daan' }; WHWK.render(document.getElementById('native'), 'afgeleid'); return { id:v.id, n:document.querySelectorAll('.wk [data-wk="bekijk"]').length, kaart:!!document.querySelector('.wk article.regel[data-regel="' + r.id + '"] [data-wk="bekijk"][data-id="' + v.id + '"]') }; });
+  check('afgeleid: een product dat afwijkt van zijn regel staat los onder de regel (anders niet)', afw.n === 1 && afw.kaart, JSON.stringify(afw));
+  await klik('.wk [data-wk="bekijk"]');
+  check('afwijkend product: vraagscherm zonder Vorige/Volgende, met terugknop naar de regels', await ev(() => document.querySelector('.wk').dataset.scherm === 'vraag' && !document.querySelector('.wk [data-wk="vorige"], .wk [data-wk="verder"]') && !!document.querySelector('.wk [data-wk="afgterug"]') && !!document.querySelector('.wk [data-wk="aanpassen"]')));
+  await klik('.wk [data-wk="afgterug"]');
+  check('terug naar het regeloverzicht', await ev(() => document.querySelector('.wk').dataset.scherm === 'afgeleid'));
+  await ev(id => { delete WHWK.S.ant[id]; }, afw.id);
 
   // 6 export voor Claude
   await P.goto(B + 'ivol.html#/weekendcheck'); await P.waitForSelector('.wk[data-scherm="start"]', { timeout:30000 });
@@ -136,7 +208,7 @@ const check = (n, waar, x) => { (waar ? ok : fout).push(n); console.log((waar ? 
   for(const d of dl){ const t = fs.readFileSync(await d.path(), 'utf8'); if(/\.json$/.test(d.suggestedFilename())) json = JSON.parse(t); else md = t; }
   check('export: weekendcheck-antwoorden.json + samenvatting .md', dl.map(d => d.suggestedFilename()).join(',') === 'weekendcheck-antwoorden.json,weekendcheck-samenvatting.md', dl.map(d => d.suggestedFilename()).join(','));
   const ex = json ? json.antwoorden : [];
-  check('export: afgeleide antwoorden met bron claude-afgeleid en zekerheid', ex.filter(a => a.bron === 'claude-afgeleid' && a.antwoord === 'klopt').length === afg.z && ex.some(a => a.zekerheid !== null), ex.filter(a => a.bron === 'claude-afgeleid').length);
+  check('export: afgeleide antwoorden met bron claude-afgeleid (of daan-regel bij een beoordeelde regel) en zekerheid, regels apart', ex.filter(a => ['claude-afgeleid', 'daan-regel'].includes(a.bron) && ['klopt', 'twijfel'].includes(a.antwoord)).length >= afg.z - 1 && ex.some(a => a.zekerheid !== null) && (json.regels || []).length >= 2 && json.regels.some(r => r.antwoord === 'klopt') && json.regels.some(r => r.antwoord === 'twijfel'), ex.filter(a => a.bron === 'claude-afgeleid').length + ' / regels ' + (json.regels || []).length);
   check('export: leverancier- en actievragen doorgezet, Daans antwoorden met bron daan', ex.some(a => a.indeling === 'leverancier') && ex.some(a => a.indeling === 'actie' && a.wie) && ex.some(a => a.bron === 'daan'));
   check('export: elke regel heeft vraag, voorstel, antwoord, indeling, tijd', ex.every(a => a.id && a.antwoord && a.indeling && 'voorstel' in a && a.tijd));
   check('export: samenvatting noemt afgeleid, leveranciers en Daans antwoorden', /Afgeleid door Claude/.test(md) && /Bij leveranciers/.test(md) && /## Aangepast door Daan/.test(md));

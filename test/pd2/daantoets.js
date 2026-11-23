@@ -77,10 +77,15 @@ function check(d, regel, waar, x){
         wegSoort:l.filter(x => x.redenen.some(y => /soort/.test(y.t) && /Kleurgenoten/.test(y.t)) && (x.so === 'weg' || x.voorstellen.some(v => v.soort === 'weg'))).map(x => x.c),
         zonderVisie:l.filter(x => x.redenen.some(y => !y.visie)).map(x => x.c) }; });
     check('D37', '§3 Hercontrole: geen Uitlopend met voorraad, wel E400560-10KG (Archief); nooit soortfout met een Weg-kleurgenoot; elk punt met Claudes visie', !r.uitl.length && r.e4archief && !r.e4uitlopend && !r.wegSoort.length && !r.zonderVisie.length, JSON.stringify(r)); }
-  if(doe('D45')){ const r = await ev(() => { const P = PD2R, g = c => WHCP.gewichtPunt(c), si = ['SI60120BR-2-0', 'SI60120TP-2-0'].map(c => { const x = g(c); return { c, reden:x && x.reden, vs:x && x.voorstel, wegen:x && x.wegen }; });
+  if(doe('D45')){ const r = await ev(() => { const P = PD2R, g = c => WHCP.gewichtPunt(c), codes = ['SI60120BR-2-0', 'SI60120TP-2-0'];
+      // Daans eigen antwoorden kunnen deze twee al op "te wegen" gezet hebben (weekendcheck 23-11): de regel wordt getoetst op de stand vóór zo'n antwoord, alleen in het geheugen en daarna teruggezet
+      const bewaar = codes.map(c => [c, WHPD.S.pd[c], P.S.o.p[c]]);
+      codes.forEach(c => { const r = WHPD.S.pd[c]; if(r && r.data){ const d = Object.assign({}, r.data), m = Object.assign({}, r.meta || {}); delete d.kgst; delete m.kgst; WHPD.S.pd[c] = Object.assign({}, r, { data:d, meta:m }); } const p = P.S.o.p[c]; if(p && p.gew){ const q = JSON.parse(JSON.stringify(p)); delete q.gew; P.S.o.p[c] = q; } P.ongeldig(c); });
+      if(window.WHCP && WHCP.S) WHCP.S.memo = null;
+      try{ const si = codes.map(c => { const x = g(c); return { c, reden:x && x.reden, vs:x && x.voorstel, wegen:x && x.wegen }; });
       // nooit elkaars waarde: geen voorstel als er maar één kleurgenoot met een gewicht is en die het oneens is
       const twee = WHCP.cats().gewicht.filter(x => x.voorstel && /kleurgenoten/.test(x.voorstel.tekst) && P.kleurgenoten(x.c).filter(y => P.gewicht(y).kg > 0 || P.gewicht(y).pq > 0).length === 1).map(x => x.c);
-      return { si, twee }; });
+      return { si, twee }; } finally { bewaar.forEach(([c, pd, po]) => { if(pd) WHPD.S.pd[c] = pd; else delete WHPD.S.pd[c]; if(po) P.S.o.p[c] = po; else delete P.S.o.p[c]; P.ongeldig(c); }); if(window.WHCP && WHCP.S) WHCP.S.memo = null; } });
     check('D45', '§4 Twee tegen elkaar (SI60120BR 10 kg ↔ SI60120TP 4 kg) of een gelijke stand: geen voorstel, beide Naar Te wegen met die reden; nooit elkaars waarde', r.si.every(x => !x.vs && x.wegen && /oneens/.test(x.reden || '')) && !r.twee.length, JSON.stringify(r)); }
   if(doe('D46')){ const r = await ev(() => { const P = PD2R, t = new Date().toISOString(), oudBo = Object.keys(P.S.o.p).filter(c => { const p = P.S.o.p[c]; return p.so && p.so.v === 'weg' && p.weg && p.weg.v === 'backorder'; });
       const leesBo = oudBo.every(c => P.soortWaarde(c).v === 'backorder' && P.status(c).so === 'backorder');
@@ -587,6 +592,14 @@ function check(d, regel, waar, x){
     check('D63', '§5 Onmogelijke maten en gewichten (hoogte 143100 cm): melding, en zonder bevestiging niet opgeslagen (Productdata 2.0, Doorloop, Te controleren, Te doen, Productdata, Containers)',
       g && g.h && !g.hOk && g.kg && !g.kgOk && g.maat && !g.maatOk && !g.onb && c && voor === naWeiger && vragen.length === 2 && /143\.100 cm kan niet/.test(vragen[0]) && /143200/.test(naJa) && overal,
       JSON.stringify({ g, c, voor, naWeiger, naJa:naJa.slice(0, 60), vragen:vragen.map(x => x.split('\n')[0]), overal }));
+  }
+  /* ---------- D75: Weekendcheck (Daan 23-11): afgeleid per regel, klaar-scherm, voorsteltekst met datum en feiten live ---------- */
+  if(doe('D75')){
+    const w = fs.readFileSync(path.join(__dirname, '..', '..', 'wh', 'weekendcheck.js'), 'utf8');
+    const afg = (w.match(/function afgeleidScherm\(\)\{[\s\S]*?\n\}/) || [''])[0], kaart = (w.match(/function regelKaart\(r\)\{[\s\S]*?\n\}/) || [''])[0];
+    check('D75', '§2 VASTE REGEL Weekendcheck (Daan 23-11): afgeleid per regel (Klopt / Niet goed, antwoord-rij bron daan-regel, losse producten alleen bij afwijking), vraagscherm "nog N open", klaar-scherm "x overgeslagen — bekijken", voorsteltekst met datum en feiten live',
+      /regelklopt/.test(kaart) && /regelniet/.test(kaart) && /bekijk/.test(kaart) && /afw\.length/.test(kaart) && !/data-wk="(vorige|verder)"/.test(afg + kaart) && /bron:'daan-regel'/.test(w) && /'nog ' \+ nf\(open\.length\) \+ ' open \('/.test(w)
+      && /overgeslagen — bekijken/.test(w) && /'Stand ' \+ tijd24\(S\.snap\.gemaakt\) \+ ' \(snapshot\): '/.test(w) && /sets tellen zelf niet mee/.test(w) && /verkoop-besteld/.test(w), '');
   }
   /* ---------- schrijven: alles onderschept, productcode heilig ---------- */
   if(doe('D1')) check('D1', '§1 Picqer alleen lezen: 0 geblokkeerde schrijfpogingen, geen aanroep van het tussenstation', T.blocked.length === 0, JSON.stringify(T.blocked.slice(0, 3)));
