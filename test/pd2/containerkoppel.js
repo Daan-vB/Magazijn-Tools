@@ -37,10 +37,9 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     X.herkoppelRegels(c5);
     uit.bevestigdGelijk = JSON.stringify([c5.data.regels[0], c5.data.regels[2]].map(x => [x.productcode, x.match, x.bevestigd])) === JSON.stringify([JSON.parse(voor)[0], JSON.parse(voor)[2]]);
     uit.voorstelBevestigd = [c5.data.regels[1].productcode, c5.data.regels[1].match, c5.data.regels[1].bevestigd].join('|');
-    const c32 = X.cont().find(c => c.id === 32);
-    uit.c32 = { open:c32.data.regels.filter(x => !(x.productcode && x.bevestigd)).length, onbekend:c32.data.regels.filter(x => !x.productcode).length,
-      k:c32.data.regels.filter(x => ['28300501', '70198-Brushed'].includes(x.pakbon_code)).map(x => [x.pakbon_code, x.productcode, x.match, x.bevestigd].join('|')) };
-    uit.alias = ['28300501', '70198brushed'].map(k => (CP_TEST.alias ? CP_TEST.alias() : []).filter(a => a.pakbon_code === k).map(a => a.productcode).join(','));
+    // Daan 23-11: geen vaste container; elke geleerde koppeling (met een bestaand product) koppelt dezelfde pakbontekst weer zeker aan hetzelfde product
+    const al = (CP_TEST.alias ? CP_TEST.alias() : []).filter(a => X.heeftProduct(a.productcode));
+    uit.alias = { n:al.length, mis:al.filter(a => { const k = X.koppel({ pakbon_code:a.pakbon_code, omschrijving:'', totaal:1, per:1, aantal:1 }, a.leverancier); return !(k.productcode === a.productcode && k.bevestigd); }).map(a => a.pakbon_code + ' → ' + a.productcode) };
     return uit;
   });
   console.log(JSON.stringify(r));
@@ -53,8 +52,7 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   check('afgeronde inkooporder telt niet mee', r.afgerond === '', r.afgerond);
   check('bestaande bevestigde koppelingen ongewijzigd', r.bevestigdGelijk === true);
   check('voorstel met gelijke code wordt bevestigd', r.voorstelBevestigd === 'ZJ-007|exact|true', r.voorstelBevestigd);
-  check('container 32: 0 open koppelingen, 0 onbekend; 28300501 → 700625 en 70198-Brushed → 70198Brushed bevestigd', r.c32.open === 0 && r.c32.onbekend === 0 && r.c32.k.includes('28300501|700625|ean|true') === true || (r.c32.open === 0 && r.c32.onbekend === 0 && /700625/.test(r.c32.k.join()) && /70198Brushed/.test(r.c32.k.join())), JSON.stringify(r.c32));
-  check('aliassen geleerd: 28300501 → 700625, 70198brushed → 70198Brushed', r.alias[0] === '700625' && r.alias[1] === '70198Brushed', r.alias);
+  check('elke geleerde koppeling koppelt dezelfde pakbontekst weer zeker aan hetzelfde product (' + r.alias.n + ')', r.alias.n > 0 && r.alias.mis.length === 0, r.alias.mis.slice(0, 5).join(', '));
   const sx = await P.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
   check('geen horizontale scroll (' + (mobiel ? '390' : '1440') + ' px)', sx);
   check('0 onbedoelde schrijfpogingen', T.blocked.filter(x => !/^FUNC/.test(x)).length === 0, T.blocked.join(' | '));

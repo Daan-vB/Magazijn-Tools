@@ -64,7 +64,11 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Max op pick = aanvullen bij + wat je aanvult (bij 10 + pallet van 67 = 77), zoals "vul aan tot" in Picqer.
 - Deel en Pallet met picklocatie: "aanvullen bij" (Deel ook "max op pick") alleen vragen als het ontbreekt; Pallet: max op pick = aanvullen bij + stuks per pallet, berekend (Claudes keuze 09-11, Daan kan overrulen).
 - Pallethoogtes naar boven afronden op 10 cm.
+<<<<<<< Updated upstream
 - Maatpallets: alle maten voor opslag én transport, behalve 40x120 en 40x200 (alleen transport). Lege pallet altijd 15 kg. Europallets komen via het ruilsysteem DHL/DPD, niet uit containers (basis 23-11).
+=======
+- VASTE REGEL onmogelijke waarden (Daan 23-11): maten en gewichten buiten de grens (hoogte 10–300 cm, palletmaat per zijde 20–400 cm, gewicht per stuk tot 2.000 kg, volle pallet tot 3.000 kg, rol: breedte tot 600 cm, dikte tot 300 mm, lengte tot 1.000 m, diameter 5–300 cm, kg per rol tot 2.000) geven bij invullen een melding en worden alleen na bevestiging opgeslagen; weigeren = de oude waarde blijft (wh/grenzen.js, op elk invulscherm).
+>>>>>>> Stashed changes
 - Palletmaat kiezen: altijd de hele lijst vaste opslagmaten tonen (niet 3 maten + typen). Een nieuwe maat die Daan typt wordt meteen bewaard en staat daarna overal in de lijst.
 - Elk scherm vóór oplevering zelf doorlopen met alle antwoorden (elke soort, Weg-keuzes, gewogen zonder kg, geen voorstel, uitvinken, Later, terug) tegen deze regels.
 - Drie hallen: A, B en C. Er is geen hal D: hal C heeft twee stellingdelen, gedeelte C (gangen C..) en gedeelte D (gangen D..). Keuze altijd: hal → gedeelte (alleen bij C) → gang, met alleen gangen die echt bestaan.
@@ -82,6 +86,7 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Foamrand: alleen FWB-whiteboards (Hebei) vanaf 90x150 (basis 23-11).
 - Families: voorlopig alleen 5 hoofdcategorieën (Rubber, Kantoor, Huis en tuin, Auto, Sport/fitness); bestaande families/groepen blijven werkgroepen tot Daan ze samen uitwerkt (basis 23-11).
 - Rubber ribbelmat op rol: losse lengtes 1–10 m bestaan pas enkele maanden; per 25 of meer een eigen pallet, rest op een mix/pick-pallet.
+- Great Wall (Daan 23-11): pakbonregel "NBR 3 mm × 1,4 m × 10 m" = RPNBR0300PM (per meter), 1 rol = 10 meter.
 - Wandrekken (Ningbo Henri): omdozen met vast aantal per type, meestal 6 omdozen per pallet (80x120x180, liefst op 10-locaties, vaak effectief 90x120); aanvullen bij 2 met hele omdozen tot wat op pick past.
 
 ## 7. Containers (containerplanning.html)
@@ -111,6 +116,7 @@ Lees dit vóór elke opdracht in deze repo, samen met docs/BLAUWDRUK.md (Daans 1
 - Alleen de genoemde bestanden; oude pagina's blijven werken (regressietest).
 - Tests lezen de echte database, maar elke schrijfpoging wordt onderschept (0 geblokkeerd).
 - Push altijd naar main, nooit alleen naar een zijtak.
+- VASTE REGEL tests (Daan 23-11): tests verwachten nooit een vaste container of vaste aantallen uit de echte data. Ze kiezen zelf een container of product met open punten, rekenen de verwachting uit die data en openen ingeklapte kaarten eerst (opzet.js: kiesContainer, openKaart). Eigen testinvoer (zelfgemaakte pakbon, nagebootste bestellingen) mag vaste getallen hebben.
 - Elke opdracht: daantoets.js groen vóór push. Nieuwe regel van Daan = ook een nieuwe controle in daantoets.js. Eerst de regelmatrix (test/pd2/DAANTOETS.md) lezen.
 - Rapport kort, in het Nederlands, zonder vaktaal.
 - Goedkeuren: officieel alleen Daan, Ryan en Karin (basis 23-11).

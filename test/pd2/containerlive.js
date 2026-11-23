@@ -1,6 +1,6 @@
 // Containerplanning live: een product dat niet in de import staat wordt via het tussenstation (nagebootst) opgezocht en is daarna kiesbaar.
 // Echte database alleen lezen; elke schrijfpoging wordt geblokkeerd en geteld. Geen echte Picqer: de functie "picqer" is nagebootst.
-const { start } = require('./opzet.js');
+const { start, naarContainers, kiesContainer } = require('./opzet.js');
 const ok = [], fout = [];
 const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' : 'FOUT ') + n + (x ? ' — ' + x : '')); };
 (async () => {
@@ -15,9 +15,15 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
     return r.fulfill({ status:404, headers:cors, body:'{}' });
   });
   await P.addInitScript(() => { try{ localStorage.setItem('ivol-koppelcode', 'testcode'); }catch(e){} });
-  await P.goto((process.env.PD2_URL || 'http://localhost:8811/') + 'containerplanning.html#/c/13');
-  await P.waitForSelector('select[data-k="soort"], tr input[data-k="productcode"]', { timeout:120000 });
-  const i = 0;   // eerste regel van container 13 (schrijven is geblokkeerd, dus de regel verandert alleen in het geheugen)
+  // geen vaste container (Daan 23-11): de test kiest zelf een container met pakbonregels, liefst met nog open (niet bevestigde) regels
+  await naarContainers(P);
+  const kies = await kiesContainer(P, c => (c.data.regels || []).length ? 1 + (c.data.regels || []).filter(r => !r.bevestigd).length : 0);
+  console.log('container', kies && kies.id);
+  await P.evaluate(id => { location.hash = '#/c/' + id + '/pakbon'; }, kies.id);
+  await P.waitForSelector('details[data-det="pbtabel"], tr input[data-k="productcode"]', { timeout:120000 });
+  await P.evaluate(() => { const d = document.querySelector('details[data-det="pbtabel"]'); if(d && !d.open){ d.open = true; d.dispatchEvent(new Event('toggle')); } });   // ingeklapte pakbontabel eerst openen
+  await P.waitForSelector('tr input[data-k="productcode"]', { state:'visible', timeout:60000 });
+  const i = 0;   // eerste regel (schrijven is geblokkeerd, dus de regel verandert alleen in het geheugen)
   const inp = P.locator('input[data-k="productcode"]').nth(i);
   await inp.fill('zz-live-test'); await inp.press('Tab'); await P.waitForTimeout(1500);
   check('Niet in de import: live opgezocht via idindex en producten, met de koppelcode', vragen.some(v => v.a === 'idindex') && vragen.some(v => v.a === 'producten') && vragen.every(v => v.code === 'testcode' || v.m === 'OPTIONS'), JSON.stringify(vragen.map(v => v.a)));

@@ -67,4 +67,27 @@ async function containerVoorBesluit(p, id, codes){
     return r.fulfill({ status:res.status(), headers:res.headers(), body });
   });
 }
-module.exports = { start, open, voorBesluit, containerVoorBesluit };
+// Daan 23-11: tests verwachten nooit een vaste container of vaste aantallen uit de echte data. Ze kiezen zelf een container of product
+// met open punten (kiesContainer), rekenen de verwachting uit de data van die container, en openen een ingeklapte kaart eerst (openKaart).
+const CP_URL = h => (process.env.PD2_URL || 'http://localhost:8811/') + 'containerplanning.html' + (h || '');
+async function naarContainers(p, hash){
+  await p.goto(CP_URL(hash || '#/'));
+  await p.waitForFunction(() => window.CP_TEST && CP_TEST.cont && CP_TEST.cont().length && CP_TEST.pools, null, { timeout:200000 });
+  await p.waitForTimeout(1500);
+}
+// keur(c, X): 0/null = valt af; een getal of { score, ... } = kandidaat. De container met de hoogste score wint (bij gelijk: de nieuwste).
+async function kiesContainer(p, keur){
+  return p.evaluate(src => { const f = (0, eval)('(' + src + ')'), X = CP_TEST; let best = null;
+    X.cont().slice().sort((a, b) => b.id - a.id).forEach(c => { let r = null; try{ r = f(c, X); }catch(e){ r = null; } const s = r && typeof r === 'object' ? r.score : r;
+      if(s > 0 && (!best || s > best.s)) best = { s, id:c.id, info:r && typeof r === 'object' ? r : null }; });
+    return best; }, keur.toString());
+}
+// een ingeklapte (akkoord) kaart eerst openen; daarna staat de volledige kaart met uitleg en velden in beeld
+async function openKaart(p, code){
+  const sel = `[id="v-${String(code).replace(/"/g, '\\"')}"] [data-act="vopen"]`;
+  if(await p.$(sel)){ await p.click(sel); await p.waitForTimeout(700); return true; }
+  return false;
+}
+const kaartTekst = (p, code) => p.evaluate(c => { const k = document.getElementById('v-' + c); return k ? k.innerText.replace(/\s+/g, ' ') : ''; }, code);
+const nlGetal = n => Number(n).toLocaleString('nl-NL', { maximumFractionDigits:2 });
+module.exports = { start, open, voorBesluit, containerVoorBesluit, CP_URL, naarContainers, kiesContainer, openKaart, kaartTekst, nlGetal };

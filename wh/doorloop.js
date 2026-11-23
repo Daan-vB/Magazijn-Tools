@@ -372,6 +372,7 @@ async function bewaarNieuweMaat(){
   const inp = document.getElementById('dl-nieuwemaat'); if(!inp) return;
   const m = R().maatSleutel(inp.value);
   if(!m){ S.melding = 'Typ de maat als lengte x breedte in cm, bijv. 120x210.'; teken(); return; }
+  if(window.WHGRENS && !WHGRENS.mag('maat', m)){ S.melding = WHGRENS.onmogelijk('maat', m) + ' Niet bewaard.'; teken(); return; }   // onmogelijke maat (Daan 23-11)
   try{ await R().voegMaatToe(m); }catch(e){ S.melding = 'Bewaren van de maat lukte niet: ' + (e.message || e); teken(); return; }
   if(S.prod) zetVeld('maat', S.prod, m); else S.sel.on.forEach(c => zetVeld('maat', c, m)); S.nieuweMaat = false; S.melding = ''; teken();
   WH.toast('Maat ' + m + ' bewaard: staat nu overal in de lijst', 3000);
@@ -380,7 +381,9 @@ function zetGetal(v, c, raw){
   const x = String(raw).trim().replace(',', '.'); if(x === ''){ teken(); return; }
   if(isNaN(+x) || +x < 0 || (+x === 0 && v.t !== 'lvl')){ S.melding = 'Typ een getal.'; teken(); return; }
   if(HEEL.includes(v.t) && !Number.isInteger(+x)){ S.melding = 'Geen decimalen in aantallen: typ een heel getal (' + c + ').'; teken(); return; }
-  zetVeld(v.t, c, v.t === 'hoogte' ? Math.ceil(+x / 10) * 10 : +x); S.melding = ''; teken();
+  // onmogelijke maat (Daan 23-11): meteen een melding; bij Klopt wordt gevraagd of het toch klopt, anders blijft de oude waarde staan
+  const grens = window.WHGRENS ? WHGRENS.onmogelijk(v.t, +x) : null;
+  zetVeld(v.t, c, v.t === 'hoogte' ? Math.ceil(+x / 10) * 10 : +x); S.melding = grens ? grens + ' Bij Klopt vraag ik of het toch klopt; anders blijft de oude waarde staan.' : ''; teken();
 }
 function bewerk(v, el){
   const c = el.dataset.tik, w = waarde(v, c);
@@ -721,7 +724,7 @@ function koppel(){
     if(!mag() || !e.target.closest || !e.target.closest('.dl')) return;
     const d = e.target.dataset || {}, v = S.pad[S.i];
     if(d.sel){ if(e.target.checked) S.sel.on.add(d.sel); else S.sel.on.delete(d.sel); teken(); return; }
-    if(d.kg){ const x = e.target.value.trim().replace(',', '.'); if(x === '') delete A(d.kg).kg; else if(!isNaN(+x) && +x > 0){ A(d.kg).kg = +x; A(d.kg).gst = 'gewogen'; S.melding = ''; } else S.melding = 'Gewicht moet een getal zijn, bijv. 19,5.'; teken(); return; }
+    if(d.kg){ const x = e.target.value.trim().replace(',', '.'); if(x === '') delete A(d.kg).kg; else if(!isNaN(+x) && +x > 0){ A(d.kg).kg = +x; A(d.kg).gst = 'gewogen'; const grens = window.WHGRENS ? WHGRENS.onmogelijk('kgst', +x) : null; S.melding = grens ? grens + ' Bij Klopt vraag ik of het toch klopt.' : ''; } else S.melding = 'Gewicht moet een getal zijn, bijv. 19,5.'; teken(); return; }
     if(d.num){ zetGetal(d.t ? { t:d.t, f:v.f } : v, d.num, e.target.value); return; }
     if(e.target.id === 'dl-not'){ bewaarNotitie(v.f.fk + '|' + v.t, e.target.value); }
   });

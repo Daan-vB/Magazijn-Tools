@@ -880,6 +880,12 @@ async function opslaan(wijz, bron){
   // wijz = { code: { veld: waarde } }; leeg = veld weghalen
   const codes = Object.keys(wijz).filter(c => Object.keys(wijz[c]).length);
   if(!codes.length) return 0;
+  // onmogelijke maten en gewichten (Daan 23-11) bij wat Daan zelf invult: melding, en zonder bevestiging niets opslaan
+  if(window.WHGRENS && ['invul', 'samen', 'regel', 'tabel', 'klein'].includes(bron)){
+    const m = [];
+    codes.forEach(c => Object.entries(wijz[c]).forEach(([k, x]) => { const t = WHGRENS.onmogelijk(k, x && typeof x === 'object' ? x.v : x); if(t) m.push(t); }));
+    if(m.length && !WHGRENS.bevestig(m)){ try{ WH.toast('Niet opgeslagen: ' + m[0], 6000); }catch(e){} return 0; }
+  }
   const nu = new Date().toISOString(), rijen = [];
   for(let i = 0; i < codes.length; i += 80){
     const deel = codes.slice(i, i + 80);

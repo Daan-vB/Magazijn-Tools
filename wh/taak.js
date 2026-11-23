@@ -82,7 +82,8 @@ function openZL(c, stap){
   try{
     const s = PD2R.status(c); if(s.kop) return [];
     const stappen = stap ? [stap] : ['soort', 'gewicht', 'hoev'];
-    return stappen.flatMap(p => s.stap[p] ? [] : s.open.filter(STAPKEYS[p]).filter(k => !isLater(c, laterT(k))));
+    // soort eerst (CLAUDE.md §2): zonder bevestigde soort zijn gewicht en hoeveelheid nog geen open vraag
+    return stappen.flatMap(p => s.stap[p] || (p !== 'soort' && !s.stap.soort) ? [] : s.open.filter(STAPKEYS[p]).filter(k => !isLater(c, laterT(k))));
   }catch(e){ return []; }
 }
 // telling per stap zonder Later: een stap is klaar als alles behalve Later is ingevuld

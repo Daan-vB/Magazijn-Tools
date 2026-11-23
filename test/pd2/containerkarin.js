@@ -63,23 +63,38 @@ const PAKBONNEN = [
   const gwk = await P.evaluate(() => {
     const X = CP_TEST, k = t => { const r = { pakbon_code:t, omschrijving:t, totaal:1, per:1, aantal:1 }; const x = X.koppel(r, 'Sanhe Great Wall Rubber Co., Ltd.'); return [x.productcode, x.match, x.bevestigd, (x.kandidaten || []).join(',')].join('|'); };
     const heeft = c => !!CP_TEST.heeftProduct(c);
-    return { sbr1:k('SBR sheet black 1mm x1.4m x 10m nieuw'), sbr2:k('SBR sheet black 2mm x1.4m x 10m nieuw'), nbr3:k('NBR sheet black 3mm x1.4m x 10m nieuw'), trailer:k('Trailer Mat nieuw 10mm x1.22m x 1.83m'),
-      p:{ RP0100:heeft('RP0100'), RP0200:heeft('RP0200'), RPNBR0300:heeft('RPNBR0300') } };
+    const kf = t => { const r = { pakbon_code:t, omschrijving:t, totaal:1, per:1, aantal:1 }; const x = X.koppel(r, 'Sanhe Great Wall Rubber Co., Ltd.'); return [x.productcode, x.match, x.bevestigd, x.factor].join('|'); };
+    return { sbr1:k('SBR sheet black 1mm x1.4m x 10m nieuw'), sbr2:k('SBR sheet black 2mm x1.4m x 10m nieuw'), nbr3:kf('NBR sheet black 3mm x1.4m x 10m nieuw'), trailer:k('Trailer Mat nieuw 10mm x1.22m x 1.83m'),
+      p:{ RP0100:heeft('RP0100'), RP0200:heeft('RP0200'), RPNBR0300PM:heeft('RPNBR0300PM') } };
   });
   console.log('   GW:', JSON.stringify(gwk));
   if(gwk.p.RP0100) check('Great Wall "1mm x1.4m x 10m SBR" → RP0100 (zeker)', /^RP0100\|maat\|true/.test(gwk.sbr1), gwk.sbr1);
   if(gwk.p.RP0200) check('Great Wall "2mm" → RP0200 (zeker)', /^RP0200\|maat\|true/.test(gwk.sbr2), gwk.sbr2);
-  if(gwk.p.RPNBR0300) check('Great Wall "3mm x1.4m NBR" → RPNBR0300 (zeker)', /^RPNBR0300\|maat\|true/.test(gwk.nbr3), gwk.nbr3);
-  // 2b. geleerd van Great Wall container 8: elke bevestigde regel heeft een alias; een iets andere tekst met dezelfde maat koppelt via die alias
-  const c8 = await P.evaluate(() => { const X = CP_TEST, c = X.cont().find(c => c.id === 8); if(!c) return null; const al = X.alias(), n = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const zonder = c.data.regels.filter(r => r.bevestigd && !al.some(a => a.leverancier === c.leverancier && a.pakbon_code === n(r.pakbon_code) && a.productcode === r.productcode)).map(r => r.pakbon_code);
-    const v = X.koppel({ pakbon_code:'Willow rubber sheet black 3mm x 1.5m x 10m', omschrijving:'', totaal:1, per:1, aantal:1 }, c.leverancier);
-    return { zonder, v:[v.productcode, v.match, v.bevestigd, v.factor].join('|') }; });
-  if(c8){ check('container 8: elke bevestigde regel heeft een geleerde alias', c8.zonder.length === 0, c8.zonder.join(', '));
-    check('Great Wall: andere tekst, zelfde maat → geleerde koppeling (RTDIAM0315, factor 10)', /^RTDIAM0315\|maat\|true\|10$/.test(c8.v), c8.v); }
+  // Daan 23-11: NBR 3 mm × 1,4 m × 10 m van Great Wall = RPNBR0300PM (per meter), 1 rol = 10 meter
+  if(gwk.p.RPNBR0300PM) check('Great Wall "3mm x1.4m NBR" → RPNBR0300PM (zeker), 1 rol = 10 m', /^RPNBR0300PM\|(maat|alias)\|true\|10$/.test(gwk.nbr3), gwk.nbr3);
+  // 2b. geleerde koppelingen (alle containers, geen vaste container): een bevestigde regel en de geleerde koppeling voor dezelfde pakbontekst zeggen hetzelfde product;
+  //     een iets andere tekst met dezelfde maat koppelt via de geleerde koppeling (de test kiest zelf een koppeling met een unieke maat)
+  const gk = await P.evaluate(() => { const X = CP_TEST, al = X.alias(), n = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const strijd = [];
+    X.cont().forEach(c => (c.data.regels || []).forEach(r => { if(!r.bevestigd || !r.productcode) return; const a = al.find(a => a.leverancier === c.leverancier && a.pakbon_code === n(r.pakbon_code)); if(a && a.productcode !== r.productcode && X.heeftProduct(a.productcode)) strijd.push('container ' + c.id + ': "' + r.pakbon_code + '" = ' + r.productcode + ', geleerd ' + a.productcode); }));
+    const maat = t => (String(t || '').match(/(\d+(?:[.,]\d+)?)\s*mm\s*x\s*(\d+(?:[.,]\d+)?)\s*m/i) || []).slice(1, 3).join('x');
+    const kand = al.filter(a => X.heeftProduct(a.productcode) && maat(a.pakbon_tekst) && /rubber sheet/i.test(a.pakbon_tekst || '')).filter(a => al.filter(b => b.leverancier === a.leverancier && maat(b.pakbon_tekst) === maat(a.pakbon_tekst)).length === 1);
+    const a = kand[0]; if(!a) return { strijd, v:null };
+    const tekst = String(a.pakbon_tekst).split(/\s{2,}| (?=Black)/)[0].trim();   // eerste helft (de tekst staat er soms twee keer in)
+    const m = tekst.match(/^(.*?)(\d+(?:[.,]\d+)?)\s*mm\s*x\s*(\d+(?:[.,]\d+)?)\s*m\s*x\s*(\d+(?:[.,]\d+)?)\s*m/i);
+    const anders = m ? m[1].replace(/^black\s+/i, '').trim() + ' black ' + m[2] + 'mm x ' + m[3] + 'm x ' + m[4] + 'm' : tekst + ' nieuw';
+    const v = X.koppel({ pakbon_code:anders, omschrijving:'', totaal:1, per:1, aantal:1 }, a.leverancier);
+    return { strijd, a:{ tekst, code:a.productcode, factor:+a.factor || 1 }, anders, v:{ code:v.productcode, match:v.match, bev:v.bevestigd, factor:+v.factor || 1 } }; });
+  check('geleerde koppelingen en bevestigde regels zeggen hetzelfde product (alle containers)', gk.strijd.length === 0, gk.strijd.join(' · '));
+  if(gk.v) check('Andere tekst, zelfde maat → geleerde koppeling (' + gk.a.code + ', factor ' + gk.a.factor + ')', gk.v.code === gk.a.code && gk.v.bev && gk.v.factor === gk.a.factor, JSON.stringify(gk));
+  else console.log('   (geen geleerde koppeling met een unieke maat; controle overgeslagen)');
+  // Voor Daan: geen vaste container — wat de pagina uitrekent (afgerond, gelost < 60 dagen, geen verdeling, niet na het lossen ingevuld) staat er ook
+  const vdVerwacht = await P.evaluate(() => { const X = CP_TEST, grens = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10); let n = 0;
+    X.cont().filter(c => c.status === 'afgerond' && (c.losdatum || '') >= grens).forEach(c => X.pools(c).order.forEach(code => { const v = c.data.verdeling[code]; if(!(v && v.porties && v.porties.length) && !X.lossenIngevuld(code)) n++; })); return n; });
   await P.evaluate(() => { location.hash = '#/voordaan'; }); await P.waitForTimeout(1500);
   const vdl = await P.evaluate(() => document.body.innerText);
-  check('Voor Daan toont producten die bij een geloste container op bij lossen bepalen bleven', /bleef bij lossen bepalen/.test(vdl) || !/GW2026-BH013/.test(vdl), (vdl.match(/.{0,60}bleef bij lossen.{0,60}/) || [''])[0]);
+  const vdN = (vdl.match(/bleef bij lossen bepalen/g) || []).length;
+  check('Voor Daan toont elk product dat bij een geloste container op bij lossen bepalen bleef (' + vdVerwacht + ')', vdN === vdVerwacht, vdN + ' getoond, ' + vdVerwacht + ' verwacht');
   await P.evaluate(() => { location.hash = '#/'; }); await P.waitForTimeout(1500);
   // 3. onbekend product → Voor Daan, niet bij Karin
   const vd = await P.evaluate(() => {

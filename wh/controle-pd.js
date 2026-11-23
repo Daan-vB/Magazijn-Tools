@@ -635,8 +635,9 @@ async function doeActie(a, cat, sel, v, gk){
     const met = sel.map(x => ({ x, kg:num(String(S.kg[x.c] || '').replace(',', '.')) })).filter(y => y.kg > 0);
     if(!met.length){ WH.toast('Typ het gewogen gewicht per stuk (kg) bij het product', 3500); return; }
     const mc = met.map(y => y.x.c), terug = poTerug(mc); if(!(await kopie(mc))) return;
-    met.forEach(y => { P.poZet(y.x.c, p => { delete p.heropend; p.gew = { st:'gewogen', kg:y.kg, t:nu(), door:'Daan' }; }); delete S.kg[y.x.c]; }); flush(); klaar();
-    bewaard(mv(met.length, 'product', 'producten') + ' gewogen' + (met.length < sel.length ? ' · ' + (sel.length - met.length) + ' zonder kg blijven staan' : ''), terug); return;
+    // een onmogelijk gewicht (Daan 23-11) wordt zonder bevestiging niet opgeslagen: dat product blijft staan met zijn kg in het vak
+    const gelukt = met.filter(y => { const ok = P.poZet(y.x.c, p => { delete p.heropend; p.gew = { st:'gewogen', kg:y.kg, t:nu(), door:'Daan' }; }) !== false; if(ok) delete S.kg[y.x.c]; return ok; }); flush(); klaar();
+    bewaard(mv(gelukt.length, 'product', 'producten') + ' gewogen' + (met.length > gelukt.length ? ' · ' + (met.length - gelukt.length) + ' niet opgeslagen (onmogelijk gewicht)' : '') + (met.length < sel.length ? ' · ' + (sel.length - met.length) + ' zonder kg blijven staan' : ''), terug); return;
   }
   if(a === 'g-vertrouwd'){ const met = sel.filter(x => (P.gewicht(x.c).pq || 0) > 0), mc = met.map(x => x.c); if(!met.length) return; const terug = poTerug(mc); if(!(await kopie(mc))) return; met.forEach(x => P.poZet(x.c, p => { delete p.heropend; p.gew = { st:'vertrouwd', kg:P.gewicht(x.c).pq, t:nu(), door:'Daan' }; })); flush(); klaar(); bewaard(mv(met.length, 'product', 'producten') + ' vertrouwd', terug); return; }
   if(a === 'g-terug'){

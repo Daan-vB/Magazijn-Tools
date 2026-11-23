@@ -94,10 +94,20 @@ const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' :
   if(hFam){
     await naar('hoogte', hFam); v = await nu(); const c = v.rows[0];
     const leeg = await ev(c => !!document.querySelector(`.dl [data-num="${CSS.escape(c)}"]`), c);
-    if(leeg) await P.fill(`.dl [data-num="${c}"]`, '143'); else { await ev(c => document.querySelector(`.dl [data-tik="${CSS.escape(c)}"]`).click(), c); await P.keyboard.press('Control+A'); await P.keyboard.type('143'); }
+    // een al ingevuld veld eerst echt leegmaken: fill() vervangt de waarde (Ctrl+A selecteert op een Mac niet alles; dan werd 100 + 143 = 143100)
+    if(leeg) await P.fill(`.dl [data-num="${c}"]`, '143'); else { await ev(c => document.querySelector(`.dl [data-tik="${CSS.escape(c)}"]`).click(), c); await wacht(200);
+      const veld = await P.$(`.dl [data-num="${c}"]`) || await P.evaluateHandle(() => document.activeElement);
+      await veld.fill('143'); }
     await P.keyboard.press('Tab'); await wacht(300);
     const h = await ev(c => ({ w:(WHDL.S.A[c].f || {}).hoogte, feit:document.querySelector(`.dl [data-sel="${CSS.escape(c)}"]`).closest('.rij').innerText }), c);
     check('hoogte 143 → 150 (naar boven op 10 cm) en melding "te hoog voor 20-locatie hal A"', h.w === '150' && /te hoog voor 20-locatie hal A/.test(h.feit), JSON.stringify(h));
+    // onmogelijke hoogte (Daan 23-11): 143100 cm geeft meteen een melding; bij Klopt wordt het pas na bevestiging opgeslagen (D63)
+    const veld2 = await P.$(`.dl [data-num="${c}"]`) || (await ev(c => { const t = document.querySelector(`.dl [data-tik="${CSS.escape(c)}"]`); if(t) t.click(); return null; }, c), await P.evaluateHandle(() => document.activeElement));
+    await veld2.fill('143100'); await P.keyboard.press('Tab'); await wacht(300);
+    const mh = await ev(() => document.querySelector('.dl').innerText);
+    check('hoogte 143100 cm: meteen de melding "kan niet" met "bij Klopt vraag ik of het toch klopt"', /Hoogte incl\. pallet 143\.100 cm kan niet/.test(mh) && /Bij Klopt vraag ik of het toch klopt/.test(mh), (mh.match(/.{0,80}kan niet.{0,80}/) || [''])[0]);
+    const veld3 = await P.$(`.dl [data-num="${c}"]`) || (await ev(c => { const t = document.querySelector(`.dl [data-tik="${CSS.escape(c)}"]`); if(t) t.click(); return null; }, c), await P.evaluateHandle(() => document.activeElement));
+    await veld3.fill('143'); await P.keyboard.press('Tab'); await wacht(300);   // terug naar een mogelijke waarde
   } else check('geen hoogtevraag open in deze data (overgeslagen)', true);
   // 8. Weg zonder keuze → melding; met keuze → opgeslagen, verder geen vragen; Later; terug
   const fam2 = await ev(fk => { const f = WHDL.S.fams.find(f => f.fk !== fk && f.cs.length >= 2 && f.cs.every(c => !PD2R.status(c).stap.soort)); return f ? { fk:f.fk, cs:f.cs.slice() } : null; }, fam.fk);

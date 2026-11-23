@@ -234,6 +234,11 @@ function poZet(c, fn){
   maxPallet(c, p, oud);
   const merk = x => { if(!x || typeof x !== 'object') return; if(S.oefenen) x.oef = 1; else delete x.oef; };
   const veranderd = Object.keys(Object.assign({}, p.f, oud.f)).filter(k => !zelfde(p.f[k], oud.f[k])).map(k => 'f.' + k).concat(['so', 'weg', 'gew', 'rol'].filter(k => !zelfde(p[k], oud[k])));
+  // onmogelijke maten en gewichten (Daan 23-11): melding, en zonder bevestiging niet opslaan (de oude waarde blijft staan)
+  if(window.WHGRENS){
+    const m = veranderd.map(k => { if(k.startsWith('f.')){ const kk = k.slice(2), x = p.f[kk]; return WHGRENS.onmogelijk(kk, x && typeof x === 'object' ? x.v : x); } return k === 'gew' && p.gew ? WHGRENS.onmogelijk('kgst', p.gew.kg) : null; }).filter(Boolean);
+    if(m.length && !WHGRENS.bevestig(m)){ try{ WH.toast('Niet opgeslagen: ' + m[0], 6000); }catch(e){} ongeldig(c); return false; }
+  }
   Object.keys(p.f).forEach(k => { if(!zelfde(p.f[k], oud.f[k])) merk(p.f[k]); });
   ['so', 'weg', 'gew', 'rol'].forEach(k => { if(!zelfde(p[k], oud[k])) merk(p[k]); });
   if(!S.oefenen && S.echt !== false && pd2Overzetten && veranderd.length) pdPlan(c, p, veranderd);

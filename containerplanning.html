@@ -17,6 +17,7 @@
 <script src="wh/cache.js?v=1"></script>
 <script src="wh/pdbron.js?v=1"></script>
 <script src="wh/cplezer.js?v=1"></script>
+<script src="wh/grenzen.js?v=1"></script>
 <style>
   :root{--blue:#1d4ea0;--orange:#e8590c;--ink:#10151c;--bg:#eef1f5;--line:#cdd5df;--soft:#f6f8fb;--muted:#5b6673;--ok:#1c7a4a;--warn:#b86e00;--bad:#b3261e}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -159,8 +160,9 @@
   details summary::-webkit-details-marker{display:none}
 
   /* Verdeling */
-  .vgrid{display:grid;gap:12px}
-  .vcard{background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(15,23,32,.08);padding:14px;border-left:4px solid #d3d9e0}
+  .vgrid{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+  .vcard{background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(15,23,32,.08);padding:14px;border-left:4px solid #d3d9e0;min-width:0;overflow-wrap:anywhere}
+  .vcard .chips .badge{white-space:normal;max-width:100%}   /* akkoord-kaart op 390 px: lange verdeling breekt af in plaats van de kaart breder te maken */
   .vcard.okk{border-left-color:var(--ok)} .vcard.bad{border-left-color:var(--bad)} .vcard.warn{border-left-color:#e0a100}
   .vhead{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
   .llkop{display:flex;width:100%;align-items:center;gap:8px;background:none;border:0;padding:0;font:inherit;cursor:pointer;text-align:left;color:inherit}
@@ -293,15 +295,21 @@ function num(v){
   const n = parseFloat(s);
   return isNaN(n) ? null : n;
 }
-const nf = (n, d = 0) => (n === null || n === undefined || isNaN(n)) ? '–' : Number(n).toLocaleString('nl-NL', { maximumFractionDigits:d });
+// één formatter per aantal decimalen (toLocaleString met opties maakt er elke keer een nieuwe: dat was 70% van de rekentijd van het advies)
+const NFMT = {};
+const nf = (n, d = 0) => (n === null || n === undefined || isNaN(n)) ? '–' : (NFMT[d] || (NFMT[d] = new Intl.NumberFormat('nl-NL', { maximumFractionDigits:d }))).format(Number(n));
 const plural = (n, een, meer) => n + ' ' + (n === 1 ? een : meer);
+// datumformatters bewaard per opties (toLocaleDateString met opties maakt er elke keer een nieuwe; dat kostte op het startscherm de helft van het tekenen)
+const DFMT = new Map();
+const dfmt = o => { const k = (o.weekday || '') + '|' + (o.day || '') + '|' + (o.month || '') + '|' + (o.year || '') + '|' + (o.hour || '') + '|' + (o.minute || ''); let f = DFMT.get(k); if(!f){ f = new Intl.DateTimeFormat('nl-NL', o); DFMT.set(k, f); } return f; };
 function fdate(d, opt){
   if(!d) return '';
   const dt = new Date(String(d).length <= 10 ? d + 'T12:00:00' : d);
   if(isNaN(dt)) return String(d);
-  return dt.toLocaleDateString('nl-NL', opt || { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+  const o = opt || { weekday:'short', day:'numeric', month:'short', year:'numeric' };
+  return ('weekday' in o || 'day' in o || 'month' in o || 'year' in o) ? dfmt(o).format(dt) : dt.toLocaleDateString('nl-NL', o);
 }
-const fdt = d => d ? new Date(d).toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+const fdt = d => { if(!d) return ''; const x = new Date(d); return isNaN(x) ? String(d) : dfmt({ day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }).format(x); };
 function toast(msg, ms){
   const t = $('toast'); t.textContent = msg; t.hidden = false;
   clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, ms || 2600);
@@ -431,6 +439,8 @@ let BO = [];         // backorderregels
 let BOBY = {};       // productcode -> { open, totaal, regels }
 let ALIAS = [];      // geleerde pakboncodes
 let CONT = [];       // containers
+let LEVC = null;     // lijst van alle leveranciers (levLijst), gewist door wisCache()
+let PVER = 0, PNORM = null;   // genormaliseerde productcodes (pNorm); PVER telt live toegevoegde producten
 let TODOS = [];
 let MISSING = [];
 let cur = null;      // geopende container
@@ -1248,15 +1258,20 @@ const PAKBON_LEV = [
 ];
 const WALLACE = { id:'wallace', naam:'Wallace Langford & Associates', zoek:/wallace/i };
 
-function alleLeveranciers(){
+// bewaard zolang producten, verkoop, backorders en de leveranciers van de containers niet veranderen (werd per pakbonregel opnieuw uit ± 12.000 verkoopregels opgebouwd)
+function levLijst(){
+  const cl = CONT.map(c => c.leverancier || '').join('|');
+  if(LEVC && LEVC.by === BYLEV && LEVC.vk === VK && LEVC.bo === BO && LEVC.boN === BO.length && LEVC.cl === cl) return LEVC.lijst;
   const set = new Set(Object.keys(BYLEV));
   Object.values(VK).forEach(v => { if(v.leverancier) set.add(v.leverancier); });
   BO.forEach(b => { if(b.leverancier) set.add(b.leverancier); });
   CONT.forEach(c => { if(c.leverancier) set.add(c.leverancier); });
-  return [...set].sort((a, b) => a.localeCompare(b));
+  LEVC = { by:BYLEV, vk:VK, bo:BO, boN:BO.length, cl, lijst:[...set].sort((a, b) => a.localeCompare(b)) };
+  return LEVC.lijst;
 }
+function alleLeveranciers(){ return levLijst().slice(); }
 // de naam zoals hij in Picqer staat, als die al bekend is (producten, verkoop of backorders)
-const levNaam = prof => alleLeveranciers().find(l => prof.zoek.test(l)) || prof.naam;
+const levNaam = prof => levLijst().find(l => prof.zoek.test(l)) || prof.naam;
 const tekstRegels = text => String(text || '').split(/\r?\n/).map((t, i) => ({ p:1, y:-i * 12, s:t }));
 // herkent de leverancier, leest de regels en verdeelt ze per containernummer (docs)
 function leesPakbonTekst(text, L){
@@ -1753,7 +1768,7 @@ function koppel(r, lev){
   const tok = norm(eersteCode(r.pakbon_code || r.omschrijving));
   const key = norm(r.pakbon_code);
   const txt = [r.pakbon_code, r.omschrijving, r.context].map(x => norm(x || '')).join('|');   // los genormaliseerd: een code mag niet over de grens van twee velden heen 'gevonden' worden (SF276H + SF276H… = sf276hs)
-  const pool = (lev && BYLEV[lev] && BYLEV[lev].length) ? BYLEV[lev] : Object.keys(P);
+  const PN = pNorm(), metLev = !!(lev && BYLEV[lev] && BYLEV[lev].length), poolN = metLev ? lijstNorm(BYLEV[lev]) : PN, pool = poolN.codes;
   const als = ALIAS.filter(a => !lev || a.leverancier === lev);
   const REDEN = { alias:'geleerde koppeling', exact:'productcode gelijk', ean:'EAN gelijk', inkoop:'open inkoop' };
   const uit = (code, match, factor, fbron) => {
@@ -1764,8 +1779,8 @@ function koppel(r, lev){
   let a = als.find(x => x.pakbon_code === key) || als.find(x => x.pakbon_code === tok);
   if(a && P[a.productcode]) return uit(a.productcode, 'alias', num(a.factor) || 1, 'geleerd');
   // 2. exact gelijk aan een Picqer-productcode of leverancierscode
-  let ex = (key.length >= 4 && (pool.find(c => norm(c) === key) || Object.keys(P).find(c => norm(c) === key))) || pool.find(c => norm(c) === tok) || pool.find(c => P[c] && P[c].leverancier_code && norm(P[c].leverancier_code) === tok);
-  if(!ex && tok.length >= 4) ex = Object.keys(P).find(c => norm(c) === tok);
+  let ex = (key.length >= 4 && (poolN.m.get(key) || PN.m.get(key))) || poolN.m.get(tok) || pool.find(c => P[c] && P[c].leverancier_code && norm(P[c].leverancier_code) === tok);
+  if(!ex && tok.length >= 4) ex = PN.m.get(tok);
   if(ex) return uit(ex, 'exact');
   // 2a. EAN in de pakbon (code of omschrijving) gelijk aan de barcode van een Picqer-product
   const ez = koppelEan(r);
@@ -1780,15 +1795,14 @@ function koppel(r, lev){
   // 3. code komt voor in de pakbontekst (langste wint)
   let best = null;
   als.forEach(x => { if(x.pakbon_code.length >= 4 && txt.includes(x.pakbon_code) && P[x.productcode] && (!best || x.pakbon_code.length > best.len)) best = { len:x.pakbon_code.length, code:x.productcode, alias:x }; });
-  pool.forEach(c => { const n = norm(c); if(n.length >= 4 && txt.includes(n) && (!best || n.length > best.len)) best = { len:n.length, code:c }; });
+  poolN.l.forEach(([c, n]) => { if(n.length >= 4 && txt.includes(n) && (!best || n.length > best.len)) best = { len:n.length, code:c }; });
   if(best) return best.alias ? uit(best.code, 'alias', num(best.alias.factor) || 1, 'geleerd') : uit(best.code, 'voorstel');
   // 3b. zelfde artikel, kleur anders geschreven (SE121V-black = SE121V-BLA): één product met dezelfde stam en dezelfde kleur, nooit bevestigd
   const kk = koppelKleur(r, pool);
   if(kk) return Object.assign(uit(kk.code, 'voorstel'), { reden:'zelfde artikel, kleur "' + kk.kleur + '" = ' + kk.code.split('-').pop() });
   // 4. bijna gelijk (typefout / OCR)
   let fz = null;
-  if(tok.length >= 4) pool.forEach(c => {
-    const nc = norm(c);
+  if(tok.length >= 4) poolN.l.forEach(([c, nc]) => {
     if(nc !== tok && (nc.startsWith(tok) || tok.startsWith(nc))) return;   // SF276H en SF276HS zijn twee producten: een extra letter is geen typefout
     const d = lev1(nc, tok), lim = tok.length >= 8 ? 2 : 1;
     if(d <= lim && (!fz || d < fz.d)) fz = { d, code:c };
@@ -1901,8 +1915,13 @@ async function lvId(code){
 }
 function liveToevoegen(p){
   if(!p || !p.productcode || P[p.productcode]) return;
-  P[p.productcode] = p; PLOW[p.productcode.toLowerCase()] = p.productcode;
+  P[p.productcode] = p; PLOW[p.productcode.toLowerCase()] = p.productcode; PVER++;
 }
+// productcodes genormaliseerd, één keer per productlijst (koppel normaliseerde per pakbonregel alle ± 12.000 codes opnieuw)
+const PLNORM = new WeakMap();
+function normLijst(codes){ const m = new Map(), l = codes.map(c => { const x = norm(c); if(!m.has(x)) m.set(x, c); return [c, x]; }); return { m, l, codes }; }
+function pNorm(){ if(!PNORM || PNORM.p !== P || PNORM.v !== PVER) PNORM = Object.assign(normLijst(Object.keys(P)), { p:P, v:PVER }); return PNORM; }
+function lijstNorm(codes){ let x = PLNORM.get(codes); if(!x || x.codes.length !== codes.length || x.p !== P){ x = Object.assign(normLijst(codes.slice()), { p:P }); PLNORM.set(codes, x); } return x; }
 // zoek een productcode live op; gevonden = daarna gewoon kiesbaar (leeg als niet gevonden of niet gekoppeld)
 async function liveZoek(v){
   v = String(v || '').trim(); if(!v) return '';
@@ -2086,7 +2105,9 @@ function vkLiveRegel(){
   if(VKL.p && !VKL.fout) return `<div class="card" style="border-left:4px solid var(--ok)"><b>Verkoop live · bestellingen uit Picqer (ook backorders) · ${esc(tijdTxt(VKL.t))}</b></div>`;
   if(VKL.p) return `<div class="card" style="border-left:4px solid var(--warn, #e0a100)"><b>Verkoop: bestellingen uit Picqer van ${esc(fdt(new Date(VKL.t).toISOString()))}</b> — nu niet bij te werken: ${esc(VKL.fout)}.</div>`;
   if(VKL.bezig) return `<div class="card" style="border-left:4px solid var(--warn, #e0a100)"><b>Verkoop: bestellingen worden opgehaald… <span id="vk-voortgang">${VKL.stap ? VKL.stap.klaar + ' van ' + VKL.stap.totaal + ' blokken van 14 dagen' : ''}</span></b>${VKL.fout ? ' Vorige poging: ' + esc(VKL.fout) + '.' : ''} Tot het klaar is rekent het advies met de import van verzonden verkoop; wat binnen is blijft bewaard.</div>`;
-  return `<div class="card" style="border-left:4px solid var(--bad)"><b>Verkoop niet live${VKL.fout ? ': ' + esc(VKL.fout) : ' (nog niet opgehaald)'}.</b> Het advies rekent nu met de import van verzonden verkoop.</div>`;
+  // zonder live bestellingen rekent het advies met de bestellingen van vannacht (verkoop-besteld, Daan 22-11); pas zonder die rij met de import van verzonden verkoop
+  const terug = VKB && VKB.gem ? 'Het advies rekent nu met de bestellingen van vannacht' + (VKB.datum ? ' (ververst ' + esc(fdt(VKB.datum)) + ')' : '') + '.' : 'Het advies rekent nu met de import van verzonden verkoop.';
+  return `<div class="card" style="border-left:4px solid var(--bad)"><b>Verkoop niet live${VKL.fout ? ': ' + esc(VKL.fout) : ' (nog niet opgehaald)'}.</b> ${terug}</div>`;
 }
 async function regelKoppel(c, r, v){
   const canon = PLOW[String(v || '').trim().toLowerCase()] || await liveZoek(v);
@@ -2114,7 +2135,7 @@ const isKrat = p => /^E4005/i.test(p.code) || p.regels.some(r => /\bkrat/i.test(
 /* ---------- rekencache: pools(c) en voortgang(c) per container één keer per render; vervalt bij elke wijziging, save, rerender en klik/invoer ---------- */
 let RC = { pools:new Map(), vg:new Map() };
 const TEL = { pools:0, doosVan:0, voortgang:0, punten:0, planning:0, bouw:0 };   // aantal aanroepen (meting)
-function wisCache(){ RC = { pools:new Map(), vg:new Map() }; return null; }
+function wisCache(){ RC = { pools:new Map(), vg:new Map() }; LEVC = null; return null; }
 ['click', 'input', 'change', 'keydown'].forEach(t => document.addEventListener(t, wisCache, true));
 function pools(c){
   TEL.pools++;
@@ -2275,6 +2296,13 @@ function eerderGepland(c, code){
   const p = planning().per[c.id];
   return (p && p[code] && p[code].eerder) || leegEerder();
 }
+// Deel zonder pallet-deel naar pick: zeg waarom. "Pick is vol genoeg" alleen als pick (zonder geen specifieke locatie) boven "aanvullen bij" zit (CLAUDE.md §7, D39)
+function deelGeenPick(PDa, porties){
+  const losPick = porties.filter(x => x.soort === 'los' && x.dest === 'PICK').reduce((a, x) => a + (num(x.n) || 0), 0);
+  if(losPick > 0) return ' → ' + nf(losPick) + ' los naar pick (tot max op pick), rest Bulk (up)';
+  if(!PDa.ruim) return ' → alles naar Bulk (up) of VST, pick is vol genoeg (boven aanvullen bij)';
+  return ' → alles naar Bulk (up) of VST: geen pallet naar Bulk (up) om pick van aan te vullen';
+}
 function advies(c, pool){
   const p = planning().per[c.id];
   if(p && p[pool.code]) return p[pool.code].adv;
@@ -2410,7 +2438,7 @@ function adviesKern(c, pool, eerder){
     if(n > 0){ up.note = 'daarvan ' + nf(n) + ' naar Picklocatie'; up.pickU = n; }
     PDa.pickU = n;
   }
-  if(PDa) uitleg.push('productdata: ' + SN[PDa.soort] + ', max op pick ' + nf(PDa.max) + (PDa.lvl !== null ? ', bij ' + nf(PDa.lvl) : '') + ', pick nu ' + nf(PDa.stock) + (PDa.zonder > 0 ? ' (' + nf(PDa.zonder) + ' op geen specifieke locatie telt niet mee)' : '') + (PDa.soort === 'deel' ? (PDa.pickU ? ' → ' + nf(PDa.pickU) + ' naar pick, rest Bulk (up)' : ' → alles naar Bulk (up) of VST, pick is vol genoeg') : PDa.soort === 'pallet' ? ' → hele pallet naar pick alleen als pick ≤ aanvullen bij en er past een hele pallet bij' : ' → tot max op pick, rest Bulk/VST'));
+  if(PDa) uitleg.push('productdata: ' + SN[PDa.soort] + ', max op pick ' + nf(PDa.max) + (PDa.lvl !== null ? ', bij ' + nf(PDa.lvl) : '') + ', pick nu ' + nf(PDa.stock) + (PDa.zonder > 0 ? ' (' + nf(PDa.zonder) + ' op geen specifieke locatie telt niet mee)' : '') + (PDa.soort === 'deel' ? (PDa.pickU ? ' → ' + nf(PDa.pickU) + ' naar pick, rest Bulk (up)' : deelGeenPick(PDa, porties)) : PDa.soort === 'pallet' ? ' → hele pallet naar pick alleen als pick ≤ aanvullen bij en er past een hele pallet bij' : ' → tot max op pick, rest Bulk/VST'));
   if(PDa && ['deel', 'pallet', 'pick', 'mix'].includes(PDa.soort) && !String((P[code] || {}).locaties_hm || '').split(',').some(l => /^[A-Z]{2}\d{2}[A-D]0\d$/.test(l.trim()) || /^AH\d{2}[A-D]\d{2}$/.test(l.trim()))) uitleg.push('picklocatie nog aanmaken in Picqer (' + code + ' staat in Te doen → Picklocaties)');
   else if(!PDa && PDd && PDd.soort) uitleg.push('(oude regel: productdata mist ' + (PDd.maxpick > 0 ? 'de soort' : 'max op pick') + ')');
   else uitleg.push('(oude regel)');
@@ -2542,7 +2570,7 @@ async function route(){
   return viewHome();
 }
 window.addEventListener('hashchange', route);
-window.CP_TEST = { zetGeheugen:(code, rec) => { const cat = Object.assign({}, CAT); cat['zz-' + code] = Object.assign({ sub:code, name:code, ean:'', qty:'' }, rec); indexCatalog(cat); wisCache(); }, zetBlob:(pad, blob) => { BLOBS[pad] = blob; }, zetInkoop:o => { INKOOPC = { t:Date.now(), o, ob:null }; }, inkoopOpen, inkoopToepassen, inkoopTekst, poRoute, verschilBesluit, pakbonZeker, zoekBestaand, naarPrullenbak, containerVerwijderen, containerTerugzetten, samenvoegen, prullen:() => PRULLEN, dubbelVan:c => dubbelVan(c), kopieContainer, vulRegels, ocrOpschonen, excelResultaat, koppelKleur, zetProduct:p => { LIVEP[p.productcode] = p; liveToevoegen(p); }, alleLeveranciers, isVast:(c, r) => isVast(c, r), leesBestand, pakbonnenBulk, levKort, heeftProduct:c => !!P[c], leesControle:t => { const res = leesPakbonTekst(t); const c = ensureData({ id:-9, leverancier:res.lev, status:'concept', data:{} }); vulRegels(c, res.docs[0], res, 'test.txt', 'plak', t); return Object.assign(pakbonControle(c), { lev:res.lev }); }, pakbonControle, koppelMaat, voorDaan, statusBalkTest:c => statusBalk(c, voortgang(c)), alias:() => ALIAS, koppel, koppelInkoopMet, herkoppelRegels, leerZeker, leesPakbonTekst2:(t) => leesPakbonTekst(t), isGeenProduct, aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, adviesKern, leegEerder, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
+window.CP_TEST = { invulCodes:c => invulCodes(c), lossenIngevuld:code => lossenIngevuld(code), doosVan:(c, code) => doosVan(c, code), bijLossen:(c, code) => bijLossen(c, pools(c).map[code]), advies:(c, code) => advies(c, pools(c).map[code]), eenheid:eenheidVan, geheugen:code => geh1(code), zetGeheugen:(code, rec) => { const cat = Object.assign({}, CAT); cat['zz-' + code] = Object.assign({ sub:code, name:code, ean:'', qty:'' }, rec); indexCatalog(cat); wisCache(); }, zetBlob:(pad, blob) => { BLOBS[pad] = blob; }, zetInkoop:o => { INKOOPC = { t:Date.now(), o, ob:null }; }, inkoopOpen, inkoopToepassen, inkoopTekst, poRoute, verschilBesluit, pakbonZeker, zoekBestaand, naarPrullenbak, containerVerwijderen, containerTerugzetten, samenvoegen, prullen:() => PRULLEN, dubbelVan:c => dubbelVan(c), kopieContainer, vulRegels, ocrOpschonen, excelResultaat, koppelKleur, zetProduct:p => { LIVEP[p.productcode] = p; liveToevoegen(p); }, alleLeveranciers, isVast:(c, r) => isVast(c, r), leesBestand, pakbonnenBulk, levKort, heeftProduct:c => !!P[c], leesControle:t => { const res = leesPakbonTekst(t); const c = ensureData({ id:-9, leverancier:res.lev, status:'concept', data:{} }); vulRegels(c, res.docs[0], res, 'test.txt', 'plak', t); return Object.assign(pakbonControle(c), { lev:res.lev }); }, pakbonControle, koppelMaat, voorDaan, statusBalkTest:c => statusBalk(c, voortgang(c)), alias:() => ALIAS, koppel, koppelInkoopMet, herkoppelRegels, leerZeker, leesPakbonTekst2:(t) => leesPakbonTekst(t), isGeenProduct, aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, adviesKern, leegEerder, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 function rerender(){
   const y = window.scrollY;
@@ -2592,9 +2620,10 @@ function viewSetup(){
    Scherm: containers
    ===================================================================== */
 function dataStrip(){
-  const pq = Object.values(P).map(r => r.picqer_datum).filter(Boolean).sort().pop();
-  const vk = Object.values(VK).map(r => r.periode_tot).filter(Boolean).sort().pop();
-  const bo = BO.map(r => r.geimporteerd_op).filter(Boolean).sort().pop();
+  const max = (lijst, k) => { let m; for(const r of lijst){ const x = r && r[k]; if(x && (m === undefined || String(x) > String(m))) m = x; } return m; };   // = sort().pop(), zonder ± 12.000 regels te sorteren
+  const pq = max(Object.values(P), 'picqer_datum');
+  const vk = max(Object.values(VK), 'periode_tot');
+  const bo = max(BO, 'geimporteerd_op');
   const oud = d => d && (Date.now() - new Date(d)) > 7 * 864e5;
   const it = (lbl, d, extra) => `<span class="it">${lbl}: <b>${d ? fdate(d, { day:'numeric', month:'short' }) : 'nog niet'}</b>${extra || ''} ${oud(d) ? '<span class="badge b-warn">ouder dan 7 dagen</span>' : ''}</span>`;
   return `<div class="card datastrip">
@@ -2700,6 +2729,9 @@ async function lossenOpslaan(c, code){
   const maat = String(u.maat || '').replace(/\s/g, '').toLowerCase();
   if(maat && !/^\d{2,3}x\d{2,3}$/.test(maat)){ toast('Palletmaat als lengte x breedte, bijv. 80x120.', 4000); return; }
   for(const k of ['geteld', 'hoogte', 'gewicht']) if(u[k] && num(u[k]) === null){ toast(k + ': vul een getal in.', 3000); return; }
+  // onmogelijke maten en gewichten (Daan 23-11): melding, en zonder bevestiging niet opslaan
+  if(window.WHGRENS){ const m = [WHGRENS.onmogelijk('hoogte', u.hoogte), WHGRENS.onmogelijk('gewicht', u.gewicht), WHGRENS.onmogelijk('maat', maat)].filter(Boolean);
+    if(m.length && !WHGRENS.bevestig(m)){ toast('Niet opgeslagen: ' + m[0], 6000); return; } }
   const spp = Math.round(per * dpp * 1000) / 1000;
   try{
     const r = await api('GET', 'catalog?key=eq.catalog-ean&select=data'), cat = (r.length ? r[0].data : {}) || {}, oud = JSON.parse(JSON.stringify(cat));
@@ -2937,7 +2969,8 @@ function homeRekenen(containers, open){
   setTimeout(stap, 0);
 }
 function viewHome(){
-  const byDate = (a, b) => (a.losdatum || '9999').localeCompare(b.losdatum || '9999') || (a.lostijd || '99').localeCompare(b.lostijd || '99') || a.id - b.id;
+  const cmp = (x, y) => x < y ? -1 : x > y ? 1 : 0;   // datums (jjjj-mm-dd) en tijden (uu:mm) in vaste vorm: gewone vergelijking, zelfde volgorde als localeCompare
+  const byDate = (a, b) => cmp(a.losdatum || '9999', b.losdatum || '9999') || cmp(a.lostijd || '99', b.lostijd || '99') || a.id - b.id;
   const open = CONT.filter(c => c.status !== 'afgerond').sort(byDate);
   const done = CONT.filter(c => c.status === 'afgerond').sort((a, b) => byDate(b, a));
   const levs = alleLeveranciers();
