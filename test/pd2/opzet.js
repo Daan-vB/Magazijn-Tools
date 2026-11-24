@@ -17,7 +17,7 @@ async function start(opt = {}){
     if(m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return r.continue();
     const body = q.postData() || '';
     let rows = null; try{ rows = JSON.parse(body); }catch(e){}
-    if(/rest\/v1\/catalog/.test(u) && Array.isArray(rows) && rows.length && rows.every(x => /^(wh-pd2-(oefen|feedback|kopie-.+)|wh-kopie-productdata-.+|wh-taken|wh-palletmaten(-kopie-.+)?|wh-doorloop-later(-kopie-.+)?|wh-bouwplan(-kopie-.+)?|wh-controle-(klopt|reacties|steekproef)(-kopie-.+)?)$/.test(x.key))){ rows.forEach(x => { mock[x.key] = x.data; writes.push(x.key); }); return r.fulfill({ status:201, body:'' }); }
+    if(/rest\/v1\/catalog/.test(u) && Array.isArray(rows) && rows.length && rows.every(x => /^(wh-pd2-(oefen|feedback|kopie-.+)|wh-kopie-productdata-.+|wh-kopie-pd2-oefen-.+|weekendcheck-kiezen|wh-taken|wh-palletmaten(-kopie-.+)?|wh-doorloop-later(-kopie-.+)?|wh-bouwplan(-kopie-.+)?|wh-controle-(klopt|reacties|steekproef)(-kopie-.+)?)$/.test(x.key))){ rows.forEach(x => { mock[x.key] = x.data; writes.push(x.key); }); return r.fulfill({ status:201, body:'' }); }
     // week 1: 2.0 schrijft direct naar productdata (bron pd2); in de test alleen vastgelegd, nooit naar de database
     if(/rest\/v1\/productdata/.test(u) && Array.isArray(rows) && rows.length){ rows.forEach(x => { pdWrites.push(x); writes.push('productdata'); }); return r.fulfill({ status:201, body:'' }); }
     blocked.push(m + ' ' + u.slice(0, 160) + ' ' + body.slice(0, 80));

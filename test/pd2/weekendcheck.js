@@ -41,7 +41,8 @@ const check = (n, waar, x) => { (waar ? ok : fout).push(n); console.log((waar ? 
       afg:!!document.querySelector('.wk .tegel[data-d="afgeleid"]'), acties:!!document.querySelector('.wk details[data-blok="acties"]'), lev:!!document.querySelector('.wk details[data-blok="leveranciers"]') };
   });
   check('snapshot v2 met indeling (' + st.n + ' vragen)', st.v === 2 && st.n > 0, st.v);
-  check('start: Daan-overzicht in 5 regels', st.ov === 5, st.ov);
+  const dkN = await ev(() => WHWK.dekkingNa().length);
+  check('start: overzicht = 4 regels uit de snapshot + (als Productdata 2.0 een dekking heeft) 1 regel met die dekking', st.ov === 4 + (dkN ? 1 : 0), st.ov);
   check('start per deel: afgeleid zeker · voorstel (1 tik) · bij leverancier · voor Daan', st.labels.join('|') === 'afgeleid zeker|voorstel (1 tik)|bij leverancier|voor Daan', st.labels.join('|'));
   check('tellers kloppen met de snapshot (containers incl. acties, inventaris)', JSON.stringify(st.gc) === JSON.stringify(st.tc) && JSON.stringify(st.gi) === JSON.stringify(st.ti.slice(0, 4)), JSON.stringify([st.gc, st.tc, st.gi, st.ti]));
   check('alle vragen ingedeeld: som van de tellers = aantal vragen', st.tc.concat(st.ti).reduce((a, b) => a + b, 0) === st.n);
@@ -50,6 +51,12 @@ const check = (n, waar, x) => { (waar ? ok : fout).push(n); console.log((waar ? 
   check('start: 390 px zonder horizontaal scrollen', !(await hscroll()));
   const pdp = await ev(() => ({ info:!!(WHWK.S.pdInfo && WHWK.S.pdInfo.gezet_op), paneel:(document.querySelector('.wk [data-blok="productdata"]') || {}).innerText || '' }));
   check('start: "In productdata gezet op <datum tijd>" met de dekking per klasse A/B/C (24-uurs)', !pdp.info || (/In productdata gezet op .*\d{2}:\d{2}/.test(pdp.paneel) && /klasse A \d+%/.test(pdp.paneel) && /klasse B \d+%/.test(pdp.paneel) && /klasse C \d+%/.test(pdp.paneel) && !/\b(AM|PM)\b/i.test(pdp.paneel)), pdp.paneel.replace(/\n/g, ' | ').slice(0, 200));
+  // C (24-11): één telling voor de dekking = die van Productdata 2.0 (zoals het paneel); de oude snapshot-percentages staan nergens meer
+  const dk = await ev(() => ({ klassen:WHWK.S.snap.klassen || {}, na:(WHWK.S.pdInfo && WHWK.S.pdInfo.dekking && WHWK.S.pdInfo.dekking.na) || {}, ov:[...document.querySelectorAll('.wk ol.ov li')].map(l => l.textContent), tekst:document.querySelector('.wk').innerText }));
+  const oud = Object.entries(dk.klassen).filter(([k, v]) => dk.na[k] !== v).map(([k, v]) => k + ' ' + v + '%');
+  check('C: de oude snapshot-percentages (Productdata gevuld A/B/C) staan niet meer in het overzicht', !dk.ov.some(t => /productdata gevuld/i.test(t)) && !oud.some(o => new RegExp('klasse ' + o.replace(' ', ' ')).test(dk.tekst)) , oud.join(' · '));
+  check('C: het overzicht noemt dezelfde dekking als het paneel "In productdata gezet"', !Object.keys(dk.na).length || Object.entries(dk.na).every(([k, v]) => dk.ov.join(' ').includes('klasse ' + k + ' ' + v + '%') && pdp.paneel.includes('klasse ' + k + ' ' + v + '%')), JSON.stringify(dk.na));
+  const exp0 = await ev(() => WHWK.platteTekst()); check('C: export en kopie-tekst gebruiken dezelfde telling (geen "Productdata gevuld")', !/Productdata gevuld/i.test(exp0));
   check('leest niet live uit Picqer (geen koppelcode nodig)', !/koppelcode/i.test(await ev(() => document.querySelector('.wk').innerText)));
 
   // 2 jouw vragen: alleen voor Daan + voorstel, Daan eerst (containers hoog → midden → A → B → C, wegen per hal/gang), afgeleid nooit
@@ -217,9 +224,60 @@ const check = (n, waar, x) => { (waar ? ok : fout).push(n); console.log((waar ? 
   check('Kopieer overzicht: platte tekst met het overzicht', /Weekendcheck/.test(klem) && klem.split('\n').length >= 6, klem.slice(0, 60));
   check('24-uurs tijden', !/\d{1,2}:\d{2}\s?(AM|PM)/i.test(await ev(() => document.body.innerText)));
 
+  // B (24-11): blok "Kiezen" — de test kiest zelf producten uit productdata en maakt zelf het verschil met het weekendcheck-antwoord
+  check('Kiezen: zonder iets te kiezen staat het blok er niet (teller = 0 ⇒ geen blok)', await ev(() => { const n = WHWK.kzTel(); return n === 0 ? !document.querySelector('.wk [data-blok="kiezen"]') : !!document.querySelector('.wk [data-blok="kiezen"]'); }));
+  check('Kiezen: de echte lijst raakt productdata niet (alleen lezen tot er getikt wordt)', T.pdWrites.length === 0 && !T.writes.some(k => /^weekendcheck-kiezen$|^wh-kopie-/.test(k)));
+  const pdVoor = T.pdWrites.length, wrVoor = T.writes.length;
+  const kandidaten = await ev(async () => {
+    const rijen = (await WH.api('GET', 'productdata?select=productcode,data,meta&order=productcode&limit=600')) || [];
+    const oef = (await WH.catHaal('wh-pd2-oefen').catch(() => null)), pp = (oef && oef.data && oef.data.p) || {};
+    return rijen.filter(r => ['pick', 'deel', 'pallet', 'mix'].includes((r.data || {}).opslag) && !(r.data || {}).uitlopend && !pp[r.productcode] && r.meta && r.meta.opslag).slice(0, 8).map(r => ({ c:r.productcode, opslag:r.data.opslag, kgst:(r.data || {}).kgst || '', data:r.data, meta:r.meta }));
+  });
+  check('Kiezen: de test vindt zelf minstens 5 producten om mee te kiezen', kandidaten.length >= 5, kandidaten.length);
+  if(kandidaten.length >= 5){
+    const [A, Bk, G, W1, W2] = kandidaten, andere = o => o === 'pick' ? 'deel' : 'pick';
+    await ev(async d => {
+      const S = WHWK.S;
+      S.pdInfo = Object.assign({}, S.pdInfo || {}, { verschil:[{ c:d.A.c, v:'opslag', staat:d.A.opslag, antwoord:d.A.anders }, { c:d.B.c, v:'opslag', staat:d.B.opslag, antwoord:d.B.anders }, { c:d.G.c, v:'opslag', staat:'x', antwoord:d.G.opslag }] });   // G: jouw antwoord = productdata → klaar, niet tonen
+      S.ant = Object.assign({}, S.ant, { ['i-' + d.W1.c + '-soort']:{ a:'klopt', w:'Weg', bron:'daan', t:new Date().toISOString() }, ['i-' + d.W2.c + '-soort']:{ a:'klopt', w:'Weg', bron:'daan', t:new Date().toISOString() } });
+      S.kz.rijen = null; await WHWK.laadKiezen();
+    }, { A:{ ...A, anders:andere(A.opslag) }, B:{ ...Bk, anders:andere(Bk.opslag) }, G, W1, W2 });
+    const sk = k => '.wk [data-kies="' + k + '"]';
+    const staat = await ev(() => ({ blok:!!document.querySelector('.wk [data-blok="kiezen"]'), tel:(document.querySelector('.wk [data-kiezen-tel]') || {}).textContent || '', n:WHWK.kzTel(), kaarten:document.querySelectorAll('.wk [data-kies]').length, w:WHWK.kzWaarden().map(x => x.sleutel), g:WHWK.kzWeg().map(x => x.sleutel) }));
+    check('Kiezen: blok zichtbaar met "nog N te kiezen" en N = het aantal kaarten', staat.blok && new RegExp('nog ' + staat.n + ' te kiezen').test(staat.tel.replace(/\./g, '')) && staat.kaarten === staat.n, staat.tel + ' / ' + staat.kaarten);
+    check('Kiezen: gelijke waarde (antwoord = productdata) wordt niet getoond, verschil wel', !staat.w.includes(G.c + '|opslag') && staat.w.includes(A.c + '|opslag') && staat.w.includes(Bk.c + '|opslag'));
+    check('Kiezen: Weg zonder keuze: een kaart per product met knoppen Uitlopend en Archief', staat.g.includes(W1.c + '|weg') && staat.g.includes(W2.c + '|weg') && await ev(c => !!document.querySelector('.wk [data-kies="' + c + '|weg"] [data-wk="kiesweg"][data-w="uitlopend"]') && !!document.querySelector('.wk [data-kies="' + c + '|weg"] [data-wk="kiesweg"][data-w="archief"]'), W1.c));
+    const kaartTekst = await ev(k => document.querySelector('.wk [data-kies="' + k + '"]').innerText, A.c + '|opslag');
+    check('Kiezen: kaart toont veld, "nu in productdata" en "jouw weekendcheck-antwoord", twee knoppen', /Soort/.test(kaartTekst) && /Nu in productdata:\s*\S+/.test(kaartTekst) && /Jouw weekendcheck-antwoord:\s*\S+/.test(kaartTekst) && await ev(k => document.querySelectorAll('.wk [data-kies="' + k + '"] .knoppen button').length === 2, A.c + '|opslag'), kaartTekst.replace(/\s+/g, ' '));
+    check('Kiezen: 390 px zonder horizontaal scrollen', !(await hscroll()));
+    // Kies huidige: niets schrijven naar productdata, kaart weg, teller telt af
+    await ev(k => { const b = document.querySelector('.wk [data-kies="' + k + '"] [data-wk="kieshuidig"]'); b.scrollIntoView(); b.click(); }, A.c + '|opslag'); await P.waitForTimeout(800);
+    const n1 = await ev(() => WHWK.kzTel());
+    check('Kiezen: Kies huidige = productdata niet aangeraakt, kaart weg, teller −1', T.pdWrites.length === pdVoor && !(await ev(k => !!document.querySelector('.wk [data-kies="' + k + '"]'), A.c + '|opslag')) && n1 === staat.n - 1 && T.writes.includes('weekendcheck-kiezen'), 'n=' + n1);
+    // Kies weekendcheck: kopie eerst, dan productdata met bron invul; de rest van de rij blijft
+    await ev(k => { const b = document.querySelector('.wk [data-kies="' + k + '"] [data-wk="kiesweek"]'); b.scrollIntoView(); b.click(); }, Bk.c + '|opslag'); await P.waitForTimeout(1200);
+    const w = T.writes.slice(wrVoor), rij = T.pdWrites[T.pdWrites.length - 1];
+    check('Kiezen: Kies weekendcheck = eerst een kopie (wh-kopie-productdata-<jjjjmmdd>), daarna het veld', w.findIndex(k => /^wh-kopie-productdata-\d{8}$/.test(k)) >= 0 && w.findIndex(k => /^wh-kopie-productdata-\d{8}$/.test(k)) < w.lastIndexOf('productdata'), w.join(','));
+    check('Kiezen: veld = jouw antwoord, bron invul, de rest van de rij ongewijzigd', T.pdWrites.length === pdVoor + 1 && rij.productcode === Bk.c && rij.data.opslag === andere(Bk.opslag) && rij.meta.opslag.bron === 'invul' && Object.keys(Bk.data).every(k => k === 'opslag' || String(rij.data[k]) === String(Bk.data[k])), JSON.stringify(rij && rij.meta && rij.meta.opslag));
+    check('Kiezen: kaart weg en teller telt af', !(await ev(k => !!document.querySelector('.wk [data-kies="' + k + '"]'), Bk.c + '|opslag')) && (await ev(() => WHWK.kzTel())) === staat.n - 2);
+    // Weg: Uitlopend → productdata uitlopend (bron invul) + keuze in 2.0; Archief → alleen de keuze in 2.0
+    const pd1 = T.pdWrites.length, wr1 = T.writes.length;
+    await ev(c => { const b = document.querySelector('.wk [data-kies="' + c + '|weg"] [data-wk="kiesweg"][data-w="uitlopend"]'); b.scrollIntoView(); b.click(); }, W1.c); await P.waitForTimeout(1500);
+    const w2 = T.writes.slice(wr1), r2 = T.pdWrites[T.pdWrites.length - 1];
+    check('Kiezen: Uitlopend → kopie vooraf, productdata uitlopend met bron invul, keuze in Productdata 2.0', T.pdWrites.length === pd1 + 1 && r2.productcode === W1.c && /^\d{4}-\d{2}-\d{2}$/.test(r2.data.uitlopend) && r2.meta.uitlopend.bron === 'invul' && w2.some(k => /^wh-kopie-productdata-\d{8}$/.test(k)) && w2.some(k => /^wh-kopie-pd2-oefen-\d{8}$/.test(k)) && w2.includes('wh-pd2-oefen') && w2.findIndex(k => /^wh-kopie-pd2-oefen-/.test(k)) < w2.indexOf('wh-pd2-oefen'), w2.join(','));
+    const pd2 = T.pdWrites.length;
+    await ev(c => { const b = document.querySelector('.wk [data-kies="' + c + '|weg"] [data-wk="kiesweg"][data-w="archief"]'); b.scrollIntoView(); b.click(); }, W2.c); await P.waitForTimeout(1200);
+    const oefNa = await ev(async () => { const r = await WH.catHaal('wh-pd2-oefen'); return r && r.data && r.data.p; });
+    check('Kiezen: Archief → alleen de keuze in Productdata 2.0 (geen productdata-rij), beide keuzes bewaard', T.pdWrites.length === pd2 && oefNa && oefNa[W2.c] && oefNa[W2.c].weg.v === 'archief' && oefNa[W2.c].so.v === 'weg' && oefNa[W1.c] && oefNa[W1.c].weg.v === 'uitlopend', JSON.stringify(oefNa && oefNa[W2.c]));
+    check('Kiezen: beide Weg-kaarten weg', await ev(([a, b]) => !document.querySelector('.wk [data-kies="' + a + '|weg"]') && !document.querySelector('.wk [data-kies="' + b + '|weg"]'), [W1.c, W2.c]));
+    // alles gekozen: teller 0 → blok weg
+    await ev(async () => { WHWK.S.pdInfo = Object.assign({}, WHWK.S.pdInfo, { verschil:[] }); Object.keys(WHWK.S.ant).filter(k => /-soort$/.test(k) && WHWK.S.ant[k].w === 'Weg' && WHWK.S.ant[k].bron === 'daan').forEach(k => { delete WHWK.S.ant[k]; }); WHWK.S.kz.rijen = null; await WHWK.laadKiezen(); });
+    check('Kiezen: teller 0 ⇒ het blok is weg', (await ev(() => WHWK.kzTel())) === 0 && !(await ev(() => !!document.querySelector('.wk [data-blok="kiezen"]'))));
+  }
+
   // 7 veiligheid
-  check('nooit naar productdata geschreven', T.pdWrites.length === 0, T.pdWrites.length);
-  check('alleen weekendcheck-antwoorden geschreven (onderschept), verder 0 geblokkeerd', T.blocked.filter(b => !/FUNC/.test(b)).length === 0 && antw.flatMap(x => x).every(x => x.key === 'weekendcheck-antwoorden'), JSON.stringify(T.blocked.slice(0, 3)));
+  check('productdata alleen geschreven door Kiezen (2 keer Uitlopend/Kies weekendcheck, elk met kopie vooraf), nooit door iets anders', T.pdWrites.length <= 2 && T.pdWrites.every(x => x.meta && Object.values(x.meta).some(m => m && m.bron === 'invul')), T.pdWrites.length);
+  check('alleen weekendcheck-antwoorden geschreven (onderschept), verder 0 geblokkeerd', T.blocked.filter(b => !/FUNC/.test(b)).length === 0 && antw.flatMap(x => x).every(x => x.key === 'weekendcheck-antwoorden') && T.writes.every(k => /^(weekendcheck-antwoorden|weekendcheck-kiezen|productdata|wh-pd2-oefen|wh-kopie-productdata-\d{8}|wh-kopie-pd2-oefen-\d{8})$/.test(k)), JSON.stringify(T.blocked.slice(0, 3)));
   check('geen fouten in de pagina', !T.errors.filter(e => /weekendcheck|WHWK/i.test(e)).length, T.errors.filter(e => /weekendcheck|WHWK/i.test(e)).slice(0, 2).join(' | '));
   console.log('\n' + ok.length + ' OK, ' + fout.length + ' FOUT');
   await T.b.close();

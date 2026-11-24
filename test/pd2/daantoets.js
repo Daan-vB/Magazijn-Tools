@@ -697,6 +697,21 @@ function check(d, regel, waar, x){
       /regelklopt/.test(kaart) && /regelniet/.test(kaart) && /bekijk/.test(kaart) && /afw\.length/.test(kaart) && !/data-wk="(vorige|verder)"/.test(afg + kaart) && /bron:'daan-regel'/.test(w) && /'nog ' \+ nf\(open\.length\) \+ ' open \('/.test(w)
       && /overgeslagen — bekijken/.test(w) && /'Stand ' \+ tijd24\(S\.snap\.gemaakt\) \+ ' \(snapshot\): '/.test(w) && /sets tellen zelf niet mee/.test(w) && /verkoop-besteld/.test(w), '');
   }
+  /* ---------- D83 / D84: Weekendcheck Kiezen en één telling voor de dekking (na check klaar 24-11) ---------- */
+  if(['D83', 'D84'].some(doe)){
+    const w = fs.readFileSync(path.join(__dirname, '..', '..', 'wh', 'weekendcheck.js'), 'utf8');
+    if(doe('D83')){
+      const zet = (w.match(/async function kzZetVeld[\s\S]*?\n\}/) || [''])[0], weg = (w.match(/async function kzKiesWeg[\s\S]*?\n\}/) || [''])[0], blok = (w.match(/function kiezenBlok\(\)\{[\s\S]*?\n\}/) || [''])[0];
+      check('D83', '§1 Nooit stil wijzigen wat Daan bevestigde (Weekendcheck → Kiezen): per product één kaart met nu in productdata en jouw antwoord; Kies weekendcheck = eerst een kopie (wh-kopie-productdata-<jjjjmmdd>), dan alleen als productdata nog is wat getoond werd (verwacht), bron invul; Kies huidige schrijft niets in productdata; Weg zonder keuze = Uitlopend / Archief; blok alleen zichtbaar als er iets te kiezen is',
+        /kzKopie\(\[c\]\)/.test(zet) && zet.indexOf('kzKopie') < zet.indexOf("WH.upsert('productdata'") && /bron:'invul'/.test(zet) && /intussen veranderd/.test(zet) && /wh-kopie-productdata-/.test(w)
+        && !/upsert/.test((w.match(/async function kzKiesHuidig[\s\S]*?\n\}/) || [''])[0]) && /kiesweek/.test(blok) && /kieshuidig/.test(blok) && /data-w="uitlopend"/.test(blok) && /data-w="archief"/.test(blok) && /Nu in productdata/.test(blok) && /Jouw weekendcheck-antwoord/.test(blok) && /if\(!n\) return ''/.test(blok)
+        && /wh-kopie-pd2-oefen-/.test(weg) && weg.indexOf("kzZetVeld") < weg.indexOf("WH.catZet('wh-pd2-oefen'") && /nog \$\{nf\(n\)\} te kiezen/.test(blok), '');
+    }
+    if(doe('D84')){
+      check('D84', '§2 Eén telling voor de dekking: overal in de Weekendcheck de telling van Productdata 2.0 (zoals het paneel "In productdata gezet"); de oude snapshot-percentages (Productdata gevuld A/B/C) worden niet meer getoond of geëxporteerd',
+        /function overzichtRegels\(\)/.test(w) && /productdata gevuld/i.test((w.match(/function overzichtRegels\(\)\{[\s\S]*?\n\}/) || [''])[0]) && !/S\.snap\.klassen|sn\.klassen/.test(w) && !/sn\.overzicht\.map|S\.snap\.overzicht\.map/.test(w) && /dekkingNa\(\)/.test(w), '');
+    }
+  }
   /* ---------- schrijven: alles onderschept, productcode heilig ---------- */
   if(doe('D1')) check('D1', '§1 Picqer alleen lezen: 0 geblokkeerde schrijfpogingen, geen aanroep van het tussenstation', T.blocked.length === 0, JSON.stringify(T.blocked.slice(0, 3)));
   console.log('\nINFO ' + info.join('\nINFO '));

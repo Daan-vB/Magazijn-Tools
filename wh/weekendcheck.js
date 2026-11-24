@@ -14,7 +14,7 @@ window.WHWK = (function(){
 'use strict';
 const SNAP_KEY = 'weekendcheck-2026-w47', ANT_KEY = 'weekendcheck-antwoorden', PD_KEY = 'weekendcheck-productdata';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
-const S = { snap:null, ant:{}, fout:null, laden:false, deel:'', id:'', aanpas:false, uit:new Set(), groepOpen:false, el:null, bewaar:0, hist:[], skip:false, fertig:false, regelNiet:'', pdInfo:null, live:null, liveP:null };
+const S = { snap:null, ant:{}, fout:null, laden:false, deel:'', id:'', aanpas:false, uit:new Set(), groepOpen:false, el:null, bewaar:0, hist:[], skip:false, fertig:false, regelNiet:'', pdInfo:null, kz:{ rijen:null, p:null, besl:{}, laden:false, fout:null, bezig:'' }, live:null, liveP:null };
 // naar een andere vraag; de vorige onthouden zodat "Vorige" altijd teruggaat naar wat je net zag
 function ga(id){ if(S.id && id !== S.id){ S.hist.push(S.id); if(S.hist.length > 200) S.hist.shift(); } S.id = id || ''; }
 const DEEL = { c:'Containers deze week', i:'Inventaris A/B/C', alle:'Jouw vragen', afgeleid:'Afgeleid — bekijken', open:'Nog open — per groep' };
@@ -83,7 +83,7 @@ async function laad(){
     S.pdInfo = pi && pi.data && typeof pi.data === 'object' ? pi.data : null;
   }catch(e){ S.fout = e; }
   S.laden = false; teken();
-  if(S.snap) laadLive();
+  if(S.snap){ laadLive(); laadKiezen(); }
 }
 /* ---------- feiten live: voorraad en verkoop uit de nachtelijke tabellen (geen Picqer, geen koppelcode) ---------- */
 function laadLive(){
@@ -251,7 +251,7 @@ function samenvatting(){
   const regel = x => '- ' + (x.product || x.groep) + ' · ' + x.vraag + ': ' + (x.waarde || '—') + (x.antwoord === 'twijfel' ? ' (twijfel)' : '');
   const jij = tel(vragen('alle'));
   return ['# Weekendcheck — antwoorden', '', 'Snapshot: ' + (S.snap.id || SNAP_KEY) + ' (' + tijd24(S.snap.gemaakt) + '), export ' + tijd24(new Date().toISOString()), '',
-    ...S.snap.overzicht.map((t, n) => (n + 1) + '. ' + t), '',
+    ...overzichtRegels().map((t, n) => (n + 1) + '. ' + t), '',
     '## Stand', '- Jouw vragen en voorstellen: ' + jij.k + ' van ' + jij.n + ' beantwoord' + (jij.o ? ', ' + jij.o + ' overgeslagen' : ''),
     '- Afgeleid door Claude (zeker): ' + e.filter(x => x.bron === 'claude-afgeleid' && x.antwoord === 'klopt').length,
     '- Bij leveranciers: ' + e.filter(x => x.indeling === 'leverancier').length + ' · acties per persoon: ' + e.filter(x => x.indeling === 'actie').length,
@@ -271,7 +271,7 @@ function exporteer(){
 }
 function platteTekst(){
   const j = tel(vragen('alle'));
-  return ['Weekendcheck ' + (S.snap.id || SNAP_KEY) + ' (' + tijd24(S.snap.gemaakt) + ')', ...S.snap.overzicht.map((t, n) => (n + 1) + '. ' + t),
+  return ['Weekendcheck ' + (S.snap.id || SNAP_KEY) + ' (' + tijd24(S.snap.gemaakt) + ')', ...overzichtRegels().map((t, n) => (n + 1) + '. ' + t),
     'Beantwoord door Daan: ' + j.k + ' van ' + j.n + '.'].join('\n');
 }
 async function kopieer(){
@@ -292,6 +292,125 @@ function tellers(t, d){
   const r = [['zeker', 'afgeleid zeker'], ['voorstel', 'voorstel (1 tik)'], ['leverancier', 'bij leverancier'], ['daan', 'voor Daan']].concat(d === 'c' ? [['actie', 'acties']] : []);
   return `<div class="tellers">${r.map(([k, l]) => `<div class="teller" data-tel="${k}"><b>${nf(t[k])}</b><span class="klein stil">${l}</span></div>`).join('')}</div>`;
 }
+/* ---------- Kiezen (24-11): wat bij "check klaar" niet gezet is omdat er al eigen invoer stond, en Weg zonder keuze ---------- */
+// De lijst wordt elke keer uit de live gegevens gerekend (productdata, wh-pd2-oefen, antwoorden), nooit uit vaste aantallen.
+// Schrijven alleen na een tik van Daan: eerst een kopie (wh-kopie-productdata-<jjjjmmdd>, wh-kopie-pd2-oefen-<jjjjmmdd>), dan het veld met bron invul.
+const KZ_KEY = 'weekendcheck-kiezen';
+const dagKort = () => new Date().toISOString().slice(0, 10).replace(/-/g, '');
+const kzNorm = c => String(c || '').trim().toLowerCase();
+const kzWaarde = x => { const w = x && typeof x === 'object' && !Array.isArray(x) ? x.v : x; return w === undefined || w === null ? '' : String(w).trim(); };
+const KZ_VELD = { opslag:'Soort', pick:'Picklocatie (ja/nee)', kgst:'Gewicht per stuk', spp:'Stuks per pallet', maxpick:'Max op pick', hoogte:'Hoogte', maat:'Maat', vn:'Vloernaam' };
+const kzCodesWeg = () => Object.keys(S.ant || {}).filter(k => /^i-.+-soort$/.test(k) && S.ant[k] && S.ant[k].w === 'Weg' && S.ant[k].bron === 'daan').map(k => k.slice(2, -6));
+const kzVerschil = () => (S.pdInfo && Array.isArray(S.pdInfo.verschil) ? S.pdInfo.verschil : []).filter(x => x && x.c && x.v);
+async function kzRijen(codes){
+  const uniek = [...new Set(codes)], uit = [];
+  for(let i = 0; i < uniek.length; i += 60){
+    const lijst = uniek.slice(i, i + 60).map(c => '"' + String(c).replace(/"/g, '\\"') + '"').join(',');
+    uit.push(...((await WH.api('GET', 'productdata?productcode=in.(' + encodeURIComponent(lijst) + ')&select=productcode,data,meta')) || []));
+  }
+  return uit;
+}
+async function laadKiezen(){
+  const K = S.kz; if(K.laden || K.rijen) return; K.laden = true;
+  try{
+    const codes = kzVerschil().map(x => x.c).concat(kzCodesWeg());
+    const [rijen, oef, bes] = await Promise.all([kzRijen(codes), WH.catHaal('wh-pd2-oefen').catch(() => null), WH.catHaal(KZ_KEY).catch(() => null)]);
+    K.rijen = new Map(rijen.map(r => [kzNorm(r.productcode), r]));
+    K.p = (oef && oef.data && oef.data.p) || {};
+    K.besl = (bes && bes.data && bes.data.besluiten) || {};
+  }catch(e){ K.fout = e; K.rijen = new Map(); K.p = {}; }
+  K.laden = false; teken();
+}
+// regels waarvan jouw antwoord en productdata verschillen (gelijk = klaar, niet tonen; al gekozen = weg)
+function kzWaarden(){
+  const K = S.kz; if(!K.rijen) return [];
+  return kzVerschil().map(x => { const r = K.rijen.get(kzNorm(x.c)), nu = r ? kzWaarde((r.data || {})[x.v]) : '', bron = r && r.meta && r.meta[x.v] ? r.meta[x.v].bron || '' : ''; return { c:x.c, v:x.v, antwoord:String(x.antwoord ?? ''), nu, bron, sleutel:x.c + '|' + x.v }; })
+    .filter(x => x.antwoord.trim().toLowerCase() !== x.nu.toLowerCase() && !K.besl[x.sleutel]);
+}
+// Weg zonder keuze: jouw antwoord in de check was Weg, maar er staat nog geen Uitlopend of Archief (en je koos sindsdien niet iets anders)
+function kzWeg(){
+  const K = S.kz; if(!K.rijen) return [];
+  return [...new Set(kzCodesWeg())].filter(c => {
+    const p = K.p[c] || {}, r = K.rijen.get(kzNorm(c)), d = (r && r.data) || {};
+    if(K.besl[c + '|weg']) return false;
+    if(p.weg && p.weg.v) return false;
+    if(p.so && p.so.v && p.so.v !== 'weg') return false;
+    if(kzWaarde(d.uitlopend)) return false;
+    return true;
+  }).map(c => ({ c, sleutel:c + '|weg' }));
+}
+const kzTel = () => kzWaarden().length + kzWeg().length;
+function kzFeit(c){
+  const F = liveFeiten(c); if(!F) return S.liveFout ? '' : 'voorraad en verkoop laden…';
+  return 'voorraad ' + nf(F.voorraad) + ' · verkoop gepickt ' + (F.gepickt === null ? '—' : mnd(F.gepickt)) + '/mnd' + (F.besteld !== null ? ' · besteld ' + mnd(F.besteld) + '/mnd' : '') + ' (live ' + tijd24(F.vkTijd) + ')';
+}
+function kiezenBlok(){
+  const w = kzWaarden(), g = kzWeg(), n = w.length + g.length;
+  if(!n) return '';
+  const kaartW = x => `<article class="vlak kies" data-kies="${esc(x.sleutel)}"><b>${esc(x.c)}</b> <span class="label">${esc(KZ_VELD[x.v] || x.v)}</span>
+      <span>Nu in productdata: <b>${esc(x.nu || '(leeg)')}</b>${x.bron ? ' <span class="stil klein">(bron ' + esc(x.bron) + ')</span>' : ''}</span>
+      <span>Jouw weekendcheck-antwoord: <b>${esc(x.antwoord)}</b></span>${kzFeit(x.c) ? `<span class="stil klein">${esc(kzFeit(x.c))}</span>` : ''}
+      <div class="knoppen"><button class="k pri" data-wk="kiesweek" data-k="${esc(x.sleutel)}">Kies weekendcheck</button><button class="k" data-wk="kieshuidig" data-k="${esc(x.sleutel)}">Kies huidige</button></div></article>`;
+  const kaartG = x => `<article class="vlak kies" data-kies="${esc(x.sleutel)}"><b>${esc(x.c)}</b> <span class="label">Weg zonder keuze</span>
+      <span>Jouw weekendcheck-antwoord: <b>Weg</b>. Welke Weg?</span>${kzFeit(x.c) ? `<span class="stil klein">${esc(kzFeit(x.c))}</span>` : ''}
+      <div class="knoppen"><button class="k pri" data-wk="kiesweg" data-k="${esc(x.c)}" data-w="uitlopend">Uitlopend</button><button class="k" data-wk="kiesweg" data-k="${esc(x.c)}" data-w="archief">Archief</button></div></article>`;
+  return `<section class="vlak" data-blok="kiezen" style="display:grid;gap:.75rem"><h2>Kiezen</h2><span data-kiezen-tel>nog ${nf(n)} te kiezen</span>
+    <span class="stil klein">Bij "check klaar" niet gezet omdat er al eigen invoer stond, of Weg zonder keuze. Kies weekendcheck = jouw antwoord wordt het besluit (met kopie vooraf). Kies huidige = niets verandert.</span>
+    <div class="tegels">${w.map(kaartW).join('')}${g.map(kaartG).join('')}</div></section>`;
+}
+async function kzBewaarBesluit(sleutel, besluit){
+  const oud = await WH.catHaal(KZ_KEY).catch(() => null), data = (oud && oud.data && typeof oud.data === 'object') ? oud.data : {}, b = Object.assign({}, data.besluiten || {});
+  b[sleutel] = Object.assign({ t:new Date().toISOString() }, besluit);
+  await WH.catZet(KZ_KEY, { besluiten:b, bijgewerkt:new Date().toISOString() });
+  S.kz.besl[sleutel] = b[sleutel];
+}
+// kopie van de productdata-rijen vóór het schrijven: catalog wh-kopie-productdata-<jjjjmmdd> (bij herhaling dezelfde dag aangevuld)
+async function kzKopie(codes){
+  const key = 'wh-kopie-productdata-' + dagKort(), rijen = await kzRijen(codes);
+  const oud = await WH.catHaal(key).catch(() => null), had = oud && oud.data && Array.isArray(oud.data.rijen) ? oud.data.rijen : [], zat = new Set(had.map(r => r.productcode));
+  await WH.catZet(key, { dag:new Date().toISOString().slice(0, 10), op:new Date().toISOString(), rijen:had.concat(rijen.filter(r => !zat.has(r.productcode))), gevraagd:codes.length });
+  return rijen;
+}
+async function kzZetVeld(c, veld, waarde, verwacht, uit){
+  const rijen = await kzKopie([c]), r = rijen[0] || { productcode:c, data:{}, meta:{} };
+  if(kzWaarde((r.data || {})[veld]) !== String(verwacht ?? '')) throw new Error('Productdata is intussen veranderd (nu: ' + (kzWaarde((r.data || {})[veld]) || 'leeg') + '). Niets geschreven; de lijst ververst.');
+  const nu = new Date().toISOString(), data = Object.assign({}, r.data || {}, { [veld]:String(waarde) }), meta = Object.assign({}, r.meta || {}, { [veld]:{ op:nu, bron:'invul', uit } });
+  await WH.upsert('productdata', [{ productcode:r.productcode, data, meta, updated_at:nu }], 'productcode');
+  S.kz.rijen.set(kzNorm(c), { productcode:r.productcode, data, meta });
+}
+async function kzKiesWeek(sleutel){
+  const x = kzWaarden().find(y => y.sleutel === sleutel); if(!x) return;
+  await kzZetVeld(x.c, x.v, x.antwoord, x.nu, 'Weekendcheck: jouw antwoord gekozen (Kiezen)');
+  await kzBewaarBesluit(sleutel, { k:'weekendcheck', w:x.antwoord, was:x.nu });
+}
+async function kzKiesHuidig(sleutel){
+  const x = kzWaarden().find(y => y.sleutel === sleutel); if(!x) return;
+  await kzBewaarBesluit(sleutel, { k:'huidige', w:x.nu });
+}
+async function kzKiesWeg(c, keuze){
+  if(!['uitlopend', 'archief'].includes(keuze)) return;
+  if(keuze === 'uitlopend') await kzZetVeld(c, 'uitlopend', new Date().toISOString().slice(0, 10), '', 'Weekendcheck: Uitlopend gekozen (Kiezen)');   // eerst productdata (met kopie), dan de keuze in 2.0
+  const oef = await WH.catHaal('wh-pd2-oefen').catch(() => null), data = (oef && oef.data && typeof oef.data === 'object') ? oef.data : { p:{} };
+  const kk = 'wh-kopie-pd2-oefen-' + dagKort(), had = await WH.catHaal(kk).catch(() => null);
+  if(!(had && had.data)) await WH.catZet(kk, { dag:new Date().toISOString().slice(0, 10), op:new Date().toISOString(), data });
+  const nu = new Date().toISOString(), p = Object.assign({ f:{} }, (data.p || {})[c] || {});
+  p.so = { v:'weg', st:'aangepast', voor:'', t:nu, door:'weekendcheck-kiezen' }; p.weg = { v:keuze, st:'aangepast', voor:'', t:nu };
+  data.p = Object.assign({}, data.p || {}, { [c]:p });
+  await WH.catZet('wh-pd2-oefen', data);
+  S.kz.p[c] = p;
+  await kzBewaarBesluit(c + '|weg', { k:keuze });
+}
+async function kzUitvoeren(f, melding){
+  if(S.kz.bezig) return; S.kz.bezig = '1';
+  try{ await f(); WH.toast && WH.toast(melding); }catch(e){ try{ WH.toast(String(e.message || e), 7000); }catch(_){} S.kz.rijen = null; S.kz.fout = e; await laadKiezen(); }
+  S.kz.bezig = ''; teken();
+}
+// één telling voor de dekking: die van Productdata 2.0 (catalog weekendcheck-productdata, zoals het paneel); de oude percentages uit de snapshot worden niet meer getoond
+const dekkingNa = () => { const d = (S.pdInfo && S.pdInfo.dekking && S.pdInfo.dekking.na) || {}; return ['A', 'B', 'C'].filter(k => k in d).map(k => 'klasse ' + k + ' ' + d[k] + '%'); };
+function overzichtRegels(){
+  const sn = S.snap || {}, l = (sn.overzicht || []).filter(t => !/productdata gevuld|niets staat al in productdata/i.test(t)), dk = dekkingNa();
+  return dk.length ? l.concat(['Productdata 2.0, afgerond (soort, gewicht en hoeveelheid): ' + dk.join(' · ') + '.']) : l;
+}
 // na "check klaar": wat Claude in productdata heeft gezet en de dekking per klasse (catalog weekendcheck-productdata)
 function pdPaneel(){
   const x = S.pdInfo; if(!x || !x.gezet_op) return '';
@@ -305,8 +424,9 @@ function start(){
   const tegel = (d, titel, sub) => { const t = telDeel(d), tt = tel(vragen(d)); return `<button class="tegel" data-wk="deel" data-d="${d}"><b>${esc(titel)}</b>${tellers(t, d)}<span>${tt.k} van ${tt.n} gedaan (voor Daan + voorstellen)</span><div class="balk"><i style="width:${tt.pct}%"></i></div><span class="stil klein">${esc(sub)}</span></button>`; };
   const act = sn.acties || {}, lev = sn.leveranciers || [], weeg = sn.weeglijst || {};
   return `<div class="kopregel"><h1>Weekendcheck</h1><span class="stil klein">Stand ${esc(tijd24(sn.gemaakt))} · ${esc(sn.bron || '')}</span></div>
-    <section class="vlak"><ol class="ov">${sn.overzicht.map(t => `<li>${esc(t)}</li>`).join('')}</ol></section>
+    <section class="vlak"><ol class="ov">${overzichtRegels().map(t => `<li>${esc(t)}</li>`).join('')}</ol></section>
     ${pdPaneel()}
+    ${kiezenBlok()}
     <div class="tegels"><button class="tegel pri" data-wk="deel" data-d="alle"><b>Start: eerst jouw vragen</b><span>${td.k} van ${td.n} voor jou · ${tj.k - td.k} van ${tj.n - td.n} voorstellen</span><div class="balk"><i style="width:${tj.pct}%"></i></div><span class="stil klein">Volgorde: containers hoog → A → B → C, wegen per hal en gang, daarna de voorstellen van één tik.</span></button>
       ${tegel('c', DEEL.c, (sn.containers || []).length + ' containers · datafixes en acties per persoon')}${tegel('i', DEEL.i, 'per groep (leverancier + hoofdwoord)')}</div>
     <div class="tegels">
@@ -437,6 +557,9 @@ document.addEventListener('click', ev => {
     if(a === 'regelterug'){ zetRegel(r, null); return; }
     if(a === 'regelbewaar'){ const w = ((document.getElementById('wk-rw') || {}).value || '').trim(); if(!w){ WH.toast('Typ wat er niet klopt'); return; } S.regelNiet = ''; zetRegel(r, 'twijfel', w); return; }
   }
+  if(a === 'kiesweek'){ kzUitvoeren(() => kzKiesWeek(k.dataset.k), 'Jouw weekendcheck-antwoord staat nu in productdata'); return; }
+  if(a === 'kieshuidig'){ kzUitvoeren(() => kzKiesHuidig(k.dataset.k), 'De huidige waarde blijft staan'); return; }
+  if(a === 'kiesweg'){ kzUitvoeren(() => kzKiesWeg(k.dataset.k, k.dataset.w), 'Weg bewaard'); return; }
   if(a === 'export'){ exporteer(); return; }
   if(a === 'kopieer'){ kopieer(); return; }
   if(a === 'opengroep'){ S.deel = 'alle'; S.id = k.dataset.id; S.aanpas = false; S.uit = new Set(); S.groepOpen = false; location.hash = '#/weekendcheck/alle'; teken(); return; }
@@ -469,5 +592,5 @@ document.addEventListener('keydown', ev => {
   if(ev.key === 'Enter' && ev.target && ev.target.id === 'wk-w'){ const b = document.querySelector('.wk [data-wk="bewaar"]'); if(b) b.click(); }
   if(ev.key === 'Enter' && ev.target && ev.target.id === 'wk-rw'){ const b = document.querySelector('.wk [data-wk="regelbewaar"]'); if(b) b.click(); }
 });
-return { S, render, laad, laadLive, exportData, samenvatting, platteTekst, vragen, telDeel, ant, regels, liveFeiten, SNAP_KEY, ANT_KEY, PD_KEY };
+return { S, render, laad, laadLive, laadKiezen, kzWaarden, kzWeg, kzTel, dekkingNa, overzichtRegels, exportData, samenvatting, platteTekst, vragen, telDeel, ant, regels, liveFeiten, SNAP_KEY, ANT_KEY, PD_KEY };
 })();
