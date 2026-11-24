@@ -77,16 +77,31 @@ function check(d, regel, waar, x){
         wegSoort:l.filter(x => x.redenen.some(y => /soort/.test(y.t) && /Kleurgenoten/.test(y.t)) && (x.so === 'weg' || x.voorstellen.some(v => v.soort === 'weg'))).map(x => x.c),
         zonderVisie:l.filter(x => x.redenen.some(y => !y.visie)).map(x => x.c) }; });
     check('D37', '§3 Hercontrole: geen Uitlopend met voorraad, wel E400560-10KG (Archief); nooit soortfout met een Weg-kleurgenoot; elk punt met Claudes visie', !r.uitl.length && r.e4archief && !r.e4uitlopend && !r.wegSoort.length && !r.zonderVisie.length, JSON.stringify(r)); }
-  if(doe('D45')){ const r = await ev(() => { const P = PD2R, g = c => WHCP.gewichtPunt(c), codes = ['SI60120BR-2-0', 'SI60120TP-2-0'];
+  if(doe('D45')){
+    // beide kanten (twee sessies 23-11): (a) het vaste paar SI60120BR ↔ SI60120TP op de stand vóór Daans eigen antwoord (weekendcheck), alleen in het geheugen;
+    // (b) de test kiest zelf: alle punten "oneens" uit de data, anders een nagebootst paar kleurgenoten (10 kg ↔ 4 kg), alleen in het geheugen
+    const ra = await ev(() => { const P = PD2R, g = c => WHCP.gewichtPunt(c), codes = ['SI60120BR-2-0', 'SI60120TP-2-0'];
+      if(!codes.every(c => WH.D.P[c])) return { overgeslagen:'producten bestaan niet meer' };
       // Daans eigen antwoorden kunnen deze twee al op "te wegen" gezet hebben (weekendcheck 23-11): de regel wordt getoetst op de stand vóór zo'n antwoord, alleen in het geheugen en daarna teruggezet
       const bewaar = codes.map(c => [c, WHPD.S.pd[c], P.S.o.p[c]]);
       codes.forEach(c => { const r = WHPD.S.pd[c]; if(r && r.data){ const d = Object.assign({}, r.data), m = Object.assign({}, r.meta || {}); delete d.kgst; delete m.kgst; WHPD.S.pd[c] = Object.assign({}, r, { data:d, meta:m }); } const p = P.S.o.p[c]; if(p && p.gew){ const q = JSON.parse(JSON.stringify(p)); delete q.gew; P.S.o.p[c] = q; } P.ongeldig(c); });
       if(window.WHCP && WHCP.S) WHCP.S.memo = null;
-      try{ const si = codes.map(c => { const x = g(c); return { c, reden:x && x.reden, vs:x && x.voorstel, wegen:x && x.wegen }; });
+      try{ const si = codes.map(c => { const x = g(c); return { c, reden:x && x.reden, vs:x && x.voorstel, wegen:x && x.wegen }; }); return { si }; }
+      finally { bewaar.forEach(([c, pd, po]) => { if(pd) WHPD.S.pd[c] = pd; else delete WHPD.S.pd[c]; if(po) P.S.o.p[c] = po; else delete P.S.o.p[c]; P.ongeldig(c); }); if(window.WHCP && WHCP.S) WHCP.S.memo = null; } });
+    const r = await ev(() => { const P = PD2R, g = c => WHCP.gewichtPunt(c), punt = c => { const x = g(c); return { c, reden:x && x.reden, vs:x && x.voorstel, wegen:x && x.wegen }; };
+      let si = WHCP.cats().gewicht.filter(x => /oneens/.test(x.reden || '')).map(x => punt(x.c)), bron = 'data';
+      if(!si.length){
+        const c = Object.keys(WH.D.P).find(x => { try{ if(!P.actief(x) || P.isSam(x) || P.isKoppel(x) || P.perLengte(x)) return false; const k = P.kleurgenoten(x); return k.length === 1 && !P.perLengte(k[0]) && P.kleurgenoten(k[0]).length === 1 && P.gewicht(x).st === 'niet' && P.gewicht(k[0]).st === 'niet'; }catch(e){ return false; } });
+        if(c){ const d = P.kleurgenoten(c)[0], ex = WHPD.S.extra, o1 = ex[c], o2 = ex[d]; bron = 'nagebootst ' + c + ' ↔ ' + d;
+          try{ ex[c] = Object.assign({}, o1 || {}, { gewicht_product_g:10000 }); ex[d] = Object.assign({}, o2 || {}, { gewicht_product_g:4000 }); P.ongeldig(c); P.ongeldig(d); si = [c, d].map(punt); }
+          finally { if(o1) ex[c] = o1; else delete ex[c]; if(o2) ex[d] = o2; else delete ex[d]; P.ongeldig(c); P.ongeldig(d); WHCP.S.memo = null; } }
+      }
       // nooit elkaars waarde: geen voorstel als er maar één kleurgenoot met een gewicht is en die het oneens is
       const twee = WHCP.cats().gewicht.filter(x => x.voorstel && /kleurgenoten/.test(x.voorstel.tekst) && P.kleurgenoten(x.c).filter(y => P.gewicht(y).kg > 0 || P.gewicht(y).pq > 0).length === 1).map(x => x.c);
-      return { si, twee }; } finally { bewaar.forEach(([c, pd, po]) => { if(pd) WHPD.S.pd[c] = pd; else delete WHPD.S.pd[c]; if(po) P.S.o.p[c] = po; else delete P.S.o.p[c]; P.ongeldig(c); }); if(window.WHCP && WHCP.S) WHCP.S.memo = null; } });
-    check('D45', '§4 Twee tegen elkaar (SI60120BR 10 kg ↔ SI60120TP 4 kg) of een gelijke stand: geen voorstel, beide Naar Te wegen met die reden; nooit elkaars waarde', r.si.every(x => !x.vs && x.wegen && /oneens/.test(x.reden || '')) && !r.twee.length, JSON.stringify(r)); }
+      return { bron, si:si.slice(0, 6), n:si.length, twee }; });
+    const oneens = l => l.every(x => !x.vs && x.wegen && /oneens/.test(x.reden || ''));
+    check('D45', '§4 Twee tegen elkaar (SI60120BR 10 kg ↔ SI60120TP 4 kg, of een paar dat de test zelf kiest) of een gelijke stand: geen voorstel, beide Naar Te wegen met die reden; nooit elkaars waarde',
+      (ra.overgeslagen || oneens(ra.si)) && r.n > 0 && oneens(r.si) && !r.twee.length, JSON.stringify({ vast:ra, zelf:r })); }
   if(doe('D46')){ const r = await ev(() => { const P = PD2R, t = new Date().toISOString(), oudBo = Object.keys(P.S.o.p).filter(c => { const p = P.S.o.p[c]; return p.so && p.so.v === 'weg' && p.weg && p.weg.v === 'backorder'; });
       const leesBo = oudBo.every(c => P.soortWaarde(c).v === 'backorder' && P.status(c).so === 'backorder');
       // Twijfel alleen in het geheugen: niet afgerond, geen gewicht- of hoeveelheidsvragen, onder Later, niet in de gewone Doorloop
@@ -501,7 +516,8 @@ function check(d, regel, waar, x){
   }
   if(doe('D41')){ const core = fs.readFileSync(path.join(root, 'wh', 'core.js'), 'utf8'); check('D41', '§9 Warehouse, Junior en Palletlabels blijven zoals ze zijn: productdata alleen in 3.0 en Test (schakelaar wh-pd-bron niet omgezet)', /const PD_APPS = \['test', 'ivol'\];/.test(core) && !T.writes.includes('wh-pd-bron'), ''); }
   /* ---------- D65–D74: basismodel 23-11 (alleen lezen; nabootsingen alleen in het geheugen en daarna teruggezet) ---------- */
-  if(['D65', 'D66', 'D67', 'D68', 'D69', 'D70', 'D71', 'D72', 'D73', 'D74'].some(doe)){
+  let r76a = null;
+  if(['D65', 'D66', 'D67', 'D68', 'D69', 'D70', 'D71', 'D72', 'D73', 'D74', 'D79', 'D80', 'D82'].some(doe)){
     await P.goto(B + 'ivol.html#/todo/twijfels'); await P.waitForFunction(() => window.WHCP && WHCP.tel && WHCP.tel() && window.PD2R && PD2R.S.klaar && window.WHLIVE, null, { timeout:280000 }); await wacht(1500);
     const bron = f => fs.readFileSync(path.join(__dirname, '..', '..', f), 'utf8');
     const rk = bron('wh/pd2-reken.js'), dl = bron('wh/doorloop.js'), pd = bron('wh/pd2.js'), cp = bron('containerplanning.html'), pdo = bron('wh/productdata.js'), iv = bron('wh/ivol.js'), ivh = bron('ivol.html');
@@ -569,6 +585,86 @@ function check(d, regel, waar, x){
     }
     if(doe('D74')) check('D74', '§9 Goedkeuren (basis 23-11): officieel alleen Daan, Ryan en Karin (rol Ryan in 3.0; Containers: akkoord, bevestigen en afronden alleen voor die rollen)',
       /GOEDKEUR_ROL = \['daan', 'ryan', 'karin'\]/.test(cp) && /GOEDKEUR_ACT\.includes\(el\.dataset\.act\) && !magGoedkeuren\(\)/.test(cp) && /ryan:'Ryan'/.test(iv) && /data-rol="ryan"/.test(ivh), '');
+    if(doe('D79')){
+      // de test kiest zelf een product per cm of meter (met en zonder bekende rollengte); alles alleen in het geheugen en daarna terug, niets naar productdata
+      const r = await ev(() => { const P = PD2R, was = P.S.echt; P.S.echt = false;
+        const cs = Object.keys(WH.D.P).filter(x => { try{ return P.actief(x) && !P.isKoppel(x) && !P.isSam(x) && !!P.perLengte(x); }catch(e){ return false; } });
+        const metL = cs.find(x => P.rolL(x) > 0), zonderL = cs.find(x => !P.rolL(x)), uit = { n:cs.length, metL, zonderL };
+        const zet = (c, gew) => { const oud = P.S.o.p[c] ? JSON.parse(JSON.stringify(P.S.o.p[c])) : null; let ok, g, op;
+          try{ ok = P.poZet(c, p => { p.gew = gew; }); op = JSON.parse(JSON.stringify((P.S.o.p[c] || {}).gew || null)); g = P.gewicht(c); }
+          finally { if(oud) P.S.o.p[c] = oud; else delete P.S.o.p[c]; P.ongeldig(c); }
+          return { ok:ok !== false, op, kg:g && g.kg, rol:g && g.rol }; };
+        try{
+          if(metL){ uit.L = P.rolL(metL); uit.f = P.perLengte(metL).f;
+            uit.perEenheid = zet(metL, { st:'gewogen', kg:0.05, t:'x' });                                    // per eenheid binnen (Picqer, reachtruck) → bewaard als volle rol
+            uit.volleRol = zet(metL, Object.assign({ t:'x' }, P.gewInvoer(metL, 'gewogen', 30)));            // getypt = de volle rol
+            uit.invoer = P.gewInvoer(metL, 'gewogen', 30); }
+          if(zonderL) uit.zonder = zet(zonderL, { st:'gewogen', kg:0.05, t:'x' });                          // zonder lengte: niet opgeslagen
+        } finally { P.S.echt = was; }
+        return uit; });
+      const pe = r.perEenheid || {}, vr = r.volleRol || {}, src = rk + dl + pd + bron('wh/controle-pd.js') + bron('wh/ivol-x.js');
+      check('D79', '§4 Gewicht per cm/meter nooit opslaan (basis 23-11): alleen de volle rol en zijn lengte; kg per cm/meter = volle rol ÷ lengte (berekend)',
+        !!r.metL && pe.ok && pe.op && pe.op.kg === undefined && Math.abs(pe.op.rol - 0.05 * r.L * r.f) < 0.01 && Math.abs(pe.kg - 0.05) < 1e-6
+        && vr.ok && vr.op && vr.op.rol === 30 && vr.op.kg === undefined && Math.abs(vr.kg - 30 / (r.L * r.f)) < 1e-9 && r.invoer.rol === 30 && r.invoer.kg === undefined
+        && (!r.zonderL || !r.zonder.ok)
+        && /w\.kgrol = /.test(rk) && /num\(r\.data\.kgrol\) \/ \(num\(r\.data\.rolm\)/.test(pdo) && /data\.kgrol = v/.test(bron('wh/ivol-x.js')) && (src.match(/gewInvoer\(/g) || []).length >= 8,
+        JSON.stringify(Object.assign({}, r, { gewInvoer:(src.match(/gewInvoer\(/g) || []).length })));
+    }
+    if(doe('D80')){
+      // leveringsgegevens per leverancier uit de pakbonnen (een product dat de test zelf kiest) en stuks per opslagpallet per leverancier (eigen testinvoer, alleen in het geheugen)
+      r76a = await ev(() => { const P = PD2R, cs = Object.keys(WH.D.P).filter(c => { try{ return P.leveringen(c).length; }catch(e){ return false; } }), c = cs[0];
+        const l = c ? P.leveringen(c) : [], code = cs[1] || c, k = String(code || '').toLowerCase(), oud = WH.D.GEH[k];
+        let a = null, b = null, z = null;
+        try{ WH.D.GEH[k] = [Object.assign({}, (oud || [])[0] || {}, { sub:code, qty:'60', perlev:{ 'Testlev A BV':{ spp:60 }, 'Testlev B':{ spp:50 } } })]; a = P.sppLev(code, 'Testlev A'); b = P.sppLev(code, 'TESTLEV B B.V.'); z = P.sppLev(code, 'Andere leverancier'); }
+        finally { if(oud) WH.D.GEH[k] = oud; else delete WH.D.GEH[k]; }
+        return { n:cs.length, c, l:l.map(x => ({ lev:x.lev, vorm:x.vorm, per:x.per, n:x.n })), tekst:l.length ? P.leverTekst(l[0]) : '', a, b, z }; });
+    }
+    if(doe('D82')){
+      // 5 hoofdcategorieën; één per groep; Daan kiest per groep (alleen in het geheugen, daarna terug); groepen en families blijven zoals ze zijn
+      const r = await ev(() => { const P = PD2R, H = P.HOOFDCAT.map(x => x[1]), per = {}, oudHc = JSON.parse(JSON.stringify(P.S.o.hc || {}));
+        const cs = Object.keys(WH.D.P).filter(c => { try{ return P.actief(c) && !P.isKoppel(c); }catch(e){ return false; } });
+        cs.forEach(c => { const g = P.groepVan(c).k; (per[g] = per[g] || new Set()).add(P.hoofdcat(c).v); });
+        const meer = Object.entries(per).filter(([, s]) => s.size > 1).map(([g]) => g), met = cs.filter(c => P.hoofdcat(c).v).length;
+        const c = cs.find(x => P.hoofdcat(x).bron === 'voorstel'), gk = c && P.groepVan(c).k, fam = c && P.famVan(c), voor = c && P.hoofdcat(c).v, ander = P.HOOFDCAT.map(x => x[0]).find(v => v !== voor);
+        let gekozen = null, terug = null, leden = 0;
+        try{ if(gk){ P.hcZet(gk, ander); gekozen = P.hoofdcat(c); leden = cs.filter(x => P.groepVan(x).k === gk && P.hoofdcat(x).v !== ander).length; P.hcZet(gk, ''); terug = P.hoofdcat(c); } }
+        finally { P.S.o.hc = oudHc; P.S.metaVuil = false; }
+        return { H, groepen:Object.keys(per).length, meer:meer.slice(0, 3), met, n:cs.length, c, ander, gekozen, terug:terug && terug.v === voor && terug.bron === 'voorstel', leden, zelfdeGroep:!!c && P.groepVan(c).k === gk && P.famVan(c) === fam }; });
+      const cpd = bron('wh/controle-pd.js');
+      check('D82', '§6 Families (basis 23-11): voorlopig alleen 5 hoofdcategorieën (Rubber, Kantoor, Huis en tuin, Auto, Sport/fitness), één per groep, per groep te kiezen; groepen en families blijven werkgroepen',
+        r.H.join('|') === 'Rubber|Kantoor|Huis en tuin|Auto|Sport/fitness' && !r.meer.length && r.met > 0 && r.gekozen && r.gekozen.v === r.ander && r.gekozen.bron === 'gekozen' && r.leden === 0 && r.terug && r.zelfdeGroep
+        && /data-f="hc"/.test(pd) && /data-hc=/.test(pd) && /data-cp-hc/.test(cpd) && /hcFilt\(items\)/.test(cpd),
+        JSON.stringify(r));
+    }
+  }
+  /* ---------- D80 (Containers-deel) en D81: opslagpallet per product + leverancier; Europese leveringen niets naar VST (basis 23-11) ---------- */
+  if(['D80', 'D81'].some(doe)){
+    await P.goto(B + 'containerplanning.html'); await P.waitForFunction(() => window.CP_TEST && CP_TEST.cont().length && CP_TEST.sppVan && CP_TEST.isEU, null, { timeout:200000 }); await wacht(2000);
+    const cp = fs.readFileSync(path.join(__dirname, '..', '..', 'containerplanning.html'), 'utf8');
+    if(doe('D80')){
+      // eigen testinvoer: een product dat niet in het productgeheugen staat, met 60 algemeen en per leverancier 50 (alleen in het geheugen)
+      const r = await ev(() => { const X = CP_TEST; X.zetGeheugen('TEST-PERLEV-1', { qty:'60', perlev:{ 'Rubberselect':{ spp:60 }, 'Wallace Langford & Associates':{ spp:50 } } });
+        return { rs:X.sppVan('TEST-PERLEV-1', 'Rubberselect'), wl:X.sppVan('TEST-PERLEV-1', 'Wallace Langford & Associates'), ander:X.sppVan('TEST-PERLEV-1', 'Hamat'), alg:X.sppVan('TEST-PERLEV-1') }; });
+      const a = r76a || {};
+      check('D80', '§11 Leveringsgegevens en stuks per opslagpallet per product + leverancier (rh100x150: Rubberselect 60, Wallace 50); elke pallet houdt het aantal van zijn levering; herkomst bij de levering',
+        r.rs === 60 && r.wl === 50 && r.ander === 60 && r.alg === 60 && a.n > 0 && a.l.length > 0 && a.l.every(x => x.lev && x.vorm) && !!a.tekst && a.a === 60 && a.b === 50 && a.z === null
+        && /p\.spp = sppVan\(code, c\.leverancier\)/.test(cp) && /rec\.perlev = Object\.assign\(\{\}, rec\.perlev \|\| \{\}, \{ \[c\.leverancier\]/.test(cp) && /verdeling:data->verdeling,herkomst:data->herkomst/.test(fs.readFileSync(path.join(__dirname, '..', '..', 'wh', 'core.js'), 'utf8')),
+        JSON.stringify({ cp:r, pd2:a }));
+    }
+    if(doe('D81')){
+      // de test kiest zelf een container waarvan het advies pallets naar VST stuurt, zet hem alleen in het geheugen op Europees en rekent opnieuw
+      const r = await ev(() => { const X = CP_TEST; let best = null;
+        X.cont().forEach(c => { if(best) return; try{ const pl = X.pools(c); for(const code of pl.order){ const a = X.adviesKern(c, pl.map[code], X.leegEerder()); if(a.porties.some(x => x.dest === 'VST' && (x.n || 0) > 0)){ best = { c, code }; break; } } }catch(e){} });
+        if(!best) return { geen:true };
+        const c = best.c, oud = c.data.herkomst, auto = X.herkomst(c); let eu = null, terug = null;
+        try{ c.data.herkomst = 'eu'; X.wist(); const pl = X.pools(c), a = X.adviesKern(c, pl.map[best.code], X.leegEerder()); eu = { vst:a.porties.filter(x => x.dest === 'VST').length, uitleg:/Europese levering/.test(a.uitleg), isEU:X.isEU(c), som:a.porties.reduce((s, x) => s + (x.soort === 'pallet' ? x.n * x.per : x.n), 0) };
+          if(oud === undefined) delete c.data.herkomst; else c.data.herkomst = oud; X.wist(); const a2 = X.adviesKern(c, X.pools(c).map[best.code], X.leegEerder()); terug = a2.porties.some(x => x.dest === 'VST'); }
+        finally { if(oud === undefined) delete c.data.herkomst; else c.data.herkomst = oud; X.wist(); }
+        return { id:c.id, code:best.code, auto, eu, terug }; });
+      check('D81', '§7 Europese leveringen (basis 23-11): alles naar het hoofdmagazijn, niets naar VST; herkomst per levering (Container / Europees), handmatig VST = gele melding',
+        (r.geen || (r.eu && r.eu.vst === 0 && r.eu.uitleg && r.eu.isEU && r.terug)) && /data-herk="1"/.test(cp) && /EU_MELDING = 'Europees: niets naar VST'/.test(cp) && /isEU\(c\) && x\.dest === 'VST'/.test(cp),
+        JSON.stringify(r));
+    }
   }
   /* ---------- D63: onmogelijke maten en gewichten (Daan 23-11): melding, en zonder bevestiging niet opgeslagen ---------- */
   if(doe('D63')){

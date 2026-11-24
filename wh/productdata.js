@@ -284,7 +284,12 @@ function oudeWaarde(code, k){
   }
   return null;
 }
-const pdWaarde = (code, k) => { if(S.toets && S.toets.code === code && S.toets.k === k) return null; const r = S.pd[code]; return r && r.data && !leeg(r.data[k]) ? String(r.data[k]) : null; };
+const pdWaarde = (code, k) => {
+  if(S.toets && S.toets.code === code && S.toets.k === k) return null; const r = S.pd[code]; if(!r || !r.data) return null;
+  // basis 23-11: bij verkoop per cm of meter staat alleen de volle rol (kgrol) en zijn lengte (rolm) in productdata; kg per cm/meter wordt hier berekend
+  if(k === 'kgst' && leeg(r.data.kgst) && num(r.data.kgrol) > 0 && num(r.data.rolm) > 0){ const e = eenheid(code).e; if(e === 'cm' || e === 'm'){ const v = num(r.data.kgrol) / (num(r.data.rolm) * (e === 'cm' ? 100 : 1)); return v > 0 ? String(Math.round(v * 1e5) / 1e5) : null; } }
+  return !leeg(r.data[k]) ? String(r.data[k]) : null;
+};
 function plaatsOpt(v){
   const n = num(v); if(n === null) return String(v);
   return PLAATSEN.reduce((b, x) => Math.abs(num(x) - n) < Math.abs(num(b) - n) ? x : b, PLAATSEN[0]);
@@ -879,6 +884,20 @@ function zoekFilter(codes){
 const inList = codes => encodeURIComponent(codes.map(c => '"' + String(c).replace(/"/g, '\\"') + '"').join(','));
 async function opslaan(wijz, bron){
   // wijz = { code: { veld: waarde } }; leeg = veld weghalen
+  // basis 23-11: gewicht per cm/meter wordt nooit opgeslagen. Een kg per cm/meter (oude pagina's) wordt de volle rol (kgrol) met de lengte van die rol
+  // (rolm); zonder bekende lengte niet opgeslagen.
+  let zonderLengte = 0;
+  Object.keys(wijz).forEach(c => {
+    const w = wijz[c], x = w && w.kgst; if(x === undefined) return;
+    const v = num(x && typeof x === 'object' ? x.v : x), e = eenheid(c).e; if(!(v > 0) || (e !== 'cm' && e !== 'm')) return;
+    let L = num(((S.pd[c] || {}).data || {}).rolm); if(!(L > 0)){ try{ L = window.PD2R ? PD2R.rolL(c) : null; }catch(er){ L = null; } }
+    delete w.kgst;
+    if(!(L > 0)){ zonderLengte++; return; }
+    const rol = String(Math.round(v * L * (e === 'cm' ? 100 : 1) * 1000) / 1000);
+    w.kgrol = x && typeof x === 'object' ? Object.assign({}, x, { v:rol }) : rol; w.rolm = String(L);
+    if(!leeg(((S.pd[c] || {}).data || {}).kgst)) w.kgst = '';
+  });
+  if(zonderLengte){ try{ WH.toast(zonderLengte + ' gewicht' + (zonderLengte > 1 ? 'en' : '') + ' per cm/meter niet opgeslagen: weeg een volle rol en vul de lengte van die rol in (Productdata 2.0)', 7000); }catch(e){} }
   const codes = Object.keys(wijz).filter(c => Object.keys(wijz[c]).length);
   if(!codes.length) return 0;
   // onmogelijke maten en gewichten (Daan 23-11) bij wat Daan zelf invult: melding, en zonder bevestiging niets opslaan

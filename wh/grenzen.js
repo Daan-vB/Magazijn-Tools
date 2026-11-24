@@ -13,7 +13,7 @@
     rdia:{ t:'Diameter volle rol', e:'cm', min:5, max:300 },
     maat:{ t:'Palletmaat', e:'cm', min:20, max:400 }   // per zijde
   };
-  G.kg = G.kgst; G.gewpal = G.gewicht;
+  G.kg = G.kgst; G.gewpal = G.gewicht; G.kgrol = G.rkg; G.rolm = G.rl;   // productdata: volle rol en lengte van die rol
   const getal = v => {
     if(v === null || v === undefined) return null;
     if(typeof v === 'number') return isFinite(v) ? v : null;

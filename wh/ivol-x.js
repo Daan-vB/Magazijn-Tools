@@ -11,7 +11,7 @@
    ===================================================================== */
 window.WHX = (function(){
 'use strict';
-const { $, esc, nf, D, isoDag, vandaag, toast } = WH;
+const { $, esc, nf, D, isoDag, vandaag, toast, num } = WH;
 const S = { later:new Set(), aanpas:false, fam:null, famUit:new Set(), famAanpas:false, pd:null, pdLaden:null, pdFout:null, dag:null, dagLaden:null, tab:'pd', zoek:'', gekozen:null, el:null, naam:'', rest:'' };
 const ik = () => { try{ return localStorage.getItem('ivol-ik') || 'Daan'; }catch(e){ return 'Daan'; } };
 const VELD = { opslag:'Soort', spp:'Stuks per pallet', pick:'Picklocatie', maxpick:'Max op pick', lvl:'Aanvullen bij', met:'Aanvullen met', geleverd:'Geleverd', mixgroep:'Mixgroep',
@@ -145,7 +145,7 @@ function famVan(c){
 const REGELT = { nietin2:'niet in Productdata 2.0 (picklocatie, aanvullen bij, vloernaam, mixgroep, plaatsen, …)', doos:'stuks per doos, doosmaat, inkoopverpakking: nooit vragen (§3)',
   sam:'SAM Europe: alleen picklocatie, bulklocaties, aanvulniveau (§6)', uitlopend:'Uitlopend: geen vragen (§3)', backorder:'Weg → Backorder: voorlopig wegfilteren (§3)', weg:'Weg: alleen het Weg-menu (§3)',
   pallet:'palletvragen alleen bij bewijs van pallets (§3)', soortnietbij:'hoort niet bij de soort (Pick: alleen max op pick; Bulk: geen max op pick)', rol:'rollen alleen als Daan ze als rol koos (§5)',
-  soorteerst:'soort eerst: gewicht en hoeveelheid pas na een bevestigde soort (§2)', later:'op later gezet' };
+  soorteerst:'soort eerst: gewicht en hoeveelheid pas na een bevestigde soort (§2)', later:'op later gezet', rollengte:'per cm/meter: gewicht pas als de lengte van de rol bekend is (volle rol ÷ lengte, basis 23-11)' };
 const DOOSK = new Set(['spd', 'doos', 'verp']);
 function vraagLijst(stat){
   const L = [], VO = Object.keys(PD2VRAAG), tel = r => { if(stat) stat[r] = (stat[r] || 0) + 1; };
@@ -168,6 +168,12 @@ function vraagLijst(stat){
       if(S.later.has(x.c + '|' + f.k)) return tel('later');
       // beantwoordt een regel het al (bijv. FWB van Hebei 50 per pallet): voorstel met reden "regel: …"
       let rv = null; try{ if(pk){ const w = (PD2R.info(x.c).vs || {})[f.k]; if(w && w.v && /^regel/.test(w.why || '')) rv = w; } }catch(e){}
+      // basis 23-11: bij verkoop per cm of meter vragen we de volle rol (kg per cm/meter wordt nooit bewaard); zonder lengte van de rol geen vraag
+      if(f.k === 'kgst' && pk && PD2R.perLengte(x.c)){
+        const pl = PD2R.perLengte(x.c), Lr = PD2R.rolL(x.c); if(!Lr) return tel('rollengte');
+        const per = num(rv ? rv.v : f.v), rol = per > 0 ? String(Math.round(per * Lr * pl.f * 10) / 10) : '';
+        return L.push({ c:x.c, k:f.k, v:rol, rolL:Lr, uit:(rv ? rv.why : f.uit || '') + (per > 0 ? ' (' + String(per).replace('.', ',') + ' kg ' + pl.t + ' × rol van ' + String(Lr).replace('.', ',') + ' m)' : ''), fam:famVan(x.c), ab:ab(x.c) });
+      }
       L.push({ c:x.c, k:f.k, v:rv ? String(rv.v) : f.v, uit:rv ? rv.why : f.uit, fam:famVan(x.c), ab:ab(x.c) });
     });
   });
@@ -226,6 +232,12 @@ async function pd2Zet(items){
     items.filter(x => x.c === c).forEach(({ k, v }) => {
       v = String(v ?? '').trim(); if(!v) return;
       const was = meta[k] && meta[k].tw ? ' (was schatting Claude' + (String(data[k]) !== v ? ': ' + data[k] : '') + ')' : '';
+      let pl = null; try{ pl = k === 'kgst' && window.PD2R ? PD2R.perLengte(c) : null; }catch(e){}
+      if(pl){   // basis 23-11: bij verkoop per cm of meter is de waarde de volle rol; kg per cm/meter wordt nooit bewaard
+        const Lr = PD2R.rolL(c); data.kgrol = v; meta.kgrol = { op:nu, bron:'pd2', uit:'Te controleren (3.0) door ' + ik() + ': volle rol' + was };
+        if(Lr){ data.rolm = String(Lr); meta.rolm = { op:nu, bron:'pd2', uit:'lengte van die rol' }; }
+        delete data.kgst; delete meta.kgst; return;
+      }
       data[k] = v; meta[k] = { op:nu, bron:'pd2', uit:'Te controleren (3.0) door ' + ik() + was };
       if(window.WHPD && WHPD.regelFout && WHPD.regelFout(c, k, v)) meta[k].rok = 1;
     });
@@ -279,7 +291,7 @@ function vraagHtml(){
   return `<div class="small muted x-nog">nog ${nf(L.length)} ${L.length === 1 ? 'vraag' : 'vragen'}</div>
     <div class="x-kaart x-vraag" data-code="${esc(q.c)}" data-k="${esc(q.k)}">
       <div><b>${esc(naamVan(q.c))}</b><div class="small muted"><span class="code">${esc(q.c)}</span>${feiten ? ' · ' + esc(feiten) : ''}</div></div>
-      <div class="x-q"><b>${esc(PD2VRAAG[q.k])}</b>: <b class="x-vs">${q.v ? esc(q.k === 'soort' ? soortTekst(q.v) : q.v) : 'geen voorstel'}</b>${reden ? ` <span class="x-why">— ${esc(reden)}</span>` : ''}</div>
+      <div class="x-q"><b>${esc(q.k === 'kgst' && q.rolL ? 'Gewicht volle rol van ' + String(q.rolL).replace('.', ',') + ' m (kg)' : PD2VRAAG[q.k])}</b>: <b class="x-vs">${q.v ? esc(q.k === 'soort' ? soortTekst(q.v) : q.v) : 'geen voorstel'}</b>${reden ? ` <span class="x-why">— ${esc(reden)}</span>` : ''}</div>
       ${q.k === 'soort' ? soortKnoppen(q) : `<label class="x-soortw small">soort: <select data-x2="soortwijzig" aria-label="Soort wijzigen">${soortOpties(soortVan(q.c))}</select></label>`}
       ${S.aanpas ? `<div class="x-acties"><input id="x-vin" value="${esc(q.v)}" aria-label="${esc(PD2VRAAG[q.k])}" autocomplete="off"><button class="x-btn ok" data-x="vopslaan">Opslaan</button></div>` : ''}
       <div class="x-acties">${q.v ? '<button class="x-btn ok" data-x="vklopt">Klopt</button><button class="x-btn" data-x="vtwijfel" title="Bewaren zoals voorgesteld en onthouden als twijfel (Te doen → Twijfels)">Twijfel</button>' : ''}${S.aanpas ? '' : '<button class="x-btn" data-x="vaanpas">Aanpassen</button>'}<button class="x-btn" data-x="vlater">Later</button>${fam.length > 1 ? `<button class="x-btn${S.fam === q.fam + '|' + q.k ? ' aan' : ''}" data-x="vfam" aria-expanded="${S.fam === q.fam + '|' + q.k}">geldt voor alle ${nf(fam.length)} in deze familie</button>` : ''}</div>

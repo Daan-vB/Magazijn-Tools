@@ -231,7 +231,8 @@ function volPallet(c){
   if(!PAL.includes(so)) return '';
   const sp = num((a.f && a.f.spp) || P.waarde(c, 'spp').v); if(!sp) return '';
   if(stg === 'tewegen') return 'volle pallet: berekend na wegen';
-  const kg = num(a.kg) > 0 ? num(a.kg) : stg === 'gewogen' ? g.kg : g.kg || g.pq;
+  const pl = P.perLengte(c), L = pl ? P.rolL(c) : null, getypt = num(a.kg) > 0 ? (pl ? (L ? num(a.kg) / (L * pl.f) : null) : num(a.kg)) : null;   // per cm/meter: getypt = volle rol
+  const kg = getypt || (stg === 'gewogen' ? g.kg : g.kg || g.pq);
   return kg > 0 && ['vertrouwd', 'gewogen'].includes(stg) ? 'volle pallet ' + nf(Math.ceil(sp * kg + 15)) + ' kg (berekend)' : '';
 }
 
@@ -253,7 +254,7 @@ function tekst(v, rijen){
   const m = meesteVoorstel(v, rijen), bev = esc(bevestigdTekst(v, rijen)), n = rijen.length, kort = s => esc(String(s || '').replace(/\s+/g, ' ').slice(0, 160));
   switch(v.t){
     case 'soort': return ['Welke soort ' + (n === 1 ? 'is dit product' : 'zijn deze ' + n) + '?', m ? 'Voorstel <b>' + esc(naamSoort(m.v)) + '</b>: ' + kort(m.why) + (m.n < n ? ' (' + m.n + ' van ' + n + ')' : '') + '.' + (bev ? ' ' + bev : '') : bev || 'Geen voorstel uit de data: kies zelf.'];
-    case 'gewicht': return ['Klopt het gewicht per stuk uit Picqer?', (m && m.why ? '<b>' + kort(m.why) + '</b>. ' : '') + 'Vertrouwd = Picqer klopt · te wegen = komt op de Weeglijst · gewogen = typ het echte gewicht. Gewicht = het product met zijn eigen verpakking (stoel in doos), nooit onze verzenddoos of -pallet.' + (bev ? ' ' + bev : '')];
+    case 'gewicht': return ['Klopt het gewicht per stuk uit Picqer?', (m && m.why ? '<b>' + kort(m.why) + '</b>. ' : '') + 'Vertrouwd = Picqer klopt · te wegen = komt op de Weeglijst · gewogen = typ het echte gewicht (bij verkoop per cm of meter: de volle rol; per cm/meter wordt nooit bewaard). Gewicht = het product met zijn eigen verpakking (stoel in doos), nooit onze verzenddoos of -pallet.' + (bev ? ' ' + bev : '')];
     case 'spp': return ['Hoeveel stuks per pallet?', m ? 'Voorstel per product uit <b>' + kort(m.why) + '</b>. Tik een getal om het aan te passen.' + (bev ? ' ' + bev : '') : bev || 'Geen voorstel uit de data: typ per product het aantal.'];
     case 'maat': return ['Welke palletmaat?', 'Jouw vaste maten' + (R().EIGEN_MATEN.length ? ' plus je eigen toegevoegde maten' : '') + '. Een nieuwe maat wordt meteen bewaard en staat er de volgende keer gewoon tussen.' + (m ? ' Voorstel: <b>' + kort(m.why) + '</b>.' : '') + (bev ? ' ' + bev : '')];
     case 'hoogte': return ['Hoe hoog is een volle pallet, incl. pallet?', 'Wordt naar boven afgerond op 10 cm. Hal A 20-locatie: max ± 140 cm.' + (m ? ' Voorstel uit <b>' + kort(m.why) + '</b>.' : '') + (bev ? ' ' + bev : '')];
@@ -332,7 +333,7 @@ function rijHtml(v, c){
   const P = R(), a = A(c), w = waarde(v, c), on = S.sel.on.has(c), keus = ['soort', 'gewicht', 'maat'].includes(v.t);
   let toon, inv = '';
   if(v.t === 'soort') toon = w.v === 'weg' ? 'Weg · ' + (wegVan(c) ? naamWeg(wegVan(c)) : '?') : w.v ? naamSoort(w.v) : 'kies soort';
-  else if(v.t === 'gewicht'){ toon = naamGew(w.v) + (w.v !== 'gewogen' && num(a.kg) > 0 ? ' · ' + fmt(a.kg) + ' kg' : ''); if(w.v === 'gewogen') inv = `<span class="waarde zelf kg"><input data-kg="${esc(c)}" inputmode="decimal" value="${fmt(a.kg || P.gewicht(c).kg)}" placeholder="kg" aria-label="gewogen kg ${esc(c)}"><small>kg</small></span>`; }
+  else if(v.t === 'gewicht'){ toon = naamGew(w.v) + (w.v !== 'gewogen' && num(a.kg) > 0 ? ' · ' + fmt(a.kg) + ' kg' : ''); if(w.v === 'gewogen'){ const pl = P.perLengte(c), g = P.gewicht(c); inv = `<span class="waarde zelf kg"><input data-kg="${esc(c)}" inputmode="decimal" value="${fmt(a.kg || (pl ? g.gk : g.kg))}" placeholder="kg" aria-label="gewogen kg ${pl ? 'volle rol' : ''} ${esc(c)}"><small>${pl ? 'kg volle rol' : 'kg'}</small></span>`; } }
   else if(v.t === 'maat') toon = w.v || 'kies maat';
   else { toon = w.v == null ? '' : fmt(w.v) + (v.t === 'hoogte' ? ' cm' : v.t === 'rl' ? ' m' : '');
     if(w.v == null) inv = `<span class="waarde leeg"><input data-num="${esc(c)}" inputmode="${v.t === 'rl' ? 'decimal' : 'numeric'}" placeholder="typ" aria-label="${esc(c)}"></span>`; }
@@ -420,8 +421,10 @@ function bewaar(v, c){
     return;
   }
   if(v.t === 'gewicht'){
-    const g = P.gewicht(c), stg = w.v, kg = num(A(c).kg) > 0 && stg !== 'tewegen' ? num(A(c).kg) : g.pq > 0 ? g.pq : null;
-    P.poZet(c, p => { delete p.heropend; p.gew = Object.assign({ st:stg, t }, kg ? { kg } : {}); });
+    // bij verkoop per cm of meter is het getypte gewicht de volle rol (basis 23-11: kg per cm/meter wordt nooit bewaard)
+    const g = P.gewicht(c), stg = w.v, getypt = num(A(c).kg) > 0 && stg !== 'tewegen' ? num(A(c).kg) : null;
+    const gw = getypt ? P.gewInvoer(c, stg, getypt) : Object.assign({ st:stg }, g.pq > 0 ? { kg:g.pq } : {});
+    P.poZet(c, p => { delete p.heropend; p.gew = Object.assign({ t }, gw); });
     return;
   }
   const vs = I.vs && I.vs[v.t], voor = vs && vs.v !== undefined && vs.v !== '' ? String(vs.v) : '', val = String(w.v);
@@ -600,7 +603,7 @@ function prodHtml(c){
       const opts = t === 'maat' ? P.matenVoor(c).map(m => [m, m]) : t === 'soort' ? SOORTEN : GEWST;
       ctrl = `<div class="chips ${t === 'maat' ? 'maten' : ''}">${opts.map(([k, tx]) => `<button type="button" class="chip ${w.v === k ? (w.zelf ? 'on' : 'voor') : ''}" data-pk="${t}|${esc(k)}">${esc(tx)}</button>`).join('')}${t === 'maat' ? (S.nieuweMaat ? `<span class="chip on nieuw"><input id="dl-nieuwemaat" inputmode="text" placeholder="bijv. 120 x 210" aria-label="nieuwe palletmaat"><button type="button" id="dl-maatok">Bewaar</button></span>` : `<button type="button" class="chip" id="dl-maatnieuw">+ Nieuwe maat</button>`) : ''}</div>`;
       if(t === 'soort' && w.v === 'weg') ctrl += `<div class="sub">${WEG.map(([k, tx]) => `<button type="button" class="chip ${wegVan(c) === k ? 'on' : ''}" data-pweg="${k}">Weg · ${tx}</button>`).join('')}</div>`;
-      if(t === 'gewicht'){ ctrl += `<div class="tip">Picqer ${P.gewicht(c).pq > 0 ? fmt(P.gewicht(c).pq) + ' kg' : 'heeft geen gewicht'}</div>`; if(w.v === 'gewogen') ctrl += `<span class="waarde zelf kg"><input data-kg="${esc(c)}" inputmode="decimal" value="${fmt(a.kg || P.gewicht(c).kg)}" placeholder="kg" aria-label="gewogen kg"><small>kg</small></span>`; }
+      if(t === 'gewicht'){ ctrl += `<div class="tip">Picqer ${P.gewicht(c).pq > 0 ? fmt(P.gewicht(c).pq) + ' kg' + (P.perLengte(c) ? ' ' + P.perLengte(c).t : '') : 'heeft geen gewicht'}</div>`; if(w.v === 'gewogen'){ const pl = P.perLengte(c), g = P.gewicht(c); ctrl += `<span class="waarde zelf kg"><input data-kg="${esc(c)}" inputmode="decimal" value="${fmt(a.kg || (pl ? g.gk : g.kg))}" placeholder="kg" aria-label="gewogen kg${pl ? ' volle rol' : ''}"><small>${pl ? 'kg volle rol' + (P.rolL(c) ? ' (' + fmt(P.rolL(c)) + ' m)' : '') : 'kg'}</small></span>`; } }
     } else ctrl = `<span class="waarde ${w.zelf ? 'zelf' : ''} ${w.v == null ? 'leeg' : ''}"><input data-num="${esc(c)}" data-t="${t}" inputmode="${t === 'rl' ? 'decimal' : 'numeric'}" value="${esc(fmt(w.v))}" placeholder="typ" aria-label="${esc(NAAM[t])}">${t === 'hoogte' ? ' cm' : t === 'rl' ? ' m' : ''}</span>`;
     h += `<div class="veld"><p class="vraag" style="font-size:1.125rem">${esc(vtekst[t])}</p>${ctrl}<button type="button" class="chip kleinchip" data-vergt="${t}">Vergelijkbare producten ${S.vergT === t ? '▴' : '▾'}</button>${S.vergT === t ? vergHtml(c, t) : ''}</div>`;
   });
@@ -729,7 +732,7 @@ function koppel(){
     if(!mag() || !e.target.closest || !e.target.closest('.dl')) return;
     const d = e.target.dataset || {}, v = S.pad[S.i];
     if(d.sel){ if(e.target.checked) S.sel.on.add(d.sel); else S.sel.on.delete(d.sel); teken(); return; }
-    if(d.kg){ const x = e.target.value.trim().replace(',', '.'); if(x === '') delete A(d.kg).kg; else if(!isNaN(+x) && +x > 0){ A(d.kg).kg = +x; A(d.kg).gst = 'gewogen'; const grens = window.WHGRENS ? WHGRENS.onmogelijk('kgst', +x) : null; S.melding = grens ? grens + ' Bij Klopt vraag ik of het toch klopt.' : ''; } else S.melding = 'Gewicht moet een getal zijn, bijv. 19,5.'; teken(); return; }
+    if(d.kg){ const x = e.target.value.trim().replace(',', '.'); if(x === '') delete A(d.kg).kg; else if(!isNaN(+x) && +x > 0){ A(d.kg).kg = +x; A(d.kg).gst = 'gewogen'; const grens = window.WHGRENS ? WHGRENS.onmogelijk(R().perLengte(d.kg) ? 'rkg' : 'kgst', +x) : null; S.melding = grens ? grens + ' Bij Klopt vraag ik of het toch klopt.' : ''; } else S.melding = 'Gewicht moet een getal zijn, bijv. 19,5.'; teken(); return; }
     if(d.num){ zetGetal(d.t ? { t:d.t, f:v.f } : v, d.num, e.target.value); return; }
     if(e.target.id === 'dl-not'){ bewaarNotitie(v.f.fk + '|' + v.t, e.target.value); }
   });

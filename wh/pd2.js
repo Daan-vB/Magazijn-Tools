@@ -21,7 +21,7 @@ const TABT = Object.fromEntries(TABS);
 const SEGS = [['open', 'Open'], ['afgerond', 'Afgerond']];
 const STAPPEN = [['soort', '1 Soort'], ['gewicht', '2 Gewicht'], ['hoev', '3 Hoeveelheid']];
 const SCOPES = [['belangrijk', 'Belangrijk'], ['AB', 'A+B'], ['beweegt', 'Alles dat beweegt'], ['binnen', 'Komt binnen'], ['voorraad', 'Alles met voorraad']];
-const UI = { el:null, scope:ls('scope') || 'belangrijk', zoek:'', lev:'', afd:'', hal:'', deel:'', abc:'', filterOpen:false,
+const UI = { el:null, scope:ls('scope') || 'belangrijk', zoek:'', lev:'', afd:'', hal:'', deel:'', abc:'', hc:'', filterOpen:false,
   doel:null, doelRest:'', vstap:'', vuit:new Set(), vaan:new Set(), vwijz:{}, fk:null, mk:null, seg:'open', stap:'soort', view:null, wegAlle:null, sel:new Set(), undo:null, n:40, famN:30, lastK:{},
   weegKlaar:new Set(), rolOpen:{}, oefenen:ls('oefenen') === '1', oef:(() => { try{ return JSON.parse(ls('oef') || '') || { set:'pallet', i:0 }; }catch(e){ return { set:'pallet', i:0 }; } })() };
 const now = () => new Date().toISOString();
@@ -53,7 +53,7 @@ const zoekTreft = (c, q) => { const p = D.P[c] || {}; let g = ''; try{ g = R.gro
 let BC = { key:null, v:null };
 // producten die de familielijst bepalen (scope of zoeken, plus de filters)
 function basisCodes(zonder){
-  const key = [UI.scope, UI.zoek, zonder === 'lev' ? '' : UI.lev, UI.afd, UI.hal, UI.deel, UI.abc, R.S.dataVer, zonder || ''].join('|');
+  const key = [UI.scope, UI.zoek, zonder === 'lev' ? '' : UI.lev, UI.afd, UI.hal, UI.deel, UI.abc, UI.hc, R.S.dataVer, zonder || '', UI.hc ? JSON.stringify(R.S.o.hc || {}) : ''].join('|');
   if(BC.key === key) return BC.v;
   const q = UI.zoek.trim().toLowerCase().split(/\s+/).filter(Boolean);
   let cs = Object.keys(D.P).filter(R.actief);
@@ -63,6 +63,7 @@ function basisCodes(zonder){
   // drie hallen: A, B, C (C met gedeelte C en D); er is geen hal D
   if(UI.hal) cs = cs.filter(c => { const h = R.halVan(gangVan(c)); return !!h && h.hal === UI.hal && (!UI.deel || h.deel === UI.deel); });
   if(UI.abc) cs = cs.filter(c => (R.abcVan(R.koppelVan(c) || c) || '–') === UI.abc);
+  if(UI.hc) cs = cs.filter(c => (R.hoofdcat(c).v || 'geen') === UI.hc);   // basis 23-11: 5 hoofdcategorieën
   BC = { key, v:cs };
   return cs;
 }
@@ -484,10 +485,14 @@ function wegMenu(c, I){
 function gewVraag(c, I){
   const so = R.status(c).so;
   if(I.sam || R.ZONDERGEWICHT.has(so)) return `<div class="pd2-vraag"><div class="u">Geen gewicht nodig${R.ZONDERGEWICHT.has(so) ? ' bij ' + esc(R.SOORTT[so]) : ''}.</div></div>`;
-  const g = R.gewicht(c), e = R.isRol(c) ? R.eenheid(c).e : '', eh = e === 'm' ? 'per meter' : e === 'cm' ? 'per cm' : R.isRol(c) ? 'per rol' : 'per stuk';
+  const g = R.gewicht(c), pl = R.perLengte(c), e = R.isRol(c) ? R.eenheid(c).e : '', eh = pl ? 'volle rol' : e === 'rol' || R.isRol(c) ? 'per rol' : 'per stuk';
   const kn = (v, t) => `<button class="pd2-mini${g.st === v ? ' aan' : ''}" data-a="gewst" data-v="${v}" aria-pressed="${g.st === v}">${t}</button>`;
-  return `<div class="pd2-vraag"><div class="pd2-gw"><label class="pd2-q" for="pd2-kg-${esc(c)}">Gewicht (kg ${eh})</label><span class="kg"><input id="pd2-kg-${esc(c)}" class="pd2-in${g.st === 'gewogen' || g.st === 'vertrouwd' ? ' ok' : g.pq ? ' vsel' : ''}" data-a="gewkg" value="${g.gk ? esc(String(g.gk)) : ''}" placeholder="${g.pq ? esc(nf(g.pq, 3)) : ''}" inputmode="decimal" autocomplete="off" aria-label="Gewicht in kg ${eh}"${g.pq ? ` title="Picqer ${esc(nf(g.pq, 3))} kg"` : ''}></span>
-    <span class="knopjes">${kn('gewogen', 'gewogen')}${kn('vertrouwd', 'vertrouwd')}${kn('tewegen', 'te wegen')}</span></div><div class="u">Het product met zijn eigen verpakking (stoel in doos), nooit onze verzenddoos of -pallet.</div></div>`;
+  // basis 23-11: bij verkoop per cm of meter de volle rol wegen en de lengte van die rol erbij; kg per cm/meter wordt berekend, nooit bewaard
+  const L = pl ? (g.rl || R.rolL(c)) : null, ph = pl ? (g.pq && L ? nf(Math.round(g.pq * L * pl.f * 10) / 10, 1) : '') : g.pq ? nf(g.pq, 3) : '';
+  const lengte = pl ? `<label class="u" for="pd2-rl-${esc(c)}" style="display:inline-flex;align-items:center;gap:.4rem;white-space:nowrap">rol van <input id="pd2-rl-${esc(c)}" class="pd2-in" style="width:4.5rem" data-a="gewrl" value="${L ? esc(String(L)) : ''}" inputmode="decimal" autocomplete="off" aria-label="Lengte van die rol in meter"> m</label>` : '';
+  const reken = pl ? (g.rol && L ? nf(g.rol, 1) + ' kg ÷ ' + nf(L) + ' m = ' + nf(g.rol / (L * pl.f), pl.e === 'cm' ? 4 : 3) + ' kg ' + pl.t + ' (berekend). ' : '') + 'Gewicht ' + pl.t + ' wordt nooit bewaard: weeg een volle rol. ' + (g.pq ? 'Picqer: ' + nf(g.pq, 4) + ' kg ' + pl.t + '. ' : '') : '';
+  return `<div class="pd2-vraag"><div class="pd2-gw"><label class="pd2-q" for="pd2-kg-${esc(c)}">Gewicht (kg ${eh})</label><span class="kg"><input id="pd2-kg-${esc(c)}" class="pd2-in${g.st === 'gewogen' || g.st === 'vertrouwd' ? ' ok' : g.pq ? ' vsel' : ''}" data-a="gewkg" value="${g.gk ? esc(String(g.gk)) : ''}" placeholder="${esc(ph)}" inputmode="decimal" autocomplete="off" aria-label="Gewicht in kg ${eh}"${g.pq ? ` title="Picqer ${esc(nf(g.pq, pl ? 4 : 3))} kg${pl ? ' ' + pl.t : ''}"` : ''}></span>${lengte}
+    <span class="knopjes">${kn('gewogen', 'gewogen')}${kn('vertrouwd', 'vertrouwd')}${kn('tewegen', 'te wegen')}</span></div><div class="u">${esc(reken)}Het product met zijn eigen verpakking (stoel in doos), nooit onze verzenddoos of -pallet.</div></div>`;
 }
 
 /* stap 3: hoeveelheid (Pick en Mix: max op pick; Pallet, Deel en Bulk: stuks per pallet, palletmaat, hoogte; rol: lengte en max rollen) */
@@ -520,12 +525,13 @@ function afRij(c){
 }
 
 /* ---------- scherm 1: start ---------- */
-function filterN(){ return [UI.lev, UI.afd, UI.hal, UI.deel, UI.abc].filter(Boolean).length + (UI.scope !== 'belangrijk' ? 1 : 0); }
+function filterN(){ return [UI.lev, UI.afd, UI.hal, UI.deel, UI.abc, UI.hc].filter(Boolean).length + (UI.scope !== 'belangrijk' ? 1 : 0); }
 function filtersHtml(){
   const cs = basisCodes('lev'), levs = [...new Set(cs.map(c => String((D.P[R.koppelVan(c) || c] || {}).leverancier || '')).filter(Boolean))].sort();
   const all = basisCodes(), gangenAlle = [...new Set(all.map(gangVan).filter(g => R.halVan(g)))].sort(), hallen = [...new Set(gangenAlle.map(g => R.halVan(g).hal))].sort(), gangen = gangenAlle.filter(g => !UI.hal || (R.halVan(g).hal === UI.hal && (!UI.deel || R.halVan(g).deel === UI.deel)));
   return `<div class="pd2-filters"><div class="pd2-seg klein" role="group" aria-label="Welke producten">${SCOPES.map(([k, t]) => `<button data-a="scope" data-v="${k}" class="${UI.scope === k && !UI.zoek ? 'aan' : ''}">${esc(t)}</button>`).join('')}</div>
-    <div class="pd2-selrij"><select class="pd2-in" data-f="lev" aria-label="Leverancier"><option value="">Alle leveranciers</option>${levs.concat(UI.lev && !levs.includes(UI.lev) ? [UI.lev] : []).map(l => `<option ${l === UI.lev ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
+    <div class="pd2-selrij"><select class="pd2-in" data-f="hc" aria-label="Hoofdcategorie"><option value="">Alle hoofdcategorieën</option>${R.HOOFDCAT.concat([['geen', 'Nog niet ingedeeld']]).map(([k, t]) => `<option value="${k}" ${k === UI.hc ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
+    <select class="pd2-in" data-f="lev" aria-label="Leverancier"><option value="">Alle leveranciers</option>${levs.concat(UI.lev && !levs.includes(UI.lev) ? [UI.lev] : []).map(l => `<option ${l === UI.lev ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
     <select class="pd2-in" data-f="afd" aria-label="Afdeling"><option value="">Alle afdelingen</option>${gangen.concat(UI.afd && !gangen.includes(UI.afd) ? [UI.afd] : []).map(g => `<option ${g === UI.afd ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select>
     <select class="pd2-in" data-f="hal" aria-label="Hal"><option value="">Alle hallen</option>${hallen.map(h => `<option value="${esc(h)}" ${h === UI.hal ? 'selected' : ''}>Hal ${esc(h)}</option>`).join('')}</select>
     ${UI.hal === 'C' ? `<select class="pd2-in" data-f="deel" aria-label="Gedeelte"><option value="">Hal C: beide gedeelten</option>${['C', 'D'].map(d => `<option value="${d}" ${d === UI.deel ? 'selected' : ''}>Gedeelte ${d}</option>`).join('')}</select>` : ''}
@@ -534,7 +540,7 @@ function filtersHtml(){
 function famRijen(){
   const L = families(), toon = L.slice(0, UI.famN);
   if(!L.length) return '<div class="pd2-leeg">Geen families met deze zoekopdracht of filters.</div>';
-  return toon.map(f => `<button class="pd2-fam${f.af === f.n ? ' klaar' : ''}" data-a="fam" data-v="${esc(f.fk)}"><span class="kn"><b>${esc(f.naam)}</b><span class="u">${f.gnaam ? 'groep ' + esc(f.gnaam) + ' · ' : esc(f.lev) + ' · '}${mv(f.n, 'product', 'producten')} · ${mv(f.maten, 'maat', 'maten')}</span></span><span class="n">${f.af === f.n ? '<span class="v">✓ klaar</span>' : nf(f.open) + ' open'}</span></button>`).join('')
+  return toon.map(f => `<button class="pd2-fam${f.af === f.n ? ' klaar' : ''}" data-a="fam" data-v="${esc(f.fk)}"><span class="kn"><b>${esc(f.naam)}</b><span class="u">${f.gk ? esc(R.hoofdcatGroep(f.gk).t) + ' · ' : ''}${f.gnaam ? 'groep ' + esc(f.gnaam) + ' · ' : esc(f.lev) + ' · '}${mv(f.n, 'product', 'producten')} · ${mv(f.maten, 'maat', 'maten')}</span></span><span class="n">${f.af === f.n ? '<span class="v">✓ klaar</span>' : nf(f.open) + ' open'}</span></button>`).join('')
     + (L.length > toon.length ? `<button class="knop pd2-meer" data-a="fammeer">Meer families (${nf(L.length - toon.length)})</button>` : '');
 }
 function startHtml(){
@@ -558,7 +564,9 @@ function famKop(){
   const inkm = {}; cs.forEach(c => R.inkomend(c).forEach(x => { const k = x.ref + '|' + x.eta; inkm[k] = inkm[k] || { ref:x.ref, eta:x.eta }; }));
   const ink = Object.values(inkm).sort((a, b) => String(a.eta).localeCompare(String(b.eta)));
   const lev = String((D.P[cs[0]] || {}).leverancier || UI.fk.split('|')[0]), maten = new Set(cs.map(R.maatVan)).size, kop = famAlle(UI.fk).length - cs.length;
-  return `<div class="kn"><h2>${esc(R.famNaam(UI.fk))}</h2><div class="u">${esc(lev)} · ${mv(cs.length, 'product', 'producten')} · ${mv(maten, 'maat', 'maten')}${kop ? ' · ' + mv(kop, 'gekoppeld product', 'gekoppelde producten') + ' (niet invullen)' : ''}</div>
+  const gk = R.groepVanFam(UI.fk).k, hc = R.hoofdcatGroep(gk);   // basis 23-11: hoofdcategorie per groep (voorstel, Daan kan kiezen)
+  const hcSel = `<label class="u pd2-hc">Hoofdcategorie <select class="pd2-in" data-hc="${esc(gk)}" aria-label="Hoofdcategorie van groep ${esc(R.groepVanFam(UI.fk).naam)}"><option value="">${hc.bron === 'gekozen' ? 'voorstel' : esc(hc.v ? hc.t + ' (voorstel)' : 'nog niet ingedeeld')}</option>${R.HOOFDCAT.map(([k, t]) => `<option value="${k}" ${hc.bron === 'gekozen' && hc.v === k ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`;
+  return `<div class="kn"><h2>${esc(R.famNaam(UI.fk))}</h2>${hcSel}<div class="u">${esc(lev)} · ${mv(cs.length, 'product', 'producten')} · ${mv(maten, 'maat', 'maten')}${kop ? ' · ' + mv(kop, 'gekoppeld product', 'gekoppelde producten') + ' (niet invullen)' : ''}</div>
       <div class="u">Verkoop ${nf(v6)}*6 / ${nf(v28)}*28 · ABC A ${abc.A} · B ${abc.B} · C ${abc.C}${ink.length ? ' · inkomend ' + esc(ink.slice(0, 2).map(x => x.ref + (x.eta ? ' (ETA ' + dk(x.eta) + ')' : '')).join(', ')) + (ink.length > 2 ? ' +' + (ink.length - 2) : '') : ''}</div></div>
     <div class="pd2-vg"><span class="balk"><i style="width:${pct}%"></i></span><span>${nf(af)} van ${nf(cs.length)} afgerond</span></div>
     <div class="u" id="pd2-live">${liveRegel(blokCodes())}</div>`;
@@ -632,15 +640,15 @@ function weegHtml(){
       const cs = per[h][g][l], klaar = cs.filter(c => R.gewicht(c).st !== 'tewegen').length;
       return `<div class="pd2-wloc"><b class="m">${esc(l)}</b> <span class="u">${mv(cs.length, 'product', 'producten')} · ${klaar === cs.length ? '<span class="v">locatie klaar ✓</span>' : nf(klaar) + ' van ' + nf(cs.length) + ' klaar'}</span></div>` + cs.map(c => {
         const gw = R.gewicht(c), w = weegWijze(c), af = gw.st !== 'tewegen';
-        return `<div class="pd2-wrij${af ? ' af' : ''}" data-c="${esc(c)}"><div class="kn"><b>${esc(R.naamVan(c))}</b><div class="u"><span class="m">${esc(c)}</span> · ${w.reach ? 'reachtruck ÷ ' + nf(w.spp) : 'weegschaal'}${gw.pq ? ' · Picqer ' + esc(kgTxt(gw.pq)) : ''}</div></div>
-          <div class="in">${af ? `<span class="v">✓ ${esc(nf(gw.kg, 3))} kg${gw.via ? ' (pallet ' + nf(gw.pallet) + ' kg)' : ''}</span>` : `<input class="pd2-in" data-a="gewogen" inputmode="decimal" placeholder="kg per stuk" aria-label="Gewogen kg per stuk ${esc(c)}">${w.reach ? `<input class="pd2-in" data-a="palletkg" inputmode="decimal" placeholder="kg pallet" aria-label="Palletgewicht ${esc(c)}">` : ''}`}</div></div>`; }).join(''); }).join('')}`).join('')}`).join('')}</section>`;
+        return `<div class="pd2-wrij${af ? ' af' : ''}" data-c="${esc(c)}"><div class="kn"><b>${esc(R.naamVan(c))}</b><div class="u"><span class="m">${esc(c)}</span> · ${w.reach ? 'reachtruck ÷ ' + nf(w.spp) : R.perLengte(c) ? 'volle rol' + (R.rolL(c) ? ' van ' + nf(R.rolL(c)) + ' m' : '') : 'weegschaal'}${gw.pq ? ' · Picqer ' + esc(kgTxt(gw.pq)) : ''}</div></div>
+          <div class="in">${af ? `<span class="v">✓ ${gw.rol ? 'volle rol ' + esc(nf(gw.rol, 1)) : esc(nf(gw.kg, 3))} kg${gw.via ? ' (pallet ' + nf(gw.pallet) + ' kg)' : ''}</span>` : `<input class="pd2-in" data-a="gewogen" inputmode="decimal" placeholder="${R.perLengte(c) ? 'kg volle rol' : 'kg per stuk'}" aria-label="Gewogen kg ${R.perLengte(c) ? 'volle rol' : 'per stuk'} ${esc(c)}">${w.reach ? `<input class="pd2-in" data-a="palletkg" inputmode="decimal" placeholder="kg pallet" aria-label="Palletgewicht ${esc(c)}">` : ''}`}</div></div>`; }).join(''); }).join('')}`).join('')}`).join('')}</section>`;
 }
 function weegPrint(){
   const per = weegGroepen(), d = new Date();
   let vak = document.getElementById('pd2-printvak'); if(!vak){ vak = document.createElement('div'); vak.id = 'pd2-printvak'; document.body.appendChild(vak); }
   vak.innerHTML = `<h1>Weeglijst · ${esc(d.toLocaleDateString('nl-NL'))}</h1><p><b>Reachtruck-regel:</b> ${esc(REACH)}</p>
     ${Object.keys(per).sort().map(h => `<h2>${esc(h)}</h2>${Object.keys(per[h]).sort().map(g => `<h3>Gang ${esc(g)}</h3><table><thead><tr><th>Locatie</th><th>Code</th><th>Product</th><th>Wegen</th><th>Picqer kg</th><th>Gewogen kg</th><th>Pallet kg</th></tr></thead><tbody>
-      ${Object.keys(per[h][g]).sort().map(l => per[h][g][l].filter(c => R.gewicht(c).st === 'tewegen').map(c => { const w = weegWijze(c), gw = R.gewicht(c); return `<tr><td>${esc(l)}</td><td>${esc(c)}</td><td>${esc(R.naamVan(c).slice(0, 60))}</td><td>${w.reach ? 'reachtruck ÷ ' + nf(w.spp) : 'weegschaal'}</td><td>${gw.pq ? nf(gw.pq, 3) : ''}</td><td class="vak"></td><td class="vak">${w.reach ? '' : '—'}</td></tr>`; }).join('')).join('')}
+      ${Object.keys(per[h][g]).sort().map(l => per[h][g][l].filter(c => R.gewicht(c).st === 'tewegen').map(c => { const w = weegWijze(c), gw = R.gewicht(c); return `<tr><td>${esc(l)}</td><td>${esc(c)}</td><td>${esc(R.naamVan(c).slice(0, 60))}</td><td>${w.reach ? 'reachtruck ÷ ' + nf(w.spp) : R.perLengte(c) ? 'volle rol' + (R.rolL(c) ? ' van ' + nf(R.rolL(c)) + ' m' : '') : 'weegschaal'}</td><td>${gw.pq ? nf(gw.pq, 3) : ''}</td><td class="vak"></td><td class="vak">${w.reach ? '' : '—'}</td></tr>`; }).join('')).join('')}
     </tbody></table>`).join('')}`).join('')}`;
   document.documentElement.classList.add('pd2-print');
   const klaar = () => { document.documentElement.classList.remove('pd2-print'); window.removeEventListener('afterprint', klaar); };
@@ -919,6 +927,7 @@ function infoModal(c){
   kols.forEach(k => { const d = R.VELD[k]; if(d.calc){ const x = R.calc(c, k, I); r.push(`<li><b>${esc(d.t)}</b> (berekend): ${esc(x.v || '–')} — ${esc(x.why || '')}${x.warn ? ' · ' + esc(x.warn) : ''}</li>`); return; }
     const w = R.waarde(c, k, I); r.push(`<li><b>${esc(d.t)}</b>: ${esc(w.v || '–')} <span class="u">(${esc(w.st)})</span>${w.why ? ' — ' + esc(w.why) : ''}${w.voor && w.st === 'aangepast' ? ' · voorstel was ' + esc(w.voor) : ''}${esc(scoreTxt(w))}</li>`); });
   const g = R.gewicht(c), afw = R.gewAfwijking(c);
+  { const lv = R.leveringen(c); if(lv.length) r.push(`<li><b>Levering per leverancier</b>: ${lv.map(x => esc(x.lev) + ' — ' + esc(R.leverTekst(x))).join(' · ')}</li>`); }   // basis 23-11
   if(/^fwb/i.test(c)) r.push(`<li><b>Foamrand</b>: ${R.foamrand(c) ? 'ja (FWB van Hebei vanaf 90x150)' : 'nee (alleen FWB van Hebei vanaf 90x150)'}</li>`);
   r.push(`<li><b>Gewicht per stuk</b>: ${g.kg ? nf(g.kg, 3) + ' kg' : 'onbekend'} (${esc(g.st)}${g.pq ? ', Picqer ' + nf(g.pq, 3) + ' kg' : ''})${afw ? ' — ' + esc(afw) : ''}</li>`);
   modal(`<h3>${esc(c)} — waarom deze voorstellen</h3><p class="u">${esc(R.naamVan(c))}</p><ul>${r.join('')}</ul>
@@ -963,11 +972,11 @@ function wegKeuzeModal(){
   modal(`<h3>Weg voor ${nf(UI.sel.size)} producten</h3><label>Waarom weg? <select id="pd2-wk">${R.WEG.map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('')}</select></label>`, m => { selSoort('weg', m.querySelector('#pd2-wk').value); }, 'Toepassen');
 }
 function gewPopModal(){
-  modal(`<h3>Gewicht voor ${nf(UI.sel.size)} producten</h3><label>Gewicht per stuk (kg) <input id="pd2-gp" inputmode="decimal" placeholder="bijv. 1,2"></label><div class="knopjes"><button class="pd2-mini aan" data-gst="gewogen">gewogen</button><button class="pd2-mini" data-gst="vertrouwd">vertrouwd</button><button class="pd2-mini" data-gst="tewegen">te wegen</button></div>`, m => {
+  modal(`<h3>Gewicht voor ${nf(UI.sel.size)} producten</h3><label>Gewicht per stuk (kg) <input id="pd2-gp" inputmode="decimal" placeholder="bijv. 1,2"></label><div class="u">Bij verkoop per cm of meter: het gewicht van de volle rol (per cm/meter wordt nooit bewaard).</div><div class="knopjes"><button class="pd2-mini aan" data-gst="gewogen">gewogen</button><button class="pd2-mini" data-gst="vertrouwd">vertrouwd</button><button class="pd2-mini" data-gst="tewegen">te wegen</button></div>`, m => {
     const kg = num(m.querySelector('#pd2-gp').value), st = (m.querySelector('[data-gst].aan') || {}).dataset.gst || 'gewogen';
     if(st === 'tewegen'){ const cs = selLijst(); groep(cs, c => R.poZet(c, p => { p.gew = { st:'tewegen', kg:null, t:now() }; }), 'Gewicht te wegen voor ' + nf(cs.length)); meld('gewpop', {}); return; }
     if(!(kg > 0)){ WH.toast('Typ een gewicht in kg', 2500); return false; }
-    groep(selLijst(), c => R.poZet(c, p => { p.gew = { st, kg, t:now() }; }), 'Gewicht ' + nf(kg, 3) + ' kg (' + st + ') voor ' + nf(UI.sel.size));
+    groep(selLijst(), c => R.poZet(c, p => { p.gew = Object.assign({ t:now() }, R.gewInvoer(c, st, kg)); }), 'Gewicht ' + nf(kg, 3) + ' kg (' + st + ') voor ' + nf(UI.sel.size));
     meld('gewpop', {});
   }, 'Toepassen');
   document.querySelectorAll('.pd2-modal [data-gst]').forEach(b => b.addEventListener('click', ev => { ev.stopPropagation(); document.querySelectorAll('.pd2-modal [data-gst]').forEach(x => x.classList.toggle('aan', x === b)); }));
@@ -1111,9 +1120,9 @@ function klik(ev){
     case 'soortkies': return zetSoort(c, a.dataset.v);
     case 'gewst': {
       const v = a.dataset.v, g = R.gewicht(c), inp = kaart.querySelector('[data-a="gewkg"]'), kg = num(inp && inp.value);
-      if(v === 'gewogen'){ if(kg > 0) zetGew(c, { st:'gewogen', kg }); else if(g.gk) zetGew(c, { st:'gewogen', kg:g.gk }); else { WH.toast('Typ eerst het gewogen gewicht in kg', 2500); if(inp) inp.focus(); return; } }
+      if(v === 'gewogen'){ if(kg > 0) zetGew(c, R.gewInvoer(c, 'gewogen', kg)); else if(g.gk) zetGew(c, R.gewInvoer(c, 'gewogen', g.gk)); else { WH.toast('Typ eerst het gewogen gewicht in kg', 2500); if(inp) inp.focus(); return; } }
       else if(g.st === v) zetGew(c, null);
-      else zetGew(c, { st:v, kg:v === 'tewegen' ? null : (kg > 0 ? kg : (g.pq > 0 ? g.pq : null)) });   // vertrouwd: de Picqer-kg van nu vastleggen
+      else zetGew(c, v === 'tewegen' ? { st:v, kg:null } : kg > 0 ? R.gewInvoer(c, v, kg) : { st:v, kg:g.pq > 0 ? g.pq : null });   // vertrouwd: de Picqer-kg van nu vastleggen (per cm/meter: omgerekend naar de volle rol)
       meld('gewst', { st:v }); if(UI.view === 'rolcheck') setTimeout(teken, 0); return;
     }
     case 'rol': { const v = a.dataset.v === '1', wasAf = R.status(c).af; R.poZet(c, p => { p.rol = { v, t:now() }; }); meld('rol', { v }); na([c], wasAf, true); return; }
@@ -1142,6 +1151,7 @@ function koppel(){
   });
   document.addEventListener('change', ev => {
     const t = ev.target; if(!t.closest || !t.closest(BINNEN)) return;
+    if(t.dataset.hc !== undefined){ R.hcZet(t.dataset.hc, t.value); WH.toast('Hoofdcategorie ' + (R.HCT[t.value] || 'voorstel') + ' voor de hele groep', 2500); teken(); return; }
     if(t.dataset.f){ UI[t.dataset.f] = t.value; if(t.dataset.f === 'hal'){ UI.deel = ''; UI.afd = ''; } UI.famN = 30; teken(); return; }
     if(t.dataset.fb){ R.fbTab(t.closest('[data-tab]').dataset.tab, { [t.dataset.fb]:t.value }); return; }
     const a2 = t.dataset.a2;
@@ -1153,13 +1163,21 @@ function koppel(){
     }
     const kaart = t.closest('[data-c]'); if(!kaart) return;
     const c = kaart.dataset.c, k = t.dataset.k;
-    if(t.dataset.a === 'gewkg'){ const kg = num(t.value); if(!t.value.trim()){ const g = R.gewicht(c); if(g.st === 'gewogen') zetGew(c, null); return; } if(!(kg > 0)){ WH.toast('Typ het gewicht in kg', 2500); return; } zetGew(c, { st:'gewogen', kg }); meld('gewst', { st:'gewogen' }); return; }
+    if(t.dataset.a === 'gewkg'){ const kg = num(t.value); if(!t.value.trim()){ const g = R.gewicht(c); if(g.st === 'gewogen') zetGew(c, null); return; } if(!(kg > 0)){ WH.toast('Typ het gewicht in kg', 2500); return; } zetGew(c, R.gewInvoer(c, 'gewogen', kg)); meld('gewst', { st:'gewogen' }); return; }
+    if(t.dataset.a === 'gewrl'){   // lengte van de gewogen rol (basis 23-11): ook de lengte volle rol van het product
+      const L = num(t.value); if(!(L > 0)){ WH.toast('Typ de lengte van die rol in meter', 2500); return; }
+      const wasAf = R.status(c).af, w = R.waarde(c, 'rl'), voor = w && w.st !== 'aangepast' && w.v ? String(w.v) : '';
+      R.poZet(c, p => { p.f.rl = { v:String(L), st:voor && num(voor) === L ? 'bevestigd' : 'aangepast', voor, t:now() }; if(p.gew) p.gew = Object.assign({}, p.gew, { rl:L }); });
+      na([c], wasAf); return;
+    }
     if(t.dataset.a === 'gewogen' || t.dataset.a === 'palletkg'){
       let kg = num(t.value), extra = {};
       if(t.dataset.a === 'palletkg'){ const w = weegWijze(c); if(!(kg > 15) || !w.reach){ WH.toast('Typ het palletgewicht in kg (meer dan 15)', 2500); return; } extra = { via:'reachtruck', pallet:kg }; kg = Math.round((kg - 15) / w.spp * 1000) / 1000; }
       if(!(kg > 0)){ WH.toast('Typ het gewogen gewicht in kg', 2500); return; }
-      R.poZet(c, p => { p.gew = Object.assign({ st:'gewogen', kg, t:now() }, extra); }); UI.weegKlaar.add(c); meld('gewogen', {});
-      WH.toast(c + ': ' + nf(kg, 3) + ' kg per stuk gewogen' + (extra.via ? ' (pallet ' + nf(extra.pallet) + ' kg)' : ''), 2500); teken(); return;
+      const pl = R.perLengte(c), gw = extra.via ? Object.assign({ st:'gewogen', kg }, extra) : R.gewInvoer(c, 'gewogen', kg);
+      if(R.poZet(c, p => { p.gew = Object.assign({ t:now() }, gw); }) === false) return;
+      UI.weegKlaar.add(c); meld('gewogen', {});
+      WH.toast(c + ': ' + (pl && !extra.via ? 'volle rol ' + nf(kg, 1) + ' kg' : nf(kg, 3) + ' kg per stuk') + ' gewogen' + (extra.via ? ' (pallet ' + nf(extra.pallet) + ' kg)' : ''), 2500); teken(); return;
     }
     if(!k) return;
     if(k === 'soort') return zetSoort(c, t.value);

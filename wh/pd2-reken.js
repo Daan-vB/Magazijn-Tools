@@ -190,10 +190,10 @@ function flush(){
           const r = await WH.catHaal(KEY_OEFEN); d = normO(r && r.data);
           if(d.gewist && S.o.gewist && d.gewist > S.o.gewist){ /* op een ander apparaat gewist: dat gaat voor */ }
           vuil.forEach(c => { if(S.o.p[c]) d.p[c] = S.o.p[c]; else delete d.p[c]; });
-          if(meta){ d.mg = [...new Set((d.mg || []).concat(S.o.mg || []))].filter(m => (S.o.mgWeg || []).indexOf(m) < 0); Object.keys(S.o.oef).forEach(t => { d.oef[t] = Object.assign({}, d.oef[t] || {}, S.o.oef[t]); }); }
+          if(meta){ d.mg = [...new Set((d.mg || []).concat(S.o.mg || []))].filter(m => (S.o.mgWeg || []).indexOf(m) < 0); Object.keys(S.o.oef).forEach(t => { d.oef[t] = Object.assign({}, d.oef[t] || {}, S.o.oef[t]); }); d.hc = Object.assign({}, d.hc || {}, S.o.hc || {}); }
           // wat op een ander apparaat bewaard is komt hier ook binnen
           Object.keys(d.p).forEach(c => { if(!vuil.has(c) && !S.vuil.has(c) && JSON.stringify(S.o.p[c]) !== JSON.stringify(d.p[c])){ S.o.p[c] = d.p[c]; ongeldig(c); } });
-          S.o.mg = d.mg.slice(); S.o.oef = d.oef;
+          S.o.mg = d.mg.slice(); S.o.oef = d.oef; if(d.hc) S.o.hc = Object.assign({}, d.hc);
         }
         d.t = new Date().toISOString(); delete d.mgWeg;
         await schrijf(KEY_OEFEN, d);
@@ -232,11 +232,17 @@ function poZet(c, fn){
   fn(p);
   if(p.so && p.so.v === 'weg' && p.weg && p.weg.v === 'backorder'){ p.so = Object.assign({}, p.so, { v:'backorder' }); delete p.weg; }   // oude vorm Weg · Backorder → Backorder
   maxPallet(c, p, oud);
+  // gewicht per cm/meter nooit opslaan (basis 23-11): alleen de volle rol en zijn lengte
+  if(p.gew && !zelfde(p.gew, oud.gew)){
+    const n = gewNorm(c, p.gew);
+    if(n === false){ try{ WH.toast('Niet opgeslagen: weeg een volle rol en vul de lengte van die rol in (gewicht per cm/meter wordt nooit bewaard)', 6000); }catch(e){} ongeldig(c); return false; }
+    p.gew = n;
+  }
   const merk = x => { if(!x || typeof x !== 'object') return; if(S.oefenen) x.oef = 1; else delete x.oef; };
   const veranderd = Object.keys(Object.assign({}, p.f, oud.f)).filter(k => !zelfde(p.f[k], oud.f[k])).map(k => 'f.' + k).concat(['so', 'weg', 'gew', 'rol'].filter(k => !zelfde(p[k], oud[k])));
   // onmogelijke maten en gewichten (Daan 23-11): melding, en zonder bevestiging niet opslaan (de oude waarde blijft staan)
   if(window.WHGRENS){
-    const m = veranderd.map(k => { if(k.startsWith('f.')){ const kk = k.slice(2), x = p.f[kk]; return WHGRENS.onmogelijk(kk, x && typeof x === 'object' ? x.v : x); } return k === 'gew' && p.gew ? WHGRENS.onmogelijk('kgst', p.gew.kg) : null; }).filter(Boolean);
+    const m = veranderd.map(k => { if(k.startsWith('f.')){ const kk = k.slice(2), x = p.f[kk]; return WHGRENS.onmogelijk(kk, x && typeof x === 'object' ? x.v : x); } return k === 'gew' && p.gew ? (num(p.gew.rol) > 0 ? WHGRENS.onmogelijk('rkg', p.gew.rol) : WHGRENS.onmogelijk('kgst', p.gew.kg)) : null; }).filter(Boolean);
     if(m.length && !WHGRENS.bevestig(m)){ try{ WH.toast('Niet opgeslagen: ' + m[0], 6000); }catch(e){} ongeldig(c); return false; }
   }
   Object.keys(p.f).forEach(k => { if(!zelfde(p.f[k], oud.f[k])) merk(p.f[k]); });
@@ -250,7 +256,7 @@ function poZet(c, fn){
 function twWaarde(c, veld){
   try{
     if(veld === 'soort'){ const so = soortWaarde(c); return so.v === 'weg' ? 'weg · ' + (wegWaarde(c).v || '') : (SOORTT[so.v] || so.v || ''); }
-    if(veld === 'gewicht'){ const g = gewicht(c); return g.st + (g.kg ? ' · ' + String(g.kg).replace('.', ',') + ' kg' : ''); }
+    if(veld === 'gewicht'){ const g = gewicht(c); return g.st + (g.rol ? ' · volle rol ' + String(g.rol).replace('.', ',') + ' kg' : g.kg ? ' · ' + String(g.kg).replace('.', ',') + ' kg' : ''); }
     if(veld === 'hoev') return nodigVan(c, soortWaarde(c).v).map(k => (VELD[k] ? VELD[k].t : k) + ' ' + (waarde(c, k).v || '–')).join(' · ');
     const w = waarde(c, veld); return w.v == null ? '' : String(w.v);
   }catch(e){ return ''; }
@@ -303,8 +309,14 @@ function pdWijz(c, p, keys){
       else if(echtOk(so) && so.v === 'weg' && echtOk(p.weg) && p.weg.v === 'uitlopend') w.uitlopend = (p.weg.t || new Date().toISOString()).slice(0, 10);
       else if(!echtOk(so) && pdBron('opslag') === 'pd2') w.opslag = '';
     } else if(key === 'gew'){
-      const g = p.gew;
-      if(g && !g.oef && g.st === 'tewegen') w.kgst = 'onb';
+      const g = p.gew, pl = perLengte(c), heeft = k => !leeg((r.data || {})[k]);
+      if(pl){   // per cm/meter (basis 23-11): alleen de volle rol (kgrol) en de lengte van die rol (rolm), nooit kg per cm/meter
+        if(g && !g.oef && g.st === 'tewegen'){ w.kgst = 'onb'; if(heeft('kgrol')) w.kgrol = ''; }
+        else if(g && !g.oef && ['gewogen', 'vertrouwd'].includes(g.st) && num(g.rol) > 0){ w.kgrol = g.st === 'gewogen' ? { v:String(num(g.rol)), gew:1 } : String(num(g.rol)); if(num(g.rl) > 0) w.rolm = String(num(g.rl)); if(heeft('kgst')) w.kgst = ''; }
+        else if(g && !g.oef && g.st === 'vertrouwd'){ if(heeft('kgst') && pdBron('kgst') === 'pd2') w.kgst = ''; if(heeft('kgrol') && pdBron('kgrol') === 'pd2') w.kgrol = ''; }   // Picqer vertrouwd, lengte onbekend
+        else if(!g){ if(pdBron('kgst') === 'pd2') w.kgst = ''; if(pdBron('kgrol') === 'pd2'){ w.kgrol = ''; w.rolm = ''; } }
+      }
+      else if(g && !g.oef && g.st === 'tewegen') w.kgst = 'onb';
       else if(g && !g.oef && ['gewogen', 'vertrouwd'].includes(g.st) && num(g.kg) > 0) w.kgst = g.st === 'gewogen' ? { v:String(num(g.kg)), gew:1 } : String(num(g.kg));
       else if(!g && pdBron('kgst') === 'pd2') w.kgst = '';
     }
@@ -364,7 +376,7 @@ function herstel(){
     let raak = false;
     const st = status(c);
     if(st.af && !(p.so && p.so.v) && st.so){ p.so = { v:st.so, st:'bevestigd', voor:st.so, bron:'herstel', t:new Date().toISOString() }; raak = true; }
-    if(p.gew && ['vertrouwd', 'gewogen'].includes(p.gew.st) && !(num(p.gew.kg) > 0)){ const kg = kgPq(c); if(kg > 0){ p.gew.kg = kg; p.gew.bron = 'herstel'; raak = true; } }
+    if(p.gew && ['vertrouwd', 'gewogen'].includes(p.gew.st) && !(num(p.gew.kg) > 0) && !perLengte(c)){ const kg = kgPq(c); if(kg > 0){ p.gew.kg = kg; p.gew.bron = 'herstel'; raak = true; } }
     if(raak){ S.vuil.add(c); ongeldig(c); n++; }
   });
   if(n){ S.herstelN = n; plan(); }
@@ -480,6 +492,44 @@ function groepIndex(){
 }
 const groepVanFam = fk => groepIndex()[fk] || { k:'?|' + fk, naam:famNaam(fk), lev:'', hw:'' };
 const groepVan = c => groepVanFam(famVan(c));
+/* ---------- hoofdcategorieën (basis 23-11): voorlopig alleen 5 (Rubber, Kantoor, Huis en tuin, Auto, Sport/fitness). Bestaande groepen en families
+   blijven werkgroepen tot Daan ze samen uitwerkt. Voorstel per groep (leverancier + hoofdwoord): de meeste producten van de groep volgens de woorden in
+   de naam, anders de leverancier; Daan kan het per groep kiezen (S.o.hc[groep]). Zonder voorstel: "nog niet ingedeeld". */
+const HOOFDCAT = [['rubber', 'Rubber'], ['kantoor', 'Kantoor'], ['huistuin', 'Huis en tuin'], ['auto', 'Auto'], ['sport', 'Sport/fitness']];
+const HCT = Object.fromEntries(HOOFDCAT);
+const HC_NAAM = [
+  ['auto', /automat|autostoel|autohoes|kofferbak|wieldop|privacy ?shade|sidebar|side ?step|pushbar|rearbar|rollbar|frontbar|roofrail|dakdrager|xenon|ballast|lambdasonde|uitlaat|ruitensproeier|tankdop|disselslot|stuurslot|pedaalslot|fietsendrager|hondenrek|bestelwagen|fuseekogel|instaplijst|stoelhoes|sparco|trekhaak|spatlap|grille|lampenbar|bumper|cattlebar|bullbar|sneeuwketting|könig|stuurwiel|vonkspoel|skid ?plate|carpoint/],
+  ['sport', /sprinttrack|sportvloer|kettlebell|dumbbell|fitness|yoga|bokszak|bokshandschoen|badminton|zwemvest|bodyboard|forzafit|halter|gewichtsschijf|crossfit|\bski(?:'s|s)?\b|skihelm|skibril|skischoen|snowboard/],
+  ['kantoor', /whiteboard|prikbord|krijtbord|glassboard|glasbord|flipover|bureaustoel|vergaderstoel|werkstoel|bureau|akoestisch|scheidingswand|magneet|magneten|magnetisch|magnetic|planbord|planner|marker|tabletkar|laptopkar|laptopkast|archiefkast|lockerkast|locker|ladeblok|kabelgoot|kabellade|tekentafel|gamestoel|opzetwand|kappersstoel|pinboard|memo/],
+  ['huistuin', /deurmat|schoonloopmat|droogloopmat|borstelmat|vloerkleed|trapmaantje|trapmat|trapleuning|trapprofiel|kokos|waterhog|buitenmat|grindmat|gravel|plantenbak|kliko|kunsthaag|kunstgras|tafelzeil|badmat|paraplubak|opstapkruk|ladder|eetkamerstoel|tapijt|tuin|vliegengordijn|kattenluik|hordeur|bamboe/],
+  ['rubber', /rubber|epdm|ringmat|stalmat|\bnbr\b|neopre/]
+];
+const HC_LEV = [
+  ['auto', /tepper|misutonida|q-tech|pearl-automotive|race auto|plus power|daken|ceradex|saxon|parveen|imbema|kleinmetall|service best|streetwize|jestic/],
+  ['sport', /schreuders sport|stockz|qingdao todo|sail & surf|miltex/],
+  ['kantoor', /smit visual|sam europe|legamaster|red sun|selected furniture|hebei haijie|zhengzhou aucs|rocada|projectchair|schaffenburg|euroseats|velto|foshan bonai|precise electronic|dutchcreen|edding|studiovix|besteel|floortex|coba europe|staedtler|kingshadow|sanders magnets/],
+  ['huistuin', /hamat|mountville|vica international|bera bv|pam almelo|gardenya|wicotex|house nordic|quality heating|gj floors/],
+  ['rubber', /rubberselect|mfl group|alfaflex|green tyre|dolphin rubber|granuflex|dri rubber|wallace/]
+];
+function hcVoorstel(c){
+  const n = naamVan(c).toLowerCase(); for(const [v, re] of HC_NAAM) if(re.test(n)) return v;
+  const lev = String((D.P[koppelVan(c) || c] || {}).leverancier || '').toLowerCase(); for(const [v, re] of HC_LEV) if(re.test(lev)) return v;
+  return '';
+}
+let HCG = { ver:null, m:null };
+function hcGroepen(){
+  if(HCG.m && HCG.ver === S.dataVer) return HCG.m;
+  const tel = {};
+  Object.keys(D.P).forEach(c => { if(!actief(c) || isKoppel(c)) return; let g; try{ g = groepVan(c); }catch(e){ return; } const v = hcVoorstel(c); if(!v) return; const t = (tel[g.k] = tel[g.k] || {}); t[v] = (t[v] || 0) + 1; });
+  const m = {}; Object.entries(tel).forEach(([gk, t]) => { m[gk] = Object.entries(t).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0]; });
+  HCG = { ver:S.dataVer, m }; return m;
+}
+function hoofdcatGroep(gk){
+  const k = S.o && S.o.hc && S.o.hc[gk]; if(k && HCT[k]) return { v:k, t:HCT[k], bron:'gekozen' };
+  const v = hcGroepen()[gk] || ''; return v ? { v, t:HCT[v], bron:'voorstel' } : { v:'', t:'Nog niet ingedeeld', bron:'' };
+}
+function hoofdcat(c){ let g = null; try{ g = groepVan(c); }catch(e){} return g ? hoofdcatGroep(g.k) : { v:'', t:'Nog niet ingedeeld', bron:'' }; }
+function hcZet(gk, v){ S.o.hc = Object.assign({}, S.o.hc || {}, { [gk]:HCT[v] ? v : '' }); S.metaVuil = true; plan(); }
 function groepLeden(gk){ const uit = []; Object.entries(groepIndex()).forEach(([fk, g]) => { if(g.k === gk) uit.push(fk); }); return uit; }
 // drie hallen: A, B en C. Hal C heeft gedeelte C (gangen C..) en gedeelte D (gangen D..). Er is geen hal D (CLAUDE.md §5).
 function halVan(x){
@@ -726,7 +776,64 @@ function levGewicht(c){
   return l.length ? Object.assign({ n:l.length }, l[0]) : null;
 }
 function levKg(c){ let e = ''; try{ e = eenheid(c).e; }catch(x){} return e === 'cm' || e === 'm' ? null : levGewicht(c); }
+// gewicht per cm/meter wordt nooit opgeslagen (basis 23-11): bij verkoop per cm of meter bewaren we het gewicht van de volle rol (rol) en de
+// lengte van die rol in meter (rl); het gewicht per cm/meter = volle rol ÷ lengte, altijd berekend.
+function perLengte(c){ let e = ''; try{ e = eenheid(c).e; }catch(x){} return e === 'cm' || e === 'm' ? { e, f:e === 'cm' ? 100 : 1, t:e === 'cm' ? 'per cm' : 'per meter' } : null; }
+// lengte van de rol zonder info(): eigen lengte, uit de naam/Picqer/pakbon, of de kokosregel per leverancier
+function rolL(c){
+  const e = eigen(c, 'rl'), v = e ? nOf(e.v) : null; if(v > 0) return v;
+  try{ const n = lengteNaam(c); if(n && n.v > 0) return n.v; }catch(x){}
+  try{ if(isKokos(c)) return kokosLev(c).m; }catch(x){}
+  return null;
+}
+const r3 = x => Math.round(x * 1000) / 1000;
+// wat een invulveld betekent: bij per cm/meter is het getypte getal het gewicht van de volle rol, anders het gewicht per stuk
+function gewInvoer(c, st, x){
+  const pl = perLengte(c), n = num(x) > 0 ? num(x) : null, L = pl ? rolL(c) : null;
+  if(!pl) return n ? { st, kg:n } : { st };
+  return Object.assign({ st }, n ? { rol:n } : {}, L ? { rl:L } : {});
+}
+// vóór opslaan: een gewicht per eenheid (Picqer, kleurgenoot, reachtruck) bij per cm/meter omrekenen naar de volle rol; zonder lengte kan dat niet
+function gewNorm(c, g){
+  const pl = perLengte(c); if(!pl || !g || typeof g !== 'object') return g;
+  g = Object.assign({}, g);
+  if(g.st === 'tewegen'){ delete g.kg; return g; }
+  if(num(g.rol) > 0){ g.rol = r3(num(g.rol)); const L = num(g.rl) > 0 ? num(g.rl) : rolL(c); if(L) g.rl = L; else delete g.rl; delete g.kg; return g; }
+  if(num(g.kg) > 0){
+    const L = num(g.rl) > 0 ? num(g.rl) : rolL(c);
+    if(L){ g.rol = r3(num(g.kg) * L * pl.f); g.rl = L; delete g.kg; return g; }
+    if(g.st === 'vertrouwd'){ delete g.kg; return g; }   // Picqer vertrouwd zonder bekende lengte: niets per eenheid bewaren, Picqer blijft de bron
+    return false;
+  }
+  delete g.kg; return g;
+}
 const kgTxt = n => String(Math.round(n * 1000) / 1000).replace('.', ',');
+// leveringsgegevens per product + leverancier (basis 23-11): hoe het binnenkwam volgens de pakbonnen in Containers (vorm, stuks per doos of pallet,
+// omrekening/rollengte, bruto per verpakking, herkomst) en het aantal per opslagpallet per leverancier uit het productgeheugen. Alleen lezen.
+const levSleutel = s => String(s || '').toLowerCase().replace(/\b(b\.?v\.?|n\.?v\.?|gmbh|ltd\.?|co\.?|limited|company|s\.?r\.?o|sp\.? ?z ?o\.?o\.?|zrt\.?|inc\.?)\b/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim().split(' ').slice(0, 2).join(' ');
+const levGelijkR = (a, b) => !!a && !!b && levSleutel(a) === levSleutel(b);
+let LEVR = { ref:null, m:null };
+function leveringen(c){
+  if(LEVR.ref !== D.CONT){
+    const m = {};
+    (D.CONT || []).forEach(k => ((k.regels || (k.data && k.data.regels)) || []).forEach(r => {
+      if(!r || !r.productcode || !r.bevestigd || r.geenVoorraad) return;
+      const code = D.PLOW[String(r.productcode).toLowerCase()] || r.productcode, lev = k.leverancier || 'onbekend';
+      const x = ((m[code] = m[code] || {})[lev] = m[code][lev] || { lev, n:0, vorm:{}, laatste:'', herk:'' });
+      const per = num(r.per) || 1, f = num(r.factor) || 1, vorm = r.soort === 'pallet' ? 'pallet' : per > 1 ? 'doos' : 'los', s = vorm + '|' + per + '|' + f;
+      x.vorm[s] = (x.vorm[s] || 0) + 1; x.n++;
+      const d = String(k.losdatum || ''); if(d >= x.laatste){ x.laatste = d; x.herk = k.herkomst || (k.data && k.data.herkomst) || x.herk; if(num(r.bruto_per) > 0) x.kg = num(r.bruto_per); }
+    }));
+    LEVR = { ref:D.CONT, m };
+  }
+  const uit = Object.values(LEVR.m[c] || {}).map(x => { const b = Object.entries(x.vorm).sort((a, z) => z[1] - a[1])[0][0].split('|'); return { lev:x.lev, n:x.n, vorm:b[0], per:+b[1], factor:+b[2], laatste:x.laatste, herk:x.herk || '', kg:x.kg || null }; });
+  const g = ((D.GEH || {})[String(c).toLowerCase()] || [])[0], pl = (g && g.perlev) || {};
+  Object.entries(pl).forEach(([lev, v]) => { const n = num(v && typeof v === 'object' ? v.spp : v); if(!(n > 0)) return; let x = uit.find(y => levGelijkR(y.lev, lev)); if(!x){ x = { lev, n:0 }; uit.push(x); } x.spp = n; });
+  return uit.sort((a, z) => (z.n || 0) - (a.n || 0));
+}
+// stuks per opslagpallet voor een levering van deze leverancier: eigen aantal van die leverancier, anders het algemene aantal
+function sppLev(c, lev){ const x = leveringen(c).find(y => levGelijkR(y.lev, lev) && y.spp > 0); return x ? x.spp : null; }
+const leverTekst = x => [x.vorm === 'pallet' ? 'pallet à ' + nf(x.per * (x.factor || 1)) : x.vorm === 'doos' ? 'doos à ' + nf(x.per) + (x.factor > 1 ? ' × ' + nf(x.factor) : '') : x.factor > 1 ? 'los, ' + nf(x.factor) + ' per stuk' : x.vorm ? 'los' : '', x.n ? x.n + '× geleverd' : '', x.kg ? nf(x.kg) + ' kg bruto' : '', x.spp ? 'opslagpallet ' + nf(x.spp) : '', x.herk === 'eu' ? 'Europees' : x.herk === 'container' ? 'container' : ''].filter(Boolean).join(', ');
 function levWijkt(c){
   const g = gewicht(c), l = levKg(c); if(!l || g.st !== 'gewogen' || !(g.kg > 0)) return null;
   const d = Math.abs(g.kg - l.kg) / l.kg; if(d <= 0.1) return null;
@@ -734,11 +841,24 @@ function levWijkt(c){
     visie:'Jouw weging geldt (basis 23-11). Klopt de leverancier toch, pas het gewicht dan aan. Opnieuw wegen alleen als de verpakking of de leverancier verandert.', sig:'levkg|' + g.kg + '|' + l.kg };
 }
 function gewicht(c){
-  const p = po(c), pq = kgPq(c);
-  if(p && p.gew && p.gew.st) return { st:p.gew.st, kg:p.gew.st === 'gewogen' && num(p.gew.kg) > 0 ? num(p.gew.kg) : (num(p.gew.kg) > 0 ? num(p.gew.kg) : pq), pq, eigen:true, gk:num(p.gew.kg) || null, via:p.gew.via || '', pallet:num(p.gew.pallet) || null };
+  const p = po(c), pq = kgPq(c), pl = perLengte(c);
+  if(p && p.gew && p.gew.st){
+    const g = p.gew;
+    if(pl){   // volle rol bewaard; per cm/meter berekend (oude opslag per eenheid wordt gelezen en als volle rol getoond)
+      const L = num(g.rl) > 0 ? num(g.rl) : rolL(c), rol = num(g.rol) > 0 ? num(g.rol) : (num(g.kg) > 0 && L ? r3(num(g.kg) * L * pl.f) : null);
+      const per = rol && L ? rol / (L * pl.f) : num(g.kg) > 0 ? num(g.kg) : null;
+      return { st:g.st, kg:g.st !== 'tewegen' && per ? per : pq, pq, eigen:true, gk:rol || null, rol, rl:L, pl, oud:!(num(g.rol) > 0) && num(g.kg) > 0, via:g.via || '', pallet:num(g.pallet) || null };
+    }
+    return { st:g.st, kg:g.st === 'gewogen' && num(g.kg) > 0 ? num(g.kg) : (num(g.kg) > 0 ? num(g.kg) : pq), pq, eigen:true, gk:num(g.kg) || null, via:g.via || '', pallet:num(g.pallet) || null };
+  }
   const r = P().S.pd[c], m = r && r.meta && r.meta.kgst, v = r && r.data && r.data.kgst;
+  if(pl && r && r.data && num(r.data.kgrol) > 0){   // productdata: volle rol + lengte
+    const mr = (r.meta && r.meta.kgrol) || {}, L = num(r.data.rolm) > 0 ? num(r.data.rolm) : rolL(c), rol = num(r.data.kgrol);
+    if(DAANBRON.has(mr.bron || '') && !mr.tw) return { st:mr.gew ? 'gewogen' : 'vertrouwd', kg:L ? rol / (L * pl.f) : pq, pq, vast:true, rol, rl:L, pl, gk:rol };
+  }
   if(m && DAANBRON.has(m.bron || '') && !m.tw && !leeg(v)){
-    if(isOnb(v)) return { st:'tewegen', kg:pq, pq, vast:true };
+    if(isOnb(v)) return { st:'tewegen', kg:pq, pq, vast:true, pl };
+    if(pl){ const L = rolL(c), rol = num(v) > 0 && L ? r3(num(v) * L * pl.f) : null; return { st:m.gew ? 'gewogen' : 'vertrouwd', kg:num(v) || pq, pq, vast:true, rol, rl:L, pl, oud:true, gk:rol }; }
     return { st:m.gew ? 'gewogen' : 'vertrouwd', kg:num(v) || pq, pq, vast:true };
   }
   const l = levKg(c); if(l) return { st:'vertrouwd', kg:l.kg, pq, lev:l, bron:'leverancier' };   // gewicht van de leverancier = vertrouwd (basis 23-11)
@@ -1148,6 +1268,7 @@ function rolDiameter(c, I){
 }
 function rolKg(c, I){
   const e = eenheid(c).e, L = nOf(waarde(c, 'rl', I).v), g = gewicht(c), kv = vsKg(c), kg = g.st !== 'niet' ? g.kg : kv ? num(kv.v) : g.pq, bron = g.st !== 'niet' ? 'jouw gewicht' : kv ? kv.why : 'Picqer';
+  if((e === 'm' || e === 'cm') && g.st !== 'niet' && g.st !== 'tewegen' && g.rol > 0) return { v:Math.round(g.rol * 10) / 10, why:(g.st === 'gewogen' ? 'gewogen' : 'vertrouwd') + ': volle rol ' + nf(g.rol, 1) + ' kg' + (g.rl ? ' (rol van ' + nf(g.rl) + ' m)' : '') };   // basis 23-11: de volle rol is wat bewaard wordt
   if(e === 'rol' && kg > 0) return { v:Math.round(kg * 10) / 10, why:bron + ': ' + nf(kg, 1) + ' kg per rol' };
   if((e === 'm' || e === 'cm') && kg > 0 && L > 0) return { v:Math.round(kg * L * (e === 'cm' ? 100 : 1) * 10) / 10, why:nf(kg, 3) + ' kg per ' + e + ' (' + bron + ') × ' + nf(L) + ' m' };
   return null;
@@ -1741,7 +1862,9 @@ function overzetPlan(rows){
       else if(k === 'pickc'){ if(x.v === 'klopt') zet('pick', 'ja'); else if(x.v === 'geenpick') zet('pick', 'nee'); else if(x.v === 'moetpick') zet('pickkeuze', 'moet pick krijgen'); }
       else if(k === 'verp'){ const n = num((String(x.v).match(/^\s*(\d+(?:[.,]\d+)?)/) || [])[1]); if(n > 0) zet('spd', String(n)); }
     });
-    if(p.gew && p.gew.st === 'tewegen') zet('kgst', 'onb');
+    if(p.gew && perLengte(c) && ['gewogen', 'vertrouwd'].includes(p.gew.st) && num(p.gew.rol) > 0){ zet('kgrol', String(num(p.gew.rol)), p.gew.st === 'gewogen' ? { gew:1 } : null); if(num(p.gew.rl) > 0) zet('rolm', String(num(p.gew.rl))); }   // per cm/meter: volle rol (basis 23-11)
+    else if(p.gew && perLengte(c) && p.gew.st !== 'tewegen'){ /* per cm/meter zonder volle rol: niets per eenheid overzetten */ }
+    else if(p.gew && p.gew.st === 'tewegen') zet('kgst', 'onb');
     else if(p.gew && ['gewogen', 'vertrouwd'].includes(p.gew.st) && num(p.gew.kg) > 0) zet('kgst', String(num(p.gew.kg)), p.gew.st === 'gewogen' ? { gew:1 } : null);
   });
   return plan;
@@ -1818,7 +1941,7 @@ function telling(){
 return { S, AANNAMES, KEY_OEFEN, KEY_FB, laad, flush, plan, schrijf, po, poZet, poHerstel, twMark, twWeg, twVan, twLijst, twWaarde, wisAlles, oefDone, fbTab, fbOpm, fbOpmWeg, fbAann, mgPlus,
   koppelVan, isKoppel, koppelTekst, wegLicht, controle, maatRegel, vnRegel, sppUitBronnen, famVan, maatVan, maatNaam, maatGetallen, zelfdeMaat, kleurgenoten, groepVan, groepVanFam, groepLeden, hoofdwoord, levKort, halVan, halTekst, wensNorm, gangen, famNaam, isSam, naamVan, abcVan, actief, kgPq, vk6, vk28, vkBesteld, inkoop, backorders, inkomend, locInfo, som, anderOpPlek,
   VELD, SOORTEN, SOORTT, ZONDERVRAGEN, ZONDERGEWICHT, extraVan, grootAantal, foamrand, levGewicht, levKg, levWijkt, WEG, KOLOMMEN, NODIG, ROLNODIG, ROLVS, SAMVELD, MATEN, MATEN_WB, EIGEN_MATEN, OPSLAG_MATEN, matenVoor, voegMaatToe, maatSleutel, VERP, PICKC, GEWST, isNvt, isOnb, ingevuld, nOf,
-  eenheid, palletBewijs, selectedStoel, rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
+  HOOFDCAT, HCT, hcVoorstel, hoofdcat, hoofdcatGroep, hcZet, eenheid, perLengte, rolL, gewInvoer, gewNorm, leveringen, sppLev, leverTekst, levGelijkR, palletBewijs, selectedStoel, rolKand, isRol, rolBesl, rolVoorstel, gewicht, gewKlaar, gewAfwijking, eigen, waarde, soortWaarde, wegWaarde, info, calc, hoogteWaarsch, nodigVan, status,
   naControle, liggerVan, metVastePick, labelsVerbeteren, rolCheck, labelsGoed, verschil, verschilKies, herstel, pdFlush, PDQ,
   vraagLive, liveStatus, meet, meting, zetMeting, scoreVan, telStap, belangrijk, reden, bewezen, wachtOp, gewBewijs, kopieProductdata, STAPNAAM, pd2Overzetten, overzetPlan, overzetToepassen, overzetTerug, overzetEcht, toetsItems, TOETSVELD, SCORE_VOOR, telling, dataVers, ongeldig, capPick, meld, opNieuw:f => S.luister.push(f) };
 })();

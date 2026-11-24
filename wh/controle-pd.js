@@ -17,7 +17,7 @@ const { esc, nf, num } = WH;
 const R = () => window.PD2R;
 const KL = 'wh-controle-klopt', RE = 'wh-controle-reacties', SP = 'wh-controle-steekproef';
 const TABS = [['overzicht', 'Overzicht'], ['later', 'Later'], ['twijfels', 'Twijfels'], ['picklocaties', 'Picklocaties'], ['bulklocaties', 'Bulklocaties'], ['hercontrole', 'Hercontrole'], ['gewicht', 'Gewicht controleren'], ['tewegen', 'Te wegen'], ['aantal', 'Aantal per pallet']];
-const S = { klopt:{}, reacties:[], steek:null, klaar:false, p:null, memo:null, memoKey:'', f:{ hal:'', deel:'', gang:'' }, q:Promise.resolve(), uit:new Set(), aan:new Set(), open:new Set(), keuze:{}, wegOpen:new Set(), wijzig:new Set(), kg:{}, bezig:false, undo:null, undoT:null };
+const S = { klopt:{}, reacties:[], steek:null, klaar:false, p:null, memo:null, memoKey:'', hc:(() => { try{ return localStorage.getItem('cp-hc') || ''; }catch(e){ return ''; } })(), f:{ hal:'', deel:'', gang:'' }, q:Promise.resolve(), uit:new Set(), aan:new Set(), open:new Set(), keuze:{}, wegOpen:new Set(), wijzig:new Set(), kg:{}, bezig:false, undo:null, undoT:null };
 // soort volgens de blauwdruk (§8): Pick · Bulk · Deel · Pallet · Mix · Twijfel · Weg · Backorder; Weg = Uitlopend of Archief (09-11)
 const SOORTK = ['pick', 'bulk', 'deel', 'pallet', 'mix', 'twijfel', 'weg', 'backorder'];
 const SOORTT = { pick:'Pick', bulk:'Bulk', deel:'Deel', pallet:'Pallet', mix:'Mix', twijfel:'Twijfel', weg:'Weg', backorder:'Backorder' };
@@ -423,7 +423,8 @@ function famHtml(cat, f, o){
 function groepHtml(cat, gr, o){
   const sel = gr.items.filter(x => aan(cat, x)), n = gr.items.length, uitgevinkt = gr.items.filter(x => !aan(cat, x)), open = S.open.has(cat + '|' + gr.k);
   const kl = ['A', 'B', 'C'].filter(k => gr.items.some(x => x.abc === k)).join('/') || '–';
-  return `<section class="cp-grp" data-cat="${esc(cat)}" data-gk="${esc(gr.k)}"><div class="cp-gk"><h3>${esc(gr.naam)} <span class="cp-n">(${n})</span></h3><span class="cp-k">${esc(kl)} · ${mv(gr.fams.length, 'familie', 'families')}</span></div>
+  let hcT = ''; try{ hcT = R().hoofdcatGroep(gr.k).t; }catch(e){}
+  return `<section class="cp-grp" data-cat="${esc(cat)}" data-gk="${esc(gr.k)}"><div class="cp-gk"><h3>${esc(gr.naam)} <span class="cp-n">(${n})</span></h3><span class="cp-k">${hcT ? esc(hcT) + ' · ' : ''}${esc(kl)} · ${mv(gr.fams.length, 'familie', 'families')}</span></div>
     <div class="cp-gt">${esc(totaalTekst(totaal(gr.items.map(x => x.c)), staatNu(famCodes(gr.fams.map(f => f.fk)))))}</div>
     ${o.uitleg ? `<div class="cp-gu">${o.uitleg(gr, sel)}</div>` : ''}
     <div class="cp-sel"><span class="cp-sl">Selectie is:</span>${sel.length ? o.keuzes(gr, sel) : '<span class="muted klein">niets aangevinkt</span>'}</div>
@@ -431,12 +432,18 @@ function groepHtml(cat, gr, o){
     <details class="cp-det" data-open="${esc(cat + '|' + gr.k)}"${open ? ' open' : ''}><summary>Uitklappen: ${gr.fams.length > 1 ? mv(gr.fams.length, 'familie', 'families') + ', ' : ''}${mv(n, 'product', 'producten')} met de feiten · uitvinken voor uitzonderingen</summary>
     <div class="cp-rij">${knop('g-alle', 'Alles aanvinken', cat, gr.k)}${knop('g-geen', 'Alles uitvinken', cat, gr.k)}</div>${gr.fams.map(f => famHtml(cat, f, o)).join('')}</details></section>`;
 }
+// hoofdcategorie (basis 23-11): voorlopig alleen 5; filter over alle tabs (onthouden op dit apparaat)
+const hcVan = c => { try{ return R().hoofdcat(c).v || 'geen'; }catch(e){ return 'geen'; } };
+const hcFilt = items => S.hc ? items.filter(x => hcVan(x.c) === S.hc) : items;
+function hcBalk(){ let H = []; try{ H = R().HOOFDCAT; }catch(e){} return `<div class="cp-filter cp-hcf"><label>Hoofdcategorie <select data-cp-hc aria-label="Hoofdcategorie"><option value="">alle</option>${H.concat([['geen', 'Nog niet ingedeeld']]).map(([k, t]) => `<option value="${k}"${S.hc === k ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label></div>`; }
 function lijstHtml(cat, items, o){
+  items = hcFilt(items);
   if(!items.length) return `<p class="muted">${esc(o.leeg || 'Niets meer in deze tab.')}</p>`;
   return `<div class="cp-grps">${groepeer(items).map(gr => groepHtml(cat, gr, o)).join('')}</div>`;
 }
 // Klaar voor Picqer: werklijst per hal → gedeelte → gang, met "Wijzig"
 function werklijstHtml(titel, items, wat, wijzigActie){
+  items = hcFilt(items);
   if(!items.length) return '';
   const per = {};
   items.forEach(x => { const h = halVan(plekVan(x)) || { hal:'?', deel:'', gang:'?' }; const k = 'Hal ' + h.hal + (h.deel ? ' · gedeelte ' + h.deel : '') + ' · gang ' + h.gang; (per[k] = per[k] || []).push(x); });
@@ -486,8 +493,8 @@ function tabTeWegen(c){
   const l = filt(c.tewegen);
   const o = {
     sorteer:a => a.sort((x, y) => (x.loc || 'ZZZ').localeCompare(y.loc || 'ZZZ')),
-    uitleg:() => 'Binnen de familie op locatie (looproute). Typ het gewogen gewicht per stuk bij het product.',
-    rijExtra:x => `<div class="cp-kn"><label>kg per stuk <input data-cp-kg="${esc(x.c)}" inputmode="decimal" size="6" value="${esc(S.kg[x.c] || '')}" aria-label="gewogen kg ${esc(x.c)}"></label></div>`,
+    uitleg:() => 'Binnen de familie op locatie (looproute). Typ het gewogen gewicht per stuk bij het product; bij verkoop per cm of meter het gewicht van de volle rol (per cm/meter wordt nooit bewaard).',
+    rijExtra:x => { const pl = R().perLengte(x.c), L = pl ? R().rolL(x.c) : null; return `<div class="cp-kn"><label>${pl ? 'kg volle rol' + (L ? ' (' + esc(String(L).replace('.', ',')) + ' m)' : '') : 'kg per stuk'} <input data-cp-kg="${esc(x.c)}" inputmode="decimal" size="6" value="${esc(S.kg[x.c] || '')}" aria-label="gewogen kg ${pl ? 'volle rol' : 'per stuk'} ${esc(x.c)}"></label></div>`; },
     rijKnop:x => rknop('g-gewogen', 'Gewogen', 'tewegen', x.c, 'hoofd'),
     keuzes:(gr, sel) => `${knop('g-gewogen', 'Gewogen (ingevulde kg)', 'tewegen', gr.k, 'hoofd')}${sel.some(x => (R().gewicht(x.c).pq || 0) > 0) ? knop('g-vertrouwd', 'Vertrouwd (Picqer klopt)', 'tewegen', gr.k) : ''}${knop('g-later', 'Later', 'tewegen', gr.k)}`
   };
@@ -601,7 +608,7 @@ function html(tab){
   tab = TABS.some(x => x[0] === tab) ? tab : 'overzicht';
   if(S.tab !== tab){ S.tab = tab; S.f = { hal:'', deel:'', gang:'' }; }
   const nav = TABS.filter(([k]) => k === 'overzicht' || !t || t[k] > 0 || k === tab || (k === 'picklocaties' && cats() && cats().pickklaar.length) || (k === 'bulklocaties' && cats() && cats().bulkeraf.length)).map(([k, n]) => `<a class="cp-tab${tab === k ? ' aan' : ''}" href="#/todo/${k}">${esc(n)}${t && k !== 'overzicht' && t[k] ? ` <i>${nf(t[k])}</i>` : ''}</a>`).join('');
-  return `<nav class="cp-tabs" aria-label="Te doen">${nav}</nav><div class="cp-inh" id="cp-inh">${tabHtml(tab)}</div>`;
+  return `<nav class="cp-tabs" aria-label="Te doen">${nav}</nav>${tab !== 'overzicht' ? hcBalk() : ''}<div class="cp-inh" id="cp-inh">${tabHtml(tab)}</div>`;
 }
 
 /* ---------- gebeurtenissen: kiezen = meteen opslaan, met "Bewaard · ongedaan maken" ---------- */
@@ -658,7 +665,7 @@ async function doeActie(a, cat, sel, v, gk){
     if(!met.length){ WH.toast('Typ het gewogen gewicht per stuk (kg) bij het product', 3500); return; }
     const mc = met.map(y => y.x.c), terug = poTerug(mc); if(!(await kopie(mc))) return;
     // een onmogelijk gewicht (Daan 23-11) wordt zonder bevestiging niet opgeslagen: dat product blijft staan met zijn kg in het vak
-    const gelukt = met.filter(y => { const ok = P.poZet(y.x.c, p => { delete p.heropend; p.gew = { st:'gewogen', kg:y.kg, t:nu(), door:'Daan' }; }) !== false; if(ok) delete S.kg[y.x.c]; return ok; }); flush(); klaar();
+    const gelukt = met.filter(y => { const ok = P.poZet(y.x.c, p => { delete p.heropend; p.gew = Object.assign({ t:nu(), door:'Daan' }, P.gewInvoer(y.x.c, 'gewogen', y.kg)); }) !== false; if(ok) delete S.kg[y.x.c]; return ok; }); flush(); klaar();
     bewaard(mv(gelukt.length, 'product', 'producten') + ' gewogen' + (met.length > gelukt.length ? ' · ' + (met.length - gelukt.length) + ' niet opgeslagen (onmogelijk gewicht)' : '') + (met.length < sel.length ? ' · ' + (sel.length - met.length) + ' zonder kg blijven staan' : ''), terug); return;
   }
   if(a === 'g-vertrouwd'){ const met = sel.filter(x => (P.gewicht(x.c).pq || 0) > 0), mc = met.map(x => x.c); if(!met.length) return; const terug = poTerug(mc); if(!(await kopie(mc))) return; met.forEach(x => P.poZet(x.c, p => { delete p.heropend; p.gew = { st:'vertrouwd', kg:P.gewicht(x.c).pq, t:nu(), door:'Daan' }; })); flush(); klaar(); bewaard(mv(met.length, 'product', 'producten') + ' vertrouwd', terug); return; }
@@ -682,6 +689,7 @@ function koppel(){
   const binnen = el => document.getElementById('native') && document.getElementById('native').contains(el);
   document.addEventListener('change', async ev => {
     const t = ev.target; if(!t.closest || !binnen(t)) return;
+    if(t.dataset.cpHc !== undefined){ S.hc = t.value; try{ localStorage.setItem('cp-hc', S.hc); }catch(e){} t.blur(); herteken(); return; }
     const f = t.closest('[data-cp-f]'); if(f){ S.f[f.dataset.cpF] = f.value; if(f.dataset.cpF === 'hal'){ S.f.deel = ''; S.f.gang = ''; } if(f.dataset.cpF === 'deel') S.f.gang = ''; t.blur(); herteken(); return; }
     if(t.dataset.cpSel){ const i = t.dataset.cpSel.indexOf('|'), cat = t.dataset.cpSel.slice(0, i), c = t.dataset.cpSel.slice(i + 1), x = lijstVan(cat).find(y => y.c === c); if(x) zetAan(cat, x, t.checked); herteken(); return; }
     if(t.dataset.cpFam){ const i = t.dataset.cpFam.indexOf('|'), cat = t.dataset.cpFam.slice(0, i), fk = t.dataset.cpFam.slice(i + 1); lijstVan(cat).filter(x => x.fk === fk).forEach(x => zetAan(cat, x, t.checked)); herteken(); return; }

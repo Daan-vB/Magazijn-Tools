@@ -160,7 +160,7 @@ async function load(){
       window.WHC ? WHC.catalog(['catalog-ean'].concat(CAT_KEYS)) : api('GET', 'catalog?key=in.(' + encodeURIComponent(keys) + ')&select=key,data,updated_at'),
       safe('verkoop', T('verkoop', 'select=*', ['geimporteerd_op'])),
       safe('backorders', T('backorders', 'select=*', ['geimporteerd_op'])),
-      safe('containers', T('containers', 'select=id,leverancier,pakbon_ref,containernummer,losdatum,lostijd,status,updated_at,verwacht:data->verwacht,regels:data->regels,voorboekingen:data->voorboekingen,geleverd:data->geleverd,verdeling:data->verdeling&order=losdatum', ['updated_at'])),
+      safe('containers', T('containers', 'select=id,leverancier,pakbon_ref,containernummer,losdatum,lostijd,status,updated_at,verwacht:data->verwacht,regels:data->regels,voorboekingen:data->voorboekingen,geleverd:data->geleverd,verdeling:data->verdeling,herkomst:data->herkomst&order=losdatum', ['updated_at'])),
       pdAan0 ? safe('productdata', T('productdata', 'select=productcode,data,updated_at', ['updated_at'])) : Promise.resolve([])
     ]);
     await pdb;
