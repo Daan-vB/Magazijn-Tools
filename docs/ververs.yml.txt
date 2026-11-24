@@ -4,7 +4,7 @@
 name: Ververs verkoop, voorraad en locaties
 on:
   schedule:
-    # GitHub kent geen tijdzone: beide kloktijden (zomer- en wintertijd); de stap "Nederlandse tijd" laat er één door
+    # GitHub kent geen tijdzone: beide kloktijden (zomer- en wintertijd); de tweede run doet niets (--zacht)
     - cron: '30 3 * * *'
     - cron: '30 4 * * *'
   workflow_dispatch:
@@ -29,14 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Nederlandse tijd
-        id: tijd
         run: |
-          uur=$(TZ=Europe/Amsterdam date +%H)
-          echo "Nederlandse tijd nu: $uur uur"
-          # de nachtelijke run telt alleen rond 05:30 (05 of 06 uur, GitHub kan een run laten uitlopen); op de knop altijd
-          if [ "$GEBEURTENIS" = "schedule" ] && [ "$uur" != "05" ] && [ "$uur" != "06" ]; then echo "doorgaan=nee" >> "$GITHUB_OUTPUT"; else echo "doorgaan=ja" >> "$GITHUB_OUTPUT"; fi
+          # alleen ter info in het log. Geen uurfilter meer: GitHub start geplande runs soms uren te laat (24-11: 8-10 uur) en
+          # een filter op 05/06 uur sloeg dan alles over. Dubbel werk voorkomt --zacht (minder dan 4 uur na de vorige ververs: niets doen).
+          echo "Nederlandse tijd nu: $(TZ=Europe/Amsterdam date '+%H:%M')"
       - name: Verversen
-        if: steps.tijd.outputs.doorgaan == 'ja'
         run: |
           alleen="$ALLEEN"; [ -z "$alleen" ] && alleen="verkoop,locaties,voorraad"
           zacht=""; [ "$GEBEURTENIS" = "schedule" ] && zacht="--zacht"
