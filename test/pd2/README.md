@@ -52,3 +52,4 @@ ook de versie vóór 2.0 of `main` op 8812 (`git worktree add ../main-wt <commit
 | `db-hash.sh` | hash van productdata, wh-pd-fam, catalog-ean en de pd2-rijen; vóór en na een test draaien en vergelijken |
 
 Voorbeeld: `UIT_MAP=/tmp/pd2 node test/pd2/oefening.js`
+| `containerw47.js` | Containers controle W47: afronden met voorraad zonder plek → melding + Toch afronden, lossen zonder akkoord → melding, losdatum morgen zonder PDF → rode regel, Stockmove pas bij Gelost, Europees nooit VST, 390 en 1440 px, 0 geblokkeerde schrijfpogingen (eigen testcontainers in het geheugen) |

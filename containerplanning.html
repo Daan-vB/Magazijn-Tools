@@ -2592,7 +2592,7 @@ async function route(){
   return viewHome();
 }
 window.addEventListener('hashchange', route);
-window.CP_TEST = { sppVan, herkomst, isEU, perLevVan, invulCodes:c => invulCodes(c), lossenIngevuld:code => lossenIngevuld(code), doosVan:(c, code) => doosVan(c, code), bijLossen:(c, code) => bijLossen(c, pools(c).map[code]), advies:(c, code) => advies(c, pools(c).map[code]), eenheid:eenheidVan, geheugen:code => geh1(code), zetGeheugen:(code, rec) => { const cat = Object.assign({}, CAT); cat['zz-' + code] = Object.assign({ sub:code, name:code, ean:'', qty:'' }, rec); indexCatalog(cat); wisCache(); }, zetBlob:(pad, blob) => { BLOBS[pad] = blob; }, zetInkoop:o => { INKOOPC = { t:Date.now(), o, ob:null }; }, inkoopOpen, inkoopToepassen, inkoopTekst, poRoute, verschilBesluit, pakbonZeker, zoekBestaand, naarPrullenbak, containerVerwijderen, containerTerugzetten, samenvoegen, prullen:() => PRULLEN, dubbelVan:c => dubbelVan(c), kopieContainer, vulRegels, ocrOpschonen, excelResultaat, koppelKleur, zetProduct:p => { LIVEP[p.productcode] = p; liveToevoegen(p); }, alleLeveranciers, isVast:(c, r) => isVast(c, r), leesBestand, pakbonnenBulk, levKort, heeftProduct:c => !!P[c], leesControle:t => { const res = leesPakbonTekst(t); const c = ensureData({ id:-9, leverancier:res.lev, status:'concept', data:{} }); vulRegels(c, res.docs[0], res, 'test.txt', 'plak', t); return Object.assign(pakbonControle(c), { lev:res.lev }); }, pakbonControle, koppelMaat, voorDaan, statusBalkTest:c => statusBalk(c, voortgang(c)), alias:() => ALIAS, koppel, koppelInkoopMet, herkoppelRegels, leerZeker, leesPakbonTekst2:(t) => leesPakbonTekst(t), isGeenProduct, aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, adviesKern, leegEerder, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
+window.CP_TEST = { testStil:() => { window.__saves = 0; save = () => { window.__saves++; }; bewaarContainer = async () => { window.__saves++; return null; }; laadGeenPlek = async () => {}; }, zetGeenPlek:m => { GEENPLEK = m; }, sppVan, herkomst, isEU, perLevVan, invulCodes:c => invulCodes(c), lossenIngevuld:code => lossenIngevuld(code), doosVan:(c, code) => doosVan(c, code), bijLossen:(c, code) => bijLossen(c, pools(c).map[code]), advies:(c, code) => advies(c, pools(c).map[code]), eenheid:eenheidVan, geheugen:code => geh1(code), zetGeheugen:(code, rec) => { const cat = Object.assign({}, CAT); cat['zz-' + code] = Object.assign({ sub:code, name:code, ean:'', qty:'' }, rec); indexCatalog(cat); wisCache(); }, zetBlob:(pad, blob) => { BLOBS[pad] = blob; }, zetInkoop:o => { INKOOPC = { t:Date.now(), o, ob:null }; }, inkoopOpen, inkoopToepassen, inkoopTekst, poRoute, verschilBesluit, pakbonZeker, zoekBestaand, naarPrullenbak, containerVerwijderen, containerTerugzetten, samenvoegen, prullen:() => PRULLEN, dubbelVan:c => dubbelVan(c), kopieContainer, vulRegels, ocrOpschonen, excelResultaat, koppelKleur, zetProduct:p => { LIVEP[p.productcode] = p; liveToevoegen(p); }, alleLeveranciers, isVast:(c, r) => isVast(c, r), leesBestand, pakbonnenBulk, levKort, heeftProduct:c => !!P[c], leesControle:t => { const res = leesPakbonTekst(t); const c = ensureData({ id:-9, leverancier:res.lev, status:'concept', data:{} }); vulRegels(c, res.docs[0], res, 'test.txt', 'plak', t); return Object.assign(pakbonControle(c), { lev:res.lev }); }, pakbonControle, koppelMaat, voorDaan, statusBalkTest:c => statusBalk(c, voortgang(c)), alias:() => ALIAS, koppel, koppelInkoopMet, herkoppelRegels, leerZeker, leesPakbonTekst2:(t) => leesPakbonTekst(t), isGeenProduct, aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, adviesKern, leegEerder, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 function rerender(){
   const y = window.scrollY;
@@ -2643,15 +2643,15 @@ function viewSetup(){
    ===================================================================== */
 function dataStrip(){
   const max = (lijst, k) => { let m; for(const r of lijst){ const x = r && r[k]; if(x && (m === undefined || String(x) > String(m))) m = x; } return m; };   // = sort().pop(), zonder ± 12.000 regels te sorteren
-  const pq = max(Object.values(P), 'picqer_datum');
-  const vk = max(Object.values(VK), 'periode_tot');
-  const bo = max(BO, 'geimporteerd_op');
-  const oud = d => d && (Date.now() - new Date(d)) > 7 * 864e5;
-  const it = (lbl, d, extra) => `<span class="it">${lbl}: <b>${d ? fdate(d, { day:'numeric', month:'short' }) : 'nog niet'}</b>${extra || ''} ${oud(d) ? '<span class="badge b-warn">ouder dan 7 dagen</span>' : ''}</span>`;
+  // verkoop en voorraad: nachtelijke verversing 05:30 (oranje na 36 uur); backorders live; productlijst blijft de koppeling met Picqer (nooit oud: live opgezocht)
+  const vk = max(Object.values(VK), 'geimporteerd_op');
+  const bo = (BL.rows && !BL.fout) ? BL.t : max(BO, 'geimporteerd_op');
+  const oud = d => d && oud36(d);
+  const it = (lbl, d, extra) => `<span class="it">${lbl}: <b>${d ? fdt(d) : 'nog niet'}</b>${extra || ''} ${oud(d) ? '<span class="badge b-warn">ouder dan 36 uur</span>' : ''}</span>`;
   return `<div class="card datastrip">
-    ${it('Picqer-producten', pq, ' · ' + nf(Object.keys(P).length))}
-    ${it('Verkoop t/m', vk)}
-    ${it('Backorders', bo, ' · ' + nf(BO.length) + ' regels')}
+    ${it('Voorraad per locatie ververst', GEENPLEK_DATUM, ' · ' + nf(Object.keys(P).length) + ' producten')}
+    ${it('Verkoop ververst', vk)}
+    ${it('Backorders' + (BL.rows && !BL.fout ? ' live' : ''), bo, ' · ' + nf(BL.rows && !BL.fout ? BL.rows.length : BO.length) + ' regels')}
     <a href="#/gegevens" class="btn sm" style="margin-left:auto">Gegevens bijwerken</a>
   </div>`;
 }
@@ -2805,6 +2805,17 @@ function voortgangBouw(c){
   });
   const lossen = pl.order.filter(code => bijLossen(c, pl.map[code])).length, nAk = n - lossen;
   return { pl, pts, pakbonOk, n, akk, nAk, lossen, pdMis, open, pallets, hier, vst, direct, R };
+}
+// Controle W47: verdeling akkoord (bij-lossen-bepalen-regels blokkeren niet), losdag-PDF uiterlijk de dag ervoor, vers = nachtelijke verversing (36 uur)
+const verdelingAkkoord = c => { const g = voortgang(c); return g.n > 0 && g.akk >= g.nAk; };
+const pdfUiterlijk = c => { if(!c.losdatum) return ''; const d = new Date(c.losdatum + 'T12:00:00'); d.setDate(d.getDate() - 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const isGelost = c => c.status === 'gelost' || c.status === 'afgerond';
+const oud36 = d => !d || (Date.now() - new Date(d)) > 36 * 36e5;
+function pdfRegel(c){
+  if(!verdelingAkkoord(c) || c.status === 'afgerond') return '';
+  const uiter = pdfUiterlijk(c), p = c.data.magazijn_pdf;
+  if(p) return `<div class="small mt8"><span class="badge b-ok">✓ losdag-PDF klaar</span> ${esc(fdt(p.op))}</div>`;
+  return `<div class="row wrap between mt8"><div class="small"><b>Verdeling akkoord: maak nu de losdag-PDF</b>${uiter ? ' · uiterlijk <b>' + esc(fdate(uiter, { weekday:'long', day:'numeric', month:'long' })) + '</b> (de dag ervoor)' : ''}</div><a class="btn pri" href="#/c/${c.id}/uitvoer">Maak losdag-PDF →</a></div>`;
 }
 // startscherm: eerst de kaart (datum, leverancier, ref), de zware delen (voortgang) komen er daarna in; zonder uitstel (test, detail) direct
 function kaartDelen(c){
@@ -3689,11 +3700,11 @@ function statusBalk(c, g){
   const info = `<details class="mt8" data-det="statusinfo" ${UI.open.statusinfo ? 'open' : ''}><summary class="small muted">toon info (${g.pts.length} punten)</summary>${puntenKaart(c, g.pts)}</details>`;
   if(!L.length) return `<div class="card statusbalk ok" style="border-left:4px solid var(--ok)"><div class="row between wrap">
       <div><span class="badge b-ok">✓ Klaar</span> <b>${ctl.heeft ? 'pakbon klopt' : 'pakbon ingelezen'}, alles gekoppeld, verdeling akkoord</b>${ctl.heeft ? ' <span class="small muted">(' + esc(ctl.tekst) + ')</span>' : ''}${daan}</div>
-      <a class="btn pri" href="#/c/${c.id}/uitvoer">Maak losdag-PDF →</a></div>${info}</div>`;
+      ${c.data.magazijn_pdf ? `<a class="btn" href="#/c/${c.id}/uitvoer">Uitvoer →</a>` : ''}</div>${pdfRegel(c)}${info}</div>`;
   return `<div class="card statusbalk" style="border-left:4px solid ${L.some(x => x.cls === 'b-bad') ? 'var(--bad)' : '#e0a100'}">
     ${ctl.heeft && ctl.ok ? `<div class="small"><span class="badge b-ok">✓</span> ${esc(ctl.tekst)}</div>` : ctl.akkoord && !ctl.ok ? `<div class="small"><span class="badge b-warn">geaccepteerd</span> ${esc(ctl.tekst)}</div>` : ''}
     ${L.slice(0, 3).map(x => `<div class="pt"><span class="lvl badge ${x.cls}">${x.cls === 'b-bad' ? 'eerst' : 'doen'}</span><div class="txt"><b>${esc(x.t)}</b></div><div class="row" style="gap:6px">${x.knop}</div></div>`).join('')}
-    <div class="small muted mt8">${L.length > 3 ? (L.length - 3) + ' meer na deze · ' : ''}${daan}</div>${info}</div>`;
+    <div class="small muted mt8">${L.length > 3 ? (L.length - 3) + ' meer na deze · ' : ''}${daan}</div>${pdfRegel(c)}${info}</div>`;
 }
 function viewVoorDaan(){
   const open = CONT.filter(c => c.status !== 'afgerond' && (c.data.regels || []).length);
@@ -4748,13 +4759,14 @@ function wijzer(open){
   const vandaag = new Date(); vandaag.setHours(12, 0, 0, 0);
   const dagen = c => c.losdatum ? Math.round((new Date(c.losdatum + 'T12:00:00') - vandaag) / 864e5) : null;
   const L = [];   // { prio 1..4, tekst, link }
-  const pq = Object.values(P).map(r => r.picqer_datum).filter(Boolean).sort().pop();
-  const bo = BO.map(r => r.geimporteerd_op).filter(Boolean).sort().pop();
-  const vk = Object.values(VK).map(r => r.geimporteerd_op || r.periode_tot).filter(Boolean).sort().pop();
-  const oud = d => !d || (Date.now() - new Date(d)) > 7 * 864e5;
+  // gegevens komen uit de nachtelijke verversing (verkoop, voorraad, locaties) en live (backorders): oud = ouder dan 36 uur
+  const vr = GEENPLEK_DATUM;
+  const bo = (BL.rows && !BL.fout) ? BL.t : BO.map(r => r.geimporteerd_op).filter(Boolean).sort().pop();
+  const vk = Object.values(VK).map(r => r.geimporteerd_op).filter(Boolean).sort().pop();
+  const oud = oud36;
   const binnenkort = open.filter(c => { const d = dagen(c); return d !== null && d >= 0 && d <= 7; });
-  const exportsOud = [oud(bo) && 'backorders', oud(vk) && 'verkoop', oud(pq) && 'producten'].filter(Boolean);
-  if(exportsOud.length) L.push({ prio:binnenkort.length ? 1 : 3, tekst:'Picqer-export' + (exportsOud.length > 1 ? 's' : '') + ' ' + exportsOud.join(', ') + ' ouder dan 7 dagen' + (binnenkort.length ? ' — er komt deze week een container, het advies rekent met oude cijfers' : ''), link:'#/gegevens', knop:'bijwerken' });
+  const exportsOud = [oud(bo) && 'backorders', oud(vk) && 'verkoop', oud(vr) && 'voorraad'].filter(Boolean);
+  if(exportsOud.length) L.push({ prio:binnenkort.length ? 1 : 3, tekst:'Gegevens ' + exportsOud.join(', ') + ' ouder dan 36 uur (de nachtelijke verversing van 05:30 liep niet)' + (binnenkort.length ? ' — er komt deze week een container, het advies rekent met oude cijfers' : ''), link:'#/gegevens', knop:'bekijk' });
   open.forEach(c => {
     const d = dagen(c), naam = levKort(c.leverancier) + ' ' + (c.pakbon_ref || c.containernummer || '');
     if(d === null || d < 0) return;
@@ -4765,6 +4777,7 @@ function wijzer(open){
     if(g.pdMis) tekort.push(g.pdMis + ' product' + (g.pdMis > 1 ? 'en' : '') + ' zonder gegevens');
     if(g.n && g.akk < g.nAk) tekort.push('verdeling ' + g.akk + '/' + g.nAk);
     const wanneer = d === 0 ? 'vandaag' : d === 1 ? 'morgen' : 'over ' + d + ' dagen';
+    if(d === 1 && !isVerwacht(c) && !c.data.magazijn_pdf) L.push({ prio:1, tekst:naam + ' lost morgen en heeft nog geen losdag-PDF — maak hem vandaag', link:'#/c/' + c.id + '/uitvoer', knop:'Maak losdag-PDF', rood:1 });
     if(d <= 7 && isVerwacht(c)) L.push({ prio:1, tekst:naam + ': ETA ' + wanneer + ', nog geen vaste losdatum — navragen bij de vervoerder', link:'#/c/' + c.id + '/pakbon', knop:'open' });
     else if(d <= 7 && tekort.length) L.push({ prio:d <= 2 ? 1 : 2, tekst:naam + ' lost ' + wanneer + ': ' + tekort.join(', '), link:'#/c/' + c.id + (nietGek || g.pdMis ? '/pakbon' : '/verdeling'), knop:'afmaken' });
     else if(d <= 7) L.push({ prio:3, tekst:naam + ' lost ' + wanneer + ': klaar — werkbon, labels en Stockmove maken', link:'#/c/' + c.id + '/uitvoer', knop:'uitvoer' });
@@ -4789,7 +4802,7 @@ function wijzer(open){
   const kl = { 1:'b-bad', 2:'b-warn', 3:'b-info', 4:'b-grey' }, lb_ = { 1:'nu', 2:'deze week', 3:'info', 4:'later' };
   const toon = UI.wijzerAlles ? L : L.slice(0, 6);
   return `<div class="card wijzer"><h3>Wat nu</h3>
-    <div class="mt8">${toon.map(x => `<div class="pt"><span class="lvl badge ${kl[x.prio]}">${lb_[x.prio]}</span><div class="txt">${esc(x.tekst)}</div>${x.knop ? `<a class="btn sm" href="${x.link}">${esc(x.knop)}</a>` : ''}</div>`).join('')}</div>
+    <div class="mt8">${toon.map(x => `<div class="pt"><span class="lvl badge ${kl[x.prio]}">${lb_[x.prio]}</span><div class="txt"${x.rood ? ' data-rood="1" style="color:var(--bad)"' : ''}>${x.rood ? '<b>' + esc(x.tekst) + '</b>' : esc(x.tekst)}</div>${x.knop ? `<a class="btn sm" href="${x.link}">${esc(x.knop)}</a>` : ''}</div>`).join('')}</div>
     ${L.length > 6 ? `<button class="btn ghost sm mt8" data-act="wijzeralles">${UI.wijzerAlles ? 'minder tonen' : 'alle ' + L.length + ' tonen'}</button>` : ''}
   </div>`;
 }
@@ -5333,7 +5346,13 @@ function tabUitvoer(c, g){
   const perDest = {}; lab.forEach(l => perDest[l.dest] = (perDest[l.dest] || 0) + 1);
   const alleDest = {};
   pools(c).order.forEach(code => { const v = c.data.verdeling[code]; (v && v.porties || []).forEach(x => { if(x.soort === 'pallet' && DEST[x.dest].label) alleDest[x.dest] = (alleDest[x.dest] || 0) + (num(x.n) || 0); }); });
+  const gelost = isGelost(c), akkoord = verdelingAkkoord(c);
   return `${open ? `<div class="card" style="border-left:4px solid var(--bad)"><b>Let op:</b> er staan nog ${open} open punten. Je kunt alles al maken, maar controleer die eerst.</div>` : ''}
+  ${c.status !== 'afgerond' ? `<div class="card" data-lossenkaart="1"><div class="row between wrap"><div><h3>Lossen</h3><p class="small muted mt8">${gelost ? 'Gelost: Jim kan nu opboeken en tellen; daarna de Stockmove-lijst.' : 'Start het lossen pas als de verdeling akkoord is. Regels met "bij lossen bepalen" blokkeren niet.'}</p></div>
+    ${gelost ? '<span class="badge b-ok">Gelost</span>' : `<button class="btn ${akkoord ? 'pri' : ''}" data-act="lossenstart">Lossen starten</button>`}</div>
+    ${!gelost && UI.lossMeld === c.id && !akkoord ? '<div class="small mt8" data-lossmeld="1" style="color:var(--bad)"><b>Verdeling eerst akkoord geven</b> (' + g.akk + ' van ' + g.nAk + ' akkoord).</div>' : ''}</div>` : ''}
+  ${pdfRegel(c) ? `<div class="card">${pdfRegel(c)}</div>` : ''}
+  ${UI.afrMeld && UI.afrMeld.id === c.id ? `<div class="card" data-afrmeld="1" style="border-left:4px solid var(--bad)"><b>Nog niet alles is weggezet</b><p class="small mt8">${UI.afrMeld.lijst.map(esc).join('<br>')}</p><div class="row wrap mt8"><button class="btn" data-act="afrondentoch">Toch afronden</button><button class="btn ghost" data-act="afrondenannul">Niet afronden</button></div></div>` : ''}
   ${boLiveRegel()}
   ${vkLiveRegel()}
   <div class="card out"><div class="row between wrap"><div><h3>PDF voor de losdag</h3><p class="small muted mt8">Eerst de pakbon${c.data.pakbon_bestand ? '' : ' (nog niet bewaard bij deze container)'}, dan de samenvatting, de werkbon voor het magazijn (taal van de werkbon hieronder) en de Stockmove-lijst: welke pallet, welk product, hoeveel. Maak hem als alles is ingevuld: dan staat hij ook in IVOL Junior (Sala, Kate).${c.data.magazijn_pdf ? ' <b>In Junior sinds ' + esc(fdt(c.data.magazijn_pdf.op)) + '</b>; opnieuw maken vervangt hem.' : ''}</p></div>
@@ -5356,7 +5375,8 @@ function tabUitvoer(c, g){
     <p class="small muted mt8">Zelfde opmaak als de palletlabel-generator: naam, productcode, barcode en aantal (in Picqer-eenheden, bijv. 60 m). Elke pallet krijgt zijn aantal. Voor producten met het vinkje <b>aanvulpallet</b> komt er per product één extra label bij (<i>AANVULPALLET</i> in plaats van het aantal) voor de pallet die wordt aangebroken. Direct-weg-pallets krijgen geen label. Het label toont geen bestemming of plek.</p>
   </div>
   <div class="card out">
-    <div class="row between wrap"><h3>3. Stockmove-lijst (${sm.length} pallets naar VST)</h3><div class="row"><button class="btn" data-act="smcopy" ${sm.length ? '' : 'disabled'}>Kopieer</button><button class="btn" data-act="smdown" ${sm.length ? '' : 'disabled'}>Download .txt</button></div></div>
+    <div class="row between wrap"><h3>3. Stockmove-lijst (${sm.length} pallets naar VST)</h3><div class="row"><button class="btn" data-act="smcopy" ${sm.length && gelost ? '' : 'disabled'}>Kopieer</button><button class="btn" data-act="smdown" ${sm.length && gelost ? '' : 'disabled'}>Download .txt</button></div></div>
+    ${gelost ? '' : '<p class="small mt8" data-opboek="1"><b>Jim boekt op ná lossen en tellen.</b> De Stockmove-regel komt pas vrij als de container op Gelost staat.</p>'}
     ${sm.length ? `<pre class="mono mt8">${esc(sm.join('\n'))}</pre>` : '<p class="small muted mt8">Geen pallets naar VST.</p>'}
     <p class="small muted mt8">Plakken in Stockmove (alleen op werk-wifi). Eén regel per pallet: productcode ⇥ aantal. Zorg dat de voorraad eerst op <b>geen specifieke locatie</b> staat.</p>
   </div>
@@ -5371,6 +5391,10 @@ function tabUitvoer(c, g){
     ${c.status === 'afgerond' ? `<span class="badge b-ok">Afgerond ${c.data.afgerond_op ? fdate(c.data.afgerond_op, { day:'numeric', month:'short' }) : ''}</span> <button class="btn sm" data-act="heropen">Heropenen</button>` : `<button class="btn ok" data-act="afronden">Container afronden</button>`}</div>
     <p class="small muted mt8">Afronden bewaart de cijfers van nu (voorraad, verkoop, backorders) bij deze container, zodat je later kunt terugzien waarom zo verdeeld is.</p>
   </div>`;
+}
+function afrondNu(c){
+  const snap = {}; pools(c).order.forEach(code => { const f = feiten(code); snap[code] = { hm:f.hm, vrij:f.vrij, vst:f.vst, rate:f.rate, bo:f.bo }; });
+  c.data.snapshot = snap; c.data.afgerond_op = new Date().toISOString(); c.status = 'afgerond'; save(); rerender(); toast('Container afgerond.');
 }
 /* ---------- Eén PDF: samenvatting, werkbon, Stockmove-lijst ---------- */
 async function maakPdf(c){
@@ -5887,12 +5911,21 @@ const ACT = {
   },
   algelostcur: async () => { const d = $('gl_cur').value; if(!d) return; try{ await alGelost(cur, d); toast('Gelost op ' + fdate(d, { day:'numeric', month:'short' }) + ', afgerond.'); }catch(e){ toast('Opslaan mislukt: ' + e.message, 5000); } rerender(); },
   opslagtest: async () => { await opslagCheck(); viewHome(); toast(OPSLAG ? 'Opslag werkt. Pakbonnen worden vanaf nu bewaard.' : 'Opslagmap nog niet gevonden. Is de SQL uitgevoerd?', 5000); },
-  smcopy: () => kopieer(stockmoveRegels(cur).join('\n')),
-  smdown: () => bestandKlaar(new Blob([stockmoveRegels(cur).join('\n') + '\n'], { type:'text/plain' }), bnNaam('stockmove', bnCtx(cur)), 'stockmove', 'Stockmove-lijst klaar'),
+  smcopy: () => { if(!isGelost(cur)){ toast('Jim boekt op ná lossen en tellen.'); return; } kopieer(stockmoveRegels(cur).join('\n')); },
+  smdown: () => isGelost(cur) ? bestandKlaar(new Blob([stockmoveRegels(cur).join('\n') + '\n'], { type:'text/plain' }), bnNaam('stockmove', bnCtx(cur)), 'stockmove', 'Stockmove-lijst klaar') : toast('Jim boekt op ná lossen en tellen.'),
   mailcopy: () => kopieer(mailtoVst(cur).body),
-  afronden: () => {
-    const snap = {}; pools(cur).order.forEach(code => { const f = feiten(code); snap[code] = { hm:f.hm, vrij:f.vrij, vst:f.vst, rate:f.rate, bo:f.bo }; });
-    cur.data.snapshot = snap; cur.data.afgerond_op = new Date().toISOString(); cur.status = 'afgerond'; save(); rerender(); toast('Container afgerond.');
+  lossenstart: () => {
+    if(!verdelingAkkoord(cur)){ UI.lossMeld = cur.id; rerender(); toast('Verdeling eerst akkoord geven.', 5000); return; }
+    UI.lossMeld = null; cur.status = 'gelost'; cur.data.gelost_op = new Date().toISOString(); save(); rerender(); toast('Lossen gestart.');
+  },
+  afrondenannul: () => { UI.afrMeld = null; rerender(); },
+  afrondentoch: () => { UI.afrMeld = null; afrondNu(cur); },
+  afronden: async () => {
+    // alleen afronden als de voorraad is weggezet: niets op "geen specifieke locatie" (nachtelijke voorraad per locatie); Daan kan toch afronden
+    await laadGeenPlek();
+    const lijst = pools(cur).order.filter(code => geenPlek(code) > 0).map(code => code + ' — ' + nf(geenPlek(code)) + ' stuks op geen specifieke locatie');
+    if(lijst.length){ UI.afrMeld = { id:cur.id, lijst }; rerender(); toast('Niet alles is weggezet: bekijk de lijst.', 5000); return; }
+    afrondNu(cur);
   },
   heropen: () => { cur.status = 'gelost'; save(); rerender(); },
   kopedit: () => { UI.kopEdit = !UI.kopEdit; rerender(); },
@@ -5935,7 +5968,7 @@ const ACT = {
   }
 };
 // goedkeuren (basis 23-11): officieel alleen Daan, Ryan en Karin. De rol komt uit de 3.0-app (ivol-rol); zonder rol (eigen apparaat van Daan of Karin) mag het
-const GOEDKEUR_ROL = ['daan', 'ryan', 'karin'], GOEDKEUR_ACT = ['bev', 'allesbev', 'akkalles', 'vakk', 'algelost', 'algelostcur', 'afronden'];
+const GOEDKEUR_ROL = ['daan', 'ryan', 'karin'], GOEDKEUR_ACT = ['bev', 'allesbev', 'akkalles', 'vakk', 'algelost', 'algelostcur', 'afronden', 'afrondentoch'];
 const magGoedkeuren = () => { try{ const r = localStorage.getItem('ivol-rol'); return !r || GOEDKEUR_ROL.includes(r); }catch(e){ return true; } };
 app.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
