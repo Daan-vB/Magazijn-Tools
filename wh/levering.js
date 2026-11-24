@@ -576,21 +576,15 @@ function maakLabels(lev){
   const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
   try{ doc.viewerPreferences({ PrintScaling:'None', FitWindow:true }); }catch(e){}
   const W = 297;
-  const size = n => n <= 8 ? 110 : n <= 12 ? 95 : n <= 16 ? 78 : n <= 22 ? 60 : n <= 30 ? 46 : 36;
-  const isEan = s => /^\d{12,13}$/.test(s) || /^\d{8}$/.test(s);
+  const KP = window.LABELKERN;
   lijst.forEach((r, i) => {
     if(i) doc.addPage('a4', 'landscape');
-    doc.setTextColor(16, 21, 28); doc.setFont('helvetica', 'bold'); doc.setFontSize(size(r.name.length));
-    doc.text(r.name, W / 2, 48, { align:'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(18); doc.setTextColor(57, 67, 79);
-    doc.text(r.code, W / 2, 60, { align:'center' });
     doc.setTextColor(16, 21, 28);
-    try{
-      const cv = document.createElement('canvas');
-      JsBarcode(cv, r.ean, { format:isEan(r.ean) ? (r.ean.length === 8 ? 'EAN8' : 'EAN13') : 'CODE128', height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 });
-      const w = 180, h = Math.min(50, w * (cv.height / cv.width));
-      doc.addImage(cv.toDataURL('image/png'), 'PNG', (W - w) / 2, 82, w, h);
-    }catch(e){}
+    KP.tekenNaam(doc, r.name, r.code, W);
+    const cv = document.createElement('canvas');
+    const b = KP.barcodeMaak(JsBarcode, cv, r.ean, r.code, { height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 });
+    if(b.ok){ const w = 180, h = Math.min(50, w * (cv.height / cv.width)); doc.addImage(cv.toDataURL('image/png'), 'PNG', (W - w) / 2, 82, w, h); }
+    else KP.geenBarcode(doc, r.code, W);
     if(r.stuks){
       doc.setFont('helvetica', 'bold'); doc.setFontSize(58);
       doc.text(nf(r.stuks).replace(/\./g, ''), W / 2 - 8, 178, { align:'right' });

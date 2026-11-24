@@ -17,6 +17,7 @@
 <script src="wh/cache.js?v=1"></script>
 <script src="wh/pdbron.js?v=1"></script>
 <script src="wh/cplezer.js?v=1"></script>
+<script src="wh/labelkern.js?v=1"></script>
 <script src="wh/grenzen.js?v=1"></script>
 <style>
   :root{--blue:#1d4ea0;--orange:#e8590c;--ink:#10151c;--bg:#eef1f5;--line:#cdd5df;--soft:#f6f8fb;--muted:#5b6673;--ok:#1c7a4a;--warn:#b86e00;--bad:#b3261e}
@@ -2592,7 +2593,7 @@ async function route(){
   return viewHome();
 }
 window.addEventListener('hashchange', route);
-window.CP_TEST = { testStil:() => { window.__saves = 0; save = () => { window.__saves++; }; bewaarContainer = async () => { window.__saves++; return null; }; laadGeenPlek = async () => {}; }, zetGeenPlek:m => { GEENPLEK = m; }, sppVan, herkomst, isEU, perLevVan, invulCodes:c => invulCodes(c), lossenIngevuld:code => lossenIngevuld(code), doosVan:(c, code) => doosVan(c, code), bijLossen:(c, code) => bijLossen(c, pools(c).map[code]), advies:(c, code) => advies(c, pools(c).map[code]), eenheid:eenheidVan, geheugen:code => geh1(code), zetGeheugen:(code, rec) => { const cat = Object.assign({}, CAT); cat['zz-' + code] = Object.assign({ sub:code, name:code, ean:'', qty:'' }, rec); indexCatalog(cat); wisCache(); }, zetBlob:(pad, blob) => { BLOBS[pad] = blob; }, zetInkoop:o => { INKOOPC = { t:Date.now(), o, ob:null }; }, inkoopOpen, inkoopToepassen, inkoopTekst, poRoute, verschilBesluit, pakbonZeker, zoekBestaand, naarPrullenbak, containerVerwijderen, containerTerugzetten, samenvoegen, prullen:() => PRULLEN, dubbelVan:c => dubbelVan(c), kopieContainer, vulRegels, ocrOpschonen, excelResultaat, koppelKleur, zetProduct:p => { LIVEP[p.productcode] = p; liveToevoegen(p); }, alleLeveranciers, isVast:(c, r) => isVast(c, r), leesBestand, pakbonnenBulk, levKort, heeftProduct:c => !!P[c], leesControle:t => { const res = leesPakbonTekst(t); const c = ensureData({ id:-9, leverancier:res.lev, status:'concept', data:{} }); vulRegels(c, res.docs[0], res, 'test.txt', 'plak', t); return Object.assign(pakbonControle(c), { lev:res.lev }); }, pakbonControle, koppelMaat, voorDaan, statusBalkTest:c => statusBalk(c, voortgang(c)), alias:() => ALIAS, koppel, koppelInkoopMet, herkoppelRegels, leerZeker, leesPakbonTekst2:(t) => leesPakbonTekst(t), isGeenProduct, aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, adviesKern, leegEerder, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
+window.CP_TEST = { labelLijst:c => labelLijst(c), maakLabels:(c, l) => maakLabels(c, l), zetBestandKlaar:fn => { bestandKlaar = fn; }, testStil:() => { window.__saves = 0; save = () => { window.__saves++; }; bewaarContainer = async () => { window.__saves++; return null; }; laadGeenPlek = async () => {}; }, zetGeenPlek:m => { GEENPLEK = m; }, sppVan, herkomst, isEU, perLevVan, invulCodes:c => invulCodes(c), lossenIngevuld:code => lossenIngevuld(code), doosVan:(c, code) => doosVan(c, code), bijLossen:(c, code) => bijLossen(c, pools(c).map[code]), advies:(c, code) => advies(c, pools(c).map[code]), eenheid:eenheidVan, geheugen:code => geh1(code), zetGeheugen:(code, rec) => { const cat = Object.assign({}, CAT); cat['zz-' + code] = Object.assign({ sub:code, name:code, ean:'', qty:'' }, rec); indexCatalog(cat); wisCache(); }, zetBlob:(pad, blob) => { BLOBS[pad] = blob; }, zetInkoop:o => { INKOOPC = { t:Date.now(), o, ob:null }; }, inkoopOpen, inkoopToepassen, inkoopTekst, poRoute, verschilBesluit, pakbonZeker, zoekBestaand, naarPrullenbak, containerVerwijderen, containerTerugzetten, samenvoegen, prullen:() => PRULLEN, dubbelVan:c => dubbelVan(c), kopieContainer, vulRegels, ocrOpschonen, excelResultaat, koppelKleur, zetProduct:p => { LIVEP[p.productcode] = p; liveToevoegen(p); }, alleLeveranciers, isVast:(c, r) => isVast(c, r), leesBestand, pakbonnenBulk, levKort, heeftProduct:c => !!P[c], leesControle:t => { const res = leesPakbonTekst(t); const c = ensureData({ id:-9, leverancier:res.lev, status:'concept', data:{} }); vulRegels(c, res.docs[0], res, 'test.txt', 'plak', t); return Object.assign(pakbonControle(c), { lev:res.lev }); }, pakbonControle, koppelMaat, voorDaan, statusBalkTest:c => statusBalk(c, voortgang(c)), alias:() => ALIAS, koppel, koppelInkoopMet, herkoppelRegels, leerZeker, leesPakbonTekst2:(t) => leesPakbonTekst(t), isGeenProduct, aantalNakijken, punten, ensureData, pdfTekst, leesPakbonTekst, losMoment, TEL, wisCache, pools, voortgang, planning, wijzer, rerender, adviesKern, leegEerder, wist:() => { PLAN = null; wisCache(); }, cont:() => CONT, home:() => !document.getElementById('wijzerbox') && !document.querySelector('.kwacht') };
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 function rerender(){
   const y = window.scrollY;
@@ -5369,6 +5370,7 @@ function tabUitvoer(c, g){
     <div class="mt12" id="wbprev">${werkbonHtml(c)}</div>
   </div>
   <div class="card out">
+    ${(() => { const t = window.LABELKERN ? LABELKERN.terugvalTekst(lab) : ''; return t ? '<div class="small mt8" data-terugval="1" style="background:#fff6d6;border:1px solid #e0a100;border-radius:6px;padding:6px 10px">' + esc(t) + '</div>' : ''; })()}
     <div class="row between wrap"><h3>2. Palletlabels</h3><button class="btn acc" data-act="labels" ${lab.length ? '' : 'disabled'}>PDF maken (${lab.length} labels)</button></div>
     <div class="row wrap mt8 small">Labels voor: ${Object.keys(DEST).filter(k => DEST[k].label).map(k => `<label class="row" style="gap:4px"><input type="checkbox" data-labeldest="${k}" ${UI.labelDest[k] ? 'checked' : ''}> ${DEST[k].nl} (${alleDest[k] || 0})</label>`).join('')}
       ${aanvulCodes(c).length ? `<label class="row" style="gap:4px"><input type="checkbox" data-aanvullabels ${UI.aanvulLabels !== false ? 'checked' : ''}> + aanvulpallet-labels (${aanvulCodes(c).length})</label>` : ''}</div>
@@ -5684,22 +5686,15 @@ async function maakLabels(c, eigenLijst){
   const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
   try{ doc.viewerPreferences({ 'PrintScaling':'None', 'FitWindow':true }); }catch(e){}
   const W = 297;
-  const size = n => n <= 8 ? 110 : n <= 12 ? 95 : n <= 16 ? 78 : n <= 22 ? 60 : n <= 30 ? 46 : 36;
-  const isEan = s => /^\d{12,13}$/.test(s) || /^\d{8}$/.test(s);
+  const KP = window.LABELKERN, terug = [];
   lijst.forEach((r, i) => {
     if(i) doc.addPage('a4', 'landscape');
-    doc.setTextColor(16, 21, 28); doc.setFont('helvetica', 'bold'); doc.setFontSize(size(r.name.length));
-    doc.text(r.name, W / 2, 48, { align:'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(18); doc.setTextColor(57, 67, 79);
-    doc.text(r.code, W / 2, 60, { align:'center' });
     doc.setTextColor(16, 21, 28);
-    try{
-      const cv = document.createElement('canvas');
-      const fmt = isEan(r.ean) ? (r.ean.length === 8 ? 'EAN8' : 'EAN13') : 'CODE128';
-      JsBarcode(cv, r.ean, { format:fmt, height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 });
-      const w = 180, h = Math.min(50, w * (cv.height / cv.width));
-      doc.addImage(cv.toDataURL('image/png'), 'PNG', (W - w) / 2, 82, w, h);
-    }catch(e){ doc.setFontSize(16); doc.setTextColor(179, 38, 30); doc.text('Barcode kon niet worden gemaakt: ' + r.ean, W / 2, 105, { align:'center' }); doc.setTextColor(16, 21, 28); }
+    KP.tekenNaam(doc, r.name, r.code, W);
+    const cv = document.createElement('canvas');
+    const b = KP.barcodeMaak(JsBarcode, cv, r.ean, r.code, { height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 });
+    if(b.ok){ const w = 180, h = Math.min(50, w * (cv.height / cv.width)); doc.addImage(cv.toDataURL('image/png'), 'PNG', (W - w) / 2, 82, w, h); if(b.terugval) terug.push(r.code); }
+    else { KP.geenBarcode(doc, r.code, W); terug.push(r.code); }
     if(r.aanvul){
       doc.setFont('helvetica', 'bold'); doc.setFontSize(52);
       doc.text('AANVULPALLET', W / 2, 178, { align:'center' });
@@ -5712,6 +5707,7 @@ async function maakLabels(c, eigenLijst){
       doc.setFontSize(15); doc.text('STUKS', W / 2 + 6, 178, { align:'left' });
     }
   });
+  if(terug.length) toast('Barcode van ' + [...new Set(terug)].slice(0, 5).join(', ') + ' via terugval gemaakt.', 6000);
   const codesAanvul = [...new Set(lijst.filter(x => x.aanvul).map(x => x.code))];
   const naamL = eigenLijst && lijst.every(x => x.aanvul) && codesAanvul.length === 1
     ? bnNaam('aanvullabel', { code:codesAanvul[0], datum:window.Bestanden ? Bestanden.vandaag() : '' })

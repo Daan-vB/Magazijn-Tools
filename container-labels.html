@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#10151c">
 <title>Container-palletlabels</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script src="wh/labelkern.js?v=1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -52,6 +53,7 @@
   .status{font-size:13px;color:#9aa7b8;min-height:18px;line-height:1.5}
   .status.err{color:#ff8a5c}
   .status.ok{color:#7ed99a}
+  .status.warn{color:#f2c14e}
 
   .main{flex:1;padding:28px;overflow:auto}
   .empty{color:#8b97a6;font-size:14px;text-align:center;margin-top:120px;line-height:1.7}
@@ -319,7 +321,10 @@ RH90x150HD	5"></textarea>
     const bad = rows.filter(r => labelsFor(r) > 0 && !rowOk(r));
     $('pdf').disabled = !l || bad.length > 0;
     if(bad.length) setStatus('Nog ' + bad.length + ' regel(s) met rode status. Los die eerst op: ' + bad.map(r => r.code).join(', '), 'err');
-    else if(l) setStatus(l + ' labels klaar om te maken.', 'ok');
+    else if(l){
+      const tv = LABELKERN.terugvalTekst(rows.filter(r => labelsFor(r) > 0));
+      setStatus(l + ' labels klaar om te maken.' + (tv ? ' ' + tv : ''), tv ? 'warn' : 'ok');
+    }
   }
 
   /* ---------- PDF (zelfde opmaak als de generator) ---------- */
@@ -334,29 +339,16 @@ RH90x150HD	5"></textarea>
   }
   const isEan = code => /^\d{12,13}$/.test(code) || /^\d{8}$/.test(code);
 
+  let terug = new Set();
   function drawLabel(doc, r, first){
     if(!first) doc.addPage('a4', 'landscape');
     const W = 297;
     doc.setTextColor(16,21,28);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(nameFontSize(r.name));
-    doc.text(r.name, W/2, 48, {align:'center'});
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(18);
-    doc.setTextColor(57,67,79);
-    doc.text(r.code, W/2, 60, {align:'center'});
-    doc.setTextColor(16,21,28);
-    try{
-      const cv = document.createElement('canvas');
-      const fmt = isEan(r.ean) ? (r.ean.length === 8 ? 'EAN8' : 'EAN13') : 'CODE128';
-      JsBarcode(cv, r.ean, { format:fmt, height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 });
-      const w = 180, h = Math.min(50, w * (cv.height / cv.width));
-      doc.addImage(cv.toDataURL('image/png'), 'PNG', (W - w)/2, 82, w, h);
-    }catch(e){
-      doc.setFontSize(16); doc.setTextColor(179,38,30);
-      doc.text('Barcode kon niet worden gemaakt: ' + r.ean, W/2, 105, {align:'center'});
-      doc.setTextColor(16,21,28);
-    }
+    LABELKERN.tekenNaam(doc, r.name, r.code, W);
+    const cv = document.createElement('canvas');
+    const b = LABELKERN.barcodeMaak(JsBarcode, cv, r.ean, r.code, { height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 });
+    if(b.ok){ const w = 180, h = Math.min(50, w * (cv.height / cv.width)); doc.addImage(cv.toDataURL('image/png'), 'PNG', (W - w)/2, 82, w, h); if(b.terugval) terug.add(r.code); }
+    else { LABELKERN.geenBarcode(doc, r.code, W); terug.add(r.code); }
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(58);
     doc.text(String(r.stuks), W/2 - 8, 178, {align:'right'});
@@ -369,7 +361,7 @@ RH90x150HD	5"></textarea>
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
   try{ doc.viewerPreferences({ 'PrintScaling':'None', 'FitWindow':true }); }catch(e){}
-      let n = 0;
+      let n = 0; terug = new Set();
       rows.forEach(r => {
         for(let k = 0; k < labelsFor(r); k++){ drawLabel(doc, r, n === 0); n++; }
       });
@@ -378,7 +370,7 @@ RH90x150HD	5"></textarea>
       doc.setProperties({ title:naam.replace(/\.pdf$/, '') });
       if(B) B.aanbieden(doc.output('blob'), naam, 'palletlabels', { titel:n + ' labels klaar' });
       else window.open(doc.output('bloburl'), '_blank');
-      setStatus(n + ' labels klaar als "' + naam + '".', 'ok');
+      setStatus(n + ' labels klaar als "' + naam + '".' + (terug.size ? ' Barcode van ' + [...terug].slice(0, 5).join(', ') + ' via terugval gemaakt (CODE128): kijk de EAN in Picqer na.' : ''), terug.size ? 'warn' : 'ok');
     }catch(e){
       setStatus('PDF maken is mislukt: ' + e.message, 'err');
     }
@@ -542,7 +534,7 @@ RH90x150HD	5"></textarea>
         if(ean){
           try{
             const cv = document.createElement('canvas');
-            JsBarcode(cv, ean, { format:isEan(ean) ? (ean.length === 8 ? 'EAN8' : 'EAN13') : 'CODE128', height:90, width:3, displayValue:true, fontSize:26, margin:4 });
+            if(!LABELKERN.barcodeMaak(JsBarcode, cv, ean, r.sku, { height:90, width:3, displayValue:true, fontSize:26, margin:4 }).ok) throw new Error('geen barcode');
             const w = 80, h = Math.min(26, w * (cv.height / cv.width));
             doc.addImage(cv.toDataURL('image/png'), 'PNG', (W - w)/2, 143, w, h);
           }catch(e){ geenEan.add(r.sku); }

@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#10151c">
 <title>Palletlabel Generator — A4</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script src="wh/labelkern.js?v=1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="bestanden.js?v=2"></script>
 <script src="wh/pdbron.js?v=1"></script>
@@ -848,35 +849,13 @@ NAPOLI-GRN	8718924512345	10	Napoli eetkamerstoel groen"></textarea>
     const pageW = 297;
 
     doc.setTextColor(16,21,28);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(nameFontSize(r.name));
-    doc.text(r.name, pageW/2, 48, {align:'center'});
-
-    if(r.sub){
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(18);
-      doc.setTextColor(57,67,79);
-      doc.text(r.sub, pageW/2, 60, {align:'center'});
-      doc.setTextColor(16,21,28);
-    }
-
-    let barcodeOk = false;
-    try{
-      const canvas = document.createElement('canvas');
-      const fmt = isEan(r.ean) ? (r.ean.length === 8 ? 'EAN8' : 'EAN13') : 'CODE128';
-      JsBarcode(canvas, r.ean, { format: fmt, height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 });
-      const imgW = 180;
-      const imgH = Math.min(50, imgW * (canvas.height / canvas.width));
+    LABELKERN.tekenNaam(doc, r.name, r.sub || '', pageW);
+    const canvas = document.createElement('canvas');
+    const bk = LABELKERN.barcodeMaak(JsBarcode, canvas, r.ean, r.sub || r.name, { height:130, width:4, displayValue:true, fontSize:34, font:'Arial', fontOptions:'bold', margin:6 });
+    if(bk.ok){
+      const imgW = 180, imgH = Math.min(50, imgW * (canvas.height / canvas.width));
       doc.addImage(canvas.toDataURL('image/png'), 'PNG', (pageW - imgW)/2, 82, imgW, imgH);
-      barcodeOk = true;
-    }catch(e){ barcodeOk = false; }
-    if(!barcodeOk){
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(16);
-      doc.setTextColor(179,38,30);
-      doc.text('Barcode kon niet worden gemaakt: ' + r.ean, pageW/2, 105, {align:'center'});
-      doc.setTextColor(16,21,28);
-    }
+    } else LABELKERN.geenBarcode(doc, r.sub || r.name, pageW);
 
     if(isAanvulQ(r.qty)){
       doc.setFont('helvetica', 'bold');

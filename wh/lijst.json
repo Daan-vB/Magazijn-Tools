@@ -81,6 +81,7 @@
   "wh/aannames.js",
   "wh/pdfamilie.js",
   "wh/demo.js",
+  "wh/labelkern.js",
   "wh/levering.js",
   "wh/locaties.js",
   "wh/views.js"

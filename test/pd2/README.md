@@ -53,3 +53,4 @@ ook de versie vóór 2.0 of `main` op 8812 (`git worktree add ../main-wt <commit
 
 Voorbeeld: `UIT_MAP=/tmp/pd2 node test/pd2/oefening.js`
 | `containerw47.js` | Containers controle W47: afronden met voorraad zonder plek → melding + Toch afronden, lossen zonder akkoord → melding, losdatum morgen zonder PDF → rode regel, Stockmove pas bij Gelost, Europees nooit VST, 390 en 1440 px, 0 geblokkeerde schrijfpogingen (eigen testcontainers in het geheugen) |
+| `containerlabels.js` | Palletlabels: naam ≥ 60 tekens past (2 regels), barcode ook bij EAN als getal/met spatie/fout controlegetal/twee EAN's/geen EAN (terugval CODE128), nooit "Barcode kon niet worden gemaakt", labels container 22 + 3 afgeronde = aantal pallets uit de verdeling, voorbeeld-PDF (LABEL_PDF). Nodig: NODE_PATH met jsbarcode en jspdf 2.5.1 |
