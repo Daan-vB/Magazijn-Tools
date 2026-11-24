@@ -407,7 +407,7 @@ const NASLAG = [
     ['IVOL Warehouse 3.0', './ivol.html', 'Jouw ingang: alles in één menu'],
     ['IVOL Warehouse', './warehouse.html', 'Dagelijkse basis voor Daan en Karin'],
     ['Junior', './junior.html', 'Kate, Sala, Valerii · NL/EN/ES/EL'],
-    ['Containers', './containerplanning.html', 'Pakbon, verdeling, losdag, labels, Stockmove, VST-mail'],
+    ['Containers', './containerplanning.html', 'Containerplanning, pakbonlezer, Stockmove'],
     ['Palletlabels', './index.html', 'Labels printen; het oude productgeheugen (catalog-ean)'],
     ['Productkaart', './productkaart.html', 'Alles over één product'],
     ['Testdata Picqer', './testdata.html', 'Picqer-testomgeving vullen (schrijft alleen naar ivol-dev)'],
