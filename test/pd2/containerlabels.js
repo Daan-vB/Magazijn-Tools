@@ -7,6 +7,8 @@ const { start, naarContainers } = require('./opzet.js');
 const ok = [], fout = [];
 const check = (n, v, x) => { (v ? ok : fout).push(n); console.log((v ? 'OK   ' : 'FOUT ') + n + (x ? ' — ' + String(x).slice(0, 300) : '')); };
 const lib = m => { try{ return fs.readFileSync(require.resolve(m)); }catch(e){ return null; } };
+// Daan vroeg expliciet om container 22 (HR26090) mee te nemen: via een variabele (env LABEL_CONTAINER), de rest kiest de test zelf
+const EXTRA = +(process.env.LABEL_CONTAINER || 22);
 const JSB = lib('jsbarcode/dist/JsBarcode.all.min.js'), JSP = lib('jspdf/dist/jspdf.umd.min.js');
 (async () => {
   if(!JSB || !JSP){ console.log('LIBS ontbreken (jsbarcode, jspdf): test overgeslagen. Zet NODE_PATH.'); process.exit(0); }
@@ -52,13 +54,13 @@ const JSB = lib('jsbarcode/dist/JsBarcode.all.min.js'), JSP = lib('jspdf/dist/js
   check('2h Gele regel noemt het product met terugval, niet het andere', /DT140-1664/.test(t.tv) && !/DT140-19015/.test(t.tv) && t.geenTv === '', t.tv);
 
   // 3. labels van container 22 en 3 andere afgeronde containers
-  const keuze = await P.evaluate(() => {
+  const keuze = await P.evaluate(extra => {
     const X = CP_TEST, cs = X.cont(), pallets = c => Object.values(c.data.verdeling || {}).reduce((a, v) => a + ((v && v.porties) || []).filter(p => p.soort === 'pallet').reduce((b, p) => b + (+p.n || 0), 0), 0);
-    const c22 = cs.find(c => +c.id === 22);
-    const andere = cs.filter(c => c.status === 'afgerond' && +c.id !== 22 && pallets(c) > 0).sort((a, b) => pallets(b) - pallets(a)).slice(0, 3).map(c => c.id);
-    return { c22:c22 ? 22 : null, andere };
-  });
-  check('3a Container 22 en 3 afgeronde containers gevonden', keuze.c22 === 22 && keuze.andere.length === 3, JSON.stringify(keuze));
+    const c22 = cs.find(c => +c.id === extra);
+    const andere = cs.filter(c => c.status === 'afgerond' && +c.id !== extra && pallets(c) > 0).sort((a, b) => pallets(b) - pallets(a)).slice(0, 3).map(c => c.id);
+    return { c22:c22 ? extra : null, andere };
+  }, EXTRA);
+  check('3a Extra container (' + EXTRA + ') en 3 afgeronde containers gevonden', keuze.c22 === EXTRA && keuze.andere.length === 3, JSON.stringify(keuze));
   const afwijkingen = [];
   for(const id of [keuze.c22, ...keuze.andere].filter(Boolean)){
     const r = await P.evaluate(async id => {
@@ -95,7 +97,7 @@ const JSB = lib('jsbarcode/dist/JsBarcode.all.min.js'), JSP = lib('jspdf/dist/js
   if(process.env.LABEL_PDF){
     const b64 = await P.evaluate(async () => {
       window.__pdfs = [];
-      const c = CP_TEST.cont().find(x => +x.id === 22) || CP_TEST.cont()[0];
+      const c = CP_TEST.cont()[0];
       await CP_TEST.maakLabels(c, [
         { code:'DT140-1664', name:'DT140-1664 - Bureaublad Donker Eiken - 140x80 cm', ean:'8720704620428', stuks:30, dest:'UP' },
         { code:'4560WM', name:'4560WM - Whiteboard magnetisch 45x60', ean:'8720704620398', stuks:100, dest:'PICK' },
